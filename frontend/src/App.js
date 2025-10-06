@@ -3,7 +3,6 @@ import '@/App.css';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import LandingPage from '@/pages/LandingPage';
 import AuthPage from '@/pages/AuthPage';
-import Dashboard from '@/pages/Dashboard';
 import DiscoverPage from '@/pages/DiscoverPage';
 import MatchesPage from '@/pages/MatchesPage';
 import ChatPage from '@/pages/ChatPage';
