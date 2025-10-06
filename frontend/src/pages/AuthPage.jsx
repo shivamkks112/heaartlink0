@@ -74,20 +74,26 @@ const AuthPage = ({ onLogin }) => {
   const handleGoogleSignIn = async () => {
     setLoading(true);
     try {
+      console.log('🔍 Starting Google Sign-In...');
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
+      
+      console.log('✅ Google Sign-In successful:', user.email);
       
       // Check if user exists in backend, if not create account
       try {
         // Try login first
+        console.log('🔍 Checking if user exists in backend...');
         const loginResponse = await axios.post(`${API}/auth/login`, {
           email_or_phone: user.email,
           password: user.uid  // Use Firebase UID as password
         });
+        console.log('✅ User exists, logging in...');
         toast.success('Welcome back!');
         onLogin(loginResponse.data.user);
         navigate('/discover');
       } catch (loginError) {
+        console.log('ℹ️ User not found, creating new account...');
         // User doesn't exist, create account
         const signupData = {
           email: user.email,
@@ -103,13 +109,27 @@ const AuthPage = ({ onLogin }) => {
         };
         
         const signupResponse = await axios.post(`${API}/auth/signup`, signupData);
-        toast.success('Account created with Google!');
+        console.log('✅ Account created successfully');
+        toast.success('Account created with Google! 🎉');
         onLogin(signupResponse.data.user);
         navigate('/discover');
       }
     } catch (error) {
-      toast.error('Google Sign-In failed');
-      console.error('Google Sign-In error:', error);
+      console.error('❌ Google Sign-In error:', error);
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
+      
+      // Better error messages
+      if (error.code === 'auth/popup-closed-by-user') {
+        toast.error('Sign-in cancelled');
+      } else if (error.code === 'auth/popup-blocked') {
+        toast.error('Popup blocked! Please allow popups for this site');
+      } else if (error.code === 'auth/unauthorized-domain') {
+        toast.error('Domain not authorized. Please contact support.');
+        console.error('⚠️ Add this domain to Firebase Console → Authentication → Settings → Authorized domains');
+      } else {
+        toast.error('Google Sign-In failed. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
