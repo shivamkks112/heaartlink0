@@ -498,6 +498,104 @@ async def report_user(user_id: str, report: ReportUser):
     await db.reports.insert_one(report_doc)
     return {"message": "Report submitted"}
 
+# Admin Routes
+@api_router.get("/admin/users")
+async def get_users_for_verification(status: str = "pending"):
+    """Get users by verification status for admin review"""
+    query = {"verification_status": status}
+    users = await db.users.find(query).to_list(None)
+    
+    return [{
+        "id": u["id"],
+        "name": u["name"],
+        "age": u["age"],
+        "email": u.get("email"),
+        "phone": u.get("phone"),
+        "gender": u["gender"],
+        "looking_for": u["looking_for"],
+        "bio": u.get("bio", ""),
+        "location": u.get("location", ""),
+        "interests": u.get("interests", []),
+        "profile_picture": u.get("profile_picture"),
+        "verification_status": u.get("verification_status", "pending"),
+        "verified": u.get("verified", False),
+        "rejection_reason": u.get("rejection_reason"),
+        "created_at": u.get("created_at")
+    } for u in users]
+
+@api_router.post("/admin/verify-user")
+async def admin_verify_user(verification: AdminVerification):
+    """Admin manually verifies or rejects a user"""
+    user = await db.users.find_one({"id": verification.user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if verification.action == "approve":
+        # Approve user
+        await db.users.update_one(
+            {"id": verification.user_id},
+            {"$set": {
+                "verified": True,
+                "verification_status": "verified",
+                "verified_by": verification.verified_by,
+                "verified_at": datetime.now(timezone.utc).isoformat()
+            }}
+        )
+        
+        # Log verification
+        await db.verification_logs.insert_one({
+            "id": str(uuid.uuid4()),
+            "user_id": verification.user_id,
+            "action": "approved",
+            "verified_by": verification.verified_by,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+        
+        return {"message": "User verified successfully"}
+    
+    elif verification.action == "reject":
+        # Reject user
+        await db.users.update_one(
+            {"id": verification.user_id},
+            {"$set": {
+                "verified": False,
+                "verification_status": "rejected",
+                "rejection_reason": verification.reason,
+                "rejected_by": verification.verified_by,
+                "rejected_at": datetime.now(timezone.utc).isoformat()
+            }}
+        )
+        
+        # Log rejection
+        await db.verification_logs.insert_one({
+            "id": str(uuid.uuid4()),
+            "user_id": verification.user_id,
+            "action": "rejected",
+            "reason": verification.reason,
+            "rejected_by": verification.verified_by,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+        
+        return {"message": "User rejected"}
+    
+    else:
+        raise HTTPException(status_code=400, detail="Invalid action")
+
+@api_router.get("/admin/stats")
+async def get_admin_stats():
+    """Get verification statistics"""
+    total_users = await db.users.count_documents({})
+    pending = await db.users.count_documents({"verification_status": "pending"})
+    verified = await db.users.count_documents({"verification_status": "verified"})
+    rejected = await db.users.count_documents({"verification_status": "rejected"})
+    
+    return {
+        "total_users": total_users,
+        "pending_verification": pending,
+        "verified": verified,
+        "rejected": rejected
+    }
+
 # Discovery Routes
 @api_router.get("/discover/{user_id}")
 async def discover_users(user_id: str, limit: int = 10):
