@@ -308,6 +308,35 @@ async def upload_photo(user_id: str, photo_data: str = Form(...)):
     await db.users.update_one({"id": user_id}, {"$set": {"photos": photos}})
     return {"message": "Photo uploaded", "photo_count": len(photos)}
 
+@api_router.post("/profile/{user_id}/profile-picture")
+async def upload_profile_picture(user_id: str, image_data: str = Form(...)):
+    """Upload profile picture as base64"""
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Update profile picture
+    await db.users.update_one(
+        {"id": user_id}, 
+        {"$set": {"profile_picture": image_data}}
+    )
+    
+    return {"message": "Profile picture updated successfully", "profile_picture": image_data}
+
+@api_router.delete("/profile/{user_id}/profile-picture")
+async def delete_profile_picture(user_id: str):
+    """Delete profile picture"""
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    await db.users.update_one(
+        {"id": user_id}, 
+        {"$set": {"profile_picture": None}}
+    )
+    
+    return {"message": "Profile picture deleted"}
+
 # Privacy Routes
 @api_router.put("/privacy/{user_id}")
 async def update_privacy(user_id: str, privacy: PrivacyUpdate):
