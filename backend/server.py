@@ -727,6 +727,7 @@ async def get_matches(user_id: str):
                     "name": other_user["name"],
                     "age": other_user["age"],
                     "photos": other_user.get("photos", []),
+                    "profile_picture": other_user.get("profile_picture"),
                     "verified": other_user.get("verified", False)
                 },
                 "compatibility_score": match.get("compatibility_score"),
@@ -735,6 +736,53 @@ async def get_matches(user_id: str):
             })
     
     return result
+
+@api_router.get("/active-users/{user_id}")
+async def get_active_users(user_id: str, limit: int = 20):
+    """Get recently active users who are not blocked and not matched"""
+    current_user = await db.users.find_one({"id": user_id})
+    if not current_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Get blocked users
+    blocked_users = current_user.get("blocked_users", [])
+    
+    # Find users who blocked current user
+    blockers = await db.users.find({"blocked_users": user_id}).to_list(None)
+    blocker_ids = [u["id"] for u in blockers]
+    
+    # Get already matched users
+    matches = await db.matches.find({
+        "$or": [{"user1_id": user_id}, {"user2_id": user_id}],
+        "matched": True
+    }).to_list(None)
+    matched_ids = set()
+    for m in matches:
+        matched_ids.add(m["user1_id"])
+        matched_ids.add(m["user2_id"])
+    
+    # Find active users (users created/updated recently)
+    # You can add last_active field in future
+    query = {
+        "id": {"$ne": user_id, "$nin": blocked_users + blocker_ids + list(matched_ids)},
+        "gender": current_user["looking_for"],
+        "looking_for": current_user["gender"],
+        "privacy_settings.show_profile": True
+    }
+    
+    users = await db.users.find(query).sort("created_at", -1).limit(limit).to_list(None)
+    
+    return [{
+        "id": u["id"],
+        "name": u["name"],
+        "age": u["age"],
+        "bio": u.get("bio", ""),
+        "photos": u.get("photos", []),
+        "profile_picture": u.get("profile_picture"),
+        "interests": u.get("interests", []),
+        "verified": u.get("verified", False),
+        "location": u.get("location", "")
+    } for u in users]
 
 # Chat Routes
 @api_router.get("/messages/{match_id}")
