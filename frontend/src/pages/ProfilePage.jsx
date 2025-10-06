@@ -7,6 +7,8 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
 import Navbar from '@/components/Navbar';
+import { storage } from '@/firebase/config';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -41,32 +43,31 @@ const ProfilePage = ({ user, onUpdate }) => {
     setUploadingPhoto(true);
 
     try {
-      // Convert to base64
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64String = reader.result;
-        
-        // Upload to backend
-        const formData = new URLSearchParams();
-        formData.append('image_data', base64String);
+      // Upload to Firebase Storage
+      const storageRef = ref(storage, `profile_pictures/${user.id}/${file.name}`);
+      await uploadBytes(storageRef, file);
+      
+      // Get download URL
+      const downloadURL = await getDownloadURL(storageRef);
+      
+      // Update backend with URL
+      const formData = new URLSearchParams();
+      formData.append('image_data', downloadURL);
 
-        const response = await axios.post(
-          `${API}/profile/${user.id}/profile-picture`,
-          formData,
-          {
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded',
-            },
-          }
-        );
+      await axios.post(
+        `${API}/profile/${user.id}/profile-picture`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+        }
+      );
 
-        // Update local user state
-        const updatedUser = { ...user, profile_picture: base64String };
-        onUpdate(updatedUser);
-        toast.success('Profile picture updated!');
-      };
-
-      reader.readAsDataURL(file);
+      // Update local user state
+      const updatedUser = { ...user, profile_picture: downloadURL };
+      onUpdate(updatedUser);
+      toast.success('Profile picture updated! 📸');
     } catch (error) {
       toast.error('Failed to upload profile picture');
       console.error('Upload error:', error);
@@ -80,7 +81,19 @@ const ProfilePage = ({ user, onUpdate }) => {
 
     setUploadingPhoto(true);
     try {
+      // Delete from Firebase Storage if URL exists
+      if (user.profile_picture && user.profile_picture.includes('firebase')) {
+        try {
+          const photoRef = ref(storage, user.profile_picture);
+          await deleteObject(photoRef);
+        } catch (error) {
+          console.log('Storage delete error:', error);
+        }
+      }
+      
+      // Delete from backend
       await axios.delete(`${API}/profile/${user.id}/profile-picture`);
+      
       const updatedUser = { ...user, profile_picture: null };
       onUpdate(updatedUser);
       toast.success('Profile picture deleted');
