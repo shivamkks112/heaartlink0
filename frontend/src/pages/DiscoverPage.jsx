@@ -111,7 +111,13 @@ const DiscoverPage = ({ user }) => {
         <div className="bg-white rounded-3xl shadow-2xl overflow-hidden relative" data-testid="profile-card">
           {/* Photo Section */}
           <div className="relative h-96 bg-gradient-to-br from-pink-200 to-orange-200">
-            {photos.length > 0 ? (
+            {currentProfile.profile_picture ? (
+              <img
+                src={currentProfile.profile_picture}
+                alt={currentProfile.name}
+                className="w-full h-full object-cover"
+              />
+            ) : photos.length > 0 ? (
               <img
                 src={photos[photoIndex]}
                 alt={currentProfile.name}
