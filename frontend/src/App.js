@@ -8,6 +8,7 @@ import MatchesPage from '@/pages/MatchesPage';
 import ChatPage from '@/pages/ChatPage';
 import ProfilePage from '@/pages/ProfilePage';
 import PrivacyPage from '@/pages/PrivacyPage';
+import InstallPrompt from '@/components/InstallPrompt';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -18,6 +19,9 @@ function App() {
     if (storedUser) {
       setUser(JSON.parse(storedUser));
     }
+
+    // Prevent pull-to-refresh on mobile
+    document.body.style.overscrollBehavior = 'none';
   }, []);
 
   const handleLogin = (userData) => {
@@ -43,6 +47,9 @@ function App() {
           <Route path="/privacy" element={user ? <PrivacyPage user={user} /> : <Navigate to="/" />} />
         </Routes>
       </BrowserRouter>
+      
+      {/* PWA Install Prompt */}
+      <InstallPrompt />
     </div>
   );
 }
