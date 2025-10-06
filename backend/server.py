@@ -90,6 +90,14 @@ class UserLogin(BaseModel):
     email_or_phone: str
     password: str
 
+class ForgotPasswordRequest(BaseModel):
+    email_or_phone: str
+
+class ResetPasswordRequest(BaseModel):
+    email_or_phone: str
+    reset_code: str
+    new_password: str
+
 class Match(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     user1_id: str
