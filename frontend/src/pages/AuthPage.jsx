@@ -212,6 +212,7 @@ const AuthPage = ({ onLogin }) => {
               </button>
             </form>
           ) : (
+          ) : (
             <form onSubmit={handleSignup} className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
               <div>
                 <Label htmlFor="signup-name" className="text-gray-700 font-semibold">Name</Label>
