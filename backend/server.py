@@ -268,6 +268,110 @@ async def login(credentials: UserLogin):
     
     return {"message": "Login successful", "user": User(**user).dict()}
 
+@api_router.post("/auth/forgot-password")
+async def forgot_password(request: ForgotPasswordRequest):
+    """Request password reset - generates 6-digit OTP"""
+    # Find user
+    user = await db.users.find_one({
+        "$or": [
+            {"email": request.email_or_phone},
+            {"phone": request.email_or_phone}
+        ]
+    })
+    
+    if not user:
+        # For security, don't reveal if user exists
+        return {"message": "If account exists, reset code has been sent"}
+    
+    # Generate 6-digit OTP
+    import random
+    reset_code = ''.join([str(random.randint(0, 9)) for _ in range(6)])
+    reset_expires = datetime.now(timezone.utc) + timedelta(minutes=15)  # 15 min expiry
+    
+    # Store reset code in database
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {
+            "password_reset_code": reset_code,
+            "password_reset_expires": reset_expires.isoformat()
+        }}
+    )
+    
+    # In production, send email/SMS here
+    # For now, log the code (development only)
+    logging.info(f"Password reset code for {request.email_or_phone}: {reset_code}")
+    
+    return {
+        "message": "Reset code sent successfully",
+        "reset_code": reset_code  # Remove this in production!
+    }
+
+@api_router.post("/auth/verify-reset-code")
+async def verify_reset_code(email_or_phone: str, reset_code: str):
+    """Verify the reset code"""
+    user = await db.users.find_one({
+        "$or": [
+            {"email": email_or_phone},
+            {"phone": email_or_phone}
+        ]
+    })
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Check if code exists and matches
+    if not user.get("password_reset_code"):
+        raise HTTPException(status_code=400, detail="No reset code requested")
+    
+    if user["password_reset_code"] != reset_code:
+        raise HTTPException(status_code=400, detail="Invalid reset code")
+    
+    # Check if code expired
+    expires_at = datetime.fromisoformat(user["password_reset_expires"])
+    if datetime.now(timezone.utc) > expires_at:
+        raise HTTPException(status_code=400, detail="Reset code expired")
+    
+    return {"message": "Code verified", "valid": True}
+
+@api_router.post("/auth/reset-password")
+async def reset_password(request: ResetPasswordRequest):
+    """Reset password using verified code"""
+    # Find user
+    user = await db.users.find_one({
+        "$or": [
+            {"email": request.email_or_phone},
+            {"phone": request.email_or_phone}
+        ]
+    })
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Verify code
+    if not user.get("password_reset_code"):
+        raise HTTPException(status_code=400, detail="No reset code requested")
+    
+    if user["password_reset_code"] != request.reset_code:
+        raise HTTPException(status_code=400, detail="Invalid reset code")
+    
+    # Check if code expired
+    expires_at = datetime.fromisoformat(user["password_reset_expires"])
+    if datetime.now(timezone.utc) > expires_at:
+        raise HTTPException(status_code=400, detail="Reset code expired")
+    
+    # Update password
+    new_password_hash = hash_password(request.new_password)
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {
+            "password_hash": new_password_hash,
+            "password_reset_code": None,
+            "password_reset_expires": None
+        }}
+    )
+    
+    return {"message": "Password reset successful"}
+
 # Profile Routes
 @api_router.get("/profile/{user_id}")
 async def get_profile(user_id: str):
