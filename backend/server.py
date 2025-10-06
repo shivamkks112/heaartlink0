@@ -66,6 +66,7 @@ class User(BaseModel):
     interests: List[str] = []
     verified: bool = False
     verification_status: str = "pending"  # pending, verified, rejected
+    is_admin: bool = False  # Admin flag
     privacy_settings: Dict = Field(default_factory=lambda: {
         "show_profile": True,
         "show_photos": True,
