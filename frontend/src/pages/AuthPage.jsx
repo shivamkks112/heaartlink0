@@ -71,6 +71,50 @@ const AuthPage = ({ onLogin }) => {
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+      
+      // Check if user exists in backend, if not create account
+      try {
+        // Try login first
+        const loginResponse = await axios.post(`${API}/auth/login`, {
+          email_or_phone: user.email,
+          password: user.uid  // Use Firebase UID as password
+        });
+        toast.success('Welcome back!');
+        onLogin(loginResponse.data.user);
+        navigate('/discover');
+      } catch (loginError) {
+        // User doesn't exist, create account
+        const signupData = {
+          email: user.email,
+          phone: user.phoneNumber || '',
+          password: user.uid,
+          name: user.displayName || 'User',
+          age: 25,  // Default, user can update
+          gender: 'Male',  // Default
+          looking_for: 'Female',  // Default
+          bio: '',
+          location: '',
+          interests: []
+        };
+        
+        const signupResponse = await axios.post(`${API}/auth/signup`, signupData);
+        toast.success('Account created with Google!');
+        onLogin(signupResponse.data.user);
+        navigate('/discover');
+      }
+    } catch (error) {
+      toast.error('Google Sign-In failed');
+      console.error('Google Sign-In error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 px-4 py-12">
       <Toaster position="top-center" />
