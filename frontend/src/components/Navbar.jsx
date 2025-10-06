@@ -85,6 +85,21 @@ const Navbar = ({ user }) => {
               <span className="hidden sm:inline">Privacy</span>
             </button>
 
+            {user.is_admin && (
+              <button
+                data-testid="nav-admin"
+                onClick={() => navigate('/admin')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl font-semibold transition-all ${
+                  isActive('/admin')
+                    ? 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white'
+                    : 'text-purple-600 hover:bg-purple-50'
+                }`}
+              >
+                <Shield className="w-5 h-5" />
+                <span className="hidden sm:inline">Admin</span>
+              </button>
+            )}
+
             <button
               data-testid="nav-logout"
               onClick={handleLogout}
