@@ -171,8 +171,16 @@ const ChatPage = ({ user }) => {
           
           {otherUser && (
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-pink-400 to-orange-400 flex items-center justify-center text-white font-bold text-lg">
-                {otherUser.name.charAt(0)}
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-pink-400 to-orange-400 flex items-center justify-center text-white font-bold text-lg overflow-hidden">
+                {otherUser.profile_picture ? (
+                  <img 
+                    src={otherUser.profile_picture} 
+                    alt={otherUser.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  otherUser.name.charAt(0)
+                )}
               </div>
               <div>
                 <h2 className="font-bold text-gray-900">{otherUser.name}</h2>
