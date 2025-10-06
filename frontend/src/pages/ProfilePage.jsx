@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import axios from 'axios';
-import { User, Mail, Phone, MapPin, Hash, Award, Camera } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Hash, Award, Camera, Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,12 +14,82 @@ const API = `${BACKEND_URL}/api`;
 const ProfilePage = ({ user, onUpdate }) => {
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [profileData, setProfileData] = useState({
     name: user.name || '',
     bio: user.bio || '',
     location: user.location || '',
     interests: user.interests ? user.interests.join(', ') : ''
   });
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image size should be less than 5MB');
+      return;
+    }
+
+    setUploadingPhoto(true);
+
+    try {
+      // Convert to base64
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64String = reader.result;
+        
+        // Upload to backend
+        const formData = new URLSearchParams();
+        formData.append('image_data', base64String);
+
+        const response = await axios.post(
+          `${API}/profile/${user.id}/profile-picture`,
+          formData,
+          {
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+          }
+        );
+
+        // Update local user state
+        const updatedUser = { ...user, profile_picture: base64String };
+        onUpdate(updatedUser);
+        toast.success('Profile picture updated!');
+      };
+
+      reader.readAsDataURL(file);
+    } catch (error) {
+      toast.error('Failed to upload profile picture');
+      console.error('Upload error:', error);
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const handleDeletePhoto = async () => {
+    if (!window.confirm('Delete profile picture?')) return;
+
+    setUploadingPhoto(true);
+    try {
+      await axios.delete(`${API}/profile/${user.id}/profile-picture`);
+      const updatedUser = { ...user, profile_picture: null };
+      onUpdate(updatedUser);
+      toast.success('Profile picture deleted');
+    } catch (error) {
+      toast.error('Failed to delete profile picture');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
 
   const handleUpdate = async (e) => {
     e.preventDefault();
@@ -63,11 +133,56 @@ const ProfilePage = ({ user, onUpdate }) => {
       
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
-          {/* Header */}
+          {/* Header with Profile Picture */}
           <div className="bg-gradient-to-r from-pink-500 via-rose-500 to-orange-500 px-8 py-12 text-white text-center relative">
-            <div className="w-32 h-32 mx-auto bg-white rounded-full flex items-center justify-center mb-4 shadow-xl">
-              <User className="w-16 h-16 text-gray-400" />
+            <div className="relative inline-block mb-4">
+              <div className="w-32 h-32 mx-auto bg-white rounded-full flex items-center justify-center shadow-xl overflow-hidden">
+                {user.profile_picture ? (
+                  <img 
+                    src={user.profile_picture} 
+                    alt={user.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <User className="w-16 h-16 text-gray-400" />
+                )}
+              </div>
+              
+              {/* Upload/Delete buttons */}
+              <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 flex gap-2">
+                <label 
+                  htmlFor="profile-picture-upload"
+                  className="bg-white text-pink-600 p-2 rounded-full shadow-lg cursor-pointer hover:bg-gray-50 transition-all"
+                  data-testid="upload-photo-btn"
+                >
+                  {uploadingPhoto ? (
+                    <div className="w-5 h-5 border-2 border-pink-600 border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    <Camera className="w-5 h-5" />
+                  )}
+                </label>
+                <input
+                  id="profile-picture-upload"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                  disabled={uploadingPhoto}
+                />
+                
+                {user.profile_picture && (
+                  <button
+                    onClick={handleDeletePhoto}
+                    disabled={uploadingPhoto}
+                    className="bg-white text-red-600 p-2 rounded-full shadow-lg hover:bg-gray-50 transition-all"
+                    data-testid="delete-photo-btn"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                )}
+              </div>
             </div>
+            
             <h1 className="text-3xl font-bold mb-2">{user.name}, {user.age}</h1>
             <div className="flex items-center justify-center gap-2">
               {user.verified ? (
