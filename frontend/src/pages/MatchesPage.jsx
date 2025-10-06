@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Heart, MessageCircle, Sparkles } from 'lucide-react';
+import { Heart, MessageCircle, Sparkles, Users, Zap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
 import Navbar from '@/components/Navbar';
+import { Button } from '@/components/ui/button';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -12,19 +13,38 @@ const API = `${BACKEND_URL}/api`;
 const MatchesPage = ({ user }) => {
   const navigate = useNavigate();
   const [matches, setMatches] = useState([]);
+  const [activeUsers, setActiveUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('matches'); // 'matches' or 'active'
 
   useEffect(() => {
-    fetchMatches();
-  }, []);
+    if (activeTab === 'matches') {
+      fetchMatches();
+    } else {
+      fetchActiveUsers();
+    }
+  }, [activeTab]);
 
   const fetchMatches = async () => {
+    setLoading(true);
     try {
       const response = await axios.get(`${API}/matches/${user.id}`);
       setMatches(response.data);
       setLoading(false);
     } catch (error) {
       toast.error('Failed to load matches');
+      setLoading(false);
+    }
+  };
+
+  const fetchActiveUsers = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.get(`${API}/active-users/${user.id}`);
+      setActiveUsers(response.data);
+      setLoading(false);
+    } catch (error) {
+      toast.error('Failed to load active users');
       setLoading(false);
     }
   };
