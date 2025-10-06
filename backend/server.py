@@ -134,6 +134,12 @@ class PrivacyUpdate(BaseModel):
     show_photos: Optional[bool] = None
     incognito_mode: Optional[bool] = None
 
+class AdminVerification(BaseModel):
+    user_id: str
+    action: str  # 'approve' or 'reject'
+    reason: Optional[str] = None
+    verified_by: str
+
 # Helper functions
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
