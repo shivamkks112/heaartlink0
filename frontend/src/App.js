@@ -41,6 +41,7 @@ function App() {
         <Routes>
           <Route path="/" element={!user ? <LandingPage /> : <Navigate to="/discover" />} />
           <Route path="/auth" element={!user ? <AuthPage onLogin={handleLogin} /> : <Navigate to="/discover" />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/discover" element={user ? <DiscoverPage user={user} /> : <Navigate to="/" />} />
           <Route path="/matches" element={user ? <MatchesPage user={user} /> : <Navigate to="/" />} />
           <Route path="/chat/:matchId" element={user ? <ChatPage user={user} /> : <Navigate to="/" />} />
