@@ -75,7 +75,13 @@ const MatchesPage = ({ user }) => {
                 onClick={() => navigate(`/chat/${match.match_id}`)}
               >
                 <div className="relative h-64 bg-gradient-to-br from-pink-200 to-orange-200">
-                  {match.user.photos && match.user.photos.length > 0 ? (
+                  {match.user.profile_picture ? (
+                    <img
+                      src={match.user.profile_picture}
+                      alt={match.user.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : match.user.photos && match.user.photos.length > 0 ? (
                     <img
                       src={match.user.photos[0]}
                       alt={match.user.name}
