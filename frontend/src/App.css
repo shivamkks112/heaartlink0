@@ -159,6 +159,61 @@ h1, h2, h3 {
   .mobile-padding {
     padding: 1rem;
   }
+
+  /* Enhanced mobile animations */
+  .hover-lift:active {
+    transform: translateY(-4px) scale(0.98);
+  }
+
+  /* Mobile-optimized gradients */
+  .animate-gradient {
+    background-size: 200% 200%;
+  }
+
+  /* Touch-friendly navigation */
+  nav .flex {
+    gap: 0.25rem;
+  }
+
+  /* Mobile card improvements */
+  .mobile-card {
+    margin: 0.5rem;
+    border-radius: 1.5rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  }
+}
+
+/* Enhanced tablet responsiveness */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .grid-responsive {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Large screen optimizations */
+@media (min-width: 1400px) {
+  .hero-container {
+    max-width: 1400px;
+  }
+}
+
+/* Dark mode support (future-ready) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --text-primary: #ffffff;
+    --text-secondary: #e5e5e5;
+    --background-primary: #1a1a1a;
+    --background-secondary: #2d2d2d;
+  }
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* Prevent double-tap zoom */
