@@ -42,14 +42,14 @@
       "label": "Chat with your matches in real-time"
     }
   ],
-  "start_url": "https://linkhearts-app.preview.emergentagent.com/",
+  "start_url": "https://heartlink.co.in/",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
   "theme_color": "#ff6b9d",
   "background_color": "#ffeef8",
   "orientation": "portrait",
   "categories": ["social", "lifestyle"],
-  "scope": "https://linkhearts-app.preview.emergentagent.com/",
+  "scope": "https://heartlink.co.in/",
   "shortcuts": [
     {
       "name": "Discover",
