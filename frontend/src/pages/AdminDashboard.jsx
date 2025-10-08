@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
 import Navbar from '@/components/Navbar';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://linkhearts-app.preview.emergentagent.com';
 const API = `${BACKEND_URL}/api`;
 
 const AdminDashboard = ({ user }) => {
