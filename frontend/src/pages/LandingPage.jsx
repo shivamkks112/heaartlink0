@@ -86,64 +86,70 @@ const LandingPage = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <div className="bg-gradient-to-br from-pink-50 to-rose-50 p-8 rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
-              <div className="bg-gradient-to-br from-pink-500 to-rose-500 w-14 h-14 rounded-2xl flex items-center justify-center mb-4">
-                <Sparkles className="w-7 h-7 text-white" />
+            <div className="bg-gradient-to-br from-pink-50 to-rose-50 p-8 rounded-3xl shadow-soft hover:shadow-elevated transition-all duration-500 transform hover:-translate-y-4 hover:scale-105 group hover-lift animate-bounce-in" style={{animationDelay: '0.1s'}}>
+              <div className="bg-gradient-to-br from-pink-500 to-rose-500 w-14 h-14 rounded-2xl flex items-center justify-center mb-6 group-hover:animate-heart-beat transition-all duration-300">
+                <Sparkles className="w-7 h-7 text-white group-hover:animate-pulse" />
               </div>
-              <h3 className="text-2xl font-bold mb-3 text-gray-900">AI Matchmaking</h3>
-              <p className="text-gray-700">
+              <h3 className="text-2xl font-bold mb-4 text-gray-900 group-hover:text-pink-600 transition-colors">AI Matchmaking</h3>
+              <p className="text-gray-700 leading-relaxed">
                 Our advanced AI analyzes profiles and interests to find your perfect match with compatibility scores
               </p>
+              <div className="mt-4 w-0 group-hover:w-full h-0.5 bg-gradient-to-r from-pink-500 to-rose-500 transition-all duration-500"></div>
             </div>
 
-            <div className="bg-gradient-to-br from-orange-50 to-amber-50 p-8 rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
-              <div className="bg-gradient-to-br from-orange-500 to-amber-500 w-14 h-14 rounded-2xl flex items-center justify-center mb-4">
-                <MessageCircle className="w-7 h-7 text-white" />
+            <div className="bg-gradient-to-br from-orange-50 to-amber-50 p-8 rounded-3xl shadow-soft hover:shadow-elevated transition-all duration-500 transform hover:-translate-y-4 hover:scale-105 group hover-lift animate-bounce-in" style={{animationDelay: '0.2s'}}>
+              <div className="bg-gradient-to-br from-orange-500 to-amber-500 w-14 h-14 rounded-2xl flex items-center justify-center mb-6 group-hover:animate-heart-beat transition-all duration-300">
+                <MessageCircle className="w-7 h-7 text-white group-hover:animate-pulse" />
               </div>
-              <h3 className="text-2xl font-bold mb-3 text-gray-900">Real-Time Chat</h3>
-              <p className="text-gray-700">
+              <h3 className="text-2xl font-bold mb-4 text-gray-900 group-hover:text-orange-600 transition-colors">Real-Time Chat</h3>
+              <p className="text-gray-700 leading-relaxed">
                 Instant messaging with matched users. Connect and chat seamlessly in real-time
               </p>
+              <div className="mt-4 w-0 group-hover:w-full h-0.5 bg-gradient-to-r from-orange-500 to-amber-500 transition-all duration-500"></div>
             </div>
 
-            <div className="bg-gradient-to-br from-purple-50 to-pink-50 p-8 rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
-              <div className="bg-gradient-to-br from-purple-500 to-pink-500 w-14 h-14 rounded-2xl flex items-center justify-center mb-4">
-                <Shield className="w-7 h-7 text-white" />
+            <div className="bg-gradient-to-br from-purple-50 to-pink-50 p-8 rounded-3xl shadow-soft hover:shadow-elevated transition-all duration-500 transform hover:-translate-y-4 hover:scale-105 group hover-lift animate-bounce-in" style={{animationDelay: '0.3s'}}>
+              <div className="bg-gradient-to-br from-purple-500 to-pink-500 w-14 h-14 rounded-2xl flex items-center justify-center mb-6 group-hover:animate-heart-beat transition-all duration-300">
+                <Shield className="w-7 h-7 text-white group-hover:animate-pulse" />
               </div>
-              <h3 className="text-2xl font-bold mb-3 text-gray-900">Privacy Control</h3>
-              <p className="text-gray-700">
+              <h3 className="text-2xl font-bold mb-4 text-gray-900 group-hover:text-purple-600 transition-colors">Privacy Control</h3>
+              <p className="text-gray-700 leading-relaxed">
                 Complete control over your profile visibility with incognito mode and privacy settings
               </p>
+              <div className="mt-4 w-0 group-hover:w-full h-0.5 bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-500"></div>
             </div>
 
-            <div className="bg-gradient-to-br from-blue-50 to-cyan-50 p-8 rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
-              <div className="bg-gradient-to-br from-blue-500 to-cyan-500 w-14 h-14 rounded-2xl flex items-center justify-center mb-4">
-                <Users className="w-7 h-7 text-white" />
+            <div className="bg-gradient-to-br from-blue-50 to-cyan-50 p-8 rounded-3xl shadow-soft hover:shadow-elevated transition-all duration-500 transform hover:-translate-y-4 hover:scale-105 group hover-lift animate-bounce-in" style={{animationDelay: '0.4s'}}>
+              <div className="bg-gradient-to-br from-blue-500 to-cyan-500 w-14 h-14 rounded-2xl flex items-center justify-center mb-6 group-hover:animate-heart-beat transition-all duration-300">
+                <Users className="w-7 h-7 text-white group-hover:animate-pulse" />
               </div>
-              <h3 className="text-2xl font-bold mb-3 text-gray-900">Smart Discovery</h3>
-              <p className="text-gray-700">
+              <h3 className="text-2xl font-bold mb-4 text-gray-900 group-hover:text-blue-600 transition-colors">Smart Discovery</h3>
+              <p className="text-gray-700 leading-relaxed">
                 Browse profiles based on preferences, location, and interests with intelligent filtering
               </p>
+              <div className="mt-4 w-0 group-hover:w-full h-0.5 bg-gradient-to-r from-blue-500 to-cyan-500 transition-all duration-500"></div>
             </div>
 
-            <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-8 rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
-              <div className="bg-gradient-to-br from-green-500 to-emerald-500 w-14 h-14 rounded-2xl flex items-center justify-center mb-4">
-                <Award className="w-7 h-7 text-white" />
+            <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-8 rounded-3xl shadow-soft hover:shadow-elevated transition-all duration-500 transform hover:-translate-y-4 hover:scale-105 group hover-lift animate-bounce-in" style={{animationDelay: '0.5s'}}>
+              <div className="bg-gradient-to-br from-green-500 to-emerald-500 w-14 h-14 rounded-2xl flex items-center justify-center mb-6 group-hover:animate-heart-beat transition-all duration-300">
+                <Award className="w-7 h-7 text-white group-hover:animate-pulse" />
               </div>
-              <h3 className="text-2xl font-bold mb-3 text-gray-900">Profile Verification</h3>
-              <p className="text-gray-700">
+              <h3 className="text-2xl font-bold mb-4 text-gray-900 group-hover:text-green-600 transition-colors">Profile Verification</h3>
+              <p className="text-gray-700 leading-relaxed">
                 AI-powered profile verification ensures authentic users and safer connections
               </p>
+              <div className="mt-4 w-0 group-hover:w-full h-0.5 bg-gradient-to-r from-green-500 to-emerald-500 transition-all duration-500"></div>
             </div>
 
-            <div className="bg-gradient-to-br from-red-50 to-pink-50 p-8 rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
-              <div className="bg-gradient-to-br from-red-500 to-pink-500 w-14 h-14 rounded-2xl flex items-center justify-center mb-4">
-                <Heart className="w-7 h-7 text-white" />
+            <div className="bg-gradient-to-br from-red-50 to-pink-50 p-8 rounded-3xl shadow-soft hover:shadow-elevated transition-all duration-500 transform hover:-translate-y-4 hover:scale-105 group hover-lift animate-bounce-in" style={{animationDelay: '0.6s'}}>
+              <div className="bg-gradient-to-br from-red-500 to-pink-500 w-14 h-14 rounded-2xl flex items-center justify-center mb-6 group-hover:animate-heart-beat transition-all duration-300">
+                <Heart className="w-7 h-7 text-white group-hover:animate-pulse" />
               </div>
-              <h3 className="text-2xl font-bold mb-3 text-gray-900">Block & Report</h3>
-              <p className="text-gray-700">
+              <h3 className="text-2xl font-bold mb-4 text-gray-900 group-hover:text-red-600 transition-colors">Block & Report</h3>
+              <p className="text-gray-700 leading-relaxed">
                 Safety first! Block users and report inappropriate behavior instantly
               </p>
+              <div className="mt-4 w-0 group-hover:w-full h-0.5 bg-gradient-to-r from-red-500 to-pink-500 transition-all duration-500"></div>
             </div>
           </div>
         </div>
