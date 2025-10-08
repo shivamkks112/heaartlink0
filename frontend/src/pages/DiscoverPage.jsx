@@ -70,9 +70,13 @@ const DiscoverPage = ({ user }) => {
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-pink-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 font-semibold">Finding matches...</p>
+        <div className="text-center animate-bounce-in">
+          <div className="w-20 h-20 border-4 border-pink-500 border-t-transparent rounded-full animate-spin mx-auto mb-6 shadow-glow"></div>
+          <div className="bg-white rounded-2xl p-6 shadow-elevated glass-effect">
+            <Heart className="w-12 h-12 text-pink-500 mx-auto mb-4 animate-heart-beat" />
+            <p className="text-gray-700 font-semibold text-lg">Finding your perfect matches...</p>
+            <p className="text-gray-500 text-sm mt-2">AI is analyzing compatibility</p>
+          </div>
         </div>
       </div>
     );
