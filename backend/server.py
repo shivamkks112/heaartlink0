@@ -500,6 +500,17 @@ async def report_user(user_id: str, report: ReportUser):
     return {"message": "Report submitted"}
 
 # Admin Routes
+@api_router.get("/admin/all-users")
+async def get_all_users():
+    """Get all users (for admin testing)"""
+    users = await db.users.find({}).to_list(None)
+    return [{
+        "id": u["id"],
+        "name": u["name"],
+        "email": u.get("email"),
+        "is_admin": u.get("is_admin", False)
+    } for u in users]
+
 @api_router.post("/admin/make-admin/{user_id}")
 async def make_user_admin(user_id: str):
     """Make a user admin (for testing purposes)"""
@@ -513,6 +524,20 @@ async def make_user_admin(user_id: str):
     )
     
     return {"message": f"User {user['name']} is now an admin"}
+
+@api_router.post("/admin/make-admin-by-email")
+async def make_user_admin_by_email(email: str = "admin@heartlink.com"):
+    """Make a user admin by email (for testing purposes)"""
+    user = await db.users.find_one({"email": email})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    await db.users.update_one(
+        {"email": email},
+        {"$set": {"is_admin": True}}
+    )
+    
+    return {"message": f"User {user['name']} with email {email} is now an admin"}
 
 @api_router.get("/admin/users")
 async def get_users_for_verification(status: str = "pending"):
