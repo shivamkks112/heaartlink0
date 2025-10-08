@@ -42,7 +42,7 @@
       "label": "Chat with your matches in real-time"
     }
   ],
-  "start_url": "/",
+  "start_url": "https://linkhearts-app.preview.emergentagent.com/",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
   "theme_color": "#ff6b9d",
