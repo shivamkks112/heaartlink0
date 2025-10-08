@@ -112,26 +112,29 @@ const DiscoverPage = ({ user }) => {
       <Navbar user={user} />
       
       <div className="max-w-2xl mx-auto px-4 py-8">
-        <div className="bg-white rounded-3xl shadow-2xl overflow-hidden relative" data-testid="profile-card">
-          {/* Photo Section */}
-          <div className="relative h-96 bg-gradient-to-br from-pink-200 to-orange-200">
+        <div className="bg-white rounded-3xl shadow-elevated overflow-hidden relative hover-lift transition-all duration-300" data-testid="profile-card">
+          {/* Photo Section with enhanced animations */}
+          <div className="relative h-96 bg-gradient-to-br from-pink-200 to-orange-200 overflow-hidden group">
             {currentProfile.profile_picture ? (
               <img
                 src={currentProfile.profile_picture}
                 alt={currentProfile.name}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
               />
             ) : photos.length > 0 ? (
               <img
                 src={photos[photoIndex]}
                 alt={currentProfile.name}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
-                <Heart className="w-24 h-24 text-white" />
+                <Heart className="w-24 h-24 text-white animate-heart-beat" />
               </div>
             )}
+
+            {/* Gradient overlay for better text visibility */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
 
             {/* Photo Navigation */}
             {hasMultiplePhotos && (
