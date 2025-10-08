@@ -10,47 +10,65 @@ const LandingPage = () => {
     <div className="min-h-screen">
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50"></div>
+        {/* Enhanced gradient background */}
+        <div className="absolute inset-0 animate-gradient bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50"></div>
         
-        {/* Decorative elements */}
+        {/* Enhanced decorative elements with better animations */}
         <div className="absolute top-20 left-10 w-72 h-72 bg-pink-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
         <div className="absolute top-20 right-10 w-72 h-72 bg-orange-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
         <div className="absolute bottom-20 left-1/2 w-72 h-72 bg-rose-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
         
+        {/* Floating particles effect */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-pink-400 rounded-full animate-bounce opacity-40" style={{animationDelay: '0s'}}></div>
+          <div className="absolute top-1/3 right-1/3 w-1 h-1 bg-orange-400 rounded-full animate-bounce opacity-40" style={{animationDelay: '1s'}}></div>
+          <div className="absolute bottom-1/4 left-1/3 w-3 h-3 bg-rose-400 rounded-full animate-bounce opacity-40" style={{animationDelay: '2s'}}></div>
+          <div className="absolute top-1/2 right-1/4 w-2 h-2 bg-pink-400 rounded-full animate-bounce opacity-40" style={{animationDelay: '3s'}}></div>
+        </div>
+        
         <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="flex justify-center mb-6">
-            <div className="bg-gradient-to-r from-pink-500 to-orange-500 p-4 rounded-3xl shadow-2xl">
-              <Heart className="w-16 h-16 text-white" fill="white" />
+          <div className="flex justify-center mb-8 animate-bounce-in">
+            <div className="bg-gradient-to-r from-pink-500 to-orange-500 p-4 rounded-3xl shadow-2xl animate-glow hover-lift">
+              <Heart className="w-16 h-16 text-white animate-heart-beat" fill="white" />
             </div>
           </div>
           
-          <h1 className="text-6xl sm:text-7xl lg:text-8xl font-bold mb-6 bg-gradient-to-r from-pink-600 via-rose-600 to-orange-600 bg-clip-text text-transparent">
+          <h1 className="text-6xl sm:text-7xl lg:text-8xl font-bold mb-6 bg-gradient-to-r from-pink-600 via-rose-600 to-orange-600 bg-clip-text text-transparent animate-slide-in-down">
             HeartLink
           </h1>
           
-          <p className="text-xl sm:text-2xl lg:text-3xl text-gray-700 mb-4 font-medium">
+          <p className="text-xl sm:text-2xl lg:text-3xl text-gray-700 mb-4 font-medium animate-fade-in" style={{animationDelay: '0.2s'}}>
             Where Hearts Meet, Powered by AI
           </p>
           
-          <p className="text-base sm:text-lg text-gray-600 mb-10 max-w-2xl mx-auto">
+          <p className="text-base sm:text-lg text-gray-600 mb-10 max-w-2xl mx-auto animate-fade-in" style={{animationDelay: '0.4s'}}>
             India's most advanced dating platform with AI matchmaking, real-time chat, and complete privacy control
           </p>
           
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center animate-slide-in-up" style={{animationDelay: '0.6s'}}>
             <Button
               data-testid="get-started-btn"
               onClick={() => navigate('/auth')}
-              className="bg-gradient-to-r from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600 text-white px-8 py-6 text-lg rounded-full shadow-lg transform hover:scale-105 transition-all duration-300"
+              className="bg-gradient-to-r from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600 text-white px-8 py-6 text-lg rounded-full shadow-glow transform hover:scale-110 transition-all duration-300 hover-lift relative overflow-hidden group"
             >
-              Get Started Free
+              <span className="relative z-10">Get Started Free</span>
+              <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity duration-300"></div>
             </Button>
             <Button
               data-testid="learn-more-btn"
               onClick={() => document.getElementById('features').scrollIntoView({ behavior: 'smooth' })}
-              className="bg-white hover:bg-gray-50 text-gray-800 px-8 py-6 text-lg rounded-full shadow-lg border-2 border-gray-200 transform hover:scale-105 transition-all duration-300"
+              className="bg-white hover:bg-gray-50 text-gray-800 px-8 py-6 text-lg rounded-full shadow-soft border-2 border-gray-200 transform hover:scale-110 transition-all duration-300 hover-lift glass-effect"
             >
               Learn More
             </Button>
+          </div>
+
+          {/* Scroll indicator */}
+          <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce">
+            <div className="w-6 h-10 border-2 border-gray-400 rounded-full flex justify-center">
+              <div className="w-1 h-3 bg-gray-400 rounded-full mt-2 animate-pulse"></div>
+            </div>
+            <p className="text-gray-500 text-sm mt-2">Scroll to explore</p>
           </div>
         </div>
       </section>
