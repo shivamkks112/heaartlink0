@@ -176,30 +176,31 @@ def main():
     # Step 1: Check existing users
     existing_users = test_get_all_users()
     
-    # Step 2: Determine if we need to create a user or use existing one
-    admin_user_id = None
+    # Step 2: Always create a new test user with known credentials for reliable testing
+    print("\nCreating new test user with known credentials for reliable admin testing...")
+    admin_user_id, user_data = create_test_user()
     admin_credentials = None
     
-    if existing_users:
-        print(f"\nFound {len(existing_users)} existing users:")
-        for user in existing_users:
-            print(f"  - {user['name']} (ID: {user['id']}, Email: {user.get('email', 'N/A')}, Admin: {user.get('is_admin', False)})")
-        
-        # Use the first user for admin testing
-        admin_user_id = existing_users[0]["id"]
+    if admin_user_id:
         admin_credentials = {
-            "email": existing_users[0].get("email", ""),
-            "password": "AdminPass123!"  # We'll assume this password for existing users
+            "email": user_data["email"],
+            "password": user_data["password"]
         }
-        print(f"\nUsing existing user {existing_users[0]['name']} for admin testing")
     else:
-        print("\nNo existing users found. Creating test user...")
-        admin_user_id, user_data = create_test_user()
-        if admin_user_id:
-            admin_credentials = {
-                "email": user_data["email"],
-                "password": user_data["password"]
-            }
+        # Fallback to existing user if creation fails
+        if existing_users:
+            print(f"\nFallback: Using existing user for admin testing")
+            for user in existing_users:
+                print(f"  - {user['name']} (ID: {user['id']}, Email: {user.get('email', 'N/A')}, Admin: {user.get('is_admin', False)})")
+            
+            # Use the first non-admin user for testing
+            for user in existing_users:
+                if not user.get('is_admin', False):
+                    admin_user_id = user["id"]
+                    break
+            
+            if not admin_user_id and existing_users:
+                admin_user_id = existing_users[0]["id"]
     
     if not admin_user_id:
         print("❌ CRITICAL: Could not get or create a user for testing")
