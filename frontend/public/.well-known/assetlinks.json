@@ -5,9 +5,9 @@
     ],
     "target": {
       "namespace": "android_app",
-      "package_name": "host.exp.exponent",
+      "package_name": "com.heartlink.dating",
       "sha256_cert_fingerprints": [
-        "C3:84:A9:2F:83:5B:3E:9C:14:5B:9D:E1:E2:43:8C:87:13:71:90:9E:4A:F4:45:77:64:20:2E:6A:67:90:7D:90"
+        "AA:C9:EA:4C:63:D8:5F:06:50:87:2A:78:89:1D:10:F2:05:E0:89:E2:C6:23:15:39:77:4D:8B:79:4E:A0:8B:2B"
       ]
     }
   }
