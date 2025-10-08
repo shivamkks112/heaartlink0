@@ -33,7 +33,7 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https"
-                    android:host="linkhearts-app.preview.emergentagent.com" />
+                    android:host="heartlink.co.in" />
             </intent-filter>
 
             <meta-data android:name="android.support.customtabs.trusted.DEFAULT_URL"
