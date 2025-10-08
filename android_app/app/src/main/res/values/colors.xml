@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- HeartLink Brand Colors -->
+    <color name="primary_color">#EC4899</color>
+    <color name="primary_dark">#BE185D</color>
+    <color name="secondary_color">#F97316</color>
+    <color name="accent_color">#EF4444</color>
+    
+    <!-- Background Colors -->
+    <color name="splash_background">#FFEEF8</color>
+    <color name="background_light">#FFFFFF</color>
+    <color name="background_gradient_start">#FFEEF8</color>
+    <color name="background_gradient_end">#F0F9FF</color>
+    
+    <!-- Text Colors -->
+    <color name="text_primary">#1F2937</color>
+    <color name="text_secondary">#6B7280</color>
+    <color name="text_accent">#EC4899</color>
+    
+    <!-- System Colors -->
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+    <color name="transparent">#00000000</color>
+    
+    <!-- Status Bar -->
+    <color name="status_bar_color">#EC4899</color>
+    <color name="navigation_bar_color">#EC4899</color>
+</resources>
