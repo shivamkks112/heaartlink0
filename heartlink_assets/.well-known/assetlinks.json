@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "host.exp.exponent",
+      "sha256_cert_fingerprints": [
+        "C3:84:A9:2F:83:5B:3E:9C:14:5B:9D:E1:E2:43:8C:87:13:71:90:9E:4A:F4:45:77:64:20:2E:6A:67:90:7D:90"
+      ]
+    }
+  }
+]

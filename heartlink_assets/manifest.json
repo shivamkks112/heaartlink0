@@ -1,0 +1,56 @@
+{
+  "id": "heartlink-dating-app",
+  "short_name": "HeartLink",
+  "name": "HeartLink - Dating App",
+  "description": "India's most advanced dating platform with AI matchmaking, real-time chat, and complete privacy control.",
+  "lang": "en",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/screenshot-discover.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Discover profiles and find matches"
+    },
+    {
+      "src": "/screenshots/screenshot-matches.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "View your matches with AI compatibility scores"
+    },
+    {
+      "src": "/screenshots/screenshot-chat.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Chat with your matches in real-time"
+    }
+  ],
+  "start_url": "https://heartlink.co.in/",
+  "scope": "https://heartlink.co.in/",
+  "display": "standalone",
+  "display_override": [
+    "window-controls-overlay",
+    "standalone",
+    "minimal-ui"
+  ],
+  "theme_color": "#ff6b6b",
+  "background_color": "#ffe6ea",
+  "orientation": "portrait"
+}
