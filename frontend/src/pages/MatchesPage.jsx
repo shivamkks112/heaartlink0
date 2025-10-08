@@ -90,31 +90,31 @@ const MatchesPage = ({ user }) => {
           <p className="text-gray-600">Your matches and active users</p>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-4 mb-8">
+        {/* Enhanced Tabs */}
+        <div className="flex gap-4 mb-8 animate-slide-in-up" style={{animationDelay: '0.2s'}}>
           <Button
             data-testid="tab-matches"
             onClick={() => setActiveTab('matches')}
-            className={`flex-1 py-6 rounded-xl font-semibold text-lg transition-all ${
+            className={`flex-1 py-6 rounded-xl font-semibold text-lg transition-all duration-300 transform hover:scale-105 ${
               activeTab === 'matches'
-                ? 'bg-gradient-to-r from-pink-500 to-orange-500 text-white shadow-lg'
-                : 'bg-white text-gray-700 hover:bg-gray-50 border-2 border-gray-200'
+                ? 'bg-gradient-to-r from-pink-500 to-orange-500 text-white shadow-glow animate-glow'
+                : 'bg-white text-gray-700 hover:bg-gray-50 border-2 border-gray-200 hover:border-pink-300 hover-lift'
             }`}
           >
-            <Heart className="w-5 h-5 mr-2 inline" />
+            <Heart className={`w-5 h-5 mr-2 inline ${activeTab === 'matches' ? 'animate-heart-beat' : ''}`} />
             My Matches ({matches.length})
           </Button>
 
           <Button
             data-testid="tab-active"
             onClick={() => setActiveTab('active')}
-            className={`flex-1 py-6 rounded-xl font-semibold text-lg transition-all ${
+            className={`flex-1 py-6 rounded-xl font-semibold text-lg transition-all duration-300 transform hover:scale-105 ${
               activeTab === 'active'
-                ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg'
-                : 'bg-white text-gray-700 hover:bg-gray-50 border-2 border-gray-200'
+                ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-glow animate-glow'
+                : 'bg-white text-gray-700 hover:bg-gray-50 border-2 border-gray-200 hover:border-green-300 hover-lift'
             }`}
           >
-            <Zap className="w-5 h-5 mr-2 inline" />
+            <Zap className={`w-5 h-5 mr-2 inline ${activeTab === 'active' ? 'animate-pulse' : ''}`} />
             Active Users ({activeUsers.length})
           </Button>
         </div>
