@@ -207,31 +207,38 @@ const DiscoverPage = ({ user }) => {
             )}
           </div>
 
-          {/* Action Buttons */}
-          <div className="p-6 flex justify-center items-center gap-6">
+          {/* Enhanced Action Buttons */}
+          <div className="p-6 flex justify-center items-center gap-8">
             <button
               data-testid="pass-btn"
               onClick={() => handleAction('pass')}
-              className="bg-white hover:bg-gray-50 border-4 border-gray-300 w-16 h-16 rounded-full flex items-center justify-center shadow-lg transform hover:scale-110 transition-all"
+              className="bg-white hover:bg-gray-50 border-4 border-gray-300 hover:border-gray-400 w-16 h-16 rounded-full flex items-center justify-center shadow-soft hover:shadow-elevated transform hover:scale-125 transition-all duration-300 group"
             >
-              <X className="w-8 h-8 text-gray-500" />
+              <X className="w-8 h-8 text-gray-500 group-hover:text-gray-700 transition-colors" />
             </button>
 
             <button
               data-testid="superlike-btn"
               onClick={() => handleAction('superlike')}
-              className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 w-16 h-16 rounded-full flex items-center justify-center shadow-lg transform hover:scale-110 transition-all"
+              className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 w-16 h-16 rounded-full flex items-center justify-center shadow-soft hover:shadow-glow transform hover:scale-125 transition-all duration-300 group animate-glow"
             >
-              <Sparkles className="w-8 h-8 text-white" />
+              <Sparkles className="w-8 h-8 text-white group-hover:animate-pulse" />
             </button>
 
             <button
               data-testid="like-btn"
               onClick={() => handleAction('like')}
-              className="bg-gradient-to-r from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600 w-20 h-20 rounded-full flex items-center justify-center shadow-xl transform hover:scale-110 transition-all"
+              className="bg-gradient-to-r from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600 w-20 h-20 rounded-full flex items-center justify-center shadow-glow hover:shadow-elevated transform hover:scale-125 transition-all duration-300 group animate-glow"
             >
-              <Heart className="w-10 h-10 text-white" fill="white" />
+              <Heart className="w-10 h-10 text-white group-hover:animate-heart-beat" fill="white" />
             </button>
+          </div>
+
+          {/* Swipe hint for mobile */}
+          <div className="px-6 pb-4 text-center">
+            <p className="text-gray-400 text-sm animate-pulse">
+              ← Swipe or use buttons to choose →
+            </p>
           </div>
         </div>
 
