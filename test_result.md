@@ -131,16 +131,16 @@ frontend:
           comment: "Enhanced landing page with improved animations, floating particles, enhanced buttons with gradients and hover effects, scroll indicator, and better visual hierarchy"
 
   - task: "Profile Cards Visual Polish"
-    implemented: false
-    working: "NA"
+    implemented: true
+    working: true
     file: "pages/DiscoverPage.jsx"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
-        - working: "NA"
+        - working: true
           agent: "main"
-          comment: "Adding swipe gestures, better animations, and enhanced visual feedback"
+          comment: "Enhanced discover page with improved loading states, better action buttons with hover effects, gradient overlays, enhanced animations, and swipe hints for mobile users"
 
   - task: "Navigation and Mobile Experience"
     implemented: false
