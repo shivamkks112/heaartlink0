@@ -37,7 +37,7 @@
             </intent-filter>
 
             <meta-data android:name="android.support.customtabs.trusted.DEFAULT_URL"
-                android:value="https://linkhearts-app.preview.emergentagent.com" />
+                android:value="https://heartlink.co.in" />
 
             <meta-data android:name="android.support.customtabs.trusted.STATUS_BAR_COLOR"
                 android:resource="@color/primary_color" />
