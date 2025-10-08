@@ -216,12 +216,12 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Landing Page UI Enhancement"
+    - "Authentication Integration Testing"
+  stuck_tasks: 
     - "Profile Cards Visual Polish"
     - "Navigation and Mobile Experience"
-  stuck_tasks: []
   test_all: false
-  test_priority: "high_first"
+  test_priority: "stuck_first"
 
 agent_communication:
     - agent: "main"
