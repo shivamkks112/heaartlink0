@@ -52,10 +52,28 @@ const MatchesPage = ({ user }) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-pink-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 font-semibold">Loading...</p>
+      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50">
+        <Navbar user={user} />
+        <div className="max-w-6xl mx-auto px-4 py-8">
+          <div className="mb-8 animate-slide-in-down">
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">Connections</h1>
+            <p className="text-gray-600">Your matches and active users</p>
+          </div>
+
+          {/* Tabs skeleton */}
+          <div className="flex gap-4 mb-8 animate-slide-in-up">
+            <div className="flex-1 h-16 bg-gray-200 rounded-xl animate-shimmer"></div>
+            <div className="flex-1 h-16 bg-gray-200 rounded-xl animate-shimmer"></div>
+          </div>
+
+          {/* Cards skeleton */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 6 }).map((_, idx) => (
+              <div key={idx} className="animate-bounce-in" style={{animationDelay: `${idx * 0.1}s`}}>
+                <MatchCardSkeleton />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
