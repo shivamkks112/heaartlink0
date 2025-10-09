@@ -59,7 +59,7 @@ const getMatches = async (token) => {
 Create a React Native dating app "HeartLink" that integrates with existing backend APIs.
 
 BACKEND INTEGRATION:
-🌐 API Base URL: https://linkhearts-app.preview.emergentagent.com/api
+🌐 API Base URL: https://HEARTLINK.co.in/api
 📊 Database: Existing MongoDB (don't create new)
 🔐 Authentication: JWT tokens from existing system
 
