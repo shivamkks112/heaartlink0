@@ -29,7 +29,7 @@
 ### Implementation:
 ```javascript
 // Native app calls your existing APIs
-const API_BASE = 'https://linkhearts-app.preview.emergentagent.com/api';
+const API_BASE = 'https://HEARTLINK.co.in/api';
 
 // Login API call from native app
 const login = async (email, password) => {
