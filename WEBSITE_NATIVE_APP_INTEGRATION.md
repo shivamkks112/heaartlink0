@@ -236,7 +236,7 @@ Create a React Native dating app "HeartLink" that integrates with my existing ba
 IMPORTANT: This app should NOT create new backend - it should connect to my existing APIs.
 
 EXISTING SYSTEM INTEGRATION:
-🌐 Backend URL: https://linkhearts-app.preview.emergentagent.com/api
+🌐 Backend URL: https://HEARTLINK.co.in/api
 💾 Database: MongoDB (already exists with users, matches, chats)
 🔐 Authentication: JWT token system (already working)
 👑 Admin System: User verification (is_admin flag)
