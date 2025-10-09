@@ -1,0 +1,77 @@
+<!-- HeartLink PWA - Add these tags to your HTML <head> section -->
+
+<!-- Essential Meta Tags -->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>HeartLink - Indian Dating App</title>
+<meta name="description" content="India's most advanced dating platform with AI matchmaking, real-time chat, and complete privacy control">
+
+<!-- PWA Manifest -->
+<link rel="manifest" href="/manifest.json">
+
+<!-- Theme Colors -->
+<meta name="theme-color" content="#EC4899">
+<meta name="msapplication-TileColor" content="#EC4899">
+<meta name="msapplication-navbutton-color" content="#EC4899">
+
+<!-- Apple PWA Support -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="HeartLink">
+
+<!-- Apple Touch Icons -->
+<link rel="apple-touch-icon" href="/icons/icon-152x152.png">
+<link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180x180.png">
+
+<!-- Standard Favicon -->
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
+<link rel="shortcut icon" href="/favicon.ico">
+
+<!-- Windows Tiles -->
+<meta name="msapplication-TileImage" content="/icons/icon-144x144.png">
+<meta name="msapplication-config" content="/browserconfig.xml">
+
+<!-- PWA Display Mode -->
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="display" content="standalone">
+
+<!-- Open Graph Meta Tags for Social Sharing -->
+<meta property="og:title" content="HeartLink - Indian Dating App">
+<meta property="og:description" content="India's most advanced dating platform with AI matchmaking">
+<meta property="og:image" content="https://HEARTLINK.co.in/icons/icon-512x512.png">
+<meta property="og:url" content="https://HEARTLINK.co.in">
+<meta property="og:type" content="website">
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="HeartLink - Indian Dating App">
+<meta name="twitter:description" content="India's most advanced dating platform">
+<meta name="twitter:image" content="https://HEARTLINK.co.in/icons/icon-512x512.png">
+
+<!-- Additional PWA Meta Tags -->
+<meta name="format-detection" content="telephone=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="application-name" content="HeartLink">
+
+<!-- Preload Critical Resources -->
+<link rel="preload" href="/icons/icon-192x192.png" as="image" type="image/png">
+<link rel="preload" href="/manifest.json" as="fetch" crossorigin="anonymous">
+
+<!-- PWA Installation Script -->
+<script src="/pwa-install.js" defer></script>
+
+<!-- Service Worker Registration (Alternative inline method) -->
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('/sw.js')
+      .then(function(registration) {
+        console.log('HeartLink SW registered with scope: ', registration.scope);
+      }, function(err) {
+        console.log('HeartLink SW registration failed: ', err);
+      });
+  });
+}
+</script>
