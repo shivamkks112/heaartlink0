@@ -3,7 +3,7 @@
 ## 🎯 Integration Strategy: API-First Approach
 
 ### Your Current Setup:
-- ✅ **Working Website:** https://linkhearts-app.preview.emergentagent.com
+- ✅ **Working Website:** https://HEARTLINK.co.in
 - ✅ **Backend APIs:** All features working (auth, profiles, chat, etc.)
 - ✅ **Database:** MongoDB with all user data
 - ✅ **Admin Panel:** User verification system
