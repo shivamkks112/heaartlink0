@@ -25,6 +25,17 @@ export const auth = getAuth(app);
 export const storage = getStorage(app);
 export const googleProvider = new GoogleAuthProvider();
 
+// Initialize Firebase Cloud Messaging
+let messaging = null;
+if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+  try {
+    messaging = getMessaging(app);
+  } catch (error) {
+    console.log('Messaging not available:', error);
+  }
+}
+export { messaging };
+
 // Analytics (optional)
 let analytics = null;
 if (typeof window !== 'undefined') {
