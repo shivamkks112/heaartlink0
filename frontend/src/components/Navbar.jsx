@@ -58,15 +58,20 @@ const Navbar = ({ user }) => {
 
             <button
               data-testid="nav-profile"
-              onClick={() => navigate('/profile')}
-              className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                navigate('/profile');
+              }}
+              className={`flex flex-col items-center justify-center gap-1 px-2 sm:px-4 py-2 rounded-xl font-medium transition-all duration-300 min-w-[60px] touch-manipulation ${
                 isActive('/profile')
-                  ? 'bg-gradient-to-r from-pink-500 to-orange-500 text-white shadow-glow animate-glow'
+                  ? 'bg-gradient-to-r from-pink-500 to-orange-500 text-white shadow-glow'
                   : 'text-gray-600 hover:bg-gray-100 hover:text-pink-600'
               }`}
+              style={{ WebkitTapHighlightColor: 'transparent' }}
             >
-              <User className={`w-5 h-5 ${isActive('/profile') ? 'animate-pulse' : ''}`} />
-              <span className="hidden sm:inline">Profile</span>
+              <User className={`w-6 h-6 ${isActive('/profile') ? 'animate-pulse' : ''}`} />
+              <span className="text-xs">Profile</span>
             </button>
 
             <button
