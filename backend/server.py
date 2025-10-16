@@ -751,12 +751,30 @@ async def user_action(user_id: str, action: LikeAction):
         match = Match(**match_doc)
         await db.matches.insert_one(match.dict())
         
+        # Get user details for notification
+        user1 = await db.users.find_one({"id": user_id})
+        user2 = await db.users.find_one({"id": action.target_user_id})
+        
         if action.action == "superlike":
-            # Notify target user
+            # Notify target user via WebSocket
             await manager.send_message(action.target_user_id, {
                 "type": "superlike",
                 "user_id": user_id
             })
+            
+            # Send push notification
+            if user2 and user2.get('fcm_token'):
+                send_like_notification(
+                    token=user2['fcm_token'],
+                    user_name=user1['name']
+                )
+        elif action.action == "like":
+            # Send like notification for regular likes too
+            if user2 and user2.get('fcm_token'):
+                send_like_notification(
+                    token=user2['fcm_token'],
+                    user_name=user1['name']
+                )
         
         return {"action": "liked"}
 
