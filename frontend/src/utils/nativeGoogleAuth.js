@@ -64,5 +64,12 @@ export const nativeGoogleSignOut = async () => {
  * Check if running on native platform
  */
 export const isNativePlatform = () => {
-  return Capacitor.getPlatform() !== 'web';
+  try {
+    const platform = Capacitor.getPlatform();
+    console.log('Platform detected:', platform);
+    return platform === 'android' || platform === 'ios';
+  } catch (error) {
+    console.log('Capacitor not available, assuming web');
+    return false;
+  }
 };
