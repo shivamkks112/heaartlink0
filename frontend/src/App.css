@@ -444,7 +444,15 @@ button, a {
 
 /* Bottom Navigation Spacing */
 .page-with-bottom-nav {
+  padding-top: max(env(safe-area-inset-top, 0), 20px); /* Space for top status bar */
   padding-bottom: 80px; /* Space for bottom navigation */
+  min-height: 100vh;
+}
+
+/* Safe area for top status bar */
+.safe-area-inset-top {
+  padding-top: env(safe-area-inset-top, 20px);
+  margin-top: env(safe-area-inset-top, 0);
 }
 
 /* Safe area for bottom navigation on iOS/Android */
