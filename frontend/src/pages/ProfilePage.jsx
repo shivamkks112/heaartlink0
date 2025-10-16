@@ -10,7 +10,7 @@ import Navbar from '@/components/Navbar';
 import { storage } from '@/firebase/config';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://linkhearts-app.preview.emergentagent.com';
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://heartlink-app-2.preview.emergentagent.com';
 const API = `${BACKEND_URL}/api`;
 
 const ProfilePage = ({ user, onUpdate }) => {
