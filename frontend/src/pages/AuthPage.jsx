@@ -91,48 +91,62 @@ const AuthPage = ({ onLogin }) => {
     }
   };
 
+  const handleGoogleUser = async (user) => {
+    try {
+      // Try login first
+      console.log('🔍 Checking if user exists in backend...');
+      const loginResponse = await axios.post(`${API}/auth/login`, {
+        email_or_phone: user.email,
+        password: user.uid  // Use Firebase UID as password
+      });
+      console.log('✅ User exists, logging in...');
+      toast.success('Welcome back!');
+      onLogin(loginResponse.data.user);
+      navigate('/discover');
+    } catch (loginError) {
+      console.log('ℹ️ User not found, creating new account...');
+      // User doesn't exist, create account
+      const signupData = {
+        email: user.email,
+        phone: user.phoneNumber || '',
+        password: user.uid,
+        name: user.displayName || 'User',
+        age: 25,  // Default, user can update
+        gender: 'Male',  // Default
+        looking_for: 'Female',  // Default
+        bio: '',
+        location: '',
+        interests: []
+      };
+      
+      const signupResponse = await axios.post(`${API}/auth/signup`, signupData);
+      console.log('✅ Account created successfully');
+      toast.success('Account created with Google! 🎉');
+      onLogin(signupResponse.data.user);
+      navigate('/discover');
+    }
+  };
+
   const handleGoogleSignIn = async () => {
     setLoading(true);
     try {
       console.log('🔍 Starting Google Sign-In...');
-      const result = await signInWithPopup(auth, googleProvider);
-      const user = result.user;
       
-      console.log('✅ Google Sign-In successful:', user.email);
+      // Detect if mobile/WebView
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const isWebView = window.matchMedia('(display-mode: standalone)').matches || 
+                        window.navigator.standalone === true;
       
-      // Check if user exists in backend, if not create account
-      try {
-        // Try login first
-        console.log('🔍 Checking if user exists in backend...');
-        const loginResponse = await axios.post(`${API}/auth/login`, {
-          email_or_phone: user.email,
-          password: user.uid  // Use Firebase UID as password
-        });
-        console.log('✅ User exists, logging in...');
-        toast.success('Welcome back!');
-        onLogin(loginResponse.data.user);
-        navigate('/discover');
-      } catch (loginError) {
-        console.log('ℹ️ User not found, creating new account...');
-        // User doesn't exist, create account
-        const signupData = {
-          email: user.email,
-          phone: user.phoneNumber || '',
-          password: user.uid,
-          name: user.displayName || 'User',
-          age: 25,  // Default, user can update
-          gender: 'Male',  // Default
-          looking_for: 'Female',  // Default
-          bio: '',
-          location: '',
-          interests: []
-        };
-        
-        const signupResponse = await axios.post(`${API}/auth/signup`, signupData);
-        console.log('✅ Account created successfully');
-        toast.success('Account created with Google! 🎉');
-        onLogin(signupResponse.data.user);
-        navigate('/discover');
+      if (isMobile || isWebView) {
+        // Use redirect for mobile/WebView
+        console.log('📱 Using redirect method for mobile...');
+        await signInWithRedirect(auth, googleProvider);
+        // Result will be handled by useEffect on redirect back
+      } else {
+        // Use popup for desktop
+        console.log('💻 Using popup method for desktop...');
+        const result = await signInWithPopup(auth, googleProvider);
+        await handleGoogleUser(result.user);
       }
     } catch (error) {
       console.error('❌ Google Sign-In error:', error);
