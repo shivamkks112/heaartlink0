@@ -52,9 +52,9 @@ const MatchesPage = ({ user }) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 page-with-bottom-nav">
+      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 page-with-bottom-nav status-bar-spacing">
         <Navbar user={user} />
-        <div className="max-w-6xl mx-auto px-4 py-8 pb-24">
+        <div className="max-w-6xl mx-auto px-4 py-8 pb-24 mt-6">
           <div className="mb-8 animate-slide-in-down">
             <h1 className="text-4xl font-bold text-gray-900 mb-2">Connections</h1>
             <p className="text-gray-600">Your matches and active users</p>
