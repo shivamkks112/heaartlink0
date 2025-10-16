@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
 import Navbar from '@/components/Navbar';
+import TopBar from '@/components/TopBar';
 import { Button } from '@/components/ui/button';
 import { MatchCardSkeleton } from '@/components/SkeletonLoader';
 
