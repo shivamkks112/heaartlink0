@@ -483,7 +483,8 @@ nav[class*="bottom"] {
   /* Ensure all pages respect status bar */
   .min-h-screen {
     padding-top: max(env(safe-area-inset-top, 0), 24px) !important;
-
+  }
+}
 
 /* ========================================
    STATUS BAR & SAFE AREA OPTIMIZATIONS
