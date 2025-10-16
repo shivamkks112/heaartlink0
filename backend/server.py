@@ -15,6 +15,12 @@ import hashlib
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 import json
 import asyncio
+from firebase_config import (
+    send_match_notification,
+    send_message_notification,
+    send_like_notification,
+    send_verification_notification
+)
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
