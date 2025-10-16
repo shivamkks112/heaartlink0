@@ -476,7 +476,14 @@ nav[class*="bottom"] {
 /* Prevent content from going behind bottom nav */
 @media (max-width: 768px) {
   main, .main-content {
+    padding-top: max(env(safe-area-inset-top, 0), 24px);
     padding-bottom: 100px;
   }
+  
+  /* Ensure all pages respect status bar */
+  .min-h-screen {
+    padding-top: max(env(safe-area-inset-top, 0), 24px) !important;
+  }
+}
 }
 
