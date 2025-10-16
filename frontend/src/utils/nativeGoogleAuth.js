@@ -5,7 +5,7 @@
 import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 import { Capacitor } from '@capacitor/core';
 
-const WEB_CLIENT_ID = '22174933674-hd0na7ri4rq69eo3q71is8k7quk6kmf.apps.googleusercontent.com';
+const WEB_CLIENT_ID = '803969423139-d6si6853g0t25lvdujk95rrutdj3albb.apps.googleusercontent.com';
 
 /**
  * Initialize Google Auth
