@@ -20,11 +20,27 @@ function App() {
     // Check for stored user
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      const userData = JSON.parse(storedUser);
+      setUser(userData);
+      
+      // Request notification permission when user logs in
+      setTimeout(() => {
+        requestNotificationPermission(userData.id);
+      }, 2000); // Wait 2 seconds before requesting permission
     }
 
     // Prevent pull-to-refresh on mobile
     document.body.style.overscrollBehavior = 'none';
+    
+    // Setup foreground message listener
+    const unsubscribe = setupForegroundMessageListener((payload) => {
+      console.log('Received foreground message:', payload);
+      // You can show toast notification here
+    });
+    
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, []);
 
   const handleLogin = (userData) => {
