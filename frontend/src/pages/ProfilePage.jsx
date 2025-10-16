@@ -83,7 +83,7 @@ const ProfilePage = ({ user, setUser }) => {
       <Toaster position="top-center" />
       <Navbar user={user} />
       
-      <div className="max-w-4xl mx-auto px-4 py-8 pb-24" style={{ marginTop: '72px' }}>
+      <div className="max-w-4xl mx-auto px-4 py-8 pb-24">
         <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
           {/* Header with Profile Picture */}
           <div className="bg-gradient-to-r from-pink-500 via-rose-500 to-orange-500 px-8 py-12 text-white text-center relative">
