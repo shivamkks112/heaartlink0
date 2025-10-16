@@ -598,6 +598,13 @@ async def admin_verify_user(verification: AdminVerification):
             "timestamp": datetime.now(timezone.utc).isoformat()
         })
         
+        # Send push notification
+        if user.get('fcm_token'):
+            send_verification_notification(
+                token=user['fcm_token'],
+                status="approved"
+            )
+        
         return {"message": "User verified successfully"}
     
     elif verification.action == "reject":
