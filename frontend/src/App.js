@@ -12,6 +12,7 @@ import ProfilePage from '@/pages/ProfilePage';
 import PrivacyPage from '@/pages/PrivacyPage';
 import InstallPrompt from '@/components/InstallPrompt';
 import { requestNotificationPermission, setupForegroundMessageListener } from '@/firebase/messaging';
+import { initGoogleAuth } from '@/utils/nativeGoogleAuth';
 
 function App() {
   const [user, setUser] = useState(null);
