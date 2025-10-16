@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
 import { auth, googleProvider } from '@/firebase/config';
 import { signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth';
+import { nativeGoogleSignIn, isNativePlatform } from '@/utils/nativeGoogleAuth';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://heartlink-app-2.preview.emergentagent.com';
 const API = `${BACKEND_URL}/api`;
