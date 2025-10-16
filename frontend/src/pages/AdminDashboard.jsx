@@ -86,7 +86,7 @@ const AdminDashboard = ({ user }) => {
 
   if (!user.is_admin) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 flex items-center justify-center page-with-bottom-nav">
         <div className="text-center">
           <Shield className="w-20 h-20 text-red-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-800">Access Denied</h2>
