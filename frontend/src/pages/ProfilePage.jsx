@@ -1,121 +1,75 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { User, Mail, Phone, MapPin, Hash, Award, Camera, Upload, X } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Camera, User, Heart, MapPin, Calendar, Briefcase, GraduationCap, Ruler, Dumbbell, Wine, Cigarette } from 'lucide-react';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
 import Navbar from '@/components/Navbar';
+import TopBar from '@/components/TopBar';
+import { Button } from '@/components/ui/button';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '@/firebase/config';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://heartlink-app-2.preview.emergentagent.com';
 const API = `${BACKEND_URL}/api`;
 
-const ProfilePage = ({ user, onUpdate }) => {
-  const [editing, setEditing] = useState(false);
+const ProfilePage = ({ user, setUser }) => {
+  const [profile, setProfile] = useState(user);
   const [loading, setLoading] = useState(false);
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const [profileData, setProfileData] = useState({
-    name: user.name || '',
-    bio: user.bio || '',
-    location: user.location || '',
-    interests: user.interests ? user.interests.join(', ') : ''
-  });
+  const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    fetchProfile();
+  }, []);
+
+  const fetchProfile = async () => {
+    try {
+      const response = await axios.get(`${API}/profile/${user.id}`);
+      setProfile(response.data);
+    } catch (error) {
+      toast.error('Failed to load profile');
+    }
+  };
 
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please select an image file');
-      return;
-    }
-
-    // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      toast.error('Image size should be less than 5MB');
+      toast.error('Image must be less than 5MB');
       return;
     }
 
-    setUploadingPhoto(true);
-
+    setUploading(true);
     try {
-      // Upload to Firebase Storage
-      const storageRef = ref(storage, `profile_pictures/${user.id}/${file.name}`);
+      const storageRef = ref(storage, `profile_pictures/${user.id}/${Date.now()}_${file.name}`);
       await uploadBytes(storageRef, file);
-      
-      // Get download URL
       const downloadURL = await getDownloadURL(storageRef);
-      
-      // Update backend with URL
-      const formData = new URLSearchParams();
-      formData.append('image_data', downloadURL);
 
-      await axios.post(
-        `${API}/profile/${user.id}/profile-picture`,
-        formData,
-        {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-        }
-      );
+      const response = await axios.put(`${API}/profile/${user.id}`, {
+        profile_picture: downloadURL
+      });
 
-      // Update local user state
-      const updatedUser = { ...user, profile_picture: downloadURL };
-      onUpdate(updatedUser);
-      toast.success('Profile picture updated! 📸');
+      setProfile(response.data);
+      setUser(response.data);
+      localStorage.setItem('user', JSON.stringify(response.data));
+      toast.success('Profile picture updated!');
     } catch (error) {
-      toast.error('Failed to upload profile picture');
-      console.error('Upload error:', error);
+      toast.error('Failed to upload image');
     } finally {
-      setUploadingPhoto(false);
+      setUploading(false);
     }
   };
 
-  const handleDeletePhoto = async () => {
-    if (!window.confirm('Delete profile picture?')) return;
-
-    setUploadingPhoto(true);
-    try {
-      // Delete from Firebase Storage if URL exists
-      if (user.profile_picture && user.profile_picture.includes('firebase')) {
-        try {
-          const photoRef = ref(storage, user.profile_picture);
-          await deleteObject(photoRef);
-        } catch (error) {
-          console.log('Storage delete error:', error);
-        }
-      }
-      
-      // Delete from backend
-      await axios.delete(`${API}/profile/${user.id}/profile-picture`);
-      
-      const updatedUser = { ...user, profile_picture: null };
-      onUpdate(updatedUser);
-      toast.success('Profile picture deleted');
-    } catch (error) {
-      toast.error('Failed to delete profile picture');
-    } finally {
-      setUploadingPhoto(false);
-    }
-  };
-
-  const handleUpdate = async (e) => {
-    e.preventDefault();
+  const handleUpdate = async (field, value) => {
     setLoading(true);
     try {
-      const updates = {
-        ...profileData,
-        interests: profileData.interests.split(',').map(i => i.trim()).filter(i => i)
-      };
-      const response = await axios.put(`${API}/profile/${user.id}`, updates);
-      onUpdate(response.data);
-      toast.success('Profile updated successfully!');
-      setEditing(false);
+      const response = await axios.put(`${API}/profile/${user.id}`, {
+        [field]: value
+      });
+      setProfile(response.data);
+      setUser(response.data);
+      localStorage.setItem('user', JSON.stringify(response.data));
+      toast.success('Profile updated!');
     } catch (error) {
       toast.error('Failed to update profile');
     } finally {
@@ -123,229 +77,140 @@ const ProfilePage = ({ user, onUpdate }) => {
     }
   };
 
-  const handleVerification = async () => {
-    setLoading(true);
-    try {
-      const response = await axios.post(`${API}/profile/${user.id}/verify`);
-      toast.success(response.data.message);
-      if (response.data.status === 'verified') {
-        const updatedUser = { ...user, verified: true, verification_status: 'verified' };
-        onUpdate(updatedUser);
-      }
-    } catch (error) {
-      toast.error('Verification failed');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 page-with-bottom-nav status-bar-spacing">
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 page-with-bottom-nav">
+      <TopBar />
       <Toaster position="top-center" />
       <Navbar user={user} />
       
-      <div className="max-w-4xl mx-auto px-4 py-8 pb-24 mt-6">
+      <div className="max-w-4xl mx-auto px-4 py-8 pb-24" style={{ marginTop: '72px' }}>
         <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
           {/* Header with Profile Picture */}
           <div className="bg-gradient-to-r from-pink-500 via-rose-500 to-orange-500 px-8 py-12 text-white text-center relative">
-            <div className="relative inline-block mb-4">
-              <div className="w-32 h-32 mx-auto bg-white rounded-full flex items-center justify-center shadow-xl overflow-hidden">
-                {user.profile_picture ? (
-                  <img 
-                    src={user.profile_picture} 
-                    alt={user.name}
+            <div className="relative inline-block">
+              <div className="w-32 h-32 rounded-full border-4 border-white overflow-hidden mx-auto shadow-2xl">
+                {profile.profile_picture ? (
+                  <img
+                    src={profile.profile_picture}
+                    alt={profile.name}
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <User className="w-16 h-16 text-gray-400" />
+                  <div className="w-full h-full bg-white/20 flex items-center justify-center">
+                    <User className="w-16 h-16" />
+                  </div>
                 )}
               </div>
-              
-              {/* Upload/Delete buttons */}
-              <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 flex gap-2">
-                <label 
-                  htmlFor="profile-picture-upload"
-                  className="bg-white text-pink-600 p-2 rounded-full shadow-lg cursor-pointer hover:bg-gray-50 transition-all"
-                  data-testid="upload-photo-btn"
-                >
-                  {uploadingPhoto ? (
-                    <div className="w-5 h-5 border-2 border-pink-600 border-t-transparent rounded-full animate-spin"></div>
-                  ) : (
-                    <Camera className="w-5 h-5" />
-                  )}
-                </label>
-                <input
-                  id="profile-picture-upload"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="hidden"
-                  disabled={uploadingPhoto}
-                />
-                
-                {user.profile_picture && (
-                  <button
-                    onClick={handleDeletePhoto}
-                    disabled={uploadingPhoto}
-                    className="bg-white text-red-600 p-2 rounded-full shadow-lg hover:bg-gray-50 transition-all"
-                    data-testid="delete-photo-btn"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
+              <label
+                htmlFor="profile-pic-upload"
+                className="absolute bottom-0 right-0 bg-white text-pink-600 p-2 rounded-full cursor-pointer hover:bg-pink-50 transition-all shadow-lg transform hover:scale-110"
+              >
+                {uploading ? (
+                  <div className="w-5 h-5 border-2 border-pink-600 border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <Camera className="w-5 h-5" />
                 )}
-              </div>
+              </label>
+              <input
+                id="profile-pic-upload"
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
+              />
             </div>
-            
-            <h1 className="text-3xl font-bold mb-2">{user.name}, {user.age}</h1>
-            <div className="flex items-center justify-center gap-2">
-              {user.verified ? (
-                <span className="bg-blue-500 px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2">
-                  <Award className="w-4 h-4" />
-                  Verified Profile
-                </span>
-              ) : (
-                <Button
-                  data-testid="verify-profile-btn"
-                  onClick={handleVerification}
-                  disabled={loading}
-                  className="bg-white text-pink-600 hover:bg-gray-100 px-6 py-2 rounded-full font-semibold"
-                >
-                  {loading ? 'Verifying...' : 'Get Verified'}
-                </Button>
+            <h2 className="text-3xl font-bold mt-4">{profile.name}</h2>
+            <p className="text-white/90 mt-2">{profile.email || profile.phone}</p>
+            <div className="flex items-center justify-center gap-2 mt-4">
+              {profile.verified && (
+                <div className="flex items-center gap-1 bg-white/20 px-3 py-1 rounded-full">
+                  <Heart className="w-4 h-4" fill="white" />
+                  <span className="text-sm font-medium">Verified</span>
+                </div>
               )}
             </div>
           </div>
 
-          {/* Profile Info */}
-          <div className="p-8">
-            {!editing ? (
-              <div className="space-y-6">
+          {/* Profile Information */}
+          <div className="px-8 py-8 space-y-6">
+            {/* Basic Info */}
+            <div>
+              <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <User className="w-5 h-5 text-pink-500" />
+                Basic Information
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <h3 className="text-lg font-bold text-gray-700 mb-2">About</h3>
-                  <p className="text-gray-600">{user.bio || 'No bio added yet'}</p>
+                  <label className="text-sm font-medium text-gray-600">Age</label>
+                  <input
+                    type="number"
+                    value={profile.age || ''}
+                    onChange={(e) => handleUpdate('age', parseInt(e.target.value))}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                    placeholder="Enter your age"
+                  />
                 </div>
-
                 <div>
-                  <h3 className="text-lg font-bold text-gray-700 mb-2 flex items-center gap-2">
-                    <MapPin className="w-5 h-5" />
-                    Location
-                  </h3>
-                  <p className="text-gray-600">{user.location}</p>
+                  <label className="text-sm font-medium text-gray-600">Gender</label>
+                  <select
+                    value={profile.gender || ''}
+                    onChange={(e) => handleUpdate('gender', e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                  >
+                    <option value="">Select gender</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                  </select>
                 </div>
-
-                <div>
-                  <h3 className="text-lg font-bold text-gray-700 mb-2 flex items-center gap-2">
-                    <Mail className="w-5 h-5" />
-                    Contact
-                  </h3>
-                  <p className="text-gray-600">{user.email || 'Not provided'}</p>
-                  {user.phone && <p className="text-gray-600">{user.phone}</p>}
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-bold text-gray-700 mb-3 flex items-center gap-2">
-                    <Hash className="w-5 h-5" />
-                    Interests
-                  </h3>
-                  <div className="flex flex-wrap gap-2">
-                    {user.interests && user.interests.length > 0 ? (
-                      user.interests.map((interest, idx) => (
-                        <span
-                          key={idx}
-                          className="bg-gradient-to-r from-pink-100 to-orange-100 text-gray-800 px-4 py-2 rounded-full text-sm font-medium"
-                        >
-                          {interest}
-                        </span>
-                      ))
-                    ) : (
-                      <p className="text-gray-500">No interests added</p>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-bold text-gray-700 mb-2">Preferences</h3>
-                  <p className="text-gray-600">
-                    Looking for: {user.looking_for} • Gender: {user.gender}
-                  </p>
-                </div>
-
-                <Button
-                  data-testid="edit-profile-btn"
-                  onClick={() => setEditing(true)}
-                  className="w-full bg-gradient-to-r from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600 text-white py-6 rounded-xl font-semibold text-lg"
-                >
-                  Edit Profile
-                </Button>
               </div>
-            ) : (
-              <form onSubmit={handleUpdate} className="space-y-6">
-                <div>
-                  <Label htmlFor="edit-name" className="text-gray-700 font-semibold">Name</Label>
-                  <Input
-                    id="edit-name"
-                    data-testid="edit-name-input"
-                    value={profileData.name}
-                    onChange={(e) => setProfileData({...profileData, name: e.target.value})}
-                    className="mt-2 py-6 rounded-xl border-2 border-gray-200 focus:border-pink-500"
-                  />
-                </div>
+            </div>
 
-                <div>
-                  <Label htmlFor="edit-bio" className="text-gray-700 font-semibold">Bio</Label>
-                  <textarea
-                    id="edit-bio"
-                    data-testid="edit-bio-input"
-                    value={profileData.bio}
-                    onChange={(e) => setProfileData({...profileData, bio: e.target.value})}
-                    className="w-full mt-2 py-3 px-4 rounded-xl border-2 border-gray-200 focus:border-pink-500 focus:outline-none h-32 resize-none"
-                    placeholder="Tell us about yourself..."
-                  />
-                </div>
+            {/* Location */}
+            <div>
+              <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <MapPin className="w-5 h-5 text-pink-500" />
+                Location
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input
+                  type="text"
+                  value={profile.city || ''}
+                  onChange={(e) => handleUpdate('city', e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                  placeholder="City"
+                />
+                <input
+                  type="text"
+                  value={profile.state || ''}
+                  onChange={(e) => handleUpdate('state', e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                  placeholder="State"
+                />
+              </div>
+            </div>
 
-                <div>
-                  <Label htmlFor="edit-location" className="text-gray-700 font-semibold">Location</Label>
-                  <Input
-                    id="edit-location"
-                    data-testid="edit-location-input"
-                    value={profileData.location}
-                    onChange={(e) => setProfileData({...profileData, location: e.target.value})}
-                    className="mt-2 py-6 rounded-xl border-2 border-gray-200 focus:border-pink-500"
-                  />
-                </div>
+            {/* Bio */}
+            <div>
+              <label className="text-sm font-medium text-gray-600 mb-2 block">Bio</label>
+              <textarea
+                value={profile.bio || ''}
+                onChange={(e) => handleUpdate('bio', e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                rows="4"
+                placeholder="Tell us about yourself..."
+              />
+            </div>
 
-                <div>
-                  <Label htmlFor="edit-interests" className="text-gray-700 font-semibold">Interests (comma-separated)</Label>
-                  <Input
-                    id="edit-interests"
-                    data-testid="edit-interests-input"
-                    value={profileData.interests}
-                    onChange={(e) => setProfileData({...profileData, interests: e.target.value})}
-                    className="mt-2 py-6 rounded-xl border-2 border-gray-200 focus:border-pink-500"
-                    placeholder="Music, Travel, Food"
-                  />
-                </div>
-
-                <div className="flex gap-4">
-                  <Button
-                    data-testid="save-profile-btn"
-                    type="submit"
-                    disabled={loading}
-                    className="flex-1 bg-gradient-to-r from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600 text-white py-6 rounded-xl font-semibold"
-                  >
-                    {loading ? 'Saving...' : 'Save Changes'}
-                  </Button>
-                  <Button
-                    data-testid="cancel-edit-btn"
-                    type="button"
-                    onClick={() => setEditing(false)}
-                    className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 py-6 rounded-xl font-semibold"
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </form>
-            )}
+            {/* Save Button */}
+            <div className="flex justify-end">
+              <Button
+                disabled={loading}
+                className="bg-gradient-to-r from-pink-500 to-orange-500 text-white px-8 py-3 rounded-xl font-semibold hover:shadow-glow transition-all"
+              >
+                {loading ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </div>
           </div>
         </div>
       </div>
