@@ -18,6 +18,26 @@ const AuthPage = ({ onLogin }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   
+  // Check for redirect result on page load
+  useEffect(() => {
+    const checkRedirectResult = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result && result.user) {
+          console.log('✅ Redirect Sign-In successful:', result.user.email);
+          await handleGoogleUser(result.user);
+        }
+      } catch (error) {
+        console.error('Redirect error:', error);
+        if (error.code !== 'auth/popup-closed-by-user') {
+          toast.error('Sign-in failed. Please try again.');
+        }
+      }
+    };
+    
+    checkRedirectResult();
+  }, []);
+  
   const [loginData, setLoginData] = useState({
     email_or_phone: '',
     password: ''
