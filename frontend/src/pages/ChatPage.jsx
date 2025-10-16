@@ -155,7 +155,7 @@ const ChatPage = ({ user }) => {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 page-with-bottom-nav">
+    <div className="h-screen flex flex-col bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 page-with-bottom-nav status-bar-spacing">
       <Toaster position="top-center" />
       
       {/* Header */}
