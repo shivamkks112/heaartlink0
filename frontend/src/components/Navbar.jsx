@@ -15,24 +15,11 @@ const Navbar = ({ user }) => {
   };
 
   return (
-    <nav className="bg-white/90 backdrop-blur-md shadow-soft sticky top-0 z-50 border-b border-white/20">
-      <div className="max-w-7xl mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <div
-            onClick={() => navigate('/discover')}
-            className="flex items-center gap-2 cursor-pointer group"
-          >
-            <div className="bg-gradient-to-r from-pink-500 to-orange-500 p-2 rounded-xl group-hover:animate-heart-beat transition-all duration-300 group-hover:shadow-glow">
-              <Heart className="w-6 h-6 text-white" fill="white" />
-            </div>
-            <span className="text-xl font-bold bg-gradient-to-r from-pink-600 to-orange-600 bg-clip-text text-transparent group-hover:animate-pulse">
-              HeartLink
-            </span>
-          </div>
-
+    <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md shadow-lg z-[9999] border-t border-gray-200 safe-area-inset-bottom">
+      <div className="max-w-7xl mx-auto px-2">
+        <div className="flex items-center justify-around h-16 sm:h-20">
           {/* Navigation */}
-          <div className="flex items-center gap-1 sm:gap-2">
+          <div className="flex items-center justify-around gap-1 sm:gap-4 w-full">
             <button
               data-testid="nav-discover"
               onClick={() => navigate('/discover')}
