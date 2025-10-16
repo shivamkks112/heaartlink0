@@ -877,6 +877,54 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
 # Include router
 app.include_router(api_router)
 
+
+
+# ============================================
+# FCM PUSH NOTIFICATIONS ENDPOINTS
+# ============================================
+
+class FCMTokenRequest(BaseModel):
+    user_id: str
+    fcm_token: str
+
+@api_router.post("/fcm/register-token")
+async def register_fcm_token(request: FCMTokenRequest):
+    """Register or update FCM token for a user"""
+    try:
+        result = await db.users.update_one(
+            {"id": request.user_id},
+            {"$set": {"fcm_token": request.fcm_token}}
+        )
+        
+        if result.modified_count > 0 or result.matched_count > 0:
+            return {"success": True, "message": "FCM token registered successfully"}
+        else:
+            raise HTTPException(status_code=404, detail="User not found")
+    except Exception as e:
+        logger.error(f"Error registering FCM token: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/fcm/send-test")
+async def send_test_notification(user_id: str):
+    """Send a test notification to a user"""
+    try:
+        user = await db.users.find_one({"id": user_id})
+        if not user or not user.get('fcm_token'):
+            raise HTTPException(status_code=404, detail="User or FCM token not found")
+        
+        from firebase_config import send_notification
+        result = send_notification(
+            token=user['fcm_token'],
+            title="🔔 Test Notification",
+            body="This is a test notification from HeartLink!",
+            data={"type": "test"}
+        )
+        
+        return result
+    except Exception as e:
+        logger.error(f"Error sending test notification: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 # CORS
 app.add_middleware(
     CORSMiddleware,
