@@ -107,11 +107,11 @@ const DiscoverPage = ({ user }) => {
   const hasMultiplePhotos = photos.length > 1;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 page-with-bottom-nav">
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 page-with-bottom-nav status-bar-spacing">
       <Toaster position="top-center" />
       <Navbar user={user} />
       
-      <div className="max-w-2xl mx-auto px-4 py-8 pb-24">
+      <div className="max-w-2xl mx-auto px-4 py-8 pb-24 mt-6">
         <div className="bg-white rounded-3xl shadow-elevated overflow-hidden relative hover-lift transition-all duration-300" data-testid="profile-card">
           {/* Photo Section with enhanced animations */}
           <div className="relative h-96 bg-gradient-to-br from-pink-200 to-orange-200 overflow-hidden group">
