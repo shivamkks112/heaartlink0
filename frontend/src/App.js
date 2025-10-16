@@ -11,6 +11,7 @@ import ChatPage from '@/pages/ChatPage';
 import ProfilePage from '@/pages/ProfilePage';
 import PrivacyPage from '@/pages/PrivacyPage';
 import InstallPrompt from '@/components/InstallPrompt';
+import { requestNotificationPermission, setupForegroundMessageListener } from '@/firebase/messaging';
 
 function App() {
   const [user, setUser] = useState(null);
