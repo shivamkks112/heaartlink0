@@ -73,6 +73,7 @@ class User(BaseModel):
     verified: bool = False
     verification_status: str = "pending"  # pending, verified, rejected
     is_admin: bool = False  # Admin flag
+    fcm_token: Optional[str] = None  # Firebase Cloud Messaging token for push notifications
     privacy_settings: Dict = Field(default_factory=lambda: {
         "show_profile": True,
         "show_photos": True,
