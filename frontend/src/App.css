@@ -17,6 +17,9 @@ body {
   user-select: none;
   /* Smooth scrolling */
   -webkit-overflow-scrolling: touch;
+  /* Safe area for status bar (top) and navigation bar (bottom) */
+  padding-top: env(safe-area-inset-top, 0);
+  padding-bottom: env(safe-area-inset-bottom, 0);
 }
 
 /* Allow text selection in inputs and text areas */
