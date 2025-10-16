@@ -726,6 +726,14 @@ async def user_action(user_id: str, action: LikeAction):
             "user": {"id": user_id, "name": user1["name"]}
         })
         
+        # Send push notification to matched user
+        if user2.get('fcm_token'):
+            send_match_notification(
+                token=user2['fcm_token'],
+                user_name=user1['name'],
+                compatibility_score=int(score)
+            )
+        
         return {
             "action": "matched",
             "match_id": existing["id"],
