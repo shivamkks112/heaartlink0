@@ -114,11 +114,16 @@ const Navbar = ({ user }) => {
 
             <button
               data-testid="nav-logout"
-              onClick={handleLogout}
-              className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl font-semibold text-red-600 hover:bg-red-50 hover:text-red-700 transition-all duration-300 transform hover:scale-105 ml-1 sm:ml-2"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleLogout();
+              }}
+              className="flex flex-col items-center justify-center gap-1 px-2 sm:px-4 py-2 rounded-xl font-medium text-red-600 hover:bg-red-50 hover:text-red-700 transition-all duration-300 min-w-[60px] touch-manipulation"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
             >
-              <LogOut className="w-5 h-5" />
-              <span className="hidden sm:inline">Logout</span>
+              <LogOut className="w-6 h-6" />
+              <span className="text-xs">Logout</span>
             </button>
           </div>
         </div>
