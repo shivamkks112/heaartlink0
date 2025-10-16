@@ -104,7 +104,7 @@ const AdminDashboard = ({ user }) => {
       <Toaster position="top-center" />
       <Navbar user={user} />
       
-      <div className="max-w-7xl mx-auto px-4 py-8 pb-24" style={{ marginTop: '72px' }}>
+      <div className="max-w-7xl mx-auto px-4 py-8 pb-24">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
