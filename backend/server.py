@@ -872,6 +872,17 @@ async def send_message_http(message_data: Message):
         "message": message_data.dict()
     })
     
+    # Send push notification to receiver
+    receiver = await db.users.find_one({"id": message_data.receiver_id})
+    sender = await db.users.find_one({"id": message_data.sender_id})
+    
+    if receiver and receiver.get('fcm_token') and sender:
+        send_message_notification(
+            token=receiver['fcm_token'],
+            sender_name=sender['name'],
+            message_preview=message_data.content
+        )
+    
     return message_data.dict()
 
 # WebSocket for real-time chat
