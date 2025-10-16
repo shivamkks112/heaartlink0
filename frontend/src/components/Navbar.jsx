@@ -40,15 +40,20 @@ const Navbar = ({ user }) => {
 
             <button
               data-testid="nav-matches"
-              onClick={() => navigate('/matches')}
-              className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                navigate('/matches');
+              }}
+              className={`flex flex-col items-center justify-center gap-1 px-2 sm:px-4 py-2 rounded-xl font-medium transition-all duration-300 min-w-[60px] touch-manipulation ${
                 isActive('/matches') || location.pathname.startsWith('/chat')
-                  ? 'bg-gradient-to-r from-pink-500 to-orange-500 text-white shadow-glow animate-glow'
+                  ? 'bg-gradient-to-r from-pink-500 to-orange-500 text-white shadow-glow'
                   : 'text-gray-600 hover:bg-gray-100 hover:text-pink-600'
               }`}
+              style={{ WebkitTapHighlightColor: 'transparent' }}
             >
-              <MessageSquare className={`w-5 h-5 ${isActive('/matches') || location.pathname.startsWith('/chat') ? 'animate-pulse' : ''}`} />
-              <span className="hidden sm:inline">Matches</span>
+              <MessageSquare className={`w-6 h-6 ${isActive('/matches') || location.pathname.startsWith('/chat') ? 'animate-pulse' : ''}`} />
+              <span className="text-xs">Matches</span>
             </button>
 
             <button
