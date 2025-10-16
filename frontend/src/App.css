@@ -32,6 +32,8 @@ input, textarea, [contenteditable] {
   min-height: 100vh;
   /* Fix for mobile viewport height */
   min-height: -webkit-fill-available;
+  /* Ensure content respects safe areas */
+  padding-top: max(env(safe-area-inset-top, 0), 20px);
 }
 
 /* Headings */
