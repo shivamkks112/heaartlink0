@@ -113,7 +113,7 @@ const DiscoverPage = ({ user }) => {
       <Toaster position="top-center" />
       <Navbar user={user} />
       
-      <div className="max-w-2xl mx-auto px-4 py-8 pb-24" style={{ marginTop: '72px' }}>
+      <div className="max-w-2xl mx-auto px-4 py-8 pb-24">
         <div className="bg-white rounded-3xl shadow-elevated overflow-hidden relative hover-lift transition-all duration-300" data-testid="profile-card">
           {/* Photo Section with enhanced animations */}
           <div className="relative h-96 bg-gradient-to-br from-pink-200 to-orange-200 overflow-hidden group">
