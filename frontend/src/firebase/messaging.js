@@ -9,8 +9,7 @@ const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://heartlink-app-
 const API = `${BACKEND_URL}/api`;
 
 // VAPID key from Firebase Console > Project Settings > Cloud Messaging > Web Push certificates
-// You need to generate this key and add it here
-const VAPID_KEY = 'BEvx5ktvhVA3qxkKp9M2gQqH6FzT7xDvJJxJ5KFvY2dYrLxRmN8v1y9nN7KqY8n9L6gL4y5N3jM9xY8n'; // TODO: Replace with actual VAPID key
+const VAPID_KEY = 'BCyXviBrmyC7D8R81Ax9SPEl8iHCTkg8zpR_n5T8buv97Z1pLruI6VUP7c0KJ2nTigl0yNz7T8hcPylk2nLae0w';
 
 /**
  * Request permission and get FCM token
