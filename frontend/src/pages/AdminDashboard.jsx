@@ -97,11 +97,11 @@ const AdminDashboard = ({ user }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 page-with-bottom-nav">
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 page-with-bottom-nav status-bar-spacing">
       <Toaster position="top-center" />
       <Navbar user={user} />
       
-      <div className="max-w-7xl mx-auto px-4 py-8 pb-24">
+      <div className="max-w-7xl mx-auto px-4 py-8 pb-24 mt-6">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
