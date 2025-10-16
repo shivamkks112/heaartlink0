@@ -18,6 +18,9 @@ function App() {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
+    // Initialize native Google Auth
+    initGoogleAuth();
+    
     // Check for stored user
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
