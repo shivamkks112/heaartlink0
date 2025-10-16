@@ -483,6 +483,60 @@ nav[class*="bottom"] {
   /* Ensure all pages respect status bar */
   .min-h-screen {
     padding-top: max(env(safe-area-inset-top, 0), 24px) !important;
+
+
+/* ========================================
+   STATUS BAR & SAFE AREA OPTIMIZATIONS
+   ======================================== */
+
+/* iOS Safari Status Bar Fix */
+@supports (padding: env(safe-area-inset-top)) {
+  html {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Ensure content starts below status bar */
+.status-bar-spacing {
+  padding-top: max(env(safe-area-inset-top, 0), 24px);
+}
+
+/* Full viewport height accounting for safe areas */
+.full-viewport {
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+  padding-top: env(safe-area-inset-top, 0);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+/* iOS notch-safe design */
+@media screen and (device-aspect-ratio: 375/812) {
+  /* iPhone X, XS, 11 Pro */
+  .page-with-bottom-nav {
+    padding-top: 44px; /* Status bar + notch */
+  }
+}
+
+@media screen and (device-aspect-ratio: 414/896) {
+  /* iPhone XR, XS Max, 11, 11 Pro Max */
+  .page-with-bottom-nav {
+    padding-top: 44px;
+  }
+}
+
+/* Android status bar */
+@media (max-width: 768px) {
+  body {
+    padding-top: 24px; /* Android status bar height */
+  }
+  
+  /* Prevent content behind status bar */
+  .min-h-screen > div:first-child {
+    margin-top: 24px;
+  }
+}
+
   }
 }
 }
