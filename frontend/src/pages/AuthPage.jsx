@@ -133,22 +133,29 @@ const AuthPage = ({ onLogin }) => {
     try {
       console.log('🔍 Starting Google Sign-In...');
       
-      // Detect if mobile/WebView
-      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-      const isWebView = window.matchMedia('(display-mode: standalone)').matches || 
-                        window.navigator.standalone === true;
+      let user;
       
-      if (isMobile || isWebView) {
-        // Use redirect for mobile/WebView
-        console.log('📱 Using redirect method for mobile...');
-        await signInWithRedirect(auth, googleProvider);
-        // Result will be handled by useEffect on redirect back
+      // Check if native platform (Android/iOS app)
+      if (isNativePlatform()) {
+        console.log('📱 Using NATIVE Google Auth for mobile app...');
+        user = await nativeGoogleSignIn();
       } else {
-        // Use popup for desktop
-        console.log('💻 Using popup method for desktop...');
-        const result = await signInWithPopup(auth, googleProvider);
-        await handleGoogleUser(result.user);
+        // Web browser - use Firebase
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        if (isMobile) {
+          console.log('📱 Using redirect method for mobile browser...');
+          await signInWithRedirect(auth, googleProvider);
+          return; // Result will be handled by useEffect
+        } else {
+          console.log('💻 Using popup method for desktop...');
+          const result = await signInWithPopup(auth, googleProvider);
+          user = result.user;
+        }
       }
+      
+      // Handle user login/signup
+      await handleGoogleUser(user);
     } catch (error) {
       console.error('❌ Google Sign-In error:', error);
       console.error('Error code:', error.code);
