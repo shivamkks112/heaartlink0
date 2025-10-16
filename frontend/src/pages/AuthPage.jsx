@@ -132,13 +132,26 @@ const AuthPage = ({ onLogin }) => {
     setLoading(true);
     try {
       console.log('🔍 Starting Google Sign-In...');
+      console.log('Platform check...');
       
       let user;
       
-      // Check if native platform (Android/iOS app)
-      if (isNativePlatform()) {
-        console.log('📱 Using NATIVE Google Auth for mobile app...');
-        user = await nativeGoogleSignIn();
+      // Try native first if on mobile app
+      const isNative = isNativePlatform();
+      console.log('Is Native Platform?', isNative);
+      
+      if (isNative) {
+        console.log('📱 Attempting NATIVE Google Auth...');
+        try {
+          user = await nativeGoogleSignIn();
+          console.log('✅ Native sign-in successful:', user);
+        } catch (nativeError) {
+          console.error('❌ Native sign-in failed:', nativeError);
+          // Fallback to Firebase
+          console.log('⚠️ Falling back to Firebase method...');
+          const result = await signInWithPopup(auth, googleProvider);
+          user = result.user;
+        }
       } else {
         // Web browser - use Firebase
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -155,7 +168,9 @@ const AuthPage = ({ onLogin }) => {
       }
       
       // Handle user login/signup
-      await handleGoogleUser(user);
+      if (user) {
+        await handleGoogleUser(user);
+      }
     } catch (error) {
       console.error('❌ Google Sign-In error:', error);
       console.error('Error code:', error.code);
