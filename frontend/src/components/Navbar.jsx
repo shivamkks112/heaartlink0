@@ -95,15 +95,20 @@ const Navbar = ({ user }) => {
             {user.is_admin && (
               <button
                 data-testid="nav-admin"
-                onClick={() => navigate('/admin')}
-                className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  navigate('/admin');
+                }}
+                className={`flex flex-col items-center justify-center gap-1 px-2 sm:px-4 py-2 rounded-xl font-medium transition-all duration-300 min-w-[60px] touch-manipulation ${
                   isActive('/admin')
-                    ? 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-glow animate-glow'
+                    ? 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-glow'
                     : 'text-purple-600 hover:bg-purple-50 hover:text-purple-700'
                 }`}
+                style={{ WebkitTapHighlightColor: 'transparent' }}
               >
-                <Shield className={`w-5 h-5 ${isActive('/admin') ? 'animate-pulse' : ''}`} />
-                <span className="hidden sm:inline">Admin</span>
+                <Shield className={`w-6 h-6 ${isActive('/admin') ? 'animate-pulse' : ''}`} />
+                <span className="text-xs">Admin</span>
               </button>
             )}
 
