@@ -420,7 +420,9 @@ async def get_profile(user_id: str):
     user = await db.users.find_one({"id": user_id})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    return User(**user).dict()
+    # Clean user data to prevent validation errors
+    cleaned_user = clean_user_data(user)
+    return User(**cleaned_user).dict()
 
 @api_router.put("/profile/{user_id}")
 async def update_profile(user_id: str, updates: dict):
