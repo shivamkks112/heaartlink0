@@ -171,8 +171,8 @@ const ProfilePage = ({ user, setUser }) => {
                   <label className="text-sm font-medium text-gray-600">Age</label>
                   <input
                     type="number"
-                    value={profile.age || ''}
-                    onChange={(e) => handleUpdate('age', parseInt(e.target.value))}
+                    value={formData.age || ''}
+                    onChange={(e) => handleFieldChange('age', parseInt(e.target.value))}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
                     placeholder="Enter your age"
                   />
@@ -180,8 +180,8 @@ const ProfilePage = ({ user, setUser }) => {
                 <div>
                   <label className="text-sm font-medium text-gray-600">Gender</label>
                   <select
-                    value={profile.gender || ''}
-                    onChange={(e) => handleUpdate('gender', e.target.value)}
+                    value={formData.gender || ''}
+                    onChange={(e) => handleFieldChange('gender', e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
                   >
                     <option value="">Select gender</option>
