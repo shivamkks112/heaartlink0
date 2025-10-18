@@ -39,9 +39,20 @@ const AuthPage = ({ onLogin }) => {
     setLoading(true);
     try {
       const response = await axios.post(`${API}/auth/login`, loginData);
+      const userData = response.data.user;
+      
+      // Store in localStorage first
+      localStorage.setItem('user', JSON.stringify(userData));
+      
+      // Then update state
+      await onLogin(userData);
+      
       toast.success('Login successful!');
-      onLogin(response.data.user);
-      navigate('/discover');
+      
+      // Navigate after state is set
+      setTimeout(() => {
+        navigate('/discover');
+      }, 100);
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Login failed');
     } finally {
