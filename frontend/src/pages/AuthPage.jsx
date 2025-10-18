@@ -70,9 +70,20 @@ const AuthPage = ({ onLogin }) => {
         interests: signupData.interests.split(',').map(i => i.trim()).filter(i => i)
       };
       const response = await axios.post(`${API}/auth/signup`, data);
+      const userData = response.data.user;
+      
+      // Store in localStorage first
+      localStorage.setItem('user', JSON.stringify(userData));
+      
+      // Then update state
+      await onLogin(userData);
+      
       toast.success('Account created successfully!');
-      onLogin(response.data.user);
-      navigate('/discover');
+      
+      // Navigate after state is set
+      setTimeout(() => {
+        navigate('/discover');
+      }, 100);
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Signup failed');
     } finally {
