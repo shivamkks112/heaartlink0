@@ -290,17 +290,58 @@ def test_profile_persistence(user_id, expected_values):
         print_result(False, f"Error verifying persistence: {str(e)}")
         return False
 
+def create_demo_user():
+    """Create demo user if it doesn't exist"""
+    print_test_header("Create Demo User")
+    
+    demo_user_data = {
+        "email": "demo1@heartlink.com",
+        "password": "Demo123!",
+        "name": "Demo User",
+        "age": 25,
+        "gender": "male",
+        "looking_for": "female",
+        "bio": "Demo user for HeartLink testing",
+        "location": "San Francisco, CA",
+        "interests": ["technology", "dating", "testing"]
+    }
+    
+    try:
+        response = requests.post(f"{BACKEND_URL}/auth/signup", json=demo_user_data)
+        
+        if response.status_code == 200:
+            user_data = response.json()
+            print_result(True, "Demo user created successfully", {
+                "user_id": user_data.get("user_id"),
+                "email": demo_user_data["email"],
+                "name": demo_user_data["name"]
+            })
+            return True, user_data.get("user_id")
+        else:
+            print_result(False, f"Failed to create demo user. Status: {response.status_code}", response.text)
+            return False, None
+    except Exception as e:
+        print_result(False, f"Error creating demo user: {str(e)}")
+        return False, None
+
 def main():
     """Main test execution for profile update functionality"""
     print(f"HeartLink Backend Profile Update Functionality Test")
     print(f"Backend URL: {BACKEND_URL}")
     print(f"Test started at: {datetime.now()}")
     
-    # Step 1: Login with demo user
+    # Step 1: Try to login with demo user, create if doesn't exist
     login_success, user_id, user_data = test_demo_user_login()
     if not login_success:
-        print("❌ CRITICAL: Demo user login failed - cannot proceed with profile tests")
-        return False
+        print("Demo user doesn't exist, creating it...")
+        create_success, created_user_id = create_demo_user()
+        if create_success:
+            # Try login again
+            login_success, user_id, user_data = test_demo_user_login()
+        
+        if not login_success:
+            print("❌ CRITICAL: Demo user login failed even after creation - cannot proceed with profile tests")
+            return False
     
     # Step 2: Get initial profile
     profile_success, original_profile = test_get_profile(user_id)
