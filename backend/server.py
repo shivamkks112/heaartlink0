@@ -400,8 +400,18 @@ async def update_profile(user_id: str, updates: dict):
     updates.pop("password_hash", None)
     updates.pop("id", None)
     
-    await db.users.update_one({"id": user_id}, {"$set": updates})
+    # Update user
+    result = await db.users.update_one({"id": user_id}, {"$set": updates})
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Fetch updated user
     user = await db.users.find_one({"id": user_id})
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found after update")
+    
     return User(**user).dict()
 
 @api_router.post("/profile/{user_id}/verify")
