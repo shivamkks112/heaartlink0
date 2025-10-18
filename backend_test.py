@@ -167,85 +167,187 @@ def test_admin_login(email, password):
         print_result(False, f"Error during login: {str(e)}")
         return False, None
 
+def test_demo_user_login():
+    """Test login with demo user credentials"""
+    print_test_header("Demo User Login")
+    
+    login_data = {
+        "email_or_phone": "demo1@heartlink.com",
+        "password": "Demo123!"
+    }
+    
+    try:
+        response = requests.post(f"{BACKEND_URL}/auth/login", json=login_data)
+        
+        if response.status_code == 200:
+            login_result = response.json()
+            user_data = login_result.get("user", {})
+            user_id = user_data.get("id")
+            
+            print_result(True, "Demo user login successful", {
+                "user_id": user_id,
+                "name": user_data.get("name"),
+                "email": user_data.get("email")
+            })
+            return True, user_id, user_data
+        else:
+            print_result(False, f"Demo user login failed. Status: {response.status_code}", response.text)
+            return False, None, None
+    except Exception as e:
+        print_result(False, f"Error during demo user login: {str(e)}")
+        return False, None, None
+
+def test_get_profile(user_id):
+    """Test GET /api/profile/{user_id}"""
+    print_test_header(f"Get Profile (User ID: {user_id})")
+    
+    try:
+        response = requests.get(f"{BACKEND_URL}/profile/{user_id}")
+        
+        if response.status_code == 200:
+            profile_data = response.json()
+            print_result(True, "Profile retrieved successfully", {
+                "user_id": profile_data.get("id"),
+                "name": profile_data.get("name"),
+                "age": profile_data.get("age"),
+                "bio": profile_data.get("bio"),
+                "location": profile_data.get("location"),
+                "gender": profile_data.get("gender")
+            })
+            return True, profile_data
+        else:
+            print_result(False, f"Failed to get profile. Status: {response.status_code}", response.text)
+            return False, None
+    except Exception as e:
+        print_result(False, f"Error getting profile: {str(e)}")
+        return False, None
+
+def test_update_profile_field(user_id, field_name, new_value, original_profile):
+    """Test updating a specific profile field"""
+    print_test_header(f"Update Profile Field: {field_name}")
+    
+    update_data = {field_name: new_value}
+    
+    try:
+        response = requests.put(f"{BACKEND_URL}/profile/{user_id}", json=update_data)
+        
+        if response.status_code == 200:
+            updated_profile = response.json()
+            updated_value = updated_profile.get(field_name)
+            
+            if updated_value == new_value:
+                print_result(True, f"Profile field '{field_name}' updated successfully", {
+                    "field": field_name,
+                    "old_value": original_profile.get(field_name),
+                    "new_value": updated_value
+                })
+                return True, updated_profile
+            else:
+                print_result(False, f"Profile field '{field_name}' not updated correctly", {
+                    "expected": new_value,
+                    "actual": updated_value
+                })
+                return False, updated_profile
+        else:
+            print_result(False, f"Failed to update profile field '{field_name}'. Status: {response.status_code}", response.text)
+            return False, None
+    except Exception as e:
+        print_result(False, f"Error updating profile field '{field_name}': {str(e)}")
+        return False, None
+
+def test_profile_persistence(user_id, expected_values):
+    """Test that profile updates persist by fetching profile again"""
+    print_test_header("Test Profile Update Persistence")
+    
+    try:
+        response = requests.get(f"{BACKEND_URL}/profile/{user_id}")
+        
+        if response.status_code == 200:
+            profile_data = response.json()
+            all_correct = True
+            results = {}
+            
+            for field, expected_value in expected_values.items():
+                actual_value = profile_data.get(field)
+                is_correct = actual_value == expected_value
+                all_correct = all_correct and is_correct
+                results[field] = {
+                    "expected": expected_value,
+                    "actual": actual_value,
+                    "correct": is_correct
+                }
+            
+            if all_correct:
+                print_result(True, "All profile updates persisted correctly", results)
+                return True
+            else:
+                print_result(False, "Some profile updates did not persist", results)
+                return False
+        else:
+            print_result(False, f"Failed to verify persistence. Status: {response.status_code}", response.text)
+            return False
+    except Exception as e:
+        print_result(False, f"Error verifying persistence: {str(e)}")
+        return False
+
 def main():
-    """Main test execution"""
-    print(f"HeartLink Backend Admin Functionality Test")
+    """Main test execution for profile update functionality"""
+    print(f"HeartLink Backend Profile Update Functionality Test")
     print(f"Backend URL: {BACKEND_URL}")
     print(f"Test started at: {datetime.now()}")
     
-    # Step 1: Check existing users
-    existing_users = test_get_all_users()
-    
-    # Step 2: Always create a new test user with known credentials for reliable testing
-    print("\nCreating new test user with known credentials for reliable admin testing...")
-    admin_user_id, user_data = create_test_user()
-    admin_credentials = None
-    
-    if admin_user_id:
-        admin_credentials = {
-            "email": user_data["email"],
-            "password": user_data["password"]
-        }
-    else:
-        # Fallback to existing user if creation fails
-        if existing_users:
-            print(f"\nFallback: Using existing user for admin testing")
-            for user in existing_users:
-                print(f"  - {user['name']} (ID: {user['id']}, Email: {user.get('email', 'N/A')}, Admin: {user.get('is_admin', False)})")
-            
-            # Use the first non-admin user for testing
-            for user in existing_users:
-                if not user.get('is_admin', False):
-                    admin_user_id = user["id"]
-                    break
-            
-            if not admin_user_id and existing_users:
-                admin_user_id = existing_users[0]["id"]
-    
-    if not admin_user_id:
-        print("❌ CRITICAL: Could not get or create a user for testing")
+    # Step 1: Login with demo user
+    login_success, user_id, user_data = test_demo_user_login()
+    if not login_success:
+        print("❌ CRITICAL: Demo user login failed - cannot proceed with profile tests")
         return False
     
-    # Step 3: Make user admin
-    admin_success = make_user_admin(admin_user_id)
-    if not admin_success:
-        print("❌ CRITICAL: Failed to make user admin")
+    # Step 2: Get initial profile
+    profile_success, original_profile = test_get_profile(user_id)
+    if not profile_success:
+        print("❌ CRITICAL: Failed to get user profile")
         return False
     
-    # Step 4: Verify admin status
-    is_admin_verified, admin_user_data = verify_admin_status(admin_user_id)
-    if not is_admin_verified:
-        print("❌ CRITICAL: Admin status not verified")
-        return False
+    # Step 3: Test profile field updates
+    test_updates = [
+        ("age", 28),
+        ("bio", "Updated bio for HeartLink profile testing - passionate about technology and meaningful connections!"),
+        ("location", "Los Angeles, CA"),
+        ("gender", "female")
+    ]
     
-    # Step 5: Test login with admin user
-    if admin_credentials and admin_credentials["email"]:
-        login_success, login_data = test_admin_login(admin_credentials["email"], admin_credentials["password"])
-        if not login_success:
-            print("⚠️  WARNING: Admin login test failed, but admin creation was successful")
-    else:
-        print("⚠️  WARNING: Cannot test login - no email credentials available")
+    updated_values = {}
+    all_updates_successful = True
+    
+    for field_name, new_value in test_updates:
+        update_success, updated_profile = test_update_profile_field(user_id, field_name, new_value, original_profile)
+        if update_success:
+            updated_values[field_name] = new_value
+        else:
+            all_updates_successful = False
+    
+    # Step 4: Test persistence of updates
+    if updated_values:
+        persistence_success = test_profile_persistence(user_id, updated_values)
+        if not persistence_success:
+            all_updates_successful = False
     
     # Final summary
     print(f"\n{'='*60}")
-    print("FINAL SUMMARY")
+    print("PROFILE UPDATE TEST SUMMARY")
     print(f"{'='*60}")
     
-    if admin_user_data:
-        print("✅ ADMIN USER READY FOR FRONTEND:")
-        print(f"   User ID: {admin_user_data['id']}")
-        print(f"   Name: {admin_user_data['name']}")
-        print(f"   Email: {admin_user_data.get('email', 'N/A')}")
-        print(f"   Is Admin: {admin_user_data.get('is_admin', False)}")
-        
-        if admin_credentials and admin_credentials["email"]:
-            print(f"\n✅ ADMIN CREDENTIALS:")
-            print(f"   Email: {admin_credentials['email']}")
-            print(f"   Password: {admin_credentials['password']}")
-        
+    if all_updates_successful:
+        print("✅ ALL PROFILE UPDATE TESTS PASSED")
+        print(f"   User ID: {user_id}")
+        print(f"   Profile GET endpoint: Working")
+        print(f"   Profile PUT endpoint: Working")
+        print(f"   Field updates tested: {len(test_updates)}")
+        print(f"   Persistence verification: Passed")
         return True
     else:
-        print("❌ ADMIN SETUP FAILED")
+        print("❌ SOME PROFILE UPDATE TESTS FAILED")
+        print("   Check individual test results above for details")
         return False
 
 if __name__ == "__main__":
