@@ -288,10 +288,15 @@ async def signup(user_data: UserSignup):
     user_dict["password_hash"] = hash_password(user_data.password)
     del user_dict["password"]
     
+    # Clean user data before creating User object
     user = User(**user_dict)
-    await db.users.insert_one(user.dict())
+    user_data_for_db = user.dict()
     
-    return {"message": "Signup successful", "user_id": user.id, "user": user.dict()}
+    await db.users.insert_one(user_data_for_db)
+    
+    # Return cleaned user data
+    cleaned_user = clean_user_data(user_data_for_db)
+    return {"message": "Signup successful", "user_id": user.id, "user": cleaned_user}
 
 @api_router.post("/auth/login")
 async def login(credentials: UserLogin):
