@@ -155,6 +155,32 @@ def hash_password(password: str) -> str:
 def verify_password(password: str, password_hash: str) -> bool:
     return hash_password(password) == password_hash
 
+def clean_user_data(user_data: dict) -> dict:
+    """Clean user data to prevent Pydantic validation errors with None values"""
+    cleaned_user = {}
+    for key, value in user_data.items():
+        if value is not None:
+            cleaned_user[key] = value
+        else:
+            # Set default values for None fields based on User model
+            if key == "bio":
+                cleaned_user[key] = ""
+            elif key == "photos":
+                cleaned_user[key] = []
+            elif key == "interests":
+                cleaned_user[key] = []
+            elif key == "blocked_users":
+                cleaned_user[key] = []
+            elif key == "email":
+                cleaned_user[key] = None  # email can be None
+            elif key == "phone":
+                cleaned_user[key] = None  # phone can be None
+            elif key == "fcm_token":
+                cleaned_user[key] = None  # fcm_token can be None
+            else:
+                cleaned_user[key] = value
+    return cleaned_user
+
 async def calculate_ai_compatibility(user1: dict, user2: dict) -> tuple:
     """Calculate AI-powered compatibility score"""
     try:
