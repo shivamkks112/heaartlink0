@@ -202,15 +202,15 @@ const ProfilePage = ({ user, setUser }) => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <input
                   type="text"
-                  value={profile.city || ''}
-                  onChange={(e) => handleUpdate('city', e.target.value)}
+                  value={formData.city || ''}
+                  onChange={(e) => handleFieldChange('city', e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
                   placeholder="City"
                 />
                 <input
                   type="text"
-                  value={profile.state || ''}
-                  onChange={(e) => handleUpdate('state', e.target.value)}
+                  value={formData.state || ''}
+                  onChange={(e) => handleFieldChange('state', e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
                   placeholder="State"
                 />
