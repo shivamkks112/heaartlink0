@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import axios from 'axios';
 import { Heart, Mail, Phone, Lock, User, MapPin, Calendar, Hash } from 'lucide-react';
 import { Button } from '@/components/ui/button';
