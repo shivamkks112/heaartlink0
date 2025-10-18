@@ -14,8 +14,10 @@ const API = `${BACKEND_URL}/api`;
 
 const ProfilePage = ({ user, setUser }) => {
   const [profile, setProfile] = useState(user);
+  const [formData, setFormData] = useState({});
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
 
   useEffect(() => {
     fetchProfile();
@@ -25,6 +27,7 @@ const ProfilePage = ({ user, setUser }) => {
     try {
       const response = await axios.get(`${API}/profile/${user.id}`);
       setProfile(response.data);
+      setFormData(response.data);
     } catch (error) {
       toast.error('Failed to load profile');
     }
@@ -50,6 +53,7 @@ const ProfilePage = ({ user, setUser }) => {
       });
 
       setProfile(response.data);
+      setFormData(response.data);
       setUser(response.data);
       localStorage.setItem('user', JSON.stringify(response.data));
       toast.success('Profile picture updated!');
@@ -60,18 +64,41 @@ const ProfilePage = ({ user, setUser }) => {
     }
   };
 
-  const handleUpdate = async (field, value) => {
+  const handleFieldChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+    setHasChanges(true);
+  };
+
+  const handleSaveChanges = async () => {
+    if (!hasChanges) {
+      toast.info('No changes to save');
+      return;
+    }
+
     setLoading(true);
     try {
-      const response = await axios.put(`${API}/profile/${user.id}`, {
-        [field]: value
+      // Only send changed fields
+      const updates = {};
+      Object.keys(formData).forEach(key => {
+        if (formData[key] !== profile[key]) {
+          updates[key] = formData[key];
+        }
       });
+
+      const response = await axios.put(`${API}/profile/${user.id}`, updates);
+      
       setProfile(response.data);
+      setFormData(response.data);
       setUser(response.data);
       localStorage.setItem('user', JSON.stringify(response.data));
-      toast.success('Profile updated!');
+      setHasChanges(false);
+      toast.success('Profile updated successfully!');
     } catch (error) {
-      toast.error('Failed to update profile');
+      toast.error('Failed to update profile. Please try again.');
+      console.error('Profile update error:', error);
     } finally {
       setLoading(false);
     }
