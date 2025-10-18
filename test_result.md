@@ -131,6 +131,9 @@ backend:
         - working: true
           agent: "testing"
           comment: "✅ PROFILE UPDATE TESTING COMPLETE: All profile functionality working perfectly. Successfully tested: demo user login (demo1@heartlink.com / Demo123!), GET /api/profile/{user_id} (retrieves profile data correctly), PUT /api/profile/{user_id} (updates age, bio, location, gender fields successfully), data persistence verification (all updates persist correctly in database). Created demo user for testing. Minor: PUT endpoint returns 500 instead of 404 for non-existent users, but core functionality works perfectly for valid users."
+        - working: true
+          agent: "main"
+          comment: "✅ PROFILE UPDATE FIX COMPLETE: Fixed Android APK profile update errors by removing onChange API calls. Changed ProfilePage.jsx to store changes locally and only update backend when 'Save Changes' button is clicked. Added Cancel button, better loading states, and proper error handling. This fixes the rapid-fire API call issue that was causing errors on mobile/Android."
 
   - task: "Admin User Management"
     implemented: true
