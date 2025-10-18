@@ -373,6 +373,39 @@ def main():
         if not persistence_success:
             all_updates_successful = False
     
+    # Step 5: Test edge cases and error scenarios
+    print_test_header("Testing Edge Cases and Error Scenarios")
+    
+    # Test invalid user ID
+    try:
+        response = requests.get(f"{BACKEND_URL}/profile/invalid-user-id")
+        if response.status_code == 404:
+            print_result(True, "Invalid user ID properly returns 404", {"status_code": 404})
+        else:
+            print_result(False, f"Invalid user ID returned unexpected status: {response.status_code}", response.text)
+    except Exception as e:
+        print_result(False, f"Error testing invalid user ID: {str(e)}")
+    
+    # Test updating non-existent user
+    try:
+        response = requests.put(f"{BACKEND_URL}/profile/invalid-user-id", json={"age": 30})
+        if response.status_code == 404:
+            print_result(True, "Update non-existent user properly returns 404", {"status_code": 404})
+        else:
+            print_result(False, f"Update non-existent user returned unexpected status: {response.status_code}", response.text)
+    except Exception as e:
+        print_result(False, f"Error testing update non-existent user: {str(e)}")
+    
+    # Test updating with empty data
+    try:
+        response = requests.put(f"{BACKEND_URL}/profile/{user_id}", json={})
+        if response.status_code == 200:
+            print_result(True, "Empty update request handled gracefully", {"status_code": 200})
+        else:
+            print_result(False, f"Empty update request returned unexpected status: {response.status_code}", response.text)
+    except Exception as e:
+        print_result(False, f"Error testing empty update: {str(e)}")
+    
     # Final summary
     print(f"\n{'='*60}")
     print("PROFILE UPDATE TEST SUMMARY")
