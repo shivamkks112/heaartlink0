@@ -54,7 +54,7 @@ const ProfilePage = ({ user, onUpdate }) => {
 
       setProfile(response.data);
       setFormData(response.data);
-      setUser(response.data);
+      onUpdate(response.data);
       localStorage.setItem('user', JSON.stringify(response.data));
       toast.success('Profile picture updated!');
     } catch (error) {
