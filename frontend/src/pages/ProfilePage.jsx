@@ -221,8 +221,8 @@ const ProfilePage = ({ user, setUser }) => {
             <div>
               <label className="text-sm font-medium text-gray-600 mb-2 block">Bio</label>
               <textarea
-                value={profile.bio || ''}
-                onChange={(e) => handleUpdate('bio', e.target.value)}
+                value={formData.bio || ''}
+                onChange={(e) => handleFieldChange('bio', e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
                 rows="4"
                 placeholder="Tell us about yourself..."
@@ -230,12 +230,32 @@ const ProfilePage = ({ user, setUser }) => {
             </div>
 
             {/* Save Button */}
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-3">
+              {hasChanges && (
+                <Button
+                  onClick={() => {
+                    setFormData(profile);
+                    setHasChanges(false);
+                  }}
+                  variant="outline"
+                  className="px-6 py-3 rounded-xl font-semibold"
+                >
+                  Cancel
+                </Button>
+              )}
               <Button
-                disabled={loading}
-                className="bg-gradient-to-r from-pink-500 to-orange-500 text-white px-8 py-3 rounded-xl font-semibold hover:shadow-glow transition-all"
+                onClick={handleSaveChanges}
+                disabled={loading || !hasChanges}
+                className="bg-gradient-to-r from-pink-500 to-orange-500 text-white px-8 py-3 rounded-xl font-semibold hover:shadow-glow transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Saving...' : 'Save Changes'}
+                {loading ? (
+                  <span className="flex items-center gap-2">
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Saving...
+                  </span>
+                ) : (
+                  'Save Changes'
+                )}
               </Button>
             </div>
           </div>
