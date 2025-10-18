@@ -725,13 +725,23 @@ async def discover_users(user_id: str, limit: int = 10):
         interacted_ids.add(m["user1_id"])
         interacted_ids.add(m["user2_id"])
     
-    # Find potential matches
+    # Find potential matches (case-insensitive gender matching)
+    looking_for_gender = current_user["looking_for"].lower() if current_user.get("looking_for") else None
+    current_gender = current_user["gender"].lower() if current_user.get("gender") else None
+    
     query = {
         "id": {"$ne": user_id, "$nin": blocked_users + blocker_ids + list(interacted_ids)},
-        "gender": current_user["looking_for"],
-        "looking_for": current_user["gender"],
         "privacy_settings.show_profile": True
     }
+    
+    # Add gender filters if both users have gender preferences
+    if looking_for_gender and current_gender:
+        query["$or"] = [
+            {
+                "gender": {"$regex": f"^{looking_for_gender}$", "$options": "i"},
+                "looking_for": {"$regex": f"^{current_gender}$", "$options": "i"}
+            }
+        ]
     
     users = await db.users.find(query).limit(limit).to_list(None)
     
