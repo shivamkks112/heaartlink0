@@ -278,6 +278,15 @@ const AuthPage = ({ onLogin }) => {
               >
                 {loading ? 'Logging in...' : 'Login'}
               </Button>
+
+              <button
+                data-testid="forgot-password-link"
+                type="button"
+                onClick={() => navigate('/forgot-password')}
+                className="w-full text-center text-pink-600 hover:text-pink-700 font-medium mt-4"
+              >
+                Forgot Password?
+              </button>
             </form>
           ) : (
             <form onSubmit={handleSignup} className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
