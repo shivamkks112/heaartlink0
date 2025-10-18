@@ -12,7 +12,7 @@ import { storage } from '@/firebase/config';
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://heartlink-dating.preview.emergentagent.com';
 const API = `${BACKEND_URL}/api`;
 
-const ProfilePage = ({ user, setUser }) => {
+const ProfilePage = ({ user, onUpdate }) => {
   const [profile, setProfile] = useState(user);
   const [formData, setFormData] = useState({});
   const [loading, setLoading] = useState(false);
