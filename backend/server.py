@@ -400,8 +400,11 @@ async def update_profile(user_id: str, updates: dict):
     updates.pop("password_hash", None)
     updates.pop("id", None)
     
+    # Filter out None values to prevent validation errors
+    filtered_updates = {k: v for k, v in updates.items() if v is not None}
+    
     # Update user
-    result = await db.users.update_one({"id": user_id}, {"$set": updates})
+    result = await db.users.update_one({"id": user_id}, {"$set": filtered_updates})
     
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="User not found")
@@ -412,7 +415,25 @@ async def update_profile(user_id: str, updates: dict):
     if not user:
         raise HTTPException(status_code=404, detail="User not found after update")
     
-    return User(**user).dict()
+    # Clean user data before creating User object to prevent validation errors
+    cleaned_user = {}
+    for key, value in user.items():
+        if value is not None:
+            cleaned_user[key] = value
+        else:
+            # Set default values for None fields based on User model
+            if key == "bio":
+                cleaned_user[key] = ""
+            elif key == "photos":
+                cleaned_user[key] = []
+            elif key == "interests":
+                cleaned_user[key] = []
+            elif key == "blocked_users":
+                cleaned_user[key] = []
+            else:
+                cleaned_user[key] = value
+    
+    return User(**cleaned_user).dict()
 
 @api_router.post("/profile/{user_id}/verify")
 async def request_verification(user_id: str):
