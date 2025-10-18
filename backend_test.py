@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-HeartLink Backend Admin Functionality Test
-Tests admin user creation, verification, and login functionality
+HeartLink Backend Profile Update Functionality Test
+Tests profile GET and PUT endpoints with various field updates
 """
 
 import requests
