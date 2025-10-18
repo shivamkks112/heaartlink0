@@ -306,7 +306,9 @@ async def login(credentials: UserLogin):
     if not user or not verify_password(credentials.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
-    return {"message": "Login successful", "user": User(**user).dict()}
+    # Clean user data to prevent validation errors
+    cleaned_user = clean_user_data(user)
+    return {"message": "Login successful", "user": User(**cleaned_user).dict()}
 
 @api_router.post("/auth/forgot-password")
 async def forgot_password(request: ForgotPasswordRequest):
