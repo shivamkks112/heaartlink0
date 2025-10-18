@@ -120,6 +120,18 @@ backend:
           agent: "testing"
           comment: "✅ TESTED: All admin functionality working perfectly. Successfully tested: GET /api/admin/all-users (retrieved 9 existing users), POST /api/admin/make-admin/{user_id} (made users admin successfully), admin status verification (confirmed is_admin: true), and admin login with is_admin: true in response. Created new admin user with credentials: admin@heartlink.com / AdminPass123!"
 
+  - task: "Profile Update Functionality"
+    implemented: true
+    working: true
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: "✅ PROFILE UPDATE TESTING COMPLETE: All profile functionality working perfectly. Successfully tested: demo user login (demo1@heartlink.com / Demo123!), GET /api/profile/{user_id} (retrieves profile data correctly), PUT /api/profile/{user_id} (updates age, bio, location, gender fields successfully), data persistence verification (all updates persist correctly in database). Created demo user for testing. Minor: PUT endpoint returns 500 instead of 404 for non-existent users, but core functionality works perfectly for valid users."
+
   - task: "Admin User Management"
     implemented: true
     working: true
