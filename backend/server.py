@@ -444,23 +444,7 @@ async def update_profile(user_id: str, updates: dict):
         raise HTTPException(status_code=404, detail="User not found after update")
     
     # Clean user data before creating User object to prevent validation errors
-    cleaned_user = {}
-    for key, value in user.items():
-        if value is not None:
-            cleaned_user[key] = value
-        else:
-            # Set default values for None fields based on User model
-            if key == "bio":
-                cleaned_user[key] = ""
-            elif key == "photos":
-                cleaned_user[key] = []
-            elif key == "interests":
-                cleaned_user[key] = []
-            elif key == "blocked_users":
-                cleaned_user[key] = []
-            else:
-                cleaned_user[key] = value
-    
+    cleaned_user = clean_user_data(user)
     return User(**cleaned_user).dict()
 
 @api_router.post("/profile/{user_id}/verify")
