@@ -186,18 +186,12 @@ def clean_user_data(user_data: dict) -> dict:
             # Set default values for None fields based on User model
             if key == "bio":
                 cleaned_user[key] = ""
-            elif key == "photos":
+            elif key in ["photos", "interests", "blocked_users", "muted_users"]:
                 cleaned_user[key] = []
-            elif key == "interests":
-                cleaned_user[key] = []
-            elif key == "blocked_users":
-                cleaned_user[key] = []
-            elif key == "email":
-                cleaned_user[key] = None  # email can be None
-            elif key == "phone":
-                cleaned_user[key] = None  # phone can be None
-            elif key == "fcm_token":
-                cleaned_user[key] = None  # fcm_token can be None
+            elif key in ["email", "phone", "fcm_token", "latitude", "longitude"]:
+                cleaned_user[key] = None
+            elif key == "profile_views":
+                cleaned_user[key] = 0
             else:
                 cleaned_user[key] = value
     return cleaned_user
