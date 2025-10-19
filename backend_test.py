@@ -636,7 +636,7 @@ def main():
         all_tests_passed = False
     
     # Test 4: Discover
-    discover_success = test_discover_functionality()
+    discover_success = test_discover_functionality(user_data)
     if not discover_success:
         print("❌ WARNING: Discover functionality test failed")
         # Don't fail entire test suite for discover issues
