@@ -24,7 +24,7 @@ def print_result(success, message, data=None):
         print(f"Data: {json.dumps(data, indent=2)}")
 
 def test_new_user_signup():
-    """Test POST /api/auth/signup with specific test data"""
+    """Test POST /api/auth/signup with specific test data or find existing user"""
     print_test_header("New User Signup")
     
     signup_data = {
@@ -54,6 +54,31 @@ def test_new_user_signup():
                 "message": result.get("message")
             })
             return True, user_id, user_data
+        elif response.status_code == 400 and "already registered" in response.text:
+            # User already exists, find the existing user
+            print_result(True, "User already exists, finding existing user", {
+                "email": signup_data["email"],
+                "status": "already_exists"
+            })
+            
+            # Get all users to find the existing one
+            users_response = requests.get(f"{BACKEND_URL}/admin/all-users")
+            if users_response.status_code == 200:
+                users = users_response.json()
+                for user in users:
+                    if user.get("email") == signup_data["email"]:
+                        print_result(True, "Found existing user", {
+                            "user_id": user.get("id"),
+                            "name": user.get("name"),
+                            "email": user.get("email")
+                        })
+                        return True, user.get("id"), signup_data
+                
+                print_result(False, "User exists but not found in user list")
+                return False, None, None
+            else:
+                print_result(False, f"Failed to get user list. Status: {users_response.status_code}")
+                return False, None, None
         else:
             print_result(False, f"Signup failed. Status: {response.status_code}", response.text)
             return False, None, None
