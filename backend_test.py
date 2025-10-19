@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-HeartLink Backend Profile Update Functionality Test
-Tests profile GET and PUT endpoints with various field updates
+HeartLink Backend Comprehensive Permanent Fix Verification Test
+Tests signup, login, profile operations, and discover functionality
+Specifically verifies ObjectId serialization fixes
 """
 
 import requests
