@@ -347,6 +347,10 @@ async def signup(user_data: UserSignup):
 
 @api_router.post("/auth/login")
 async def login(credentials: UserLogin):
+    """
+    User login endpoint - PERMANENT FIX
+    Handles MongoDB ObjectId serialization properly
+    """
     # Find user by email or phone
     user = await db.users.find_one({
         "$or": [
@@ -358,9 +362,10 @@ async def login(credentials: UserLogin):
     if not user or not verify_password(credentials.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
-    # Clean user data to prevent validation errors
-    cleaned_user = clean_user_data(user)
-    return {"message": "Login successful", "user": User(**cleaned_user).dict()}
+    # Serialize for response (removes _id, password_hash, cleans None values)
+    clean_user = serialize_user_for_response(user, exclude_password=True)
+    
+    return {"message": "Login successful", "user": clean_user}
 
 @api_router.post("/auth/forgot-password")
 async def forgot_password(request: ForgotPasswordRequest):
