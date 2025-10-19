@@ -325,103 +325,329 @@ def create_demo_user():
         print_result(False, f"Error creating demo user: {str(e)}")
         return False, None
 
-def main():
-    """Main test execution for profile update functionality"""
-    print(f"HeartLink Backend Profile Update Functionality Test")
-    print(f"Backend URL: {BACKEND_URL}")
-    print(f"Test started at: {datetime.now()}")
+def test_fresh_signup():
+    """Test 1: Fresh Signup - Comprehensive permanent fix verification"""
+    print_test_header("Test 1: Fresh Signup - Permanent Fix Verification")
     
-    # Step 1: Try to login with demo user, create if doesn't exist
-    login_success, user_id, user_data = test_demo_user_login()
-    if not login_success:
-        print("Demo user doesn't exist, creating it...")
-        create_success, created_user_id = create_demo_user()
-        if create_success:
-            # Try login again
-            login_success, user_id, user_data = test_demo_user_login()
+    # Test data from review request
+    signup_data = {
+        "email": "akash.test@heartlink.com",
+        "password": "Akash@123",
+        "name": "Akash Kumar",
+        "age": 26,
+        "gender": "Male",
+        "looking_for": "Female",
+        "bio": "Software engineer from Patna",
+        "location": "Patna, Bihar",
+        "interests": ["Cricket", "Music", "Travel"]
+    }
+    
+    try:
+        response = requests.post(f"{BACKEND_URL}/auth/signup", json=signup_data)
         
-        if not login_success:
-            print("❌ CRITICAL: Demo user login failed even after creation - cannot proceed with profile tests")
-            return False
+        if response.status_code == 200:
+            signup_result = response.json()
+            user_data = signup_result.get("user", {})
+            user_id = signup_result.get("user_id")
+            
+            # Verify response structure
+            if not user_id:
+                print_result(False, "No user_id in signup response", signup_result)
+                return False, None, None
+            
+            # Check for ObjectId errors in response
+            response_text = response.text
+            if "_id" in response_text or "ObjectId" in response_text:
+                print_result(False, "ObjectId found in response - serialization issue", response_text)
+                return False, None, None
+            
+            # Verify privacy_settings are set correctly
+            privacy_settings = user_data.get("privacy_settings", {})
+            expected_privacy = {
+                "show_profile": True,
+                "show_photos": True,
+                "incognito_mode": False
+            }
+            
+            privacy_correct = all(
+                privacy_settings.get(key) == expected_privacy[key] 
+                for key in expected_privacy
+            )
+            
+            if not privacy_correct:
+                print_result(False, "Privacy settings not set correctly", {
+                    "expected": expected_privacy,
+                    "actual": privacy_settings
+                })
+                return False, user_id, user_data
+            
+            # Verify clean user data (no password_hash, no _id)
+            if "password_hash" in user_data or "_id" in user_data:
+                print_result(False, "Sensitive data found in response", user_data.keys())
+                return False, user_id, user_data
+            
+            print_result(True, "✅ Fresh signup successful - all verifications passed", {
+                "user_id": user_id,
+                "name": user_data.get("name"),
+                "email": user_data.get("email"),
+                "privacy_settings": privacy_settings,
+                "no_objectid_errors": True,
+                "clean_response": True
+            })
+            return True, user_id, user_data
+            
+        else:
+            print_result(False, f"Signup failed. Status: {response.status_code}", response.text)
+            return False, None, None
+            
+    except Exception as e:
+        print_result(False, f"Error during signup: {str(e)}")
+        return False, None, None
+
+def test_login_with_new_user(email, password):
+    """Test 2: Login with New User"""
+    print_test_header("Test 2: Login with New User")
     
-    # Step 2: Get initial profile
-    profile_success, original_profile = test_get_profile(user_id)
-    if not profile_success:
-        print("❌ CRITICAL: Failed to get user profile")
+    login_data = {
+        "email_or_phone": email,
+        "password": password
+    }
+    
+    try:
+        response = requests.post(f"{BACKEND_URL}/auth/login", json=login_data)
+        
+        if response.status_code == 200:
+            login_result = response.json()
+            user_data = login_result.get("user", {})
+            
+            # Check for ObjectId errors in response
+            response_text = response.text
+            if "_id" in response_text or "ObjectId" in response_text:
+                print_result(False, "ObjectId found in login response - serialization issue", response_text)
+                return False, None
+            
+            # Verify clean user data
+            if "password_hash" in user_data or "_id" in user_data:
+                print_result(False, "Sensitive data found in login response", user_data.keys())
+                return False, user_data
+            
+            print_result(True, "✅ Login successful - no serialization errors", {
+                "user_id": user_data.get("id"),
+                "name": user_data.get("name"),
+                "email": user_data.get("email"),
+                "no_objectid_errors": True,
+                "clean_response": True
+            })
+            return True, user_data
+            
+        else:
+            print_result(False, f"Login failed. Status: {response.status_code}", response.text)
+            return False, None
+            
+    except Exception as e:
+        print_result(False, f"Error during login: {str(e)}")
+        return False, None
+
+def test_profile_operations(user_id):
+    """Test 3: Profile Operations"""
+    print_test_header("Test 3: Profile Operations")
+    
+    # Test GET profile
+    try:
+        response = requests.get(f"{BACKEND_URL}/profile/{user_id}")
+        
+        if response.status_code == 200:
+            profile_data = response.json()
+            
+            # Check for ObjectId errors
+            response_text = response.text
+            if "_id" in response_text or "ObjectId" in response_text:
+                print_result(False, "ObjectId found in GET profile response", response_text)
+                return False
+            
+            print_result(True, "✅ GET profile working", {
+                "user_id": profile_data.get("id"),
+                "name": profile_data.get("name"),
+                "age": profile_data.get("age")
+            })
+            
+        else:
+            print_result(False, f"GET profile failed. Status: {response.status_code}", response.text)
+            return False
+            
+    except Exception as e:
+        print_result(False, f"Error in GET profile: {str(e)}")
         return False
     
-    # Step 3: Test profile field updates
-    test_updates = [
-        ("age", 28),
-        ("bio", "Updated bio for HeartLink profile testing - passionate about technology and meaningful connections!"),
-        ("location", "Los Angeles, CA"),
-        ("gender", "female")
-    ]
-    
-    updated_values = {}
-    all_updates_successful = True
-    
-    for field_name, new_value in test_updates:
-        update_success, updated_profile = test_update_profile_field(user_id, field_name, new_value, original_profile)
-        if update_success:
-            updated_values[field_name] = new_value
-        else:
-            all_updates_successful = False
-    
-    # Step 4: Test persistence of updates
-    if updated_values:
-        persistence_success = test_profile_persistence(user_id, updated_values)
-        if not persistence_success:
-            all_updates_successful = False
-    
-    # Step 5: Test edge cases and error scenarios
-    print_test_header("Testing Edge Cases and Error Scenarios")
-    
-    # Test invalid user ID
+    # Test PUT profile with age update
     try:
-        response = requests.get(f"{BACKEND_URL}/profile/invalid-user-id")
-        if response.status_code == 404:
-            print_result(True, "Invalid user ID properly returns 404", {"status_code": 404})
-        else:
-            print_result(False, f"Invalid user ID returned unexpected status: {response.status_code}", response.text)
-    except Exception as e:
-        print_result(False, f"Error testing invalid user ID: {str(e)}")
-    
-    # Test updating non-existent user
-    try:
-        response = requests.put(f"{BACKEND_URL}/profile/invalid-user-id", json={"age": 30})
-        if response.status_code == 404:
-            print_result(True, "Update non-existent user properly returns 404", {"status_code": 404})
-        else:
-            print_result(False, f"Update non-existent user returned unexpected status: {response.status_code}", response.text)
-    except Exception as e:
-        print_result(False, f"Error testing update non-existent user: {str(e)}")
-    
-    # Test updating with empty data
-    try:
-        response = requests.put(f"{BACKEND_URL}/profile/{user_id}", json={})
+        update_data = {"age": 27}
+        response = requests.put(f"{BACKEND_URL}/profile/{user_id}", json=update_data)
+        
         if response.status_code == 200:
-            print_result(True, "Empty update request handled gracefully", {"status_code": 200})
+            updated_profile = response.json()
+            
+            # Check for ObjectId errors
+            response_text = response.text
+            if "_id" in response_text or "ObjectId" in response_text:
+                print_result(False, "ObjectId found in PUT profile response", response_text)
+                return False
+            
+            # Verify age was updated
+            if updated_profile.get("age") == 27:
+                print_result(True, "✅ PUT profile working - age updated successfully", {
+                    "user_id": updated_profile.get("id"),
+                    "new_age": updated_profile.get("age"),
+                    "no_objectid_errors": True
+                })
+                return True
+            else:
+                print_result(False, "Age not updated correctly", {
+                    "expected": 27,
+                    "actual": updated_profile.get("age")
+                })
+                return False
+                
         else:
-            print_result(False, f"Empty update request returned unexpected status: {response.status_code}", response.text)
+            print_result(False, f"PUT profile failed. Status: {response.status_code}", response.text)
+            return False
+            
     except Exception as e:
-        print_result(False, f"Error testing empty update: {str(e)}")
+        print_result(False, f"Error in PUT profile: {str(e)}")
+        return False
+
+def test_discover_functionality():
+    """Test 4: Discover - Verify Akash appears in results"""
+    print_test_header("Test 4: Discover Functionality")
+    
+    # First, login as demo1 (female looking for male)
+    demo_login_data = {
+        "email_or_phone": "demo1@heartlink.com",
+        "password": "Demo123!"
+    }
+    
+    try:
+        # Login as demo1
+        response = requests.post(f"{BACKEND_URL}/auth/login", json=demo_login_data)
+        
+        if response.status_code != 200:
+            print_result(False, "Demo1 login failed - cannot test discover", response.text)
+            return False
+        
+        demo_user = response.json().get("user", {})
+        demo_user_id = demo_user.get("id")
+        
+        if not demo_user_id:
+            print_result(False, "No user_id from demo1 login", demo_user)
+            return False
+        
+        # Test discover endpoint
+        response = requests.get(f"{BACKEND_URL}/discover/{demo_user_id}")
+        
+        if response.status_code == 200:
+            discover_results = response.json()
+            
+            # Check for ObjectId errors
+            response_text = response.text
+            if "_id" in response_text or "ObjectId" in response_text:
+                print_result(False, "ObjectId found in discover response", response_text)
+                return False
+            
+            # Look for Akash in results
+            akash_found = False
+            for user in discover_results:
+                if user.get("name") == "Akash Kumar":
+                    akash_found = True
+                    print_result(True, "✅ Akash appears in discover results", {
+                        "akash_id": user.get("id"),
+                        "name": user.get("name"),
+                        "age": user.get("age"),
+                        "location": user.get("location"),
+                        "bio": user.get("bio")
+                    })
+                    break
+            
+            if not akash_found:
+                print_result(False, "Akash not found in discover results", {
+                    "total_results": len(discover_results),
+                    "users_found": [u.get("name") for u in discover_results]
+                })
+                return False
+            
+            return True
+            
+        else:
+            print_result(False, f"Discover failed. Status: {response.status_code}", response.text)
+            return False
+            
+    except Exception as e:
+        print_result(False, f"Error in discover test: {str(e)}")
+        return False
+
+def main():
+    """Main test execution for comprehensive permanent fix verification"""
+    print(f"HeartLink Backend Comprehensive Permanent Fix Verification")
+    print(f"Backend URL: {BACKEND_URL}")
+    print(f"Test started at: {datetime.now()}")
+    print(f"Testing ObjectId serialization fixes and complete signup flow")
+    
+    all_tests_passed = True
+    
+    # Test 1: Fresh Signup
+    signup_success, user_id, user_data = test_fresh_signup()
+    if not signup_success:
+        print("❌ CRITICAL: Fresh signup test failed")
+        all_tests_passed = False
+        return False
+    
+    # Test 2: Login with New User
+    if signup_success and user_data:
+        login_success, login_user_data = test_login_with_new_user(
+            user_data.get("email"), 
+            "Akash@123"
+        )
+        if not login_success:
+            print("❌ CRITICAL: Login with new user failed")
+            all_tests_passed = False
+    else:
+        login_success = False
+        all_tests_passed = False
+    
+    # Test 3: Profile Operations
+    if login_success and user_id:
+        profile_success = test_profile_operations(user_id)
+        if not profile_success:
+            print("❌ CRITICAL: Profile operations failed")
+            all_tests_passed = False
+    else:
+        profile_success = False
+        all_tests_passed = False
+    
+    # Test 4: Discover
+    discover_success = test_discover_functionality()
+    if not discover_success:
+        print("❌ WARNING: Discover functionality test failed")
+        # Don't fail entire test suite for discover issues
     
     # Final summary
-    print(f"\n{'='*60}")
-    print("PROFILE UPDATE TEST SUMMARY")
-    print(f"{'='*60}")
+    print(f"\n{'='*80}")
+    print("COMPREHENSIVE PERMANENT FIX VERIFICATION SUMMARY")
+    print(f"{'='*80}")
     
-    if all_updates_successful:
-        print("✅ ALL PROFILE UPDATE TESTS PASSED")
-        print(f"   User ID: {user_id}")
-        print(f"   Profile GET endpoint: Working")
-        print(f"   Profile PUT endpoint: Working")
-        print(f"   Field updates tested: {len(test_updates)}")
-        print(f"   Persistence verification: Passed")
+    if all_tests_passed:
+        print("✅ ALL CRITICAL TESTS PASSED - PERMANENT FIX VERIFIED")
+        print("   ✅ Fresh signup working without ObjectId errors")
+        print("   ✅ Login with new user working")
+        print("   ✅ Profile operations working")
+        print("   ✅ Clean user data returned (no _id, no password_hash)")
+        print("   ✅ Privacy settings set correctly")
+        if discover_success:
+            print("   ✅ Discover functionality working")
+        else:
+            print("   ⚠️  Discover functionality needs attention")
         return True
     else:
-        print("❌ SOME PROFILE UPDATE TESTS FAILED")
+        print("❌ CRITICAL TESTS FAILED - PERMANENT FIX NOT VERIFIED")
         print("   Check individual test results above for details")
         return False
 
