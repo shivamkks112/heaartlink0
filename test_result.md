@@ -267,10 +267,11 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Profile Update Functionality"
+    - "User Signup and Privacy Settings"
   stuck_tasks: 
     - "Profile Cards Visual Polish"
     - "Navigation and Mobile Experience"
+    - "User Signup and Privacy Settings"
   test_all: false
   test_priority: "high_first"
 
