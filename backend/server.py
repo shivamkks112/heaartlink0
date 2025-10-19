@@ -474,18 +474,22 @@ async def reset_password(request: ResetPasswordRequest):
 # Profile Routes
 @api_router.get("/profile/{user_id}")
 async def get_profile(user_id: str):
+    """Get user profile - PERMANENT FIX"""
     user = await db.users.find_one({"id": user_id})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    # Clean user data to prevent validation errors
-    cleaned_user = clean_user_data(user)
-    return User(**cleaned_user).dict()
+    
+    # Serialize for response
+    clean_user = serialize_user_for_response(user, exclude_password=True)
+    return clean_user
 
 @api_router.put("/profile/{user_id}")
 async def update_profile(user_id: str, updates: dict):
+    """Update user profile - PERMANENT FIX"""
     # Remove sensitive fields
     updates.pop("password_hash", None)
     updates.pop("id", None)
+    updates.pop("_id", None)
     
     # Filter out None values to prevent validation errors
     filtered_updates = {k: v for k, v in updates.items() if v is not None}
@@ -502,9 +506,9 @@ async def update_profile(user_id: str, updates: dict):
     if not user:
         raise HTTPException(status_code=404, detail="User not found after update")
     
-    # Clean user data before creating User object to prevent validation errors
-    cleaned_user = clean_user_data(user)
-    return User(**cleaned_user).dict()
+    # Serialize for response
+    clean_user = serialize_user_for_response(user, exclude_password=True)
+    return clean_user
 
 @api_router.post("/profile/{user_id}/verify")
 async def request_verification(user_id: str):
