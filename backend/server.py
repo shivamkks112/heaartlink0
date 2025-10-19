@@ -146,9 +146,17 @@ class LikeAction(BaseModel):
 class BlockUser(BaseModel):
     blocked_user_id: str
 
+class MuteUser(BaseModel):
+    muted_user_id: str
+
 class ReportUser(BaseModel):
     reported_user_id: str
     reason: str
+    
+class LocationUpdate(BaseModel):
+    latitude: float
+    longitude: float
+    location: str  # City name
 
 class PrivacyUpdate(BaseModel):
     show_profile: Optional[bool] = None
