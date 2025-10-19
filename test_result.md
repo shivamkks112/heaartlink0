@@ -270,11 +270,11 @@ metadata:
 
 test_plan:
   current_focus:
-    - "User Signup and Privacy Settings"
+    - "Profile Cards Visual Polish"
+    - "Navigation and Mobile Experience"
   stuck_tasks: 
     - "Profile Cards Visual Polish"
     - "Navigation and Mobile Experience"
-    - "User Signup and Privacy Settings"
   test_all: false
   test_priority: "high_first"
 
