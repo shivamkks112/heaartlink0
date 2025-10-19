@@ -81,6 +81,14 @@ class User(BaseModel):
     })
     blocked_users: List[str] = []
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    
+    class Config:
+        # Exclude MongoDB _id field from serialization
+        json_encoders = {
+            datetime: lambda v: v.isoformat()
+        }
+        # Allow arbitrary types
+        arbitrary_types_allowed = True
 
 class UserSignup(BaseModel):
     email: Optional[EmailStr] = None
