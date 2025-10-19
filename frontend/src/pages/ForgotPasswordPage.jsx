@@ -192,6 +192,42 @@ const ForgotPasswordPage = () => {
           {/* Step 2: Verify Code */}
           {step === 2 && (
             <form onSubmit={handleVerifyCode} className="space-y-4">
+              {/* OTP Display Box - Development Mode */}
+              {otpCode && (
+                <div className="bg-gradient-to-r from-pink-50 to-orange-50 border-2 border-pink-300 rounded-2xl p-6 mb-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-lg font-bold text-pink-700 flex items-center gap-2">
+                      <Mail className="w-5 h-5" />
+                      Your Reset Code
+                    </h3>
+                    <span className="text-xs bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full font-semibold">
+                      DEV MODE
+                    </span>
+                  </div>
+                  
+                  <div className="bg-white rounded-xl p-4 mb-3 border-2 border-dashed border-pink-300">
+                    <p className="text-4xl font-mono font-bold text-center tracking-widest text-pink-600">
+                      {otpCode}
+                    </p>
+                  </div>
+                  
+                  <button
+                    type="button"
+                    onClick={copyToClipboard}
+                    className="w-full bg-pink-600 hover:bg-pink-700 text-white py-2 rounded-lg font-semibold transition-all"
+                  >
+                    📋 Copy Code
+                  </button>
+                  
+                  <p className="text-xs text-gray-600 mt-3 text-center">
+                    ⚠️ Email service not configured. Use this code below.
+                  </p>
+                  <p className="text-xs text-gray-500 text-center">
+                    Code expires in 15 minutes
+                  </p>
+                </div>
+              )}
+              
               <div>
                 <Label htmlFor="reset-code" className="text-gray-700 font-semibold">
                   6-Digit Reset Code
