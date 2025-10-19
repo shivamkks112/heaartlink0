@@ -246,18 +246,39 @@ const ForgotPasswordPage = () => {
                   </div>
                   
                   <div className="bg-white rounded-xl p-4 mb-3 border-2 border-dashed border-pink-300">
-                    <p className="text-4xl font-mono font-bold text-center tracking-widest text-pink-600">
+                    <p 
+                      className="text-4xl font-mono font-bold text-center tracking-widest text-pink-600 select-all cursor-pointer"
+                      onClick={() => {
+                        // Auto-fill OTP in input field
+                        setFormData({...formData, reset_code: otpCode});
+                        toast.info('OTP filled automatically!');
+                      }}
+                      title="Click to auto-fill"
+                    >
                       {otpCode}
                     </p>
                   </div>
                   
-                  <button
-                    type="button"
-                    onClick={copyToClipboard}
-                    className="w-full bg-pink-600 hover:bg-pink-700 text-white py-2 rounded-lg font-semibold transition-all"
-                  >
-                    📋 Copy Code
-                  </button>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={copyToClipboard}
+                      className="bg-pink-600 hover:bg-pink-700 text-white py-2 rounded-lg font-semibold transition-all"
+                    >
+                      📋 Copy Code
+                    </button>
+                    
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFormData({...formData, reset_code: otpCode});
+                        toast.success('OTP auto-filled!');
+                      }}
+                      className="bg-orange-600 hover:bg-orange-700 text-white py-2 rounded-lg font-semibold transition-all"
+                    >
+                      ⚡ Auto-Fill
+                    </button>
+                  </div>
                   
                   <p className="text-xs text-gray-600 mt-3 text-center">
                     ⚠️ Email service not configured. Use this code below.
