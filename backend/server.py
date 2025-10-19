@@ -189,6 +189,23 @@ def clean_user_data(user_data: dict) -> dict:
                 cleaned_user[key] = value
     return cleaned_user
 
+def serialize_user_for_response(user_dict: dict, exclude_password: bool = True) -> dict:
+    """
+    Serialize user data for API responses - PERMANENT FIX
+    Removes MongoDB _id and optionally password_hash
+    """
+    # Remove MongoDB's _id field
+    user_dict.pop('_id', None)
+    
+    # Remove password hash if needed
+    if exclude_password:
+        user_dict.pop('password_hash', None)
+    
+    # Clean None values
+    cleaned = clean_user_data(user_dict)
+    
+    return cleaned
+
 async def calculate_ai_compatibility(user1: dict, user2: dict) -> tuple:
     """Calculate AI-powered compatibility score"""
     try:
