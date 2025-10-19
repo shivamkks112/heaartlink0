@@ -288,15 +288,29 @@ async def signup(user_data: UserSignup):
     user_dict["password_hash"] = hash_password(user_data.password)
     del user_dict["password"]
     
-    # Clean user data before creating User object
+    # Create User object to get defaults (like privacy_settings)
     user = User(**user_dict)
     user_data_for_db = user.dict()
     
+    # Insert into database
     await db.users.insert_one(user_data_for_db)
     
-    # Return cleaned user data
-    cleaned_user = clean_user_data(user_data_for_db)
-    return {"message": "Signup successful", "user_id": user.id, "user": cleaned_user}
+    # Return only necessary fields (avoid MongoDB _id issues)
+    return {
+        "message": "Signup successful", 
+        "user_id": user.id, 
+        "user": {
+            "id": user.id,
+            "name": user.name,
+            "email": user.email,
+            "age": user.age,
+            "gender": user.gender,
+            "looking_for": user.looking_for,
+            "bio": user.bio,
+            "location": user.location,
+            "privacy_settings": user.privacy_settings
+        }
+    }
 
 @api_router.post("/auth/login")
 async def login(credentials: UserLogin):
