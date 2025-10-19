@@ -15,6 +15,7 @@ const ForgotPasswordPage = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState(1); // 1: Email, 2: Code, 3: New Password
   const [loading, setLoading] = useState(false);
+  const [otpCode, setOtpCode] = useState(''); // Store OTP to display
   
   const [formData, setFormData] = useState({
     email_or_phone: '',
@@ -32,11 +33,12 @@ const ForgotPasswordPage = () => {
         email_or_phone: formData.email_or_phone
       });
       
-      toast.success('Reset code sent! Check your email/phone');
-      
-      // For development, show the code
-      if (response.data.reset_code) {
-        toast.info(`Your reset code: ${response.data.reset_code}`, { duration: 10000 });
+      // Store OTP code from response
+      if (response.data.dev_otp) {
+        setOtpCode(response.data.dev_otp);
+        toast.success('Reset code generated! See below.');
+      } else {
+        toast.success('Reset code sent! Check your email/phone');
       }
       
       setStep(2);
@@ -45,6 +47,11 @@ const ForgotPasswordPage = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(otpCode);
+    toast.success('OTP copied to clipboard!');
   };
 
   const handleVerifyCode = async (e) => {
