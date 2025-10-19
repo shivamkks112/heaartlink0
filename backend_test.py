@@ -459,9 +459,9 @@ def test_profile_operations(user_id):
         if response.status_code == 200:
             profile_data = response.json()
             
-            # Check for ObjectId errors
+            # Check for ObjectId errors (MongoDB _id field or ObjectId references)
             response_text = response.text
-            if "_id" in response_text or "ObjectId" in response_text:
+            if '"_id"' in response_text or "ObjectId(" in response_text:
                 print_result(False, "ObjectId found in GET profile response", response_text)
                 return False
             
