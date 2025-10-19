@@ -68,6 +68,8 @@ class User(BaseModel):
     looking_for: str
     bio: str = ""
     location: str
+    latitude: Optional[float] = None  # For nearby matches
+    longitude: Optional[float] = None  # For nearby matches
     photos: List[str] = []
     interests: List[str] = []
     verified: bool = False
@@ -80,6 +82,9 @@ class User(BaseModel):
         "incognito_mode": False
     })
     blocked_users: List[str] = []
+    muted_users: List[str] = []  # New: Muted users
+    profile_views: int = 0  # New: Profile view count
+    last_active: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())  # New: Last active timestamp
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     
     class Config:
