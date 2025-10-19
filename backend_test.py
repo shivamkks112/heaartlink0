@@ -329,9 +329,11 @@ def test_fresh_signup():
     """Test 1: Fresh Signup - Comprehensive permanent fix verification"""
     print_test_header("Test 1: Fresh Signup - Permanent Fix Verification")
     
-    # Test data from review request
+    # Test data from review request with unique timestamp
+    import time
+    timestamp = str(int(time.time()))
     signup_data = {
-        "email": "akash.test@heartlink.com",
+        "email": f"akash.test.{timestamp}@heartlink.com",
         "password": "Akash@123",
         "name": "Akash Kumar",
         "age": 26,
