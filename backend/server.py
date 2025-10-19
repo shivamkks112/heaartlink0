@@ -862,6 +862,50 @@ async def report_user(user_id: str, report_data: ReportUser):
 # Discovery Routes
 @api_router.get("/discover/{user_id}")
 async def discover_users(user_id: str, limit: int = 10):
+    current_user = await db.users.find_one({"id": user_id})
+    if not current_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Get blocked users
+    blocked_users = current_user.get("blocked_users", [])
+    
+    # Find users who blocked current user
+    blockers = await db.users.find({"blocked_users": user_id}).to_list(None)
+    blocker_ids = [u["id"] for u in blockers]
+    
+    # Get already interacted users
+    matches = await db.matches.find({
+        "$or": [{"user1_id": user_id}, {"user2_id": user_id}]
+    }).to_list(None)
+    interacted_ids = set()
+    for m in matches:
+        interacted_ids.add(m["user1_id"])
+        interacted_ids.add(m["user2_id"])
+    
+    # Find potential matches (case-insensitive gender matching)
+    looking_for_gender = current_user["looking_for"].lower() if current_user.get("looking_for") else None
+    current_gender = current_user["gender"].lower() if current_user.get("gender") else None
+    
+    query = {
+        "id": {"$ne": user_id, "$nin": blocked_users + blocker_ids + list(interacted_ids)},
+        "privacy_settings.show_profile": True
+    }
+    
+    # Add gender filters if both users have gender preferences
+    if looking_for_gender and current_gender:
+        query["$or"] = [
+            {
+                "gender": {"$regex": f"^{looking_for_gender}$", "$options": "i"},
+                "looking_for": {"$regex": f"^{current_gender}$", "$options": "i"}
+            }
+        ]
+    
+    users = await db.users.find(query).limit(limit).to_list(None)
+    
+    return [{"id": u["id"], "name": u["name"], "age": u["age"], 
+             "bio": u.get("bio", ""), "photos": u.get("photos", []),
+             "interests": u.get("interests", []), "verified": u.get("verified", False),
+             "location": u.get("location", ""), "profile_picture": u.get("profile_picture")} for u in users]
 
 # ==================== LOCATION & NEARBY MATCHES ====================
 
