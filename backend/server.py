@@ -297,6 +297,10 @@ async def verify_profile_with_ai(user_data: dict) -> tuple:
 # Authentication Routes
 @api_router.post("/auth/signup")
 async def signup(user_data: UserSignup):
+    """
+    User signup endpoint - PERMANENT FIX
+    Handles MongoDB ObjectId serialization properly
+    """
     # Check if user exists
     if user_data.email:
         existing = await db.users.find_one({"email": user_data.email})
@@ -308,31 +312,38 @@ async def signup(user_data: UserSignup):
         if existing:
             raise HTTPException(status_code=400, detail="Phone already registered")
     
-    # Create user
-    user_dict = user_data.model_dump() if hasattr(user_data, 'model_dump') else user_data.dict()
-    user_dict["password_hash"] = hash_password(user_data.password)
-    del user_dict["password"]
-    
-    # Create User object to get defaults (like privacy_settings)
-    user = User(**user_dict)
-    user_data_for_db = user.model_dump() if hasattr(user, 'model_dump') else user.dict()
-    
-    # Insert into database
-    await db.users.insert_one(user_data_for_db)
-    
-    # Fetch the created user to confirm
-    created_user = await db.users.find_one({"id": user.id})
-    if not created_user:
-        raise HTTPException(status_code=500, detail="Failed to create user")
-    
-    # Clean and return user data
-    cleaned_user = clean_user_data(created_user)
-    
-    return {
-        "message": "Signup successful", 
-        "user_id": user.id, 
-        "user": User(**cleaned_user).model_dump(exclude={'password_hash'}) if hasattr(User, 'model_dump') else User(**cleaned_user).dict(exclude={'password_hash'})
-    }
+    try:
+        # Create user dict from signup data
+        user_dict = user_data.dict() if hasattr(user_data, 'dict') else user_data.model_dump()
+        user_dict["password_hash"] = hash_password(user_data.password)
+        del user_dict["password"]
+        
+        # Create User object to get all defaults (privacy_settings, etc.)
+        user = User(**user_dict)
+        user_dict_for_db = user.dict() if hasattr(user, 'dict') else user.model_dump()
+        
+        # Insert into database
+        insert_result = await db.users.insert_one(user_dict_for_db)
+        
+        # Fetch the created user from database
+        created_user = await db.users.find_one({"id": user.id})
+        if not created_user:
+            raise HTTPException(status_code=500, detail="User created but not found")
+        
+        # Serialize for response (removes _id, password_hash, cleans None values)
+        clean_user = serialize_user_for_response(created_user, exclude_password=True)
+        
+        return {
+            "message": "Signup successful",
+            "user_id": user.id,
+            "user": clean_user
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Signup error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Signup failed: {str(e)}")
 
 @api_router.post("/auth/login")
 async def login(credentials: UserLogin):
