@@ -105,6 +105,46 @@ const ProfilePage = ({ user, onUpdate }) => {
     }
   };
 
+  const handleRequestVerification = async () => {
+    if (profile.verified) {
+      toast.info('Your profile is already verified!');
+      return;
+    }
+
+    if (profile.verification_status === 'pending') {
+      toast.info('Your verification request is pending review');
+      return;
+    }
+
+    setVerifying(true);
+    try {
+      const response = await axios.post(`${API}/profile/${user.id}/verify`);
+      
+      // Update profile with verification status
+      const updatedProfile = {
+        ...profile,
+        verification_status: response.data.status,
+        verified: response.data.status === 'verified'
+      };
+      
+      setProfile(updatedProfile);
+      setFormData(updatedProfile);
+      onUpdate(updatedProfile);
+      localStorage.setItem('user', JSON.stringify(updatedProfile));
+      
+      if (response.data.status === 'verified') {
+        toast.success('🎉 Profile verified successfully! You now have a green tick.');
+      } else {
+        toast.info('Verification request submitted for review');
+      }
+    } catch (error) {
+      toast.error('Failed to request verification. Please try again.');
+      console.error('Verification error:', error);
+    } finally {
+      setVerifying(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 page-with-bottom-nav">
       <TopBar />
