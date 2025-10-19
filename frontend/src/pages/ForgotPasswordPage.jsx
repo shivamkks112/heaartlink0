@@ -50,8 +50,48 @@ const ForgotPasswordPage = () => {
   };
 
   const copyToClipboard = () => {
-    navigator.clipboard.writeText(otpCode);
-    toast.success('OTP copied to clipboard!');
+    try {
+      // Modern Clipboard API
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(otpCode)
+          .then(() => {
+            toast.success('OTP copied to clipboard!');
+          })
+          .catch(() => {
+            // Fallback method
+            fallbackCopy();
+          });
+      } else {
+        // Fallback for older browsers
+        fallbackCopy();
+      }
+    } catch (error) {
+      fallbackCopy();
+    }
+  };
+
+  const fallbackCopy = () => {
+    try {
+      // Create temporary textarea
+      const textArea = document.createElement('textarea');
+      textArea.value = otpCode;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-999999px';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      
+      const successful = document.execCommand('copy');
+      document.body.removeChild(textArea);
+      
+      if (successful) {
+        toast.success('OTP copied to clipboard!');
+      } else {
+        toast.error('Please copy manually: ' + otpCode);
+      }
+    } catch (err) {
+      toast.error('Please copy manually: ' + otpCode);
+    }
   };
 
   const handleVerifyCode = async (e) => {
