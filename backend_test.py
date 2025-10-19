@@ -420,9 +420,9 @@ def test_login_with_new_user(email, password):
             login_result = response.json()
             user_data = login_result.get("user", {})
             
-            # Check for ObjectId errors in response
+            # Check for ObjectId errors in response (MongoDB _id field or ObjectId references)
             response_text = response.text
-            if "_id" in response_text or "ObjectId" in response_text:
+            if '"_id"' in response_text or "ObjectId(" in response_text:
                 print_result(False, "ObjectId found in login response - serialization issue", response_text)
                 return False, None
             
