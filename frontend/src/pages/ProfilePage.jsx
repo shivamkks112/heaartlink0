@@ -189,12 +189,37 @@ const ProfilePage = ({ user, onUpdate }) => {
             </div>
             <h2 className="text-3xl font-bold mt-4">{profile.name}</h2>
             <p className="text-white/90 mt-2">{profile.email || profile.phone}</p>
-            <div className="flex items-center justify-center gap-2 mt-4">
+            <div className="flex items-center justify-center gap-2 mt-4 flex-wrap">
               {profile.verified && (
                 <div className="flex items-center gap-1 bg-white/20 px-3 py-1 rounded-full">
-                  <Heart className="w-4 h-4" fill="white" />
+                  <CheckCircle className="w-4 h-4" fill="white" />
                   <span className="text-sm font-medium">Verified</span>
                 </div>
+              )}
+              {profile.verification_status === 'pending' && !profile.verified && (
+                <div className="flex items-center gap-1 bg-yellow-500/20 px-3 py-1 rounded-full">
+                  <Shield className="w-4 h-4" />
+                  <span className="text-sm font-medium">Pending Verification</span>
+                </div>
+              )}
+              {!profile.verified && profile.verification_status !== 'pending' && (
+                <Button
+                  onClick={handleRequestVerification}
+                  disabled={verifying}
+                  className="flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-full text-sm font-medium transition-all"
+                >
+                  {verifying ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>Verifying...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Shield className="w-4 h-4" />
+                      <span>Get Verified</span>
+                    </>
+                  )}
+                </Button>
               )}
             </div>
           </div>
