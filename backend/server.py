@@ -770,6 +770,95 @@ async def get_admin_stats():
         "rejected": rejected
     }
 
+
+# ==================== BLOCK/MUTE/REPORT FEATURES ====================
+
+@api_router.post("/user/{user_id}/block")
+async def block_user(user_id: str, block_data: BlockUser):
+    """Block a user"""
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    blocked_users = user.get("blocked_users", [])
+    if block_data.blocked_user_id not in blocked_users:
+        blocked_users.append(block_data.blocked_user_id)
+        await db.users.update_one(
+            {"id": user_id},
+            {"$set": {"blocked_users": blocked_users}}
+        )
+    
+    return {"message": "User blocked successfully"}
+
+@api_router.post("/user/{user_id}/unblock")
+async def unblock_user(user_id: str, block_data: BlockUser):
+    """Unblock a user"""
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    blocked_users = user.get("blocked_users", [])
+    if block_data.blocked_user_id in blocked_users:
+        blocked_users.remove(block_data.blocked_user_id)
+        await db.users.update_one(
+            {"id": user_id},
+            {"$set": {"blocked_users": blocked_users}}
+        )
+    
+    return {"message": "User unblocked successfully"}
+
+@api_router.post("/user/{user_id}/mute")
+async def mute_user(user_id: str, mute_data: MuteUser):
+    """Mute a user"""
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    muted_users = user.get("muted_users", [])
+    if mute_data.muted_user_id not in muted_users:
+        muted_users.append(mute_data.muted_user_id)
+        await db.users.update_one(
+            {"id": user_id},
+            {"$set": {"muted_users": muted_users}}
+        )
+    
+    return {"message": "User muted successfully"}
+
+@api_router.post("/user/{user_id}/unmute")
+async def unmute_user(user_id: str, mute_data: MuteUser):
+    """Unmute a user"""
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    muted_users = user.get("muted_users", [])
+    if mute_data.muted_user_id in muted_users:
+        muted_users.remove(mute_data.muted_user_id)
+        await db.users.update_one(
+            {"id": user_id},
+            {"$set": {"muted_users": muted_users}}
+        )
+    
+    return {"message": "User unmuted successfully"}
+
+@api_router.post("/user/{user_id}/report")
+async def report_user(user_id: str, report_data: ReportUser):
+    """Report a user for inappropriate behavior"""
+    # Store report in database
+    report_doc = {
+        "id": str(uuid.uuid4()),
+        "reporter_id": user_id,
+        "reported_user_id": report_data.reported_user_id,
+        "reason": report_data.reason,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "status": "pending"  # pending, reviewed, action_taken
+    }
+    
+    await db.reports.insert_one(report_doc)
+    
+    return {"message": "User reported successfully. Our team will review this."}
+
+
 # Discovery Routes
 @api_router.get("/discover/{user_id}")
 async def discover_users(user_id: str, limit: int = 10):
