@@ -403,14 +403,35 @@ async def forgot_password(request: ForgotPasswordRequest):
         }}
     )
     
-    # In production, send email/SMS here
-    # For now, log the code (development only)
-    logging.info(f"Password reset code for {request.email_or_phone}: {reset_code}")
-    
-    return {
-        "message": "Reset code sent successfully",
-        "reset_code": reset_code  # Remove this in production!
-    }
+    # Send OTP via email (if user has email)
+    if user.get("email"):
+        try:
+            # Simple email sending without external SMTP (for demo)
+            # In production, use SendGrid, AWS SES, or similar service
+            logger.info(f"Password reset OTP for {user.get('email')}: {reset_code}")
+            
+            # TODO: Implement actual email sending
+            # For now, return OTP in response (ONLY FOR DEVELOPMENT)
+            return {
+                "message": "Reset code sent to your email",
+                "dev_otp": reset_code,  # REMOVE IN PRODUCTION
+                "note": "Email service not configured. Check backend logs for OTP."
+            }
+        except Exception as e:
+            logger.error(f"Failed to send OTP email: {e}")
+            return {
+                "message": "Reset code generated but email failed",
+                "dev_otp": reset_code,  # For development
+                "note": "Email service not configured. OTP: " + reset_code
+            }
+    else:
+        # For phone-based users (SMS not implemented)
+        logger.info(f"Password reset OTP for phone user: {reset_code}")
+        return {
+            "message": "Reset code generated",
+            "dev_otp": reset_code,  # For development
+            "note": "SMS service not configured. OTP: " + reset_code
+        }
 
 @api_router.post("/auth/verify-reset-code")
 async def verify_reset_code(email_or_phone: str, reset_code: str):
