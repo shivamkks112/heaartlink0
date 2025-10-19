@@ -862,6 +862,175 @@ async def report_user(user_id: str, report_data: ReportUser):
 # Discovery Routes
 @api_router.get("/discover/{user_id}")
 async def discover_users(user_id: str, limit: int = 10):
+
+# ==================== LOCATION & NEARBY MATCHES ====================
+
+@api_router.post("/user/{user_id}/update-location")
+async def update_location(user_id: str, location_data: LocationUpdate):
+    """Update user location for nearby matches"""
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {
+            "latitude": location_data.latitude,
+            "longitude": location_data.longitude,
+            "location": location_data.location
+        }}
+    )
+    
+    return {"message": "Location updated successfully"}
+
+def calculate_distance(lat1, lon1, lat2, lon2):
+    """Calculate distance between two coordinates in km using Haversine formula"""
+    from math import radians, sin, cos, sqrt, atan2
+    
+    R = 6371  # Earth's radius in kilometers
+    
+    lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+    
+    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+    c = 2 * atan2(sqrt(a), sqrt(1-a))
+    distance = R * c
+    
+    return round(distance, 1)
+
+@api_router.get("/discover/nearby/{user_id}")
+async def discover_nearby(user_id: str, max_distance: int = 25, limit: int = 20):
+    """Discover users nearby based on location"""
+    current_user = await db.users.find_one({"id": user_id})
+    if not current_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if not current_user.get("latitude") or not current_user.get("longitude"):
+        raise HTTPException(status_code=400, detail="Please enable location to find nearby matches")
+    
+    # Get blocked users
+    blocked_users = current_user.get("blocked_users", [])
+    
+    # Find users who blocked current user
+    blockers = await db.users.find({"blocked_users": user_id}).to_list(None)
+    blocker_ids = [u["id"] for u in blockers]
+    
+    # Get already interacted users
+    matches = await db.matches.find({
+        "$or": [{"user1_id": user_id}, {"user2_id": user_id}]
+    }).to_list(None)
+    interacted_ids = set()
+    for m in matches:
+        interacted_ids.add(m["user1_id"])
+        interacted_ids.add(m["user2_id"])
+    
+    # Find potential matches with location
+    query = {
+        "id": {"$ne": user_id, "$nin": blocked_users + blocker_ids + list(interacted_ids)},
+        "latitude": {"$exists": True, "$ne": None},
+        "longitude": {"$exists": True, "$ne": None},
+        "privacy_settings.show_profile": True
+    }
+    
+    # Add gender filters
+    looking_for_gender = current_user["looking_for"].lower() if current_user.get("looking_for") else None
+    current_gender = current_user["gender"].lower() if current_user.get("gender") else None
+    
+    if looking_for_gender and current_gender:
+        query["$or"] = [
+            {
+                "gender": {"$regex": f"^{looking_for_gender}$", "$options": "i"},
+                "looking_for": {"$regex": f"^{current_gender}$", "$options": "i"}
+            }
+        ]
+    
+    users = await db.users.find(query).limit(limit * 3).to_list(None)  # Get more to filter by distance
+    
+    # Calculate distances and filter
+    nearby_users = []
+    for u in users:
+        if u.get("latitude") and u.get("longitude"):
+            distance = calculate_distance(
+                current_user["latitude"],
+                current_user["longitude"],
+                u["latitude"],
+                u["longitude"]
+            )
+            
+            if distance <= max_distance:
+                nearby_users.append({
+                    "id": u["id"],
+                    "name": u["name"],
+                    "age": u["age"],
+                    "bio": u.get("bio", ""),
+                    "photos": u.get("photos", []),
+                    "interests": u.get("interests", []),
+                    "verified": u.get("verified", False),
+                    "location": u.get("location", ""),
+                    "distance": distance,
+                    "profile_picture": u.get("profile_picture")
+                })
+    
+    # Sort by distance
+    nearby_users.sort(key=lambda x: x["distance"])
+    
+    return nearby_users[:limit]
+
+# ==================== PROFILE VIEWS & ACTIVITY ====================
+
+@api_router.post("/profile/{user_id}/view")
+async def track_profile_view(user_id: str, viewer_id: str = None):
+    """Track profile view"""
+    # Increment profile views
+    await db.users.update_one(
+        {"id": user_id},
+        {"$inc": {"profile_views": 1}}
+    )
+    
+    # Optionally store who viewed (for "Who Viewed Me" feature)
+    if viewer_id:
+        view_doc = {
+            "profile_id": user_id,
+            "viewer_id": viewer_id,
+            "viewed_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.profile_views.insert_one(view_doc)
+    
+    return {"message": "Profile view tracked"}
+
+@api_router.post("/user/{user_id}/update-activity")
+async def update_last_active(user_id: str):
+    """Update user's last active timestamp"""
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {"last_active": datetime.now(timezone.utc).isoformat()}}
+    )
+    return {"message": "Activity updated"}
+
+# ==================== ICEBREAKERS ====================
+
+ICEBREAKERS = [
+    "What's your favorite way to spend a weekend?",
+    "If you could travel anywhere right now, where would you go?",
+    "What's your go-to karaoke song?",
+    "Coffee or tea? ☕",
+    "What's the best advice you've ever received?",
+    "If you could have dinner with anyone, dead or alive, who would it be?",
+    "What's your favorite childhood memory?",
+    "Beach vacation or mountain retreat? 🏖️⛰️",
+    "What's something you're really good at?",
+    "What's your favorite food?",
+    "Early bird or night owl? 🌅🌙",
+    "What's on your bucket list?",
+    "Favorite movie or series?",
+    "Dog person or cat person? 🐕🐈",
+    "What's your hidden talent?"
+]
+
+@api_router.get("/icebreakers")
+async def get_icebreakers():
+    """Get random icebreaker questions"""
+    import random
+    return {"icebreakers": random.sample(ICEBREAKERS, 5)}
+
+
     current_user = await db.users.find_one({"id": user_id})
     if not current_user:
         raise HTTPException(status_code=404, detail="User not found")
