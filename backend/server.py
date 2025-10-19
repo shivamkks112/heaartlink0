@@ -284,32 +284,29 @@ async def signup(user_data: UserSignup):
             raise HTTPException(status_code=400, detail="Phone already registered")
     
     # Create user
-    user_dict = user_data.dict()
+    user_dict = user_data.model_dump() if hasattr(user_data, 'model_dump') else user_data.dict()
     user_dict["password_hash"] = hash_password(user_data.password)
     del user_dict["password"]
     
     # Create User object to get defaults (like privacy_settings)
     user = User(**user_dict)
-    user_data_for_db = user.dict()
+    user_data_for_db = user.model_dump() if hasattr(user, 'model_dump') else user.dict()
     
     # Insert into database
     await db.users.insert_one(user_data_for_db)
     
-    # Return only necessary fields (avoid MongoDB _id issues)
+    # Fetch the created user to confirm
+    created_user = await db.users.find_one({"id": user.id})
+    if not created_user:
+        raise HTTPException(status_code=500, detail="Failed to create user")
+    
+    # Clean and return user data
+    cleaned_user = clean_user_data(created_user)
+    
     return {
         "message": "Signup successful", 
         "user_id": user.id, 
-        "user": {
-            "id": user.id,
-            "name": user.name,
-            "email": user.email,
-            "age": user.age,
-            "gender": user.gender,
-            "looking_for": user.looking_for,
-            "bio": user.bio,
-            "location": user.location,
-            "privacy_settings": user.privacy_settings
-        }
+        "user": User(**cleaned_user).model_dump(exclude={'password_hash'}) if hasattr(User, 'model_dump') else User(**cleaned_user).dict(exclude={'password_hash'})
     }
 
 @api_router.post("/auth/login")
