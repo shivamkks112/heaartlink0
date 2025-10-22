@@ -282,9 +282,11 @@ metadata:
 
 test_plan:
   current_focus:
+    - "Email OTP Functionality with Titan SMTP"
     - "Profile Cards Visual Polish"
     - "Navigation and Mobile Experience"
   stuck_tasks: 
+    - "Email OTP Functionality with Titan SMTP"
     - "Profile Cards Visual Polish"
     - "Navigation and Mobile Experience"
   test_all: false
