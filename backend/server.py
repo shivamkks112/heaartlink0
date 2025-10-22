@@ -406,23 +406,34 @@ async def forgot_password(request: ForgotPasswordRequest):
     # Send OTP via email (if user has email)
     if user.get("email"):
         try:
-            # Simple email sending without external SMTP (for demo)
-            # In production, use SendGrid, AWS SES, or similar service
-            logger.info(f"Password reset OTP for {user.get('email')}: {reset_code}")
+            from email_service import send_otp_email
             
-            # TODO: Implement actual email sending
-            # For now, return OTP in response (ONLY FOR DEVELOPMENT)
-            return {
-                "message": "Reset code sent to your email",
-                "dev_otp": reset_code,  # REMOVE IN PRODUCTION
-                "note": "Email service not configured. Check backend logs for OTP."
-            }
+            # Send OTP email using Titan SMTP
+            result = send_otp_email(
+                to_email=user.get('email'),
+                otp_code=reset_code,
+                user_name=user.get('name', 'User')
+            )
+            
+            if result.get('success'):
+                logger.info(f"✅ OTP email sent successfully to {user.get('email')}")
+                return {
+                    "message": "Reset code sent to your email",
+                    "email": user.get('email')
+                }
+            else:
+                logger.error(f"❌ Failed to send OTP email: {result.get('error')}")
+                return {
+                    "message": "Reset code generated but email failed",
+                    "dev_otp": reset_code,  # Fallback for development
+                    "note": "Email service error. OTP: " + reset_code
+                }
         except Exception as e:
             logger.error(f"Failed to send OTP email: {e}")
             return {
                 "message": "Reset code generated but email failed",
                 "dev_otp": reset_code,  # For development
-                "note": "Email service not configured. OTP: " + reset_code
+                "note": "Email service error. OTP: " + reset_code
             }
     else:
         # For phone-based users (SMS not implemented)
