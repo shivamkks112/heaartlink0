@@ -10,6 +10,7 @@ import MatchesPage from '@/pages/MatchesPage';
 import ChatPage from '@/pages/ChatPage';
 import ProfilePage from '@/pages/ProfilePage';
 import PrivacyPage from '@/pages/PrivacyPage';
+import PrivacyPolicyPage from '@/pages/PrivacyPolicyPage';
 import InstallPrompt from '@/components/InstallPrompt';
 import { requestNotificationPermission, setupForegroundMessageListener } from '@/firebase/messaging';
 import { initGoogleAuth } from '@/utils/nativeGoogleAuth';
