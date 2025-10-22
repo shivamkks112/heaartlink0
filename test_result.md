@@ -171,6 +171,18 @@ backend:
           agent: "testing"
           comment: "🎉 COMPREHENSIVE PERMANENT FIX VERIFICATION COMPLETE: ALL CRITICAL TESTS PASSED! Successfully verified the permanent ObjectId serialization fix with comprehensive testing: ✅ Test 1 - Fresh Signup: Created new user (akash.test.1760882233@heartlink.com) with 200 OK response, no ObjectId errors, correct privacy_settings (show_profile: true, show_photos: true, incognito_mode: false), clean user data returned (no _id, no password_hash). ✅ Test 2 - Login with New User: Login successful with no serialization errors, clean user data returned. ✅ Test 3 - Profile Operations: GET /api/profile/{user_id} working perfectly, PUT /api/profile/{user_id} with age update (26→27) working without ObjectId errors. ✅ Test 4 - Discover: Created female test user, verified Akash appears in discover results for compatible gender matching, no ObjectId errors in discover endpoint. The serialize_user_for_response() and clean_user_data() helper functions are working perfectly. The permanent fix is fully verified and operational."
 
+  - task: "Email OTP Functionality with Titan SMTP"
+    implemented: true
+    working: false
+    file: "server.py, email_service.py"
+    stuck_count: 1
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: false
+          agent: "testing"
+          comment: "❌ EMAIL OTP FUNCTIONALITY FAILED: Comprehensive testing of forgot password OTP email functionality reveals critical SMTP authentication issues. TESTED SCENARIOS: 1) POST /api/auth/forgot-password with 'demo1@heartlink.co.in' (non-existent user) - returns security-compliant response 'If account exists, reset code has been sent' (✅ working as expected), 2) POST /api/auth/forgot-password with 'demo1@heartlink.com' (existing user) - returns 'Reset code generated but email failed' with dev_otp fallback (❌ email delivery failed). ROOT CAUSE: SMTP authentication failure with Titan email server. Backend logs show error: '(535, b'5.7.8 Error: authentication failed: UGFzc3dvcmQ6')'. CONFIGURATION: SMTP credentials are configured in backend/.env (SMTP_HOST=smtp.titan.email, SMTP_PORT=587, SMTP_USER=help@heartlink.co.in, SMTP_PASSWORD=Shivamkks@#110) but authentication is failing. IMPACT: ✅ OTP generation working correctly (generates 6-digit codes), ✅ API endpoints responding properly, ✅ Security measures in place, ❌ Actual email delivery not working due to SMTP auth failure. REQUIRES: Verification of Titan SMTP credentials, possible password reset, or SMTP server configuration check."
+
 frontend:
   - task: "Landing Page UI Enhancement"
     implemented: true
