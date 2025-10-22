@@ -29,74 +29,85 @@ def test_email_otp_functionality():
     Test Email OTP functionality with Titan SMTP integration
     
     Test Scenario:
-    1. POST /api/auth/forgot-password with email "demo1@heartlink.co.in"
-    2. Check response - should indicate email sent successfully
-    3. Verify backend logs show "Email sent successfully"
+    1. POST /api/auth/forgot-password with email "demo1@heartlink.co.in" (from review request)
+    2. POST /api/auth/forgot-password with existing user "demo1@heartlink.com" 
+    3. Check responses and verify backend logs
     
     Expected Results:
     - ✅ 200 OK response
-    - ✅ Response message: "Reset code sent to your email"
-    - ✅ Backend logs show successful email delivery
-    - ✅ OTP email sent to recipient inbox
+    - ✅ Response message indicates email processing
+    - ✅ Backend logs show email attempt
+    - ✅ OTP generation working
     """
     print_test_header("Email OTP Functionality with Titan SMTP")
     
-    # Test data from review request
-    forgot_password_data = {
+    # Test 1: Email from review request (non-existent user)
+    print("\n🔄 Test 1: Testing with email from review request (demo1@heartlink.co.in)")
+    forgot_password_data_1 = {
         "email_or_phone": "demo1@heartlink.co.in"
     }
     
-    print(f"🔄 Testing forgot password OTP for: {forgot_password_data['email_or_phone']}")
+    try:
+        response1 = requests.post(f"{BACKEND_URL}/auth/forgot-password", json=forgot_password_data_1)
+        print(f"📡 Response Status Code: {response1.status_code}")
+        
+        if response1.status_code == 200:
+            response_data_1 = response1.json()
+            print_result(True, "✅ 200 OK response received", response_data_1)
+            
+            message = response_data_1.get("message", "")
+            if "reset code has been sent" in message.lower() or "if account exists" in message.lower():
+                print_result(True, f"✅ Security-compliant response: '{message}'")
+            else:
+                print_result(False, f"❌ Unexpected message: '{message}'")
+        else:
+            print_result(False, f"❌ Unexpected status code: {response1.status_code}")
+            
+    except Exception as e:
+        print_result(False, f"❌ Error during test 1: {str(e)}")
+    
+    # Test 2: Existing user email
+    print("\n🔄 Test 2: Testing with existing user (demo1@heartlink.com)")
+    forgot_password_data_2 = {
+        "email_or_phone": "demo1@heartlink.com"
+    }
     
     try:
-        # Send forgot password request
-        response = requests.post(f"{BACKEND_URL}/auth/forgot-password", json=forgot_password_data)
+        response2 = requests.post(f"{BACKEND_URL}/auth/forgot-password", json=forgot_password_data_2)
+        print(f"📡 Response Status Code: {response2.status_code}")
         
-        print(f"📡 Response Status Code: {response.status_code}")
-        print(f"📡 Response Headers: {dict(response.headers)}")
-        
-        if response.status_code == 200:
-            response_data = response.json()
-            print_result(True, "✅ 200 OK response received", response_data)
+        if response2.status_code == 200:
+            response_data_2 = response2.json()
+            print_result(True, "✅ 200 OK response received", response_data_2)
             
-            # Check response message
-            message = response_data.get("message", "")
-            expected_message = "Reset code sent to your email"
+            message = response_data_2.get("message", "")
             
-            if expected_message in message:
-                print_result(True, f"✅ Correct response message: '{message}'")
-                
-                # Check if email field is present (indicates email was attempted)
-                email_field = response_data.get("email")
+            # Check if email was attempted
+            if "Reset code sent to your email" in message:
+                print_result(True, f"✅ Email delivery attempted: '{message}'")
+                email_field = response_data_2.get("email")
                 if email_field:
-                    print_result(True, f"✅ Email field present in response: {email_field}")
-                else:
-                    print_result(False, "❌ Email field missing from response")
+                    print_result(True, f"✅ Email field present: {email_field}")
+                return True, response_data_2
                 
-                # Check for development OTP (fallback)
-                dev_otp = response_data.get("dev_otp")
+            elif "email failed" in message:
+                print_result(False, f"❌ Email delivery failed: '{message}'")
+                dev_otp = response_data_2.get("dev_otp")
                 if dev_otp:
-                    print_result(True, f"✅ Development OTP provided: {dev_otp}")
-                    print("📝 Note: Development OTP indicates email service may have issues but OTP generation works")
-                
-                # Check for error notes
-                note = response_data.get("note")
-                if note:
-                    print(f"📝 Note from server: {note}")
-                
-                return True, response_data
+                    print_result(True, f"✅ OTP generation working (dev_otp: {dev_otp})")
+                    print("📝 Issue: Email service has SMTP authentication problems")
+                return False, response_data_2
                 
             else:
-                print_result(False, f"❌ Incorrect response message. Expected: '{expected_message}', Got: '{message}'")
-                return False, response_data
+                print_result(False, f"❌ Unexpected response: '{message}'")
+                return False, response_data_2
                 
         else:
-            print_result(False, f"❌ Unexpected status code: {response.status_code}")
-            print(f"Response body: {response.text}")
+            print_result(False, f"❌ Unexpected status code: {response2.status_code}")
             return False, None
             
     except Exception as e:
-        print_result(False, f"❌ Error during forgot password request: {str(e)}")
+        print_result(False, f"❌ Error during test 2: {str(e)}")
         return False, None
 
 def check_backend_logs_for_email():
