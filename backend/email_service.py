@@ -9,6 +9,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Optional
 import logging
+import ssl
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,7 @@ SMTP_FROM_NAME = os.getenv('SMTP_FROM_NAME', 'HeartLink Support')
 
 def send_email(to_email: str, subject: str, html_body: str, text_body: Optional[str] = None) -> dict:
     """
-    Send email using Titan SMTP
+    Send email using Titan SMTP with fallback options
     
     Args:
         to_email: Recipient email address
@@ -34,34 +35,65 @@ def send_email(to_email: str, subject: str, html_body: str, text_body: Optional[
     Returns:
         dict with success status and message
     """
-    try:
-        # Create message
-        msg = MIMEMultipart('alternative')
-        msg['From'] = f"{SMTP_FROM_NAME} <{SMTP_FROM_EMAIL}>"
-        msg['To'] = to_email
-        msg['Subject'] = subject
-        
-        # Add plain text version if provided
-        if text_body:
-            part1 = MIMEText(text_body, 'plain')
-            msg.attach(part1)
-        
-        # Add HTML version
-        part2 = MIMEText(html_body, 'html')
-        msg.attach(part2)
-        
-        # Connect to SMTP server
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
-            server.starttls()  # Enable TLS
-            server.login(SMTP_USER, SMTP_PASSWORD)
-            server.send_message(msg)
-        
-        logger.info(f"✅ Email sent successfully to {to_email}")
-        return {"success": True, "message": "Email sent successfully"}
-        
-    except Exception as e:
-        logger.error(f"❌ Error sending email: {str(e)}")
-        return {"success": False, "error": str(e)}
+    # Try multiple SMTP configurations
+    configs = [
+        {'port': 587, 'use_tls': True, 'use_ssl': False},  # STARTTLS
+        {'port': 465, 'use_tls': False, 'use_ssl': True},  # SSL
+        {'port': 25, 'use_tls': True, 'use_ssl': False},   # Plain with TLS
+    ]
+    
+    last_error = None
+    
+    for config in configs:
+        try:
+            # Create message
+            msg = MIMEMultipart('alternative')
+            msg['From'] = f"{SMTP_FROM_NAME} <{SMTP_FROM_EMAIL}>"
+            msg['To'] = to_email
+            msg['Subject'] = subject
+            
+            # Add plain text version if provided
+            if text_body:
+                part1 = MIMEText(text_body, 'plain')
+                msg.attach(part1)
+            
+            # Add HTML version
+            part2 = MIMEText(html_body, 'html')
+            msg.attach(part2)
+            
+            # Try connection based on config
+            if config['use_ssl']:
+                # SSL connection (port 465)
+                context = ssl.create_default_context()
+                with smtplib.SMTP_SSL(SMTP_HOST, config['port'], context=context) as server:
+                    server.login(SMTP_USER, SMTP_PASSWORD)
+                    server.send_message(msg)
+                    
+            else:
+                # TLS connection (port 587 or 25)
+                with smtplib.SMTP(SMTP_HOST, config['port'], timeout=10) as server:
+                    server.set_debuglevel(0)
+                    if config['use_tls']:
+                        server.starttls()
+                    server.login(SMTP_USER, SMTP_PASSWORD)
+                    server.send_message(msg)
+            
+            logger.info(f"✅ Email sent successfully to {to_email} using port {config['port']}")
+            return {"success": True, "message": "Email sent successfully", "port_used": config['port']}
+            
+        except smtplib.SMTPAuthenticationError as e:
+            last_error = f"Authentication failed on port {config['port']}: {str(e)}"
+            logger.warning(last_error)
+            continue
+            
+        except Exception as e:
+            last_error = f"Error on port {config['port']}: {str(e)}"
+            logger.warning(last_error)
+            continue
+    
+    # All configs failed
+    logger.error(f"❌ All SMTP configurations failed. Last error: {last_error}")
+    return {"success": False, "error": last_error}
 
 
 def send_otp_email(to_email: str, otp_code: str, user_name: str = "User") -> dict:
