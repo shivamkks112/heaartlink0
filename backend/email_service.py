@@ -71,7 +71,7 @@ def send_email(to_email: str, subject: str, html_body: str, text_body: Optional[
                     
             else:
                 # TLS connection (port 587 or 25)
-                with smtplib.SMTP(SMTP_HOST, config['port'], timeout=10) as server:
+                with smtplib.SMTP(SMTP_HOST, config['port'], timeout=3) as server:
                     server.set_debuglevel(0)
                     if config['use_tls']:
                         server.starttls()
