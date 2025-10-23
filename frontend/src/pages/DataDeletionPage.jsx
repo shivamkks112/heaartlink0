@@ -137,6 +137,12 @@ const DataDeletionPage = () => {
                       </p>
                       
                       <form onSubmit={handleSubmit} className="space-y-4">
+                        {error && (
+                          <div className="bg-red-100 border-2 border-red-300 rounded-lg p-3">
+                            <p className="text-red-800 text-sm">{error}</p>
+                          </div>
+                        )}
+                        
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 mb-2">
                             Your Email (used for HeartLink account)
@@ -144,6 +150,8 @@ const DataDeletionPage = () => {
                           <input
                             type="email"
                             required
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
                             className="w-full px-4 py-3 border-2 border-orange-200 rounded-xl focus:border-orange-500 focus:outline-none"
                             placeholder="your.email@example.com"
                           />
@@ -154,6 +162,8 @@ const DataDeletionPage = () => {
                             Reason for Deletion (Optional)
                           </label>
                           <textarea
+                            value={reason}
+                            onChange={(e) => setReason(e.target.value)}
                             className="w-full px-4 py-3 border-2 border-orange-200 rounded-xl focus:border-orange-500 focus:outline-none"
                             rows="3"
                             placeholder="Help us improve by sharing why you're leaving..."
@@ -162,9 +172,10 @@ const DataDeletionPage = () => {
 
                         <button
                           type="submit"
-                          className="w-full bg-gradient-to-r from-red-500 to-orange-500 text-white py-4 rounded-xl font-bold text-lg hover:shadow-xl transition-all"
+                          disabled={loading}
+                          className="w-full bg-gradient-to-r from-red-500 to-orange-500 text-white py-4 rounded-xl font-bold text-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          Submit Deletion Request
+                          {loading ? 'Submitting...' : 'Submit Deletion Request'}
                         </button>
                       </form>
 
