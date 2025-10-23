@@ -514,6 +514,98 @@ async def reset_password(request: ResetPasswordRequest):
     
     return {"message": "Password reset successful"}
 
+@api_router.post("/delete-account-request")
+async def delete_account_request(request: DeleteAccountRequest):
+    """Handle account deletion request - stores request for admin review"""
+    try:
+        # Check if user exists
+        user = await db.users.find_one({"email": request.email})
+        
+        if not user:
+            # For security, don't reveal if user exists
+            return {
+                "message": "Deletion request received. If account exists, it will be processed within 24-48 hours.",
+                "success": True
+            }
+        
+        # Store deletion request in database
+        deletion_request = {
+            "id": str(uuid.uuid4()),
+            "email": request.email,
+            "user_id": user.get("id"),
+            "user_name": user.get("name"),
+            "reason": request.reason,
+            "requested_at": datetime.now(timezone.utc).isoformat(),
+            "status": "pending",  # pending, processed, completed
+            "processed_at": None
+        }
+        
+        await db.deletion_requests.insert_one(deletion_request)
+        
+        # Send notification email to user
+        try:
+            from email_service import send_email
+            
+            email_body = f"""
+            <html>
+            <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <div style="background: linear-gradient(135deg, #ef4444 0%, #f97316 100%); padding: 30px; border-radius: 15px; text-align: center;">
+                    <h1 style="color: white; margin: 0;">Account Deletion Request Received</h1>
+                </div>
+                
+                <div style="background: #f9fafb; padding: 30px; border-radius: 15px; margin-top: 20px;">
+                    <p style="font-size: 16px; color: #374151;">Hello {user.get('name', 'User')},</p>
+                    
+                    <p style="font-size: 16px; color: #374151; line-height: 1.6;">
+                        We've received your request to delete your HeartLink account and all associated data.
+                    </p>
+                    
+                    <div style="background: white; padding: 20px; border-radius: 10px; margin: 20px 0; border-left: 4px solid #ef4444;">
+                        <h3 style="color: #ef4444; margin-top: 0;">⏱️ What happens next?</h3>
+                        <ul style="color: #374151; line-height: 1.8;">
+                            <li>Your request will be processed within <strong>24-48 hours</strong></li>
+                            <li>All your data (profile, photos, messages, matches) will be permanently deleted</li>
+                            <li>You'll receive a confirmation email once deletion is complete</li>
+                        </ul>
+                    </div>
+                    
+                    <p style="font-size: 16px; color: #374151; line-height: 1.6;">
+                        If you didn't request this deletion or changed your mind, please contact us immediately at 
+                        <a href="mailto:help@heartlink.co.in" style="color: #ec4899; text-decoration: none; font-weight: bold;">help@heartlink.co.in</a>
+                    </p>
+                    
+                    <p style="font-size: 14px; color: #6b7280; margin-top: 30px;">
+                        Best regards,<br>
+                        <strong>HeartLink Team</strong>
+                    </p>
+                </div>
+                
+                <div style="text-align: center; margin-top: 20px; color: #9ca3af; font-size: 12px;">
+                    <p>© 2025 HeartLink. All rights reserved.</p>
+                </div>
+            </body>
+            </html>
+            """
+            
+            send_email(
+                to_email=request.email,
+                subject="HeartLink - Account Deletion Request Received",
+                body=email_body
+            )
+            logger.info(f"✅ Deletion request confirmation email sent to {request.email}")
+        except Exception as email_error:
+            logger.error(f"Failed to send deletion confirmation email: {email_error}")
+            # Continue even if email fails
+        
+        return {
+            "message": "Deletion request submitted successfully. You'll receive a confirmation email shortly.",
+            "success": True
+        }
+        
+    except Exception as e:
+        logger.error(f"Error processing deletion request: {e}")
+        raise HTTPException(status_code=500, detail="Failed to process deletion request")
+
 # Profile Routes
 @api_router.get("/profile/{user_id}")
 async def get_profile(user_id: str):
