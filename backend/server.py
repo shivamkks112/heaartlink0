@@ -119,6 +119,10 @@ class ResetPasswordRequest(BaseModel):
     reset_code: str
     new_password: str
 
+class DeleteAccountRequest(BaseModel):
+    email: EmailStr
+    reason: Optional[str] = None
+
 class Match(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     user1_id: str
