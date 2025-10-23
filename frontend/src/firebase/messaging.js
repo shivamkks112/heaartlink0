@@ -5,7 +5,7 @@ import { messaging } from './config';
 import { getToken, onMessage } from 'firebase/messaging';
 import axios from 'axios';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://heartlink-dating.preview.emergentagent.com';
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://heartlink-app-4.preview.emergentagent.com';
 const API = `${BACKEND_URL}/api`;
 
 // VAPID key from Firebase Console > Project Settings > Cloud Messaging > Web Push certificates

@@ -106,7 +106,7 @@ CORE FEATURES TO IMPLEMENT:
 
 📊 BACKEND INTEGRATION:
 - Connect to existing backend APIs
-- Base URL: https://heartlink-dating.preview.emergentagent.com/api
+- Base URL: https://heartlink-app-4.preview.emergentagent.com/api
 - Endpoints for auth, profiles, matches, chat
 - Handle authentication tokens properly
 

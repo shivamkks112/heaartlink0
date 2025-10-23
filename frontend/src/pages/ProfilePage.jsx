@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '@/firebase/config';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://heartlink-dating.preview.emergentagent.com';
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://heartlink-app-4.preview.emergentagent.com';
 const API = `${BACKEND_URL}/api`;
 
 const ProfilePage = ({ user, onUpdate }) => {
