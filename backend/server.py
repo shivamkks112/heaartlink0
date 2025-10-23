@@ -590,7 +590,7 @@ async def delete_account_request(request: DeleteAccountRequest):
             send_email(
                 to_email=request.email,
                 subject="HeartLink - Account Deletion Request Received",
-                body=email_body
+                html_body=email_body
             )
             logger.info(f"✅ Deletion request confirmation email sent to {request.email}")
         except Exception as email_error:
