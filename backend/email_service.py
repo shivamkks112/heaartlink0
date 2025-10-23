@@ -65,7 +65,9 @@ def send_email(to_email: str, subject: str, html_body: str, text_body: Optional[
             if config['use_ssl']:
                 # SSL connection (port 465)
                 context = ssl.create_default_context()
-                with smtplib.SMTP_SSL(SMTP_HOST, config['port'], context=context) as server:
+                context.check_hostname = False
+                context.verify_mode = ssl.CERT_NONE
+                with smtplib.SMTP_SSL(SMTP_HOST, config['port'], context=context, timeout=3) as server:
                     server.login(SMTP_USER, SMTP_PASSWORD)
                     server.send_message(msg)
                     
