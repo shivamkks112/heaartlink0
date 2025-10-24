@@ -60,23 +60,19 @@ def send_email(to_email: str, subject: str, html_body: str, text_body: Optional[
             server.ehlo()
             server.login(SMTP_USER, SMTP_PASSWORD)
             server.send_message(msg)
-            
-            logger.info(f"✅ Email sent successfully to {to_email} using port {config['port']}")
-            return {"success": True, "message": "Email sent successfully", "port_used": config['port']}
-            
-        except smtplib.SMTPAuthenticationError as e:
-            last_error = f"Authentication failed on port {config['port']}: {str(e)}"
-            logger.warning(last_error)
-            continue
-            
-        except Exception as e:
-            last_error = f"Error on port {config['port']}: {str(e)}"
-            logger.warning(last_error)
-            continue
-    
-    # All configs failed
-    logger.error(f"❌ All SMTP configurations failed. Last error: {last_error}")
-    return {"success": False, "error": last_error}
+        
+        logger.info(f"✅ Email sent successfully to {to_email}")
+        return {"success": True, "message": "Email sent successfully"}
+        
+    except smtplib.SMTPAuthenticationError as e:
+        error_msg = f"Authentication failed: {str(e)}"
+        logger.error(f"❌ {error_msg}")
+        return {"success": False, "error": error_msg}
+        
+    except Exception as e:
+        error_msg = f"Failed to send email: {str(e)}"
+        logger.error(f"❌ {error_msg}")
+        return {"success": False, "error": error_msg}
 
 
 def send_otp_email(to_email: str, otp_code: str, user_name: str = "User") -> dict:
