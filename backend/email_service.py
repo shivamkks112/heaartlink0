@@ -35,11 +35,9 @@ def send_email(to_email: str, subject: str, html_body: str, text_body: Optional[
     Returns:
         dict with success status and message
     """
-    # Try multiple SMTP configurations
+    # Try multiple SMTP configurations (optimized - try most common first)
     configs = [
-        {'port': 587, 'use_tls': True, 'use_ssl': False},  # STARTTLS
-        {'port': 465, 'use_tls': False, 'use_ssl': True},  # SSL
-        {'port': 25, 'use_tls': True, 'use_ssl': False},   # Plain with TLS
+        {'port': 587, 'use_tls': True, 'use_ssl': False},  # STARTTLS (most common)
     ]
     
     last_error = None
