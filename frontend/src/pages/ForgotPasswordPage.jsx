@@ -33,16 +33,18 @@ const ForgotPasswordPage = () => {
         email_or_phone: formData.email_or_phone
       });
       
-      // Store OTP code from response
+      // Store OTP code from response (if provided - development fallback)
       if (response.data.dev_otp) {
         setOtpCode(response.data.dev_otp);
         toast.success('Reset code generated! See below.');
-      } else {
-        toast.success('Reset code sent! Check your email/phone');
+      } else if (response.data.message) {
+        // Email sent successfully or user doesn't exist (security compliant)
+        toast.success(response.data.message);
       }
       
       setStep(2);
     } catch (error) {
+      console.error('Password reset error:', error);
       toast.error(error.response?.data?.detail || 'Failed to send reset code');
     } finally {
       setLoading(false);
