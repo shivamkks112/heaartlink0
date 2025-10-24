@@ -35,7 +35,7 @@ def send_email(to_email: str, subject: str, html_body: str, text_body: Optional[
     Returns:
         dict with success status and message
     """
-    # Microsoft 365 SMTP Configuration
+    # Microsoft 365/GoDaddy SMTP Configuration
     try:
         # Create message
         msg = MIMEMultipart('alternative')
@@ -52,14 +52,22 @@ def send_email(to_email: str, subject: str, html_body: str, text_body: Optional[
         part2 = MIMEText(html_body, 'html')
         msg.attach(part2)
         
-        # Connect to Microsoft 365 SMTP
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as server:
-            server.set_debuglevel(1)  # Enable debug for troubleshooting
-            server.ehlo()
-            server.starttls()
-            server.ehlo()
-            server.login(SMTP_USER, SMTP_PASSWORD)
-            server.send_message(msg)
+        # Try SSL connection (port 465)
+        if SMTP_PORT == 465:
+            context = ssl.create_default_context()
+            with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context, timeout=10) as server:
+                server.set_debuglevel(1)
+                server.login(SMTP_USER, SMTP_PASSWORD)
+                server.send_message(msg)
+        else:
+            # TLS connection (port 587)
+            with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as server:
+                server.set_debuglevel(1)
+                server.ehlo()
+                server.starttls()
+                server.ehlo()
+                server.login(SMTP_USER, SMTP_PASSWORD)
+                server.send_message(msg)
         
         logger.info(f"✅ Email sent successfully to {to_email}")
         return {"success": True, "message": "Email sent successfully"}
