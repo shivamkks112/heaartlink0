@@ -35,48 +35,31 @@ def send_email(to_email: str, subject: str, html_body: str, text_body: Optional[
     Returns:
         dict with success status and message
     """
-    # Try multiple SMTP configurations (optimized - try most common first)
-    configs = [
-        {'port': 587, 'use_tls': True, 'use_ssl': False},  # STARTTLS (most common)
-    ]
-    
-    last_error = None
-    
-    for config in configs:
-        try:
-            # Create message
-            msg = MIMEMultipart('alternative')
-            msg['From'] = f"{SMTP_FROM_NAME} <{SMTP_FROM_EMAIL}>"
-            msg['To'] = to_email
-            msg['Subject'] = subject
-            
-            # Add plain text version if provided
-            if text_body:
-                part1 = MIMEText(text_body, 'plain')
-                msg.attach(part1)
-            
-            # Add HTML version
-            part2 = MIMEText(html_body, 'html')
-            msg.attach(part2)
-            
-            # Try connection based on config
-            if config['use_ssl']:
-                # SSL connection (port 465)
-                context = ssl.create_default_context()
-                context.check_hostname = False
-                context.verify_mode = ssl.CERT_NONE
-                with smtplib.SMTP_SSL(SMTP_HOST, config['port'], context=context, timeout=3) as server:
-                    server.login(SMTP_USER, SMTP_PASSWORD)
-                    server.send_message(msg)
-                    
-            else:
-                # TLS connection (port 587 or 25)
-                with smtplib.SMTP(SMTP_HOST, config['port'], timeout=3) as server:
-                    server.set_debuglevel(0)
-                    if config['use_tls']:
-                        server.starttls()
-                    server.login(SMTP_USER, SMTP_PASSWORD)
-                    server.send_message(msg)
+    # Microsoft 365 SMTP Configuration
+    try:
+        # Create message
+        msg = MIMEMultipart('alternative')
+        msg['From'] = f"{SMTP_FROM_NAME} <{SMTP_FROM_EMAIL}>"
+        msg['To'] = to_email
+        msg['Subject'] = subject
+        
+        # Add plain text version if provided
+        if text_body:
+            part1 = MIMEText(text_body, 'plain')
+            msg.attach(part1)
+        
+        # Add HTML version
+        part2 = MIMEText(html_body, 'html')
+        msg.attach(part2)
+        
+        # Connect to Microsoft 365 SMTP
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as server:
+            server.set_debuglevel(1)  # Enable debug for troubleshooting
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
+            server.login(SMTP_USER, SMTP_PASSWORD)
+            server.send_message(msg)
             
             logger.info(f"✅ Email sent successfully to {to_email} using port {config['port']}")
             return {"success": True, "message": "Email sent successfully", "port_used": config['port']}
