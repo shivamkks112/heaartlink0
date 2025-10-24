@@ -31,6 +31,8 @@ const ForgotPasswordPage = () => {
     try {
       const response = await axios.post(`${API}/auth/forgot-password`, {
         email_or_phone: formData.email_or_phone
+      }, {
+        timeout: 20000 // 20 second timeout
       });
       
       // Store OTP code from response (if provided - development fallback)
