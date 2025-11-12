@@ -24,7 +24,7 @@ SMTP_FROM_NAME = os.getenv('SMTP_FROM_NAME', 'HeartLink Support')
 
 def send_email(to_email: str, subject: str, html_body: str, text_body: Optional[str] = None) -> dict:
     """
-    Send email using Titan SMTP with fallback options
+    Send email using GoDaddy Professional Email SMTP
     
     Args:
         to_email: Recipient email address
@@ -35,7 +35,8 @@ def send_email(to_email: str, subject: str, html_body: str, text_body: Optional[
     Returns:
         dict with success status and message
     """
-    # Microsoft 365/GoDaddy SMTP Configuration
+    
+    # GoDaddy SMTP with SSL (Port 465)
     try:
         # Create message
         msg = MIMEMultipart('alternative')
@@ -52,22 +53,13 @@ def send_email(to_email: str, subject: str, html_body: str, text_body: Optional[
         part2 = MIMEText(html_body, 'html')
         msg.attach(part2)
         
-        # Try SSL connection (port 465)
-        if SMTP_PORT == 465:
-            context = ssl.create_default_context()
-            with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context, timeout=10) as server:
-                server.set_debuglevel(1)
-                server.login(SMTP_USER, SMTP_PASSWORD)
-                server.send_message(msg)
-        else:
-            # TLS connection (port 587)
-            with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as server:
-                server.set_debuglevel(1)
-                server.ehlo()
-                server.starttls()
-                server.ehlo()
-                server.login(SMTP_USER, SMTP_PASSWORD)
-                server.send_message(msg)
+        # Create SSL context
+        context = ssl.create_default_context()
+        
+        # Connect with SSL (port 465 for GoDaddy)
+        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context, timeout=15) as server:
+            server.login(SMTP_USER, SMTP_PASSWORD)
+            server.send_message(msg)
         
         logger.info(f"✅ Email sent successfully to {to_email}")
         return {"success": True, "message": "Email sent successfully"}
