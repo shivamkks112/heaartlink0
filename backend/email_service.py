@@ -36,7 +36,7 @@ def send_email(to_email: str, subject: str, html_body: str, text_body: Optional[
         dict with success status and message
     """
     
-    # GoDaddy SMTP with SSL (Port 465)
+    # GoDaddy SMTP with SSL/TLS
     try:
         # Create message
         msg = MIMEMultipart('alternative')
@@ -53,11 +53,11 @@ def send_email(to_email: str, subject: str, html_body: str, text_body: Optional[
         part2 = MIMEText(html_body, 'html')
         msg.attach(part2)
         
-        # Create SSL context
-        context = ssl.create_default_context()
-        
-        # Connect with SSL (port 465 for GoDaddy)
-        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context, timeout=15) as server:
+        # Connect with STARTTLS (port 587 for GoDaddy)
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as server:
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
             server.login(SMTP_USER, SMTP_PASSWORD)
             server.send_message(msg)
         
