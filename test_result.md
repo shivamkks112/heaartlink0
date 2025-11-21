@@ -327,11 +327,10 @@ metadata:
 
 test_plan:
   current_focus:
+    - "User Signup and Privacy Settings"
     - "Complete Matching Flow End-to-End"
-    - "Email OTP Functionality with Titan SMTP"
   stuck_tasks: 
     - "Email OTP Functionality with Titan SMTP"
-    - "Complete Matching Flow End-to-End"
   test_all: false
   test_priority: "high_first"
 
