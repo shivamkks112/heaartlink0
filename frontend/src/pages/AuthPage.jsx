@@ -62,30 +62,90 @@ const AuthPage = ({ onLogin }) => {
 
   const handleSignup = async (e) => {
     e.preventDefault();
+    
+    // Validate form data before submission
+    if (!signupData.email && !signupData.phone) {
+      toast.error('Please provide either email or phone number');
+      return;
+    }
+    
+    if (!signupData.name || signupData.name.trim().length < 2) {
+      toast.error('Please enter a valid name (at least 2 characters)');
+      return;
+    }
+    
+    if (!signupData.password || signupData.password.length < 6) {
+      toast.error('Password must be at least 6 characters long');
+      return;
+    }
+    
+    if (!signupData.age || parseInt(signupData.age) < 18 || parseInt(signupData.age) > 100) {
+      toast.error('Age must be between 18 and 100');
+      return;
+    }
+    
+    if (!signupData.location || signupData.location.trim().length < 2) {
+      toast.error('Please enter your location');
+      return;
+    }
+    
     setLoading(true);
+    console.log('🚀 Starting signup process...');
+    console.log('📧 Email:', signupData.email);
+    console.log('📱 Phone:', signupData.phone);
+    console.log('👤 Name:', signupData.name);
+    
     try {
       const data = {
         ...signupData,
         age: parseInt(signupData.age),
         interests: signupData.interests.split(',').map(i => i.trim()).filter(i => i)
       };
+      
+      console.log('📤 Sending signup request to:', `${API}/auth/signup`);
       const response = await axios.post(`${API}/auth/signup`, data);
+      console.log('✅ Signup response:', response.data);
+      
       const userData = response.data.user;
       
+      if (!userData || !userData.id) {
+        console.error('❌ Invalid user data received:', userData);
+        throw new Error('Invalid response from server');
+      }
+      
+      console.log('💾 Storing user in localStorage:', userData.id);
       // Store in localStorage first
       localStorage.setItem('user', JSON.stringify(userData));
       
+      console.log('🔄 Updating app state...');
       // Then update state
       await onLogin(userData);
       
-      toast.success('Account created successfully!');
+      console.log('🎉 Signup successful! User created:', userData.id);
+      toast.success(`Welcome ${userData.name}! Account created successfully!`);
       
       // Navigate after state is set
       setTimeout(() => {
+        console.log('🔀 Navigating to /discover');
         navigate('/discover');
       }, 100);
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Signup failed');
+      console.error('❌ Signup error:', error);
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      
+      if (error.response?.status === 400) {
+        // Validation error from backend
+        toast.error(error.response.data.detail || 'Invalid signup data');
+      } else if (error.response?.status === 500) {
+        // Server error
+        toast.error('Server error. Please try again later.');
+      } else if (error.code === 'ERR_NETWORK') {
+        // Network error
+        toast.error('Network error. Please check your internet connection.');
+      } else {
+        toast.error(error.response?.data?.detail || 'Signup failed. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
