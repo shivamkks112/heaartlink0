@@ -18,6 +18,7 @@ import { initGoogleAuth } from '@/utils/nativeGoogleAuth';
 
 function App() {
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Initialize native Google Auth
@@ -26,14 +27,22 @@ function App() {
     // Check for stored user
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
-      const userData = JSON.parse(storedUser);
-      setUser(userData);
-      
-      // Request notification permission when user logs in
-      setTimeout(() => {
-        requestNotificationPermission(userData.id);
-      }, 2000); // Wait 2 seconds before requesting permission
+      try {
+        const userData = JSON.parse(storedUser);
+        setUser(userData);
+        
+        // Request notification permission when user logs in
+        setTimeout(() => {
+          requestNotificationPermission(userData.id);
+        }, 2000); // Wait 2 seconds before requesting permission
+      } catch (error) {
+        console.error('Error parsing stored user:', error);
+        localStorage.removeItem('user');
+      }
     }
+    
+    // Mark as loaded
+    setLoading(false);
 
     // Prevent pull-to-refresh on mobile
     document.body.style.overscrollBehavior = 'none';
