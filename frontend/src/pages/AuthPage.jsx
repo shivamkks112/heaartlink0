@@ -97,8 +97,15 @@ const AuthPage = ({ onLogin }) => {
     e.preventDefault();
     
     // Validate form data before submission
-    if (!signupData.email && !signupData.phone) {
-      toast.error('Please provide either email or phone number');
+    if (!signupData.email || signupData.email.trim().length === 0) {
+      toast.error('Please provide your email address');
+      return;
+    }
+    
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(signupData.email)) {
+      toast.error('Please enter a valid email address');
       return;
     }
     
