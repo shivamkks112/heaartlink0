@@ -36,25 +36,58 @@ const AuthPage = ({ onLogin }) => {
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    
+    if (!loginData.email_or_phone || !loginData.password) {
+      toast.error('Please enter both email/phone and password');
+      return;
+    }
+    
     setLoading(true);
+    console.log('🔐 Starting login process...');
+    console.log('📧 Email/Phone:', loginData.email_or_phone);
+    
     try {
+      console.log('📤 Sending login request to:', `${API}/auth/login`);
       const response = await axios.post(`${API}/auth/login`, loginData);
+      console.log('✅ Login response:', response.data);
+      
       const userData = response.data.user;
       
+      if (!userData || !userData.id) {
+        console.error('❌ Invalid user data received:', userData);
+        throw new Error('Invalid response from server');
+      }
+      
+      console.log('💾 Storing user in localStorage:', userData.id);
       // Store in localStorage first
       localStorage.setItem('user', JSON.stringify(userData));
       
+      console.log('🔄 Updating app state...');
       // Then update state
       await onLogin(userData);
       
-      toast.success('Login successful!');
+      console.log('🎉 Login successful!');
+      toast.success(`Welcome back, ${userData.name}!`);
       
       // Navigate after state is set
       setTimeout(() => {
+        console.log('🔀 Navigating to /discover');
         navigate('/discover');
       }, 100);
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Login failed');
+      console.error('❌ Login error:', error);
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      
+      if (error.response?.status === 401) {
+        toast.error('Invalid email/phone or password');
+      } else if (error.response?.status === 500) {
+        toast.error('Server error. Please try again later.');
+      } else if (error.code === 'ERR_NETWORK') {
+        toast.error('Network error. Please check your internet connection.');
+      } else {
+        toast.error(error.response?.data?.detail || 'Login failed. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
