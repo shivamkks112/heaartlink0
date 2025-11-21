@@ -317,7 +317,7 @@ const AuthPage = ({ onLogin }) => {
               </div>
 
               <div>
-                <Label htmlFor="signup-phone" className="text-gray-700 font-semibold">Phone Number</Label>
+                <Label htmlFor="signup-phone" className="text-gray-700 font-semibold">Phone Number (Optional)</Label>
                 <div className="relative mt-2">
                   <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <Input
