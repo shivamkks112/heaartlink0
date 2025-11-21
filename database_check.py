@@ -7,7 +7,7 @@ import requests
 import json
 from datetime import datetime
 
-BACKEND_URL = "https://heartlink-app-4.preview.emergentagent.com/api"
+BACKEND_URL = "https://heartlink-dating-1.preview.emergentagent.com/api"
 
 def check_database_matches():
     """Check if matches are being stored in database by testing with existing users"""

@@ -3,11 +3,11 @@
     <string name="app_name">HeartLink - Dating App</string>
     <string name="app_short_name">HeartLink</string>
     <string name="app_description">India\'s most advanced dating platform with AI matchmaking, real-time chat, and complete privacy control</string>
-    <string name="launch_url">https://heartlink-app-4.preview.emergentagent.com</string>
+    <string name="launch_url">https://heartlink-dating-1.preview.emergentagent.com</string>
     
     <!-- TWA Configuration -->
     <string name="twa_package_id">com.heartlink.dating</string>
-    <string name="twa_default_url">https://heartlink-app-4.preview.emergentagent.com</string>
+    <string name="twa_default_url">https://heartlink-dating-1.preview.emergentagent.com</string>
     <string name="twa_host">linkhearts-app.preview.emergentagent.com</string>
     
     <!-- App Store Descriptions -->

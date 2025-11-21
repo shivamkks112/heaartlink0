@@ -85,7 +85,7 @@ All pages tested on mobile viewport (375x667px - iPhone SE):
 ## 🚀 How to Share Your App
 
 ### Option 1: Direct Link
-Share your app URL: `https://heartlink-app-4.preview.emergentagent.com`
+Share your app URL: `https://heartlink-dating-1.preview.emergentagent.com`
 
 Users can:
 - Open in mobile browser
@@ -139,7 +139,7 @@ Share on:
 
 ## 📱 Test It Yourself
 
-1. Open on your phone: `https://heartlink-app-4.preview.emergentagent.com`
+1. Open on your phone: `https://heartlink-dating-1.preview.emergentagent.com`
 2. Try the install prompt
 3. Add to home screen
 4. Use like a native app!

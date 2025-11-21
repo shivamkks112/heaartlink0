@@ -216,7 +216,7 @@ TECHNICAL SPECS:
 🔒 Security: Standard mobile app security
 
 EXISTING BACKEND:
-🌐 API Base: https://heartlink-app-4.preview.emergentagent.com/api
+🌐 API Base: https://heartlink-dating-1.preview.emergentagent.com/api
 📊 Database: Already implemented
 🔐 Auth: Working login/signup system
 💬 Chat: Real-time functionality exists
