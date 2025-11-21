@@ -300,7 +300,7 @@ const AuthPage = ({ onLogin }) => {
               </div>
 
               <div>
-                <Label htmlFor="signup-email" className="text-gray-700 font-semibold">Email</Label>
+                <Label htmlFor="signup-email" className="text-gray-700 font-semibold">Email *</Label>
                 <div className="relative mt-2">
                   <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <Input
@@ -311,6 +311,7 @@ const AuthPage = ({ onLogin }) => {
                     value={signupData.email}
                     onChange={(e) => setSignupData({...signupData, email: e.target.value})}
                     className="pl-10 py-6 rounded-xl border-2 border-gray-200 focus:border-pink-500"
+                    required
                   />
                 </div>
               </div>
