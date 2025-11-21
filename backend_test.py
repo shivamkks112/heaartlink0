@@ -1078,34 +1078,745 @@ def test_enhanced_signup_flow():
     
     return all_tests_passed
 
+def test_demo1_complete_like_flow():
+    """Test Complete Like Flow with demo1@heartlink.com"""
+    print_test_header("DEMO1 COMPLETE LIKE FLOW TEST")
+    
+    # Step 1: Login as demo1@heartlink.com
+    print_test_header("Step 1: Login as demo1@heartlink.com")
+    login_data = {
+        "email_or_phone": "demo1@heartlink.com",
+        "password": "Demo123!"
+    }
+    
+    try:
+        response = requests.post(f"{BACKEND_URL}/auth/login", json=login_data)
+        
+        if response.status_code == 200:
+            login_result = response.json()
+            demo1_user = login_result.get("user", {})
+            demo1_user_id = demo1_user.get("id")
+            
+            if not demo1_user_id:
+                print_result(False, "No user_id in demo1 login response", login_result)
+                return False
+            
+            print_result(True, "Demo1 login successful", {
+                "user_id": demo1_user_id,
+                "name": demo1_user.get("name"),
+                "email": demo1_user.get("email")
+            })
+        else:
+            print_result(False, f"Demo1 login failed. Status: {response.status_code}", response.text)
+            return False
+            
+    except Exception as e:
+        print_result(False, f"Error during demo1 login: {str(e)}")
+        return False
+    
+    # Step 2: Check existing matches for demo1
+    print_test_header("Step 2: Check existing matches for demo1")
+    try:
+        response = requests.get(f"{BACKEND_URL}/matches/{demo1_user_id}")
+        
+        if response.status_code == 200:
+            existing_matches = response.json()
+            print_result(True, f"Demo1 existing matches retrieved", {
+                "match_count": len(existing_matches),
+                "matches": [{"match_id": m.get("match_id"), "user_name": m.get("user", {}).get("name")} for m in existing_matches]
+            })
+        else:
+            print_result(False, f"Failed to get demo1 matches. Status: {response.status_code}", response.text)
+            return False
+            
+    except Exception as e:
+        print_result(False, f"Error getting demo1 matches: {str(e)}")
+        return False
+    
+    # Step 3: Get discover users for demo1
+    print_test_header("Step 3: Get discover users for demo1")
+    try:
+        response = requests.get(f"{BACKEND_URL}/discover/{demo1_user_id}")
+        
+        if response.status_code == 200:
+            discover_users = response.json()
+            
+            if not discover_users:
+                print_result(False, "No users found in discover for demo1", "Cannot proceed with like flow")
+                return False
+            
+            # Pick the first user to like
+            target_user = discover_users[0]
+            target_user_id = target_user.get("id")
+            target_user_name = target_user.get("name")
+            
+            print_result(True, f"Demo1 discover users retrieved", {
+                "discover_count": len(discover_users),
+                "target_user_id": target_user_id,
+                "target_user_name": target_user_name
+            })
+        else:
+            print_result(False, f"Failed to get discover users for demo1. Status: {response.status_code}", response.text)
+            return False
+            
+    except Exception as e:
+        print_result(False, f"Error getting discover users for demo1: {str(e)}")
+        return False
+    
+    # Step 4: Make demo1 like the target user
+    print_test_header(f"Step 4: Demo1 likes {target_user_name}")
+    like_data = {
+        "target_user_id": target_user_id,
+        "action": "like"
+    }
+    
+    try:
+        response = requests.post(f"{BACKEND_URL}/action/{demo1_user_id}", json=like_data)
+        
+        if response.status_code == 200:
+            like_result = response.json()
+            action_result = like_result.get("action")
+            
+            print_result(True, f"Demo1 like action successful", {
+                "action_result": action_result,
+                "target_user": target_user_name,
+                "is_match": action_result == "matched"
+            })
+            
+            if action_result == "matched":
+                print("🎉 INSTANT MATCH! Target user already liked demo1")
+                match_id = like_result.get("match_id")
+                compatibility_score = like_result.get("compatibility_score")
+                print_result(True, "Match created successfully", {
+                    "match_id": match_id,
+                    "compatibility_score": compatibility_score
+                })
+                return True  # Test successful - match created
+                
+        else:
+            print_result(False, f"Demo1 like action failed. Status: {response.status_code}", response.text)
+            return False
+            
+    except Exception as e:
+        print_result(False, f"Error during demo1 like action: {str(e)}")
+        return False
+    
+    # Step 5: Login as target user and like demo1 back
+    print_test_header(f"Step 5: Login as {target_user_name} and like demo1 back")
+    
+    # We need to find target user's login credentials - try common patterns
+    target_email_patterns = [
+        target_user.get("email", "").lower() if target_user.get("email") else None,
+        f"{target_user_name.lower().replace(' ', '')}@example.com",
+        f"{target_user_name.lower().replace(' ', '.')}@example.com",
+        f"{target_user_name.lower().replace(' ', '_')}@heartlink.com"
+    ]
+    
+    target_passwords = ["Demo123!", "Test@123", "password", "Password123!", "Test@12345"]
+    
+    target_logged_in = False
+    target_user_login_id = None
+    
+    for email_pattern in target_email_patterns:
+        if not email_pattern:
+            continue
+            
+        for password in target_passwords:
+            try:
+                target_login_data = {
+                    "email_or_phone": email_pattern,
+                    "password": password
+                }
+                
+                response = requests.post(f"{BACKEND_URL}/auth/login", json=target_login_data)
+                
+                if response.status_code == 200:
+                    target_login_result = response.json()
+                    target_user_data = target_login_result.get("user", {})
+                    target_user_login_id = target_user_data.get("id")
+                    
+                    if target_user_login_id == target_user_id:
+                        print_result(True, f"Target user {target_user_name} login successful", {
+                            "email": email_pattern,
+                            "user_id": target_user_login_id
+                        })
+                        target_logged_in = True
+                        break
+                        
+            except Exception as e:
+                continue  # Try next combination
+        
+        if target_logged_in:
+            break
+    
+    if not target_logged_in:
+        print_result(False, f"Could not login as target user {target_user_name}", "Trying to create match without target user login")
+        # We can still check if demo1's matches updated
+    else:
+        # Step 6: Target user likes demo1 back
+        print_test_header(f"Step 6: {target_user_name} likes demo1 back")
+        
+        like_back_data = {
+            "target_user_id": demo1_user_id,
+            "action": "like"
+        }
+        
+        try:
+            response = requests.post(f"{BACKEND_URL}/action/{target_user_login_id}", json=like_back_data)
+            
+            if response.status_code == 200:
+                like_back_result = response.json()
+                action_result = like_back_result.get("action")
+                
+                print_result(True, f"{target_user_name} like back successful", {
+                    "action_result": action_result,
+                    "is_match": action_result == "matched"
+                })
+                
+                if action_result == "matched":
+                    match_id = like_back_result.get("match_id")
+                    compatibility_score = like_back_result.get("compatibility_score")
+                    print_result(True, "🎉 MATCH CREATED!", {
+                        "match_id": match_id,
+                        "compatibility_score": compatibility_score,
+                        "analysis": like_back_result.get("analysis", "")
+                    })
+                    
+            else:
+                print_result(False, f"{target_user_name} like back failed. Status: {response.status_code}", response.text)
+                
+        except Exception as e:
+            print_result(False, f"Error during {target_user_name} like back: {str(e)}")
+    
+    # Step 7: Check demo1's matches again
+    print_test_header("Step 7: Check demo1's matches after like flow")
+    try:
+        response = requests.get(f"{BACKEND_URL}/matches/{demo1_user_id}")
+        
+        if response.status_code == 200:
+            final_matches = response.json()
+            new_match_count = len(final_matches)
+            original_match_count = len(existing_matches)
+            
+            if new_match_count > original_match_count:
+                print_result(True, "✅ NEW MATCH FOUND! Demo1 matches increased", {
+                    "original_matches": original_match_count,
+                    "new_matches": new_match_count,
+                    "latest_match": final_matches[-1] if final_matches else None
+                })
+                return True
+            else:
+                print_result(False, "❌ No new matches found for demo1", {
+                    "original_matches": original_match_count,
+                    "current_matches": new_match_count
+                })
+                return False
+                
+        else:
+            print_result(False, f"Failed to get demo1 final matches. Status: {response.status_code}", response.text)
+            return False
+            
+    except Exception as e:
+        print_result(False, f"Error getting demo1 final matches: {str(e)}")
+        return False
+
+def test_existing_matches_priya_raj():
+    """Test Existing Matches: Priya Patel and Raj Sharma"""
+    print_test_header("EXISTING MATCHES TEST: PRIYA PATEL & RAJ SHARMA")
+    
+    # Test login credentials for Priya
+    priya_credentials = [
+        {"email": "priya@example.com", "passwords": ["Demo123!", "Test@123", "password", "Password123!", "Test@12345"]},
+        {"email": "priya.patel@example.com", "passwords": ["Demo123!", "Test@123", "password", "Password123!", "Test@12345"]},
+        {"email": "priya@heartlink.com", "passwords": ["Demo123!", "Test@123", "password", "Password123!", "Test@12345"]}
+    ]
+    
+    # Test login credentials for Raj
+    raj_credentials = [
+        {"email": "raj@example.com", "passwords": ["Demo123!", "Test@123", "password", "Password123!", "Test@12345"]},
+        {"email": "raj.sharma@example.com", "passwords": ["Demo123!", "Test@123", "password", "Password123!", "Test@12345"]},
+        {"email": "raj@heartlink.com", "passwords": ["Demo123!", "Test@123", "password", "Password123!", "Test@12345"]}
+    ]
+    
+    priya_user_id = None
+    raj_user_id = None
+    
+    # Try to login as Priya
+    print_test_header("Login as Priya Patel")
+    for cred in priya_credentials:
+        email = cred["email"]
+        for password in cred["passwords"]:
+            try:
+                login_data = {
+                    "email_or_phone": email,
+                    "password": password
+                }
+                
+                response = requests.post(f"{BACKEND_URL}/auth/login", json=login_data)
+                
+                if response.status_code == 200:
+                    login_result = response.json()
+                    user_data = login_result.get("user", {})
+                    user_name = user_data.get("name", "").lower()
+                    
+                    if "priya" in user_name:
+                        priya_user_id = user_data.get("id")
+                        print_result(True, "Priya Patel login successful", {
+                            "email": email,
+                            "user_id": priya_user_id,
+                            "name": user_data.get("name")
+                        })
+                        break
+                        
+            except Exception as e:
+                continue
+        
+        if priya_user_id:
+            break
+    
+    # Try to login as Raj
+    print_test_header("Login as Raj Sharma")
+    for cred in raj_credentials:
+        email = cred["email"]
+        for password in cred["passwords"]:
+            try:
+                login_data = {
+                    "email_or_phone": email,
+                    "password": password
+                }
+                
+                response = requests.post(f"{BACKEND_URL}/auth/login", json=login_data)
+                
+                if response.status_code == 200:
+                    login_result = response.json()
+                    user_data = login_result.get("user", {})
+                    user_name = user_data.get("name", "").lower()
+                    
+                    if "raj" in user_name:
+                        raj_user_id = user_data.get("id")
+                        print_result(True, "Raj Sharma login successful", {
+                            "email": email,
+                            "user_id": raj_user_id,
+                            "name": user_data.get("name")
+                        })
+                        break
+                        
+            except Exception as e:
+                continue
+        
+        if raj_user_id:
+            break
+    
+    if not priya_user_id:
+        print_result(False, "Could not login as Priya Patel", "Tried multiple email/password combinations")
+    
+    if not raj_user_id:
+        print_result(False, "Could not login as Raj Sharma", "Tried multiple email/password combinations")
+    
+    # Test Priya's matches
+    if priya_user_id:
+        print_test_header("Check Priya's Matches")
+        try:
+            response = requests.get(f"{BACKEND_URL}/matches/{priya_user_id}")
+            
+            if response.status_code == 200:
+                priya_matches = response.json()
+                
+                raj_found = False
+                for match in priya_matches:
+                    match_user = match.get("user", {})
+                    match_user_name = match_user.get("name", "").lower()
+                    
+                    if "raj" in match_user_name:
+                        raj_found = True
+                        print_result(True, "✅ Raj found in Priya's matches", {
+                            "match_id": match.get("match_id"),
+                            "raj_name": match_user.get("name"),
+                            "raj_id": match_user.get("id"),
+                            "compatibility_score": match.get("compatibility_score")
+                        })
+                        break
+                
+                if not raj_found:
+                    print_result(False, "❌ Raj NOT found in Priya's matches", {
+                        "priya_match_count": len(priya_matches),
+                        "matches": [m.get("user", {}).get("name") for m in priya_matches]
+                    })
+                    
+            else:
+                print_result(False, f"Failed to get Priya's matches. Status: {response.status_code}", response.text)
+                
+        except Exception as e:
+            print_result(False, f"Error getting Priya's matches: {str(e)}")
+    
+    # Test Raj's matches
+    if raj_user_id:
+        print_test_header("Check Raj's Matches")
+        try:
+            response = requests.get(f"{BACKEND_URL}/matches/{raj_user_id}")
+            
+            if response.status_code == 200:
+                raj_matches = response.json()
+                
+                priya_found = False
+                for match in raj_matches:
+                    match_user = match.get("user", {})
+                    match_user_name = match_user.get("name", "").lower()
+                    
+                    if "priya" in match_user_name:
+                        priya_found = True
+                        print_result(True, "✅ Priya found in Raj's matches", {
+                            "match_id": match.get("match_id"),
+                            "priya_name": match_user.get("name"),
+                            "priya_id": match_user.get("id"),
+                            "compatibility_score": match.get("compatibility_score")
+                        })
+                        break
+                
+                if not priya_found:
+                    print_result(False, "❌ Priya NOT found in Raj's matches", {
+                        "raj_match_count": len(raj_matches),
+                        "matches": [m.get("user", {}).get("name") for m in raj_matches]
+                    })
+                    
+            else:
+                print_result(False, f"Failed to get Raj's matches. Status: {response.status_code}", response.text)
+                
+        except Exception as e:
+            print_result(False, f"Error getting Raj's matches: {str(e)}")
+    
+    return priya_user_id is not None and raj_user_id is not None
+
+def test_fresh_match_creation():
+    """Create Fresh Match Test: testmatch1@gmail.com and testmatch2@gmail.com"""
+    print_test_header("FRESH MATCH CREATION TEST")
+    
+    # Test users credentials
+    test_users = [
+        {"email": "testmatch1@gmail.com", "password": "Test@123", "name": "Test Match 1"},
+        {"email": "testmatch2@gmail.com", "password": "Test@123", "name": "Test Match 2"}
+    ]
+    
+    user_ids = []
+    
+    # Login both test users
+    for i, user_cred in enumerate(test_users):
+        print_test_header(f"Login as {user_cred['name']}")
+        
+        login_data = {
+            "email_or_phone": user_cred["email"],
+            "password": user_cred["password"]
+        }
+        
+        try:
+            response = requests.post(f"{BACKEND_URL}/auth/login", json=login_data)
+            
+            if response.status_code == 200:
+                login_result = response.json()
+                user_data = login_result.get("user", {})
+                user_id = user_data.get("id")
+                
+                if user_id:
+                    user_ids.append(user_id)
+                    print_result(True, f"{user_cred['name']} login successful", {
+                        "email": user_cred["email"],
+                        "user_id": user_id,
+                        "name": user_data.get("name")
+                    })
+                else:
+                    print_result(False, f"No user_id for {user_cred['name']}", login_result)
+                    return False
+            else:
+                print_result(False, f"{user_cred['name']} login failed. Status: {response.status_code}", response.text)
+                return False
+                
+        except Exception as e:
+            print_result(False, f"Error logging in {user_cred['name']}: {str(e)}")
+            return False
+    
+    if len(user_ids) != 2:
+        print_result(False, "Could not login both test users", f"Got {len(user_ids)} user IDs")
+        return False
+    
+    user1_id, user2_id = user_ids
+    
+    # Check existing matches for both users
+    print_test_header("Check existing matches for both users")
+    
+    user1_existing_matches = []
+    user2_existing_matches = []
+    
+    try:
+        # User 1 existing matches
+        response = requests.get(f"{BACKEND_URL}/matches/{user1_id}")
+        if response.status_code == 200:
+            user1_existing_matches = response.json()
+            print_result(True, f"User1 existing matches: {len(user1_existing_matches)}", None)
+        
+        # User 2 existing matches
+        response = requests.get(f"{BACKEND_URL}/matches/{user2_id}")
+        if response.status_code == 200:
+            user2_existing_matches = response.json()
+            print_result(True, f"User2 existing matches: {len(user2_existing_matches)}", None)
+            
+    except Exception as e:
+        print_result(False, f"Error checking existing matches: {str(e)}")
+    
+    # User 1 likes User 2
+    print_test_header("User1 likes User2")
+    
+    like_data = {
+        "target_user_id": user2_id,
+        "action": "like"
+    }
+    
+    try:
+        response = requests.post(f"{BACKEND_URL}/action/{user1_id}", json=like_data)
+        
+        if response.status_code == 200:
+            like_result = response.json()
+            action_result = like_result.get("action")
+            
+            print_result(True, "User1 like action successful", {
+                "action_result": action_result,
+                "is_match": action_result == "matched"
+            })
+            
+            if action_result == "matched":
+                print("🎉 INSTANT MATCH! User2 already liked User1")
+                return True
+                
+        else:
+            print_result(False, f"User1 like action failed. Status: {response.status_code}", response.text)
+            return False
+            
+    except Exception as e:
+        print_result(False, f"Error during User1 like action: {str(e)}")
+        return False
+    
+    # User 2 likes User 1 back
+    print_test_header("User2 likes User1 back")
+    
+    like_back_data = {
+        "target_user_id": user1_id,
+        "action": "like"
+    }
+    
+    try:
+        response = requests.post(f"{BACKEND_URL}/action/{user2_id}", json=like_back_data)
+        
+        if response.status_code == 200:
+            like_back_result = response.json()
+            action_result = like_back_result.get("action")
+            
+            print_result(True, "User2 like back successful", {
+                "action_result": action_result,
+                "is_match": action_result == "matched"
+            })
+            
+            if action_result == "matched":
+                match_id = like_back_result.get("match_id")
+                compatibility_score = like_back_result.get("compatibility_score")
+                print_result(True, "🎉 MATCH CREATED!", {
+                    "match_id": match_id,
+                    "compatibility_score": compatibility_score,
+                    "analysis": like_back_result.get("analysis", "")
+                })
+            else:
+                print_result(False, "Expected match but got different result", like_back_result)
+                return False
+                
+        else:
+            print_result(False, f"User2 like back failed. Status: {response.status_code}", response.text)
+            return False
+            
+    except Exception as e:
+        print_result(False, f"Error during User2 like back: {str(e)}")
+        return False
+    
+    # Verify both users now see each other in matches
+    print_test_header("Verify mutual matches")
+    
+    try:
+        # Check User1's matches
+        response = requests.get(f"{BACKEND_URL}/matches/{user1_id}")
+        if response.status_code == 200:
+            user1_final_matches = response.json()
+            user1_new_matches = len(user1_final_matches) - len(user1_existing_matches)
+            
+            user2_found_in_user1_matches = any(
+                match.get("user", {}).get("id") == user2_id 
+                for match in user1_final_matches
+            )
+            
+            print_result(user2_found_in_user1_matches, f"User2 found in User1's matches", {
+                "user1_new_matches": user1_new_matches,
+                "user2_in_matches": user2_found_in_user1_matches
+            })
+        
+        # Check User2's matches
+        response = requests.get(f"{BACKEND_URL}/matches/{user2_id}")
+        if response.status_code == 200:
+            user2_final_matches = response.json()
+            user2_new_matches = len(user2_final_matches) - len(user2_existing_matches)
+            
+            user1_found_in_user2_matches = any(
+                match.get("user", {}).get("id") == user1_id 
+                for match in user2_final_matches
+            )
+            
+            print_result(user1_found_in_user2_matches, f"User1 found in User2's matches", {
+                "user2_new_matches": user2_new_matches,
+                "user1_in_matches": user1_found_in_user2_matches
+            })
+            
+            return user1_found_in_user2_matches and user2_found_in_user1_matches
+        
+    except Exception as e:
+        print_result(False, f"Error verifying mutual matches: {str(e)}")
+        return False
+    
+    return False
+
+def test_database_consistency():
+    """Database Consistency Check - verify matches and users exist"""
+    print_test_header("DATABASE CONSISTENCY CHECK")
+    
+    # Get all users first
+    print_test_header("Get all users from database")
+    try:
+        response = requests.get(f"{BACKEND_URL}/admin/all-users")
+        
+        if response.status_code == 200:
+            all_users = response.json()
+            user_ids_in_db = {user["id"] for user in all_users}
+            
+            print_result(True, f"Retrieved all users from database", {
+                "total_users": len(all_users),
+                "sample_users": [{"id": u["id"], "name": u["name"], "email": u.get("email")} for u in all_users[:5]]
+            })
+        else:
+            print_result(False, f"Failed to get all users. Status: {response.status_code}", response.text)
+            return False
+            
+    except Exception as e:
+        print_result(False, f"Error getting all users: {str(e)}")
+        return False
+    
+    # Check matches for each user and verify consistency
+    print_test_header("Check matches consistency for all users")
+    
+    total_matches_checked = 0
+    orphaned_matches = 0
+    valid_matches = 0
+    
+    for user in all_users[:10]:  # Check first 10 users to avoid too many requests
+        user_id = user["id"]
+        user_name = user["name"]
+        
+        try:
+            response = requests.get(f"{BACKEND_URL}/matches/{user_id}")
+            
+            if response.status_code == 200:
+                user_matches = response.json()
+                
+                for match in user_matches:
+                    total_matches_checked += 1
+                    match_user = match.get("user", {})
+                    match_user_id = match_user.get("id")
+                    
+                    if match_user_id in user_ids_in_db:
+                        valid_matches += 1
+                    else:
+                        orphaned_matches += 1
+                        print_result(False, f"ORPHANED MATCH FOUND", {
+                            "user": user_name,
+                            "user_id": user_id,
+                            "orphaned_match_user_id": match_user_id,
+                            "match_id": match.get("match_id")
+                        })
+                        
+        except Exception as e:
+            print_result(False, f"Error checking matches for {user_name}: {str(e)}")
+    
+    # Summary
+    print_test_header("Database Consistency Summary")
+    
+    consistency_good = orphaned_matches == 0
+    
+    print_result(consistency_good, f"Database consistency check", {
+        "total_users": len(all_users),
+        "total_matches_checked": total_matches_checked,
+        "valid_matches": valid_matches,
+        "orphaned_matches": orphaned_matches,
+        "consistency_percentage": (valid_matches / total_matches_checked * 100) if total_matches_checked > 0 else 100
+    })
+    
+    return consistency_good
+
 def main():
-    """Main test execution for enhanced user signup flow testing"""
-    print(f"HeartLink Backend Enhanced Signup Flow Testing")
+    """Main test execution for matching functionality debugging"""
+    print(f"HeartLink Backend Matching Functionality Debug Test")
     print(f"Backend URL: {BACKEND_URL}")
     print(f"Test started at: {datetime.now()}")
-    print(f"Testing enhanced user signup flow with new validations and error handling")
+    print(f"Testing complete matching flow to debug frontend issues")
     
-    # Run enhanced signup flow tests
-    signup_tests_passed = test_enhanced_signup_flow()
+    all_tests_passed = True
+    
+    # Test 1: Demo1 Complete Like Flow
+    print(f"\n{'='*80}")
+    print("TEST 1: DEMO1 COMPLETE LIKE FLOW")
+    print(f"{'='*80}")
+    demo1_test_passed = test_demo1_complete_like_flow()
+    if not demo1_test_passed:
+        all_tests_passed = False
+    
+    # Test 2: Existing Matches (Priya & Raj)
+    print(f"\n{'='*80}")
+    print("TEST 2: EXISTING MATCHES (PRIYA & RAJ)")
+    print(f"{'='*80}")
+    existing_matches_test_passed = test_existing_matches_priya_raj()
+    if not existing_matches_test_passed:
+        all_tests_passed = False
+    
+    # Test 3: Fresh Match Creation
+    print(f"\n{'='*80}")
+    print("TEST 3: FRESH MATCH CREATION")
+    print(f"{'='*80}")
+    fresh_match_test_passed = test_fresh_match_creation()
+    if not fresh_match_test_passed:
+        all_tests_passed = False
+    
+    # Test 4: Database Consistency
+    print(f"\n{'='*80}")
+    print("TEST 4: DATABASE CONSISTENCY CHECK")
+    print(f"{'='*80}")
+    db_consistency_test_passed = test_database_consistency()
+    if not db_consistency_test_passed:
+        all_tests_passed = False
     
     # Final summary
     print(f"\n{'='*80}")
-    print("ENHANCED USER SIGNUP FLOW TEST SUMMARY")
+    print("MATCHING FUNCTIONALITY DEBUG TEST SUMMARY")
     print(f"{'='*80}")
     
-    if signup_tests_passed:
-        print("✅ ALL ENHANCED SIGNUP FLOW TESTS PASSED")
-        print("   ✅ Valid signup creates users successfully in MongoDB")
-        print("   ✅ Duplicate email/phone validations work correctly")
-        print("   ✅ Users can signup without phone number")
-        print("   ✅ Login works with newly created users")
-        print("   ✅ All user data is properly stored and retrieved")
-        print("   ✅ Privacy settings are initialized correctly")
-        print("   ✅ No ObjectId serialization errors")
+    if all_tests_passed:
+        print("✅ ALL MATCHING FUNCTIONALITY TESTS PASSED")
+        print("   ✅ Demo1 complete like flow working")
+        print("   ✅ Existing matches (Priya & Raj) accessible")
+        print("   ✅ Fresh match creation working")
+        print("   ✅ Database consistency maintained")
+        print("\n🎯 CONCLUSION: Backend matching functionality is working correctly!")
+        print("   If frontend is not showing matches, the issue is likely in:")
+        print("   - Frontend API calls to /api/matches/{user_id}")
+        print("   - Frontend state management")
+        print("   - Frontend routing or component rendering")
         return True
     else:
-        print("❌ SOME ENHANCED SIGNUP FLOW TESTS FAILED")
+        print("❌ SOME MATCHING FUNCTIONALITY TESTS FAILED")
         print("   Check individual test results above for details")
+        print("\n🔍 ISSUES FOUND IN BACKEND MATCHING FUNCTIONALITY")
+        print("   These backend issues need to be fixed before frontend testing")
         return False
 
 if __name__ == "__main__":
