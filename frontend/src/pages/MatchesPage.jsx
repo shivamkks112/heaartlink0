@@ -30,10 +30,25 @@ const MatchesPage = ({ user }) => {
   const fetchMatches = async () => {
     setLoading(true);
     try {
+      console.log('🔍 Fetching matches for user:', user.id);
+      console.log('🔗 API URL:', `${API}/matches/${user.id}`);
+      
       const response = await axios.get(`${API}/matches/${user.id}`);
+      
+      console.log('✅ Matches API Response:', response.data);
+      console.log('📊 Total matches received:', response.data.length);
+      
       setMatches(response.data);
       setLoading(false);
+      
+      if (response.data.length === 0) {
+        console.log('⚠️ No matches found for this user');
+      } else {
+        console.log('🎉 Matches loaded successfully:', response.data);
+      }
     } catch (error) {
+      console.error('❌ Error fetching matches:', error);
+      console.error('Error details:', error.response?.data);
       toast.error('Failed to load matches');
       setLoading(false);
     }
