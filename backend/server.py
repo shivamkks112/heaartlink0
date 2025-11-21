@@ -1538,6 +1538,51 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+# ADMIN: Complete Database Cleanup Endpoint (DANGEROUS - USE WITH CAUTION)
+class DatabaseClearRequest(BaseModel):
+    confirm: str
+    admin_password: str
+
+@api_router.post("/admin/clear-all-data")
+async def clear_all_database_data(request: DatabaseClearRequest):
+    """
+    ⚠️ DANGER: This endpoint completely wipes ALL data from database
+    Use only for testing/development purposes
+    Requires confirmation string and admin password
+    """
+    
+    # Safety check 1: Confirmation string
+    if request.confirm != "DELETE_ALL_DATA_PERMANENTLY":
+        raise HTTPException(status_code=400, detail="Invalid confirmation string")
+    
+    # Safety check 2: Admin password
+    if request.admin_password != "Shivam@#110":
+        raise HTTPException(status_code=403, detail="Invalid admin password")
+    
+    try:
+        # Get all collections
+        collections = await db.list_collection_names()
+        
+        deleted_counts = {}
+        total_deleted = 0
+        
+        # Delete all documents from each collection
+        for collection in collections:
+            result = await db[collection].delete_many({})
+            deleted_counts[collection] = result.deleted_count
+            total_deleted += result.deleted_count
+        
+        return {
+            "message": "Database completely cleared",
+            "total_documents_deleted": total_deleted,
+            "collections_cleared": deleted_counts,
+            "warning": "All data has been permanently deleted"
+        }
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database cleanup failed: {str(e)}")
+
 # Logging
 logging.basicConfig(
     level=logging.INFO,
