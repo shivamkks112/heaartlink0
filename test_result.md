@@ -318,13 +318,11 @@ metadata:
 
 test_plan:
   current_focus:
+    - "Complete Matching Flow End-to-End"
     - "Email OTP Functionality with Titan SMTP"
-    - "Profile Cards Visual Polish"
-    - "Navigation and Mobile Experience"
   stuck_tasks: 
     - "Email OTP Functionality with Titan SMTP"
-    - "Profile Cards Visual Polish"
-    - "Navigation and Mobile Experience"
+    - "Complete Matching Flow End-to-End"
   test_all: false
   test_priority: "high_first"
 
