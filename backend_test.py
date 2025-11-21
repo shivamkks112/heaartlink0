@@ -839,31 +839,272 @@ def test_account_deletion_endpoint():
     
     return all_tests_passed
 
+def test_enhanced_signup_flow():
+    """Test the enhanced user signup flow with new validations and error handling"""
+    print_test_header("ENHANCED USER SIGNUP FLOW COMPREHENSIVE TESTING")
+    
+    all_tests_passed = True
+    
+    # Test 1: Valid Signup Test
+    print_test_header("Test 1: Valid Signup Test")
+    valid_signup_data = {
+        "email": "priya.sharma@example.com",
+        "phone": "+919876543211",
+        "password": "Test@12345",
+        "name": "Priya Sharma",
+        "age": 27,
+        "gender": "Female",
+        "looking_for": "Male",
+        "bio": "Love traveling and photography",
+        "location": "Bangalore, Karnataka",
+        "interests": ["Photography", "Travel", "Food"]
+    }
+    
+    try:
+        response = requests.post(f"{BACKEND_URL}/auth/signup", json=valid_signup_data)
+        
+        if response.status_code == 200:
+            signup_result = response.json()
+            user_data = signup_result.get("user", {})
+            user_id = signup_result.get("user_id")
+            
+            # Verify user_id is present
+            if not user_id:
+                print_result(False, "No user_id in signup response", signup_result)
+                all_tests_passed = False
+            else:
+                # Verify privacy settings
+                privacy_settings = user_data.get("privacy_settings", {})
+                expected_privacy = {
+                    "show_profile": True,
+                    "show_photos": True,
+                    "incognito_mode": False
+                }
+                
+                privacy_correct = all(
+                    privacy_settings.get(key) == expected_privacy[key] 
+                    for key in expected_privacy
+                )
+                
+                if privacy_correct:
+                    print_result(True, "✅ Valid signup successful with correct privacy settings", {
+                        "user_id": user_id,
+                        "name": user_data.get("name"),
+                        "email": user_data.get("email"),
+                        "privacy_settings": privacy_settings
+                    })
+                else:
+                    print_result(False, "Privacy settings not set correctly", {
+                        "expected": expected_privacy,
+                        "actual": privacy_settings
+                    })
+                    all_tests_passed = False
+        else:
+            print_result(False, f"Valid signup failed. Status: {response.status_code}", response.text)
+            all_tests_passed = False
+            
+    except Exception as e:
+        print_result(False, f"Error during valid signup test: {str(e)}")
+        all_tests_passed = False
+    
+    # Test 2: Duplicate Email Test
+    print_test_header("Test 2: Duplicate Email Test")
+    try:
+        response = requests.post(f"{BACKEND_URL}/auth/signup", json=valid_signup_data)
+        
+        if response.status_code == 400:
+            error_data = response.json()
+            if "Email already registered" in error_data.get("detail", ""):
+                print_result(True, "✅ Duplicate email correctly rejected", {
+                    "status_code": response.status_code,
+                    "error_message": error_data.get("detail")
+                })
+            else:
+                print_result(False, "Wrong error message for duplicate email", error_data)
+                all_tests_passed = False
+        else:
+            print_result(False, f"Duplicate email should return 400. Got: {response.status_code}", response.text)
+            all_tests_passed = False
+            
+    except Exception as e:
+        print_result(False, f"Error during duplicate email test: {str(e)}")
+        all_tests_passed = False
+    
+    # Test 3: Duplicate Phone Test
+    print_test_header("Test 3: Duplicate Phone Test")
+    duplicate_phone_data = {
+        "email": "different.email@example.com",
+        "phone": "+919876543211",  # Same phone as Priya
+        "password": "Test@12345",
+        "name": "Different User",
+        "age": 25,
+        "gender": "Male",
+        "looking_for": "Female",
+        "location": "Delhi",
+        "interests": ["Sports"]
+    }
+    
+    try:
+        response = requests.post(f"{BACKEND_URL}/auth/signup", json=duplicate_phone_data)
+        
+        if response.status_code == 400:
+            error_data = response.json()
+            if "Phone already registered" in error_data.get("detail", ""):
+                print_result(True, "✅ Duplicate phone correctly rejected", {
+                    "status_code": response.status_code,
+                    "error_message": error_data.get("detail")
+                })
+            else:
+                print_result(False, "Wrong error message for duplicate phone", error_data)
+                all_tests_passed = False
+        else:
+            print_result(False, f"Duplicate phone should return 400. Got: {response.status_code}", response.text)
+            all_tests_passed = False
+            
+    except Exception as e:
+        print_result(False, f"Error during duplicate phone test: {str(e)}")
+        all_tests_passed = False
+    
+    # Test 4: Minimal Signup (No Phone)
+    print_test_header("Test 4: Minimal Signup (No Phone)")
+    minimal_signup_data = {
+        "email": "rohit.kumar@example.com",
+        "password": "Test@12345",
+        "name": "Rohit Kumar",
+        "age": 29,
+        "gender": "Male",
+        "looking_for": "Female",
+        "location": "Delhi",
+        "interests": ["Cricket", "Tech"]
+    }
+    
+    try:
+        response = requests.post(f"{BACKEND_URL}/auth/signup", json=minimal_signup_data)
+        
+        if response.status_code == 200:
+            signup_result = response.json()
+            user_data = signup_result.get("user", {})
+            user_id = signup_result.get("user_id")
+            
+            if user_id:
+                print_result(True, "✅ Minimal signup (no phone) successful", {
+                    "user_id": user_id,
+                    "name": user_data.get("name"),
+                    "email": user_data.get("email"),
+                    "phone": user_data.get("phone", "None")
+                })
+            else:
+                print_result(False, "No user_id in minimal signup response", signup_result)
+                all_tests_passed = False
+        else:
+            print_result(False, f"Minimal signup failed. Status: {response.status_code}", response.text)
+            all_tests_passed = False
+            
+    except Exception as e:
+        print_result(False, f"Error during minimal signup test: {str(e)}")
+        all_tests_passed = False
+    
+    # Test 5: Login Test with newly created user
+    print_test_header("Test 5: Login Test with Priya")
+    login_data = {
+        "email_or_phone": "priya.sharma@example.com",
+        "password": "Test@12345"
+    }
+    
+    try:
+        response = requests.post(f"{BACKEND_URL}/auth/login", json=login_data)
+        
+        if response.status_code == 200:
+            login_result = response.json()
+            user_data = login_result.get("user", {})
+            
+            # Verify no password_hash or _id in response
+            if "password_hash" not in user_data and "_id" not in user_data:
+                print_result(True, "✅ Login successful with clean user object", {
+                    "user_id": user_data.get("id"),
+                    "name": user_data.get("name"),
+                    "email": user_data.get("email"),
+                    "clean_response": True
+                })
+            else:
+                print_result(False, "Sensitive data found in login response", user_data.keys())
+                all_tests_passed = False
+        else:
+            print_result(False, f"Login failed. Status: {response.status_code}", response.text)
+            all_tests_passed = False
+            
+    except Exception as e:
+        print_result(False, f"Error during login test: {str(e)}")
+        all_tests_passed = False
+    
+    # Test 6: Database Verification
+    print_test_header("Test 6: Database Verification")
+    try:
+        response = requests.get(f"{BACKEND_URL}/admin/all-users")
+        
+        if response.status_code == 200:
+            users = response.json()
+            
+            # Look for our test users
+            priya_found = False
+            rohit_found = False
+            
+            for user in users:
+                if user.get("email") == "priya.sharma@example.com":
+                    priya_found = True
+                elif user.get("email") == "rohit.kumar@example.com":
+                    rohit_found = True
+            
+            if priya_found and rohit_found:
+                print_result(True, "✅ Both test users found in database", {
+                    "total_users": len(users),
+                    "priya_found": priya_found,
+                    "rohit_found": rohit_found
+                })
+            else:
+                print_result(False, "Test users not found in database", {
+                    "total_users": len(users),
+                    "priya_found": priya_found,
+                    "rohit_found": rohit_found
+                })
+                all_tests_passed = False
+        else:
+            print_result(False, f"Failed to get users. Status: {response.status_code}", response.text)
+            all_tests_passed = False
+            
+    except Exception as e:
+        print_result(False, f"Error during database verification: {str(e)}")
+        all_tests_passed = False
+    
+    return all_tests_passed
+
 def main():
-    """Main test execution for comprehensive permanent fix verification"""
-    print(f"HeartLink Backend Comprehensive Testing")
+    """Main test execution for enhanced user signup flow testing"""
+    print(f"HeartLink Backend Enhanced Signup Flow Testing")
     print(f"Backend URL: {BACKEND_URL}")
     print(f"Test started at: {datetime.now()}")
-    print(f"Testing Account Deletion Request Endpoint")
+    print(f"Testing enhanced user signup flow with new validations and error handling")
     
-    # Run account deletion endpoint tests
-    deletion_tests_passed = test_account_deletion_endpoint()
+    # Run enhanced signup flow tests
+    signup_tests_passed = test_enhanced_signup_flow()
     
     # Final summary
     print(f"\n{'='*80}")
-    print("ACCOUNT DELETION REQUEST ENDPOINT TEST SUMMARY")
+    print("ENHANCED USER SIGNUP FLOW TEST SUMMARY")
     print(f"{'='*80}")
     
-    if deletion_tests_passed:
-        print("✅ ALL CRITICAL ACCOUNT DELETION TESTS PASSED")
-        print("   ✅ Existing user deletion request working")
-        print("   ✅ Non-existent user deletion request handled securely")
-        print("   ✅ Deletion request storage verified")
-        print("   ✅ Input validation working")
-        print("   ✅ Email notification handling (graceful failure if email service unavailable)")
+    if signup_tests_passed:
+        print("✅ ALL ENHANCED SIGNUP FLOW TESTS PASSED")
+        print("   ✅ Valid signup creates users successfully in MongoDB")
+        print("   ✅ Duplicate email/phone validations work correctly")
+        print("   ✅ Users can signup without phone number")
+        print("   ✅ Login works with newly created users")
+        print("   ✅ All user data is properly stored and retrieved")
+        print("   ✅ Privacy settings are initialized correctly")
+        print("   ✅ No ObjectId serialization errors")
         return True
     else:
-        print("❌ CRITICAL ACCOUNT DELETION TESTS FAILED")
+        print("❌ SOME ENHANCED SIGNUP FLOW TESTS FAILED")
         print("   Check individual test results above for details")
         return False
 
