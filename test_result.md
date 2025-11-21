@@ -159,10 +159,10 @@ backend:
   - task: "User Signup and Privacy Settings"
     implemented: true
     working: true
-    file: "server.py"
-    stuck_count: 1
+    file: "server.py, AuthPage.jsx"
+    stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
         - working: true
           agent: "testing"
@@ -170,6 +170,9 @@ backend:
         - working: true
           agent: "testing"
           comment: "🎉 COMPREHENSIVE PERMANENT FIX VERIFICATION COMPLETE: ALL CRITICAL TESTS PASSED! Successfully verified the permanent ObjectId serialization fix with comprehensive testing: ✅ Test 1 - Fresh Signup: Created new user (akash.test.1760882233@heartlink.com) with 200 OK response, no ObjectId errors, correct privacy_settings (show_profile: true, show_photos: true, incognito_mode: false), clean user data returned (no _id, no password_hash). ✅ Test 2 - Login with New User: Login successful with no serialization errors, clean user data returned. ✅ Test 3 - Profile Operations: GET /api/profile/{user_id} working perfectly, PUT /api/profile/{user_id} with age update (26→27) working without ObjectId errors. ✅ Test 4 - Discover: Created female test user, verified Akash appears in discover results for compatible gender matching, no ObjectId errors in discover endpoint. The serialize_user_for_response() and clean_user_data() helper functions are working perfectly. The permanent fix is fully verified and operational."
+        - working: true
+          agent: "main"
+          comment: "🔧 ENHANCED USER SIGNUP FLOW FOR ROBUSTNESS: Investigation revealed that backend signup endpoint is working perfectly (46 users in MongoDB), but user experience needs improvement. IMPROVEMENTS MADE: 1) Added comprehensive client-side form validation (email format, password length, age range, name length, location validation), 2) Added detailed console logging throughout signup/login process for debugging, 3) Enhanced error messages with specific error types (network errors, validation errors, server errors), 4) Made email field required with asterisk indicator, 5) Made phone field explicitly optional, 6) Added welcome messages with user names in success toasts. VERIFICATION: Created test users 'Tanisha' (ranitest@gmail.com) and 'Neha Test User' (neha.test@example.com) successfully - both saved to MongoDB and verified. Total users in database: 46. The signup flow is now more robust with better validation, error handling, and user feedback."
 
   - task: "Email OTP Functionality with Titan SMTP"
     implemented: true
