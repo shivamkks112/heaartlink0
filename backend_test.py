@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-HeartLink Backend Comprehensive Permanent Fix Verification Test
-Tests signup, login, profile operations, and discover functionality
-Specifically verifies ObjectId serialization fixes
+HeartLink Backend Matching Functionality Debug Test
+Tests complete matching flow to debug why matches are not showing on frontend
+Specifically tests like/match/matches endpoints and database consistency
 """
 
 import requests
