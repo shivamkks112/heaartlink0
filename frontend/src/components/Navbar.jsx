@@ -59,6 +59,31 @@ const Navbar = ({ user }) => {
             </button>
 
             <button
+              data-testid="nav-likes"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                navigate('/likes');
+              }}
+              className={`relative flex flex-col items-center justify-center gap-1 px-2 sm:px-4 py-2 rounded-xl font-medium transition-all duration-300 min-w-[60px] touch-manipulation ${
+                isActive('/likes')
+                  ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-glow'
+                  : 'text-gray-600 hover:bg-gray-100 hover:text-pink-600'
+              }`}
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              <div className="relative">
+                <Heart className={`w-6 h-6 ${isActive('/likes') ? 'animate-pulse fill-current' : ''}`} />
+                {likesCount > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-lg animate-pulse">
+                    {likesCount > 99 ? '99+' : likesCount}
+                  </span>
+                )}
+              </div>
+              <span className="text-xs">Likes</span>
+            </button>
+
+            <button
               data-testid="nav-matches"
               onClick={(e) => {
                 e.preventDefault();
