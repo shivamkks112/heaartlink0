@@ -9,7 +9,10 @@ import TopBar from '@/components/TopBar';
 import { Button } from '@/components/ui/button';
 import { MatchCardSkeleton } from '@/components/SkeletonLoader';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://heartlink-dating-1.preview.emergentagent.com';
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || import.meta.env.REACT_APP_BACKEND_URL;
+if (!BACKEND_URL) {
+  console.error('⚠️ REACT_APP_BACKEND_URL is not set!');
+}
 const API = `${BACKEND_URL}/api`;
 
 const MatchesPage = ({ user }) => {
