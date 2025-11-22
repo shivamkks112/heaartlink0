@@ -5,11 +5,11 @@ import { messaging } from './config';
 import { getToken, onMessage } from 'firebase/messaging';
 import axios from 'axios';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://heartlink-dating-1.preview.emergentagent.com';
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || import.meta.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
 // VAPID key from Firebase Console > Project Settings > Cloud Messaging > Web Push certificates
-const VAPID_KEY = 'BCyXviBrmyC7D8R81Ax9SPEl8iHCTkg8zpR_n5T8buv97Z1pLruI6VUP7c0KJ2nTigl0yNz7T8hcPylk2nLae0w';
+const VAPID_KEY = process.env.REACT_APP_FIREBASE_VAPID_KEY || import.meta.env.REACT_APP_FIREBASE_VAPID_KEY;
 
 /**
  * Request permission and get FCM token
