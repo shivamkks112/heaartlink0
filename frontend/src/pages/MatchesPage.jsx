@@ -290,7 +290,7 @@ const MatchesPage = ({ user }) => {
                       )}
 
                       <button
-                        onClick={() => navigate('/discover')}
+                        onClick={() => navigate(`/profile/${activeUser.id}`)}
                         className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all"
                       >
                         <Heart className="w-5 h-5" />
