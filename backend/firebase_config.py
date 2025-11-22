@@ -7,25 +7,26 @@ import os
 import json
 
 # Initialize Firebase Admin SDK
-# Try to load from environment variable first, fallback to file
+# Load from environment variable only (no file fallback for production)
 firebase_creds = os.environ.get('FIREBASE_SERVICE_ACCOUNT_JSON')
 
-if firebase_creds:
-    # Load from environment variable (for production/deployment)
+if not firebase_creds:
+    print("⚠️ WARNING: FIREBASE_SERVICE_ACCOUNT_JSON environment variable not set!")
+    print("⚠️ Push notifications will not work!")
+    # Create a dummy app to prevent import errors
+    firebase_admin.initialize_app() if not firebase_admin._apps else None
+else:
     try:
         cred_dict = json.loads(firebase_creds)
         cred = credentials.Certificate(cred_dict)
+        # Initialize app if not already initialized
+        if not firebase_admin._apps:
+            firebase_admin.initialize_app(cred)
+        print("✅ Firebase Admin SDK initialized successfully")
     except json.JSONDecodeError as e:
-        print(f"⚠️ Error parsing FIREBASE_SERVICE_ACCOUNT_JSON: {e}")
-        # Fallback to file path
-        cred = credentials.Certificate('/app/backend/firebase-admin-key.json')
-else:
-    # Load from file (for local development)
-    cred = credentials.Certificate('/app/backend/firebase-admin-key.json')
-
-# Initialize app if not already initialized
-if not firebase_admin._apps:
-    firebase_admin.initialize_app(cred)
+        print(f"❌ Error parsing FIREBASE_SERVICE_ACCOUNT_JSON: {e}")
+        print("⚠️ Push notifications will not work!")
+        firebase_admin.initialize_app() if not firebase_admin._apps else None
 
 def send_notification(token: str, title: str, body: str, data: dict = None):
     """
