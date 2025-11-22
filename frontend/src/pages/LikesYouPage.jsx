@@ -266,6 +266,9 @@ const LikesYouPage = ({ user }) => {
           }
         }
       `}</style>
+
+      {/* Bottom Navigation */}
+      <Navbar user={user} />
     </div>
   );
 };
