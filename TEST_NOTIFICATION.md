@@ -4,7 +4,7 @@
 
 ```bash
 # Replace USER_ID with actual user ID
-curl -X POST "https://heartlink-dating-1.preview.emergentagent.com/api/fcm/send-test?user_id=USER_ID"
+curl -X POST "https://matchpulse-4.preview.emergentagent.com/api/fcm/send-test?user_id=USER_ID"
 ```
 
 ## Method 2: Via Browser Console
