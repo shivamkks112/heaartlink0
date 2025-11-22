@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Heart, Sparkles, X, Check, User } from 'lucide-react';
+import Navbar from '@/components/Navbar';
 
 const API = process.env.REACT_APP_BACKEND_URL + '/api';
 
