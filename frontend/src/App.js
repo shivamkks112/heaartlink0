@@ -9,6 +9,7 @@ import DiscoverPage from '@/pages/DiscoverPage';
 import MatchesPage from '@/pages/MatchesPage';
 import ChatPage from '@/pages/ChatPage';
 import ProfilePage from '@/pages/ProfilePage';
+import UserProfilePage from '@/pages/UserProfilePage';
 import PrivacyPage from '@/pages/PrivacyPage';
 import PrivacyPolicyPage from '@/pages/PrivacyPolicyPage';
 import DataDeletionPage from '@/pages/DataDeletionPage';
