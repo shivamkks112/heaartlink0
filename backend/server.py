@@ -15,15 +15,18 @@ import hashlib
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 import json
 import asyncio
+
+# Load environment variables FIRST before importing firebase_config
+ROOT_DIR = Path(__file__).parent
+load_dotenv(ROOT_DIR / '.env', override=False)  # Don't override K8s environment variables
+
+# Now import firebase_config after env vars are loaded
 from firebase_config import (
     send_match_notification,
     send_message_notification,
     send_like_notification,
     send_verification_notification
 )
-
-ROOT_DIR = Path(__file__).parent
-load_dotenv(ROOT_DIR / '.env', override=False)  # Don't override K8s environment variables
 
 # MongoDB connection
 mongo_url = os.environ.get('MONGO_URL', 'mongodb://localhost:27017')
