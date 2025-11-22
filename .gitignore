@@ -82,11 +82,9 @@ frontend/node_modules/.cache/default-development/0.pack
 
 # Environment files - for deployment, .env files should be managed separately
 # Local development .env files are kept for reference
-# !backend/.env
-# !frontend/.env
--e 
-# Environment files
-*.env
-*.env.*
+# Allow backend and frontend .env files for Emergent deployment
+!backend/.env
+!frontend/.env
+
 # Firebase service account key - use environment variable instead
 backend/firebase-admin-key.json
