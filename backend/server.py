@@ -749,9 +749,9 @@ async def report_user(user_id: str, report: ReportUser):
 
 # Admin Routes
 @api_router.get("/admin/all-users")
-async def get_all_users():
-    """Get all users (for admin testing)"""
-    users = await db.users.find({}).to_list(None)
+async def get_all_users(limit: int = 100):
+    """Get all users (for admin testing) - limited to prevent memory issues"""
+    users = await db.users.find({}).limit(limit).to_list(None)
     return [{
         "id": u["id"],
         "name": u["name"],
