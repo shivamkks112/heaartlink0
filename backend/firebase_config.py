@@ -4,9 +4,24 @@ Firebase Admin SDK Configuration for Push Notifications
 import firebase_admin
 from firebase_admin import credentials, messaging
 import os
+import json
 
 # Initialize Firebase Admin SDK
-cred = credentials.Certificate('/app/backend/firebase-admin-key.json')
+# Try to load from environment variable first, fallback to file
+firebase_creds = os.environ.get('FIREBASE_SERVICE_ACCOUNT_JSON')
+
+if firebase_creds:
+    # Load from environment variable (for production/deployment)
+    try:
+        cred_dict = json.loads(firebase_creds)
+        cred = credentials.Certificate(cred_dict)
+    except json.JSONDecodeError as e:
+        print(f"⚠️ Error parsing FIREBASE_SERVICE_ACCOUNT_JSON: {e}")
+        # Fallback to file path
+        cred = credentials.Certificate('/app/backend/firebase-admin-key.json')
+else:
+    # Load from file (for local development)
+    cred = credentials.Certificate('/app/backend/firebase-admin-key.json')
 
 # Initialize app if not already initialized
 if not firebase_admin._apps:
