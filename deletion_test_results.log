@@ -1,0 +1,56 @@
+HeartLink Backend Comprehensive Testing
+Backend URL: https://heartlink-dating-1.preview.emergentagent.com/api
+Test started at: 2025-10-23 15:09:49.853882
+Testing Account Deletion Request Endpoint
+
+============================================================
+TEST: COMPREHENSIVE ACCOUNT DELETION REQUEST TESTING
+============================================================
+
+============================================================
+TEST: Account Deletion Request - Existing User
+============================================================
+❌ FAIL: Failed to get existing users for testing
+❌ CRITICAL: Existing user deletion request failed
+
+============================================================
+TEST: Account Deletion Request - Non-existent User
+============================================================
+❌ FAIL: Deletion request failed for non-existent user. Status: 502
+❌ CRITICAL: Non-existent user deletion request failed
+
+============================================================
+TEST: Account Deletion Request - Input Validation
+============================================================
+❌ FAIL: ❌ Invalid email format - should have been rejected
+Data: {
+  "status_code": 502,
+  "response": ""
+}
+❌ FAIL: ❌ Missing email - should have been rejected
+Data: {
+  "status_code": 502,
+  "response": ""
+}
+❌ FAIL: ❌ Empty email - should have been rejected
+Data: {
+  "status_code": 502,
+  "response": ""
+}
+❌ FAIL: ❌ Valid email without reason - should have succeeded
+Data: {
+  "status_code": 502,
+  "response": ""
+}
+❌ FAIL: ❌ Valid email with reason - should have succeeded
+Data: {
+  "status_code": 502,
+  "response": ""
+}
+❌ WARNING: Input validation tests failed
+
+================================================================================
+ACCOUNT DELETION REQUEST ENDPOINT TEST SUMMARY
+================================================================================
+❌ CRITICAL ACCOUNT DELETION TESTS FAILED
+   Check individual test results above for details
