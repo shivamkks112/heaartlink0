@@ -1556,8 +1556,10 @@ async def clear_all_database_data(request: DatabaseClearRequest):
     if request.confirm != "DELETE_ALL_DATA_PERMANENTLY":
         raise HTTPException(status_code=400, detail="Invalid confirmation string")
     
-    # Safety check 2: Admin password
-    admin_password = os.environ.get('ADMIN_PASSWORD', 'default_admin_pass')
+    # Safety check 2: Admin password (required from environment)
+    admin_password = os.environ.get('ADMIN_PASSWORD')
+    if not admin_password:
+        raise HTTPException(status_code=500, detail="ADMIN_PASSWORD not configured")
     if request.admin_password != admin_password:
         raise HTTPException(status_code=403, detail="Invalid admin password")
     
