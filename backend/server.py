@@ -1557,7 +1557,8 @@ async def clear_all_database_data(request: DatabaseClearRequest):
         raise HTTPException(status_code=400, detail="Invalid confirmation string")
     
     # Safety check 2: Admin password
-    if request.admin_password != "Shivam@#110":
+    admin_password = os.environ.get('ADMIN_PASSWORD', 'default_admin_pass')
+    if request.admin_password != admin_password:
         raise HTTPException(status_code=403, detail="Invalid admin password")
     
     try:
