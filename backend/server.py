@@ -1481,11 +1481,6 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
     except WebSocketDisconnect:
         manager.disconnect(user_id)
 
-# Include router
-app.include_router(api_router)
-
-
-
 # ============================================
 # FCM PUSH NOTIFICATIONS ENDPOINTS
 # ============================================
@@ -1531,6 +1526,9 @@ async def send_test_notification(user_id: str):
     except Exception as e:
         logger.error(f"Error sending test notification: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# Include router - MUST be after all route definitions
+app.include_router(api_router)
 
 # CORS
 app.add_middleware(
