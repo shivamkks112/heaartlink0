@@ -94,6 +94,7 @@ function App() {
           <Route path="/admin" element={user && user.is_admin ? <AdminDashboard user={user} /> : <Navigate to="/" />} />
           <Route path="/discover" element={user ? <DiscoverPage user={user} /> : <Navigate to="/" />} />
           <Route path="/matches" element={user ? <MatchesPage user={user} /> : <Navigate to="/" />} />
+          <Route path="/likes" element={user ? <LikesYouPage user={user} /> : <Navigate to="/" />} />
           <Route path="/chat/:matchId" element={user ? <ChatPage user={user} /> : <Navigate to="/" />} />
           <Route path="/profile" element={user ? <ProfilePage user={user} onUpdate={handleLogin} /> : <Navigate to="/" />} />
           <Route path="/profile/:userId" element={user ? <UserProfilePage user={user} /> : <Navigate to="/" />} />
