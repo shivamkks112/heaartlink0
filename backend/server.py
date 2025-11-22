@@ -1379,6 +1379,47 @@ async def get_matches(user_id: str):
     
     return result
 
+@api_router.get("/likes/{user_id}")
+async def get_likes(user_id: str):
+    """Get users who liked the current user"""
+    # Find all matches where user2_id is current user and user1 has liked
+    likes = await db.matches.find({
+        "user2_id": user_id,
+        "user1_liked": True,
+        "matched": False  # Not matched yet
+    }).to_list(None)
+    
+    result = {
+        "regular_likes": [],
+        "super_likes": [],
+        "total_count": 0
+    }
+    
+    for like in likes:
+        liker_user = await db.users.find_one({"id": like["user1_id"]})
+        
+        if liker_user:
+            user_data = {
+                "id": liker_user["id"],
+                "name": liker_user["name"],
+                "age": liker_user["age"],
+                "bio": liker_user.get("bio", ""),
+                "photos": liker_user.get("photos", []),
+                "profile_picture": liker_user.get("profile_picture"),
+                "interests": liker_user.get("interests", []),
+                "verified": liker_user.get("verified", False),
+                "location": liker_user.get("location", ""),
+                "liked_at": like.get("created_at")
+            }
+            
+            # Check if it's a superlike (you can add a field in matches for this)
+            # For now, we'll use a simple heuristic or add it later
+            result["regular_likes"].append(user_data)
+    
+    result["total_count"] = len(result["regular_likes"]) + len(result["super_likes"])
+    
+    return result
+
 @api_router.get("/active-users/{user_id}")
 async def get_active_users(user_id: str, limit: int = 20):
     """Get recently active users who are not blocked and not matched"""
