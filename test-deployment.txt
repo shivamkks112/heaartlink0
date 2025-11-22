@@ -1,0 +1,10 @@
+This is a test file to verify git commits are being picked up correctly by Emergent deployment system.
+
+If this file appears in the deployed version, it confirms:
+1. Git commits are being read
+2. Code is being transferred
+3. Build context is correct
+
+Timestamp: 2024-11-22 10:30 IST
+Purpose: Deployment troubleshooting
+App: HeartLink Dating
