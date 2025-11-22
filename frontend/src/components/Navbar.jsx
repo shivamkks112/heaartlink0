@@ -1,11 +1,31 @@
 import { Heart, Compass, MessageSquare, User, Shield, LogOut } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 
 const Navbar = ({ user }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [likesCount, setLikesCount] = useState(0);
 
   const isActive = (path) => location.pathname === path;
+
+  useEffect(() => {
+    fetchLikesCount();
+    // Poll every 30 seconds for updates
+    const interval = setInterval(fetchLikesCount, 30000);
+    return () => clearInterval(interval);
+  }, [user.id]);
+
+  const fetchLikesCount = async () => {
+    try {
+      const API = process.env.REACT_APP_BACKEND_URL + '/api';
+      const response = await fetch(`${API}/likes/${user.id}`);
+      const data = await response.json();
+      setLikesCount(data.total_count || 0);
+    } catch (error) {
+      console.error('Error fetching likes count:', error);
+    }
+  };
 
   const handleLogout = () => {
     if (window.confirm('Are you sure you want to logout?')) {
