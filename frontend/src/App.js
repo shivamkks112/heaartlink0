@@ -7,6 +7,7 @@ import ForgotPasswordPage from '@/pages/ForgotPasswordPage';
 import AdminDashboard from '@/pages/AdminDashboard';
 import DiscoverPage from '@/pages/DiscoverPage';
 import MatchesPage from '@/pages/MatchesPage';
+import LikesYouPage from '@/pages/LikesYouPage';
 import ChatPage from '@/pages/ChatPage';
 import ProfilePage from '@/pages/ProfilePage';
 import UserProfilePage from '@/pages/UserProfilePage';
