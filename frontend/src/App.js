@@ -34,9 +34,9 @@ function App() {
         const userData = JSON.parse(storedUser);
         setUser(userData);
         
-        // Request notification permission when user logs in
+        // Request native push notification permission when user logs in
         setTimeout(() => {
-          requestNotificationPermission(userData.id);
+          initPushNotifications(userData.id);
         }, 2000); // Wait 2 seconds before requesting permission
       } catch (error) {
         console.error('Error parsing stored user:', error);
