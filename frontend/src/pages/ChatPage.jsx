@@ -72,12 +72,32 @@ const ChatPage = ({ user }) => {
       wsRef.current.onmessage = (event) => {
         const data = JSON.parse(event.data);
         if (data.type === 'message' && data.message.match_id === matchId) {
-          setMessages(prev => [...prev, data.message]);
+          setMessages(prev => {
+            // Remove temp message if exists
+            const withoutTemp = prev.filter(msg => 
+              !msg._temp || msg.content !== data.message.content
+            );
+            
+            // Check if message already exists (prevent duplicates)
+            const exists = withoutTemp.some(msg => 
+              msg.sender_id === data.message.sender_id &&
+              msg.content === data.message.content &&
+              Math.abs(new Date(msg.timestamp) - new Date(data.message.timestamp)) < 1000
+            );
+            
+            if (exists) return prev;
+            return [...withoutTemp, data.message];
+          });
         }
       };
 
       wsRef.current.onerror = (error) => {
         console.error('WebSocket error:', error);
+      };
+
+      wsRef.current.onclose = () => {
+        console.log('WebSocket closed, attempting reconnect...');
+        setTimeout(connectWebSocket, 3000);
       };
     } catch (error) {
       console.error('Failed to connect WebSocket:', error);
