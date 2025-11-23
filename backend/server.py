@@ -1512,13 +1512,20 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
                 receiver_id=message_data["receiver_id"],
                 content=message_data["content"]
             )
-            await db.messages.insert_one(message.dict())
+            message_dict = message.dict()
+            await db.messages.insert_one(message_dict)
+            
+            # Send to BOTH sender and receiver
+            message_payload = {
+                "type": "message",
+                "message": message_dict
+            }
             
             # Send to receiver
-            await manager.send_message(message_data["receiver_id"], {
-                "type": "message",
-                "message": message.dict()
-            })
+            await manager.send_message(message_data["receiver_id"], message_payload)
+            
+            # Send back to sender (for confirmation)
+            await manager.send_message(user_id, message_payload)
     except WebSocketDisconnect:
         manager.disconnect(user_id)
 
