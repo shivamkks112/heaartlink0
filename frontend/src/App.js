@@ -17,6 +17,7 @@ import DataDeletionPage from '@/pages/DataDeletionPage';
 import InstallPrompt from '@/components/InstallPrompt';
 import { requestNotificationPermission, setupForegroundMessageListener } from '@/firebase/messaging';
 import { initGoogleAuth } from '@/utils/nativeGoogleAuth';
+import { initPushNotifications } from '@/services/pushNotifications';
 
 function App() {
   const [user, setUser] = useState(null);
