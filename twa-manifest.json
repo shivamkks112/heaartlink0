@@ -1,0 +1,59 @@
+{
+  "packageId": "com.heartlink.dating",
+  "host": "heartlink.co.in",
+  "name": "HeartLink",
+  "launcherName": "HeartLink",
+  "display": "standalone",
+  "themeColor": "#ff6b9d",
+  "navigationColor": "#ffffff",
+  "backgroundColor": "#ffffff",
+  "enableNotifications": true,
+  "startUrl": "/",
+  "iconUrl": "https://heartlink.co.in/icon-512.png",
+  "maskableIconUrl": "https://heartlink.co.in/icon-512.png",
+  "monochromeIconUrl": "https://heartlink.co.in/icon-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "/app/android-keys/heartlink.keystore",
+    "alias": "heartlink-key"
+  },
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "shortcuts": [
+    {
+      "name": "Discover",
+      "short_name": "Discover",
+      "url": "/discover",
+      "icon": "https://heartlink.co.in/icon-192.png"
+    },
+    {
+      "name": "Matches",
+      "short_name": "Matches",
+      "url": "/matches",
+      "icon": "https://heartlink.co.in/icon-192.png"
+    },
+    {
+      "name": "Likes",
+      "short_name": "Likes",
+      "url": "/likes",
+      "icon": "https://heartlink.co.in/icon-192.png"
+    }
+  ],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://heartlink.co.in/manifest.json",
+  "fallbackType": "customtabs",
+  "features": {
+    "locationDelegation": {
+      "enabled": true
+    },
+    "playBilling": {
+      "enabled": false
+    }
+  },
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "isChromeOSOnly": false,
+  "minSdkVersion": 24,
+  "targetSdkVersion": 34
+}
