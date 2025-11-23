@@ -88,10 +88,24 @@ const ChatPage = ({ user }) => {
     e.preventDefault();
     if (!newMessage.trim() || !otherUser) return;
 
+    const messageContent = newMessage.trim();
+    const tempMessage = {
+      match_id: matchId,
+      sender_id: user.id,
+      receiver_id: otherUser.id,
+      content: messageContent,
+      timestamp: new Date().toISOString(),
+      _temp: true
+    };
+
+    // Optimistically add message to UI
+    setMessages(prev => [...prev, tempMessage]);
+    setNewMessage('');
+
     const messageData = {
       match_id: matchId,
       receiver_id: otherUser.id,
-      content: newMessage.trim()
+      content: messageContent
     };
 
     try {
@@ -104,13 +118,17 @@ const ChatPage = ({ user }) => {
           match_id: matchId,
           sender_id: user.id,
           receiver_id: otherUser.id,
-          content: newMessage.trim()
+          content: messageContent
         });
-        setMessages(prev => [...prev, response.data]);
+        // Replace temp message with real one
+        setMessages(prev => prev.map(msg => 
+          msg._temp && msg.content === messageContent ? response.data : msg
+        ));
       }
-      setNewMessage('');
     } catch (error) {
       toast.error('Failed to send message');
+      // Remove temp message on error
+      setMessages(prev => prev.filter(msg => !msg._temp || msg.content !== messageContent));
     }
   };
 
