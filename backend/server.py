@@ -1475,13 +1475,17 @@ async def get_messages(match_id: str):
 
 @api_router.post("/messages")
 async def send_message_http(message_data: Message):
-    await db.messages.insert_one(message_data.dict())
+    message_dict = message_data.dict()
+    await db.messages.insert_one(message_dict)
     
-    # Send via WebSocket
-    await manager.send_message(message_data.receiver_id, {
+    message_payload = {
         "type": "message",
-        "message": message_data.dict()
-    })
+        "message": message_dict
+    }
+    
+    # Send via WebSocket to BOTH sender and receiver
+    await manager.send_message(message_data.receiver_id, message_payload)
+    await manager.send_message(message_data.sender_id, message_payload)
     
     # Send push notification to receiver
     receiver = await db.users.find_one({"id": message_data.receiver_id})
@@ -1494,7 +1498,7 @@ async def send_message_http(message_data: Message):
             message_preview=message_data.content
         )
     
-    return message_data.dict()
+    return message_dict
 
 # WebSocket for real-time chat
 @app.websocket("/ws/{user_id}")
