@@ -105,6 +105,18 @@
 user_problem_statement: "UI/UX improvement and polish for HeartLink dating app - enhancing visual design, user experience, animations, and mobile optimization"
 
 backend:
+  - task: "Block/Unblock/Mute/Unmute Functionality"
+    implemented: true
+    working: true
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: "🎉 BLOCK/UNBLOCK/MUTE/UNMUTE FUNCTIONALITY COMPREHENSIVE TESTING COMPLETE: ALL CRITICAL TESTS PASSED! Successfully verified complete block/mute functionality as requested in review. TESTED SCENARIOS: ✅ 1) User login with shivam.fresh@heartlink.com credentials successful, ✅ 2) Block functionality: User A blocks User B via POST /api/user/{user_id}/block (returns 'User blocked successfully'), User B appears in User A's blocked_users list, User B correctly filtered from User A's matches, User A correctly filtered from User B's discovery, ✅ 3) Unblock functionality: User A unblocks User B via POST /api/user/{user_id}/unblock (returns 'User unblocked successfully'), User B successfully removed from User A's blocked_users list, ✅ 4) Mute functionality: User A mutes User B via POST /api/user/{user_id}/mute (returns 'User muted successfully'), User B appears in User A's muted_users list, ✅ 5) Unmute functionality: User A unmutes User B via POST /api/user/{user_id}/unmute (returns 'User unmuted successfully'), User B successfully removed from User A's muted_users list, ✅ 6) Edge cases: Blocking non-existent user handled gracefully, double blocking handled without errors. COMPREHENSIVE VERIFICATION: All endpoints working correctly (/api/user/{user_id}/block, /api/user/{user_id}/unblock, /api/user/{user_id}/mute, /api/user/{user_id}/unmute), blocked_users and muted_users arrays updating correctly, matches endpoint filtering blocked users properly, discovery endpoint filtering blocked users properly, notification suppression logic ready for muted users. The Block/Unblock/Mute/Unmute functionality is fully operational and ready for production use."
+
   - task: "Core API functionality"
     implemented: true
     working: true
