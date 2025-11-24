@@ -194,6 +194,42 @@ const ChatPage = ({ user }) => {
     }
   };
 
+  const checkMuteStatus = async () => {
+    try {
+      const response = await axios.get(`${API}/user/${user.id}`);
+      const userData = response.data;
+      const mutedUsers = userData.muted_users || [];
+      if (otherUser) {
+        setIsMuted(mutedUsers.includes(otherUser.id));
+      }
+    } catch (error) {
+      console.error('Failed to check mute status:', error);
+    }
+  };
+
+  const handleMute = async () => {
+    if (!otherUser) return;
+    
+    try {
+      if (isMuted) {
+        await axios.post(`${API}/user/${user.id}/unmute`, {
+          muted_user_id: otherUser.id
+        });
+        setIsMuted(false);
+        toast.success('Notifications unmuted');
+      } else {
+        await axios.post(`${API}/user/${user.id}/mute`, {
+          muted_user_id: otherUser.id
+        });
+        setIsMuted(true);
+        toast.success('Notifications muted');
+      }
+    } catch (error) {
+      toast.error('Failed to update mute status');
+      console.error('Mute error:', error);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 flex items-center justify-center page-with-bottom-nav status-bar-spacing">
