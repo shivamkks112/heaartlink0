@@ -120,21 +120,21 @@ const Navbar = ({ user }) => {
             </button>
 
             <button
-              data-testid="nav-privacy"
+              data-testid="nav-settings"
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                navigate('/privacy');
+                navigate('/settings');
               }}
               className={`flex flex-col items-center justify-center gap-1 px-2 sm:px-4 py-2 rounded-xl font-medium transition-all duration-300 min-w-[60px] touch-manipulation ${
-                isActive('/privacy')
+                isActive('/settings')
                   ? 'bg-gradient-to-r from-pink-500 to-orange-500 text-white shadow-glow'
                   : 'text-gray-600 hover:bg-gray-100 hover:text-pink-600'
               }`}
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
-              <Shield className={`w-6 h-6 ${isActive('/privacy') ? 'animate-pulse' : ''}`} />
-              <span className="text-xs">Privacy</span>
+              <Settings className={`w-6 h-6 ${isActive('/settings') ? 'animate-pulse' : ''}`} />
+              <span className="text-xs">Settings</span>
             </button>
 
             {user.is_admin && (
