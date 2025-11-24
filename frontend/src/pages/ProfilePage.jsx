@@ -193,13 +193,7 @@ const ProfilePage = ({ user, onUpdate }) => {
                   <span className="text-sm font-medium">Verified</span>
                 </div>
               )}
-              {profile.verification_status === 'pending' && !profile.verified && (
-                <div className="flex items-center gap-1 bg-yellow-500/20 px-3 py-1 rounded-full">
-                  <Shield className="w-4 h-4" />
-                  <span className="text-sm font-medium">Pending Verification</span>
-                </div>
-              )}
-              {!profile.verified && profile.verification_status !== 'pending' && (
+              {!profile.verified && (
                 <Button
                   onClick={handleRequestVerification}
                   disabled={verifying}
@@ -213,7 +207,7 @@ const ProfilePage = ({ user, onUpdate }) => {
                   ) : (
                     <>
                       <Shield className="w-4 h-4" />
-                      <span>Get Verified</span>
+                      <span>{profile.verification_status === 'pending' ? 'Retry Verification' : 'Get Verified'}</span>
                     </>
                   )}
                 </Button>
