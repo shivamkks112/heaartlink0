@@ -33,6 +33,7 @@ const ChatPage = ({ user }) => {
     fetchMatch();
     fetchMessages();
     connectWebSocket();
+    checkMuteStatus();
 
     return () => {
       if (wsRef.current) {
