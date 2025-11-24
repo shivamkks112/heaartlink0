@@ -112,11 +112,6 @@ const ProfilePage = ({ user, onUpdate }) => {
       return;
     }
 
-    if (profile.verification_status === 'pending') {
-      toast.info('Your verification request is pending review');
-      return;
-    }
-
     setVerifying(true);
     try {
       const response = await axios.post(`${API}/profile/${user.id}/verify`);
@@ -134,12 +129,13 @@ const ProfilePage = ({ user, onUpdate }) => {
       localStorage.setItem('user', JSON.stringify(updatedProfile));
       
       if (response.data.status === 'verified') {
-        toast.success('🎉 Profile verified successfully! You now have a green tick.');
+        toast.success('🎉 ' + response.data.message);
       } else {
-        toast.info('Verification request submitted for review');
+        toast.error('❌ ' + response.data.message);
       }
     } catch (error) {
-      toast.error('Failed to request verification. Please try again.');
+      const errorMsg = error.response?.data?.detail || 'Failed to request verification. Please try again.';
+      toast.error(errorMsg);
       console.error('Verification error:', error);
     } finally {
       setVerifying(false);
