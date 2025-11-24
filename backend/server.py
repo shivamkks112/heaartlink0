@@ -1550,6 +1550,20 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
             
             # Send back to sender (for confirmation)
             await manager.send_message(user_id, message_payload)
+            
+            # Send push notification to receiver if not muted
+            receiver = await db.users.find_one({"id": message_data["receiver_id"]})
+            sender = await db.users.find_one({"id": user_id})
+            
+            if receiver and receiver.get('fcm_token') and sender:
+                # Check if sender is muted by receiver
+                muted_users = receiver.get('muted_users', [])
+                if user_id not in muted_users:
+                    send_message_notification(
+                        token=receiver['fcm_token'],
+                        sender_name=sender['name'],
+                        message_preview=message_data["content"]
+                    )
     except WebSocketDisconnect:
         manager.disconnect(user_id)
 
