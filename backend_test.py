@@ -1539,7 +1539,7 @@ def test_critical_issue_1_messages_not_sending():
         print_result(False, f"❌ Error during Shivam login: {str(e)}")
         return False
     
-    # Step 2: Get user's matches
+    # Step 2: Get user's matches (or create a match if none exist)
     print_test_header("Step 2: Get Shivam's matches")
     
     try:
@@ -1549,8 +1549,23 @@ def test_critical_issue_1_messages_not_sending():
             matches = response.json()
             
             if not matches:
-                print_result(False, "❌ No matches found for Shivam", "Cannot test message sending without matches")
-                return False
+                print_result(False, "❌ No matches found for Shivam", "Will create a test match for message testing")
+                
+                # Create a test match for message testing
+                match_created = create_test_match_for_shivam(user_id)
+                if not match_created:
+                    return False
+                
+                # Try to get matches again
+                response = requests.get(f"{BACKEND_URL}/matches/{user_id}")
+                if response.status_code == 200:
+                    matches = response.json()
+                    if not matches:
+                        print_result(False, "❌ Still no matches after creating test match", "Cannot proceed with message testing")
+                        return False
+                else:
+                    print_result(False, f"❌ Failed to get matches after creation. Status: {response.status_code}", response.text)
+                    return False
             
             # Use the first match for testing
             first_match = matches[0]
