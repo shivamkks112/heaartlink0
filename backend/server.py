@@ -1502,9 +1502,12 @@ async def send_message_http(message_data: Message):
     message_dict = message_data.dict()
     await db.messages.insert_one(message_dict)
     
+    # Clean message dict for response (remove MongoDB ObjectId)
+    clean_message = serialize_user_for_response(message_dict, exclude_password=False)
+    
     message_payload = {
         "type": "message",
-        "message": message_dict
+        "message": clean_message
     }
     
     # Send via WebSocket to BOTH sender and receiver
@@ -1525,7 +1528,7 @@ async def send_message_http(message_data: Message):
                 message_preview=message_data.content
             )
     
-    return message_dict
+    return clean_message
 
 # WebSocket for real-time chat
 @app.websocket("/ws/{user_id}")
