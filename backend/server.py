@@ -725,30 +725,7 @@ async def update_privacy(user_id: str, privacy: PrivacyUpdate):
     await db.users.update_one({"id": user_id}, {"$set": {"privacy_settings": settings}})
     return {"message": "Privacy settings updated", "settings": settings}
 
-@api_router.post("/block")
-async def block_user(user_id: str, block_data: BlockUser):
-    user = await db.users.find_one({"id": user_id})
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    blocked = user.get("blocked_users", [])
-    if block_data.blocked_user_id not in blocked:
-        blocked.append(block_data.blocked_user_id)
-    
-    await db.users.update_one({"id": user_id}, {"$set": {"blocked_users": blocked}})
-    return {"message": "User blocked"}
-
-@api_router.post("/report")
-async def report_user(user_id: str, report: ReportUser):
-    report_doc = {
-        "id": str(uuid.uuid4()),
-        "reporter_id": user_id,
-        "reported_user_id": report.reported_user_id,
-        "reason": report.reason,
-        "created_at": datetime.now(timezone.utc).isoformat()
-    }
-    await db.reports.insert_one(report_doc)
-    return {"message": "Report submitted"}
+# Old block and report endpoints removed - using new endpoints at /user/{user_id}/block and /user/{user_id}/report
 
 # Admin Routes
 @api_router.get("/admin/all-users")
