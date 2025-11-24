@@ -101,6 +101,7 @@ function App() {
           <Route path="/profile" element={user ? <ProfilePage user={user} onUpdate={handleLogin} /> : <Navigate to="/" />} />
           <Route path="/profile/:userId" element={user ? <UserProfilePage user={user} /> : <Navigate to="/" />} />
           <Route path="/privacy" element={user ? <PrivacyPage user={user} /> : <Navigate to="/" />} />
+          <Route path="/settings" element={user ? <SettingsPage user={user} /> : <Navigate to="/" />} />
         </Routes>
       </BrowserRouter>
       
