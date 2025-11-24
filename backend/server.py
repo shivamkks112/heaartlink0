@@ -1351,6 +1351,13 @@ async def user_action(user_id: str, action: LikeAction):
 # Matches Routes
 @api_router.get("/matches/{user_id}")
 async def get_matches(user_id: str):
+    # Get current user to check blocked users
+    current_user = await db.users.find_one({"id": user_id})
+    if not current_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    blocked_users = current_user.get("blocked_users", [])
+    
     matches = await db.matches.find({
         "$or": [{"user1_id": user_id}, {"user2_id": user_id}],
         "matched": True
@@ -1359,9 +1366,19 @@ async def get_matches(user_id: str):
     result = []
     for match in matches:
         other_id = match["user2_id"] if match["user1_id"] == user_id else match["user1_id"]
+        
+        # Skip if user is blocked
+        if other_id in blocked_users:
+            continue
+            
         other_user = await db.users.find_one({"id": other_id})
         
         if other_user:
+            # Also check if the other user has blocked current user
+            other_blocked = other_user.get("blocked_users", [])
+            if user_id in other_blocked:
+                continue
+                
             result.append({
                 "match_id": match["id"],
                 "user": {
