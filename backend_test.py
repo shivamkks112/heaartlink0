@@ -1849,6 +1849,43 @@ def test_websocket_connection(user_id, receiver_id, match_id):
         print_result(False, f"❌ WebSocket test error: {str(e)}")
         return False
 
+def create_shuba_user():
+    """Create the Shuba user for profile verification testing"""
+    print_test_header("Creating Shuba User")
+    
+    shuba_user_data = {
+        "email": "shub123@gmail.com",
+        "password": "Shuba@123",
+        "name": "Shuba",
+        "age": 26,
+        "gender": "female",
+        "looking_for": "male",
+        "bio": "Test user for profile verification testing",
+        "location": "Kolkata, West Bengal",
+        "interests": ["reading", "music", "art"]
+    }
+    
+    try:
+        response = requests.post(f"{BACKEND_URL}/auth/signup", json=shuba_user_data)
+        
+        if response.status_code == 200:
+            signup_result = response.json()
+            user_id = signup_result.get("user_id")
+            
+            print_result(True, "✅ Shuba user created successfully", {
+                "user_id": user_id,
+                "name": shuba_user_data["name"],
+                "email": shuba_user_data["email"]
+            })
+            return True
+        else:
+            print_result(False, f"❌ Failed to create Shuba user. Status: {response.status_code}", response.text)
+            return False
+            
+    except Exception as e:
+        print_result(False, f"❌ Error creating Shuba user: {str(e)}")
+        return False
+
 def test_critical_issue_2_profile_verification():
     """
     CRITICAL ISSUE 2: Profile Verification Button Not Visible
