@@ -27,7 +27,7 @@ const SettingsPage = ({ user }) => {
 
   const fetchUserSettings = async () => {
     try {
-      const response = await axios.get(`${API}/user/${user.id}`);
+      const response = await axios.get(`${API}/profile/${user.id}`);
       const userData = response.data;
       
       // Fetch blocked users details
