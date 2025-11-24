@@ -35,7 +35,7 @@ const SettingsPage = ({ user }) => {
       const blockedUsersData = await Promise.all(
         blockedIds.map(async (userId) => {
           try {
-            const userResponse = await axios.get(`${API}/user/${userId}`);
+            const userResponse = await axios.get(`${API}/profile/${userId}`);
             return userResponse.data;
           } catch (error) {
             return null;
@@ -49,7 +49,7 @@ const SettingsPage = ({ user }) => {
       const mutedUsersData = await Promise.all(
         mutedIds.map(async (userId) => {
           try {
-            const userResponse = await axios.get(`${API}/user/${userId}`);
+            const userResponse = await axios.get(`${API}/profile/${userId}`);
             return userResponse.data;
           } catch (error) {
             return null;
