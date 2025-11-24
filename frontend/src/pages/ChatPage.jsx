@@ -155,15 +155,16 @@ const ChatPage = ({ user }) => {
   const handleBlock = async () => {
     if (!otherUser) return;
     
-    if (window.confirm(`Block ${otherUser.name}?`)) {
+    if (window.confirm(`Block ${otherUser.name}? They will be removed from your matches.`)) {
       try {
-        await axios.post(`${API}/block?user_id=${user.id}`, {
+        await axios.post(`${API}/user/${user.id}/block`, {
           blocked_user_id: otherUser.id
         });
-        toast.success('User blocked');
+        toast.success('User blocked successfully');
         navigate('/matches');
       } catch (error) {
         toast.error('Failed to block user');
+        console.error('Block error:', error);
       }
     }
   };
