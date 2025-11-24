@@ -1929,7 +1929,37 @@ def test_critical_issue_2_profile_verification():
                         "total_users_checked": len(all_users),
                         "searched_for": "shub123@gmail.com or name containing 'shub'"
                     })
-                    return False
+                    
+                    # Create the Shuba user for testing
+                    print_test_header("Creating Shuba user for testing")
+                    shuba_created = create_shuba_user()
+                    if not shuba_created:
+                        return False
+                    
+                    # Try to find Shuba again after creation
+                    response = requests.get(f"{BACKEND_URL}/admin/all-users")
+                    if response.status_code == 200:
+                        all_users = response.json()
+                        
+                        for user in all_users:
+                            user_name = user.get("name", "").lower()
+                            user_email = user.get("email", "").lower()
+                            
+                            if "shub" in user_name or "shub123@gmail.com" in user_email:
+                                shuba_user_id = user.get("id")
+                                print_result(True, "✅ Found newly created Shuba user", {
+                                    "user_id": user.get("id"),
+                                    "name": user.get("name"),
+                                    "email": user.get("email")
+                                })
+                                break
+                        
+                        if not shuba_user_id:
+                            print_result(False, "❌ Shuba user not found even after creation", "Cannot proceed with verification test")
+                            return False
+                    else:
+                        print_result(False, "❌ Could not retrieve users after Shuba creation", response.text)
+                        return False
             else:
                 print_result(False, "❌ Could not retrieve users list", response.text)
                 return False
