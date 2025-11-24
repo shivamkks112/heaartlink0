@@ -196,7 +196,7 @@ const ChatPage = ({ user }) => {
 
   const checkMuteStatus = async () => {
     try {
-      const response = await axios.get(`${API}/user/${user.id}`);
+      const response = await axios.get(`${API}/profile/${user.id}`);
       const userData = response.data;
       const mutedUsers = userData.muted_users || [];
       if (otherUser) {
