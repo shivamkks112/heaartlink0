@@ -348,6 +348,7 @@ metadata:
 
 test_plan:
   current_focus:
+    - "Block/Unblock/Mute/Unmute Functionality"
     - "Complete Matching Flow End-to-End"
   stuck_tasks: 
     - "Email OTP Functionality with Titan SMTP"
