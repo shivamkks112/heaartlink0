@@ -123,7 +123,7 @@ onClick={(e) => {
 ## 🔧 Testing Instructions:
 
 ### Desktop Browser:
-1. Open https://matchpulse-4.preview.emergentagent.com
+1. Open https://cupids-arrow-23.preview.emergentagent.com
 2. Login with credentials
 3. Navigation bar should be at bottom
 4. Click any icon to navigate

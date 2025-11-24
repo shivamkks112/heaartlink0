@@ -7,7 +7,7 @@ import requests
 import json
 from datetime import datetime
 
-BACKEND_URL = "https://matchpulse-4.preview.emergentagent.com/api"
+BACKEND_URL = "https://cupids-arrow-23.preview.emergentagent.com/api"
 
 def check_database_matches():
     """Check if matches are being stored in database by testing with existing users"""
