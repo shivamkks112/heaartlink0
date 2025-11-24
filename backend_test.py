@@ -1682,6 +1682,108 @@ def test_critical_issue_1_messages_not_sending():
         })
         return False
 
+def create_test_match_for_shivam(shivam_user_id):
+    """Create a test match for Shivam to enable message testing"""
+    print_test_header("Creating Test Match for Shivam")
+    
+    # Create a female user that can match with Shivam (male looking for female)
+    test_female_data = {
+        "email": "test.female.for.shivam@heartlink.com",
+        "password": "TestFemale123!",
+        "name": "Test Female User",
+        "age": 24,
+        "gender": "female",
+        "looking_for": "male",
+        "bio": "Test female user for message testing with Shivam",
+        "location": "Mumbai, India",
+        "interests": ["music", "movies", "travel"]
+    }
+    
+    try:
+        # Create the female user
+        response = requests.post(f"{BACKEND_URL}/auth/signup", json=test_female_data)
+        
+        if response.status_code == 200:
+            signup_result = response.json()
+            female_user_id = signup_result.get("user_id")
+            
+            print_result(True, "✅ Test female user created", {
+                "user_id": female_user_id,
+                "name": test_female_data["name"],
+                "email": test_female_data["email"]
+            })
+        else:
+            # User might already exist, try to login
+            login_data = {
+                "email_or_phone": test_female_data["email"],
+                "password": test_female_data["password"]
+            }
+            
+            response = requests.post(f"{BACKEND_URL}/auth/login", json=login_data)
+            if response.status_code == 200:
+                login_result = response.json()
+                female_user_id = login_result.get("user", {}).get("id")
+                print_result(True, "✅ Test female user already exists, logged in", {
+                    "user_id": female_user_id,
+                    "email": test_female_data["email"]
+                })
+            else:
+                print_result(False, f"❌ Failed to create or login test female user. Status: {response.status_code}", response.text)
+                return False
+        
+        # Now create mutual likes to form a match
+        # Step 1: Shivam likes the female user
+        like_data = {
+            "target_user_id": female_user_id,
+            "action": "like"
+        }
+        
+        response = requests.post(f"{BACKEND_URL}/action/{shivam_user_id}", json=like_data)
+        if response.status_code == 200:
+            like_result = response.json()
+            print_result(True, "✅ Shivam liked test female user", {
+                "action": like_result.get("action"),
+                "is_match": like_result.get("action") == "matched"
+            })
+            
+            if like_result.get("action") == "matched":
+                print_result(True, "✅ Instant match created!", like_result)
+                return True
+        else:
+            print_result(False, f"❌ Shivam like action failed. Status: {response.status_code}", response.text)
+            return False
+        
+        # Step 2: Female user likes Shivam back to create match
+        like_back_data = {
+            "target_user_id": shivam_user_id,
+            "action": "like"
+        }
+        
+        response = requests.post(f"{BACKEND_URL}/action/{female_user_id}", json=like_back_data)
+        if response.status_code == 200:
+            like_back_result = response.json()
+            print_result(True, "✅ Test female user liked Shivam back", {
+                "action": like_back_result.get("action"),
+                "is_match": like_back_result.get("action") == "matched"
+            })
+            
+            if like_back_result.get("action") == "matched":
+                print_result(True, "✅ Match successfully created!", {
+                    "match_id": like_back_result.get("match_id"),
+                    "compatibility_score": like_back_result.get("compatibility_score")
+                })
+                return True
+            else:
+                print_result(False, "❌ Expected match but got different result", like_back_result)
+                return False
+        else:
+            print_result(False, f"❌ Female user like back failed. Status: {response.status_code}", response.text)
+            return False
+            
+    except Exception as e:
+        print_result(False, f"❌ Error creating test match: {str(e)}")
+        return False
+
 def test_websocket_connection(user_id, receiver_id, match_id):
     """Test WebSocket connection for real-time messaging"""
     print_test_header("WebSocket Connection Test")
