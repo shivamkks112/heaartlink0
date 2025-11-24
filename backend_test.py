@@ -2573,25 +2573,27 @@ def main():
     
     # Final summary
     print(f"\n{'='*80}")
-    print("HEARTLINK BACKEND COMPREHENSIVE TEST SUMMARY")
+    print("🚨 HEARTLINK CRITICAL ISSUES TEST SUMMARY")
     print(f"{'='*80}")
     
     if all_tests_passed:
-        print("✅ ALL BACKEND TESTS PASSED")
-        print("   ✅ Block/Unblock/Mute/Unmute functionality working")
-        print("   ✅ Demo1 complete like flow working")
-        print("   ✅ Existing matches (Priya & Raj) accessible")
-        print("   ✅ Fresh match creation working")
-        print("   ✅ Database consistency maintained")
-        print("\n🎉 CONCLUSION: HeartLink backend is functioning correctly!")
-        print("   All new Block/Unblock/Mute/Unmute features are operational")
+        print("✅ ALL CRITICAL ISSUES RESOLVED")
+        print("   ✅ ISSUE 1: Messages sending working correctly (HTTP + WebSocket)")
+        print("   ✅ ISSUE 2: Profile verification button/status working correctly")
+        print("\n🎉 CONCLUSION: Both critical issues have been resolved!")
+        print("   Message sending functionality is operational")
+        print("   Profile verification system is working as expected")
         print("   Backend APIs are ready for production use")
         return True
     else:
-        print("❌ SOME BACKEND TESTS FAILED")
+        print("❌ CRITICAL ISSUES STILL EXIST")
         print("   Check individual test results above for details")
-        print("\n🔍 ISSUES FOUND IN BACKEND FUNCTIONALITY")
-        print("   These backend issues need to be fixed before frontend integration")
+        print("\n🔍 CRITICAL ISSUES REQUIRING IMMEDIATE ATTENTION:")
+        if not issue1_passed:
+            print("   ❌ ISSUE 1: Messages not sending - needs immediate fix")
+        if not issue2_passed:
+            print("   ❌ ISSUE 2: Profile verification button issues - needs investigation")
+        print("\n   These critical issues must be resolved for proper app functionality")
         return False
 
 if __name__ == "__main__":
