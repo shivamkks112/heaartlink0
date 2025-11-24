@@ -1,17 +1,23 @@
 #!/usr/bin/env python3
 """
-HeartLink Backend Matching Functionality Debug Test
-Tests complete matching flow to debug why matches are not showing on frontend
-Specifically tests like/match/matches endpoints and database consistency
+HeartLink Backend Critical Issues Debug Test
+Tests two critical issues:
+1. Messages Not Sending - Complete message sending flow via HTTP and WebSocket
+2. Profile Verification Button Not Visible - Verification status and endpoint testing
 """
 
 import requests
 import json
 import sys
+import asyncio
+import websockets
+import threading
+import time
 from datetime import datetime
 
 # Backend URL from environment
 BACKEND_URL = "https://cupids-arrow-23.preview.emergentagent.com/api"
+WEBSOCKET_URL = "wss://cupids-arrow-23.preview.emergentagent.com/ws"
 
 def print_test_header(test_name):
     print(f"\n{'='*60}")
