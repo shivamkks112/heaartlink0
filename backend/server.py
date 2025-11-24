@@ -1549,10 +1549,13 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
             message_dict = message.dict()
             await db.messages.insert_one(message_dict)
             
+            # Clean message dict for WebSocket (remove MongoDB ObjectId)
+            clean_message = serialize_user_for_response(message_dict, exclude_password=False)
+            
             # Send to BOTH sender and receiver
             message_payload = {
                 "type": "message",
-                "message": message_dict
+                "message": clean_message
             }
             
             # Send to receiver
