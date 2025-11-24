@@ -2546,52 +2546,29 @@ def test_block_unblock_mute_unmute_functionality():
     return all_tests_passed
 
 def main():
-    """Main test execution for HeartLink backend testing"""
-    print(f"🚀 HeartLink Backend Comprehensive Testing")
+    """Main test execution for HeartLink backend critical issues testing"""
+    print(f"🚀 HeartLink Backend Critical Issues Testing")
     print(f"Backend URL: {BACKEND_URL}")
+    print(f"WebSocket URL: {WEBSOCKET_URL}")
     print(f"Test started at: {datetime.now()}")
-    print(f"Testing Block/Unblock/Mute/Unmute functionality and other features")
+    print(f"Testing 2 Critical Issues: Messages Not Sending & Profile Verification Button")
     
     all_tests_passed = True
     
-    # Test 1: Block/Unblock/Mute/Unmute Functionality (NEW - PRIMARY TEST)
+    # CRITICAL ISSUE 1: Messages Not Sending
     print(f"\n{'='*80}")
-    print("TEST 1: BLOCK/UNBLOCK/MUTE/UNMUTE FUNCTIONALITY")
+    print("🚨 CRITICAL ISSUE 1: MESSAGES NOT SENDING")
     print(f"{'='*80}")
-    block_mute_test_passed = test_block_unblock_mute_unmute_functionality()
-    if not block_mute_test_passed:
+    issue1_passed = test_critical_issue_1_messages_not_sending()
+    if not issue1_passed:
         all_tests_passed = False
     
-    # Test 2: Demo1 Complete Like Flow
+    # CRITICAL ISSUE 2: Profile Verification Button Not Visible
     print(f"\n{'='*80}")
-    print("TEST 2: DEMO1 COMPLETE LIKE FLOW")
+    print("🚨 CRITICAL ISSUE 2: PROFILE VERIFICATION BUTTON NOT VISIBLE")
     print(f"{'='*80}")
-    demo1_test_passed = test_demo1_complete_like_flow()
-    if not demo1_test_passed:
-        all_tests_passed = False
-    
-    # Test 3: Existing Matches (Priya & Raj)
-    print(f"\n{'='*80}")
-    print("TEST 3: EXISTING MATCHES (PRIYA & RAJ)")
-    print(f"{'='*80}")
-    existing_matches_test_passed = test_existing_matches_priya_raj()
-    if not existing_matches_test_passed:
-        all_tests_passed = False
-    
-    # Test 4: Fresh Match Creation
-    print(f"\n{'='*80}")
-    print("TEST 4: FRESH MATCH CREATION")
-    print(f"{'='*80}")
-    fresh_match_test_passed = test_fresh_match_creation()
-    if not fresh_match_test_passed:
-        all_tests_passed = False
-    
-    # Test 5: Database Consistency
-    print(f"\n{'='*80}")
-    print("TEST 5: DATABASE CONSISTENCY CHECK")
-    print(f"{'='*80}")
-    db_consistency_test_passed = test_database_consistency()
-    if not db_consistency_test_passed:
+    issue2_passed = test_critical_issue_2_profile_verification()
+    if not issue2_passed:
         all_tests_passed = False
     
     # Final summary
