@@ -1754,6 +1754,455 @@ def test_database_consistency():
     
     return consistency_good
 
+def test_block_unblock_mute_unmute_functionality():
+    """Test Block/Unblock/Mute/Unmute functionality for HeartLink dating app"""
+    print_test_header("BLOCK/UNBLOCK/MUTE/UNMUTE FUNCTIONALITY COMPREHENSIVE TESTING")
+    
+    all_tests_passed = True
+    
+    # Step 1: Login with provided test credentials
+    print_test_header("Step 1: Login with Test User")
+    login_data = {
+        "email_or_phone": "shivam.fresh@heartlink.com",
+        "password": "Shivam@#110"
+    }
+    
+    try:
+        response = requests.post(f"{BACKEND_URL}/auth/login", json=login_data)
+        
+        if response.status_code == 200:
+            login_result = response.json()
+            user_a_data = login_result.get("user", {})
+            user_a_id = user_a_data.get("id")
+            
+            if not user_a_id:
+                print_result(False, "No user_id in login response", login_result)
+                return False
+            
+            print_result(True, "Test user login successful", {
+                "user_id": user_a_id,
+                "name": user_a_data.get("name"),
+                "email": user_a_data.get("email")
+            })
+        else:
+            print_result(False, f"Test user login failed. Status: {response.status_code}", response.text)
+            return False
+            
+    except Exception as e:
+        print_result(False, f"Error during test user login: {str(e)}")
+        return False
+    
+    # Step 2: Get or create a second test user (User B)
+    print_test_header("Step 2: Get/Create Second Test User (User B)")
+    
+    # Try to get existing users first
+    try:
+        response = requests.get(f"{BACKEND_URL}/admin/all-users")
+        if response.status_code == 200:
+            users = response.json()
+            user_b_id = None
+            user_b_data = None
+            
+            # Find a different user to test with
+            for user in users:
+                if user.get("id") != user_a_id and user.get("email"):
+                    user_b_id = user.get("id")
+                    user_b_data = user
+                    break
+            
+            if user_b_id:
+                print_result(True, "Found existing User B for testing", {
+                    "user_b_id": user_b_id,
+                    "name": user_b_data.get("name"),
+                    "email": user_b_data.get("email")
+                })
+            else:
+                # Create a new test user B
+                import time
+                timestamp = str(int(time.time()))
+                user_b_signup_data = {
+                    "email": f"testuser.b.{timestamp}@heartlink.com",
+                    "password": "TestB@123",
+                    "name": "Test User B",
+                    "age": 28,
+                    "gender": "Female",
+                    "looking_for": "Male",
+                    "bio": "Test user B for block/mute functionality testing",
+                    "location": "Mumbai, India",
+                    "interests": ["Testing", "Technology"]
+                }
+                
+                response = requests.post(f"{BACKEND_URL}/auth/signup", json=user_b_signup_data)
+                if response.status_code == 200:
+                    signup_result = response.json()
+                    user_b_id = signup_result.get("user_id")
+                    user_b_data = signup_result.get("user", {})
+                    
+                    print_result(True, "Created new User B for testing", {
+                        "user_b_id": user_b_id,
+                        "name": user_b_data.get("name"),
+                        "email": user_b_data.get("email")
+                    })
+                else:
+                    print_result(False, f"Failed to create User B. Status: {response.status_code}", response.text)
+                    return False
+        else:
+            print_result(False, f"Failed to get users. Status: {response.status_code}", response.text)
+            return False
+            
+    except Exception as e:
+        print_result(False, f"Error getting/creating User B: {str(e)}")
+        return False
+    
+    if not user_b_id:
+        print_result(False, "Could not get or create User B", "Cannot proceed with block/mute tests")
+        return False
+    
+    # Step 3: Test Block Functionality
+    print_test_header("Step 3: Test Block Functionality")
+    
+    # 3a: User A blocks User B
+    print_test_header("3a: User A blocks User B")
+    block_data = {
+        "blocked_user_id": user_b_id
+    }
+    
+    try:
+        response = requests.post(f"{BACKEND_URL}/user/{user_a_id}/block", json=block_data)
+        
+        if response.status_code == 200:
+            block_result = response.json()
+            print_result(True, "User A successfully blocked User B", {
+                "message": block_result.get("message"),
+                "blocked_user_id": user_b_id
+            })
+        else:
+            print_result(False, f"Block request failed. Status: {response.status_code}", response.text)
+            all_tests_passed = False
+            
+    except Exception as e:
+        print_result(False, f"Error during block request: {str(e)}")
+        all_tests_passed = False
+    
+    # 3b: Verify User B appears in User A's blocked_users list
+    print_test_header("3b: Verify User B in User A's blocked_users list")
+    
+    try:
+        response = requests.get(f"{BACKEND_URL}/profile/{user_a_id}")
+        
+        if response.status_code == 200:
+            profile_data = response.json()
+            blocked_users = profile_data.get("blocked_users", [])
+            
+            if user_b_id in blocked_users:
+                print_result(True, "✅ User B found in User A's blocked_users list", {
+                    "blocked_users_count": len(blocked_users),
+                    "user_b_blocked": True
+                })
+            else:
+                print_result(False, "❌ User B NOT found in User A's blocked_users list", {
+                    "blocked_users": blocked_users,
+                    "expected_user_b_id": user_b_id
+                })
+                all_tests_passed = False
+        else:
+            print_result(False, f"Failed to get User A profile. Status: {response.status_code}", response.text)
+            all_tests_passed = False
+            
+    except Exception as e:
+        print_result(False, f"Error checking blocked_users list: {str(e)}")
+        all_tests_passed = False
+    
+    # 3c: Verify User B no longer appears in User A's matches list (if they were matched)
+    print_test_header("3c: Verify User B filtered from User A's matches")
+    
+    try:
+        response = requests.get(f"{BACKEND_URL}/matches/{user_a_id}")
+        
+        if response.status_code == 200:
+            matches = response.json()
+            
+            user_b_in_matches = False
+            for match in matches:
+                match_user = match.get("user", {})
+                if match_user.get("id") == user_b_id:
+                    user_b_in_matches = True
+                    break
+            
+            if not user_b_in_matches:
+                print_result(True, "✅ User B correctly filtered from User A's matches", {
+                    "total_matches": len(matches),
+                    "user_b_filtered": True
+                })
+            else:
+                print_result(False, "❌ User B still appears in User A's matches", {
+                    "total_matches": len(matches),
+                    "user_b_found_in_matches": True
+                })
+                all_tests_passed = False
+        else:
+            print_result(False, f"Failed to get User A matches. Status: {response.status_code}", response.text)
+            all_tests_passed = False
+            
+    except Exception as e:
+        print_result(False, f"Error checking matches filtering: {str(e)}")
+        all_tests_passed = False
+    
+    # 3d: Verify User B cannot see User A in discovery
+    print_test_header("3d: Verify User B cannot see User A in discovery")
+    
+    try:
+        response = requests.get(f"{BACKEND_URL}/discover/{user_b_id}")
+        
+        if response.status_code == 200:
+            discover_users = response.json()
+            
+            user_a_in_discovery = False
+            for user in discover_users:
+                if user.get("id") == user_a_id:
+                    user_a_in_discovery = True
+                    break
+            
+            if not user_a_in_discovery:
+                print_result(True, "✅ User A correctly filtered from User B's discovery", {
+                    "total_discover_users": len(discover_users),
+                    "user_a_filtered": True
+                })
+            else:
+                print_result(False, "❌ User A still appears in User B's discovery", {
+                    "total_discover_users": len(discover_users),
+                    "user_a_found_in_discovery": True
+                })
+                all_tests_passed = False
+        else:
+            print_result(False, f"Failed to get User B discovery. Status: {response.status_code}", response.text)
+            all_tests_passed = False
+            
+    except Exception as e:
+        print_result(False, f"Error checking discovery filtering: {str(e)}")
+        all_tests_passed = False
+    
+    # Step 4: Test Unblock Functionality
+    print_test_header("Step 4: Test Unblock Functionality")
+    
+    # 4a: User A unblocks User B
+    print_test_header("4a: User A unblocks User B")
+    unblock_data = {
+        "blocked_user_id": user_b_id
+    }
+    
+    try:
+        response = requests.post(f"{BACKEND_URL}/user/{user_a_id}/unblock", json=unblock_data)
+        
+        if response.status_code == 200:
+            unblock_result = response.json()
+            print_result(True, "User A successfully unblocked User B", {
+                "message": unblock_result.get("message"),
+                "unblocked_user_id": user_b_id
+            })
+        else:
+            print_result(False, f"Unblock request failed. Status: {response.status_code}", response.text)
+            all_tests_passed = False
+            
+    except Exception as e:
+        print_result(False, f"Error during unblock request: {str(e)}")
+        all_tests_passed = False
+    
+    # 4b: Verify User B is removed from User A's blocked_users list
+    print_test_header("4b: Verify User B removed from User A's blocked_users list")
+    
+    try:
+        response = requests.get(f"{BACKEND_URL}/profile/{user_a_id}")
+        
+        if response.status_code == 200:
+            profile_data = response.json()
+            blocked_users = profile_data.get("blocked_users", [])
+            
+            if user_b_id not in blocked_users:
+                print_result(True, "✅ User B successfully removed from User A's blocked_users list", {
+                    "blocked_users_count": len(blocked_users),
+                    "user_b_unblocked": True
+                })
+            else:
+                print_result(False, "❌ User B still in User A's blocked_users list", {
+                    "blocked_users": blocked_users,
+                    "user_b_still_blocked": True
+                })
+                all_tests_passed = False
+        else:
+            print_result(False, f"Failed to get User A profile after unblock. Status: {response.status_code}", response.text)
+            all_tests_passed = False
+            
+    except Exception as e:
+        print_result(False, f"Error checking unblock result: {str(e)}")
+        all_tests_passed = False
+    
+    # Step 5: Test Mute Functionality
+    print_test_header("Step 5: Test Mute Functionality")
+    
+    # 5a: User A mutes User B
+    print_test_header("5a: User A mutes User B")
+    mute_data = {
+        "muted_user_id": user_b_id
+    }
+    
+    try:
+        response = requests.post(f"{BACKEND_URL}/user/{user_a_id}/mute", json=mute_data)
+        
+        if response.status_code == 200:
+            mute_result = response.json()
+            print_result(True, "User A successfully muted User B", {
+                "message": mute_result.get("message"),
+                "muted_user_id": user_b_id
+            })
+        else:
+            print_result(False, f"Mute request failed. Status: {response.status_code}", response.text)
+            all_tests_passed = False
+            
+    except Exception as e:
+        print_result(False, f"Error during mute request: {str(e)}")
+        all_tests_passed = False
+    
+    # 5b: Verify User B appears in User A's muted_users list
+    print_test_header("5b: Verify User B in User A's muted_users list")
+    
+    try:
+        response = requests.get(f"{BACKEND_URL}/profile/{user_a_id}")
+        
+        if response.status_code == 200:
+            profile_data = response.json()
+            muted_users = profile_data.get("muted_users", [])
+            
+            if user_b_id in muted_users:
+                print_result(True, "✅ User B found in User A's muted_users list", {
+                    "muted_users_count": len(muted_users),
+                    "user_b_muted": True
+                })
+            else:
+                print_result(False, "❌ User B NOT found in User A's muted_users list", {
+                    "muted_users": muted_users,
+                    "expected_user_b_id": user_b_id
+                })
+                all_tests_passed = False
+        else:
+            print_result(False, f"Failed to get User A profile after mute. Status: {response.status_code}", response.text)
+            all_tests_passed = False
+            
+    except Exception as e:
+        print_result(False, f"Error checking muted_users list: {str(e)}")
+        all_tests_passed = False
+    
+    # Step 6: Test Unmute Functionality
+    print_test_header("Step 6: Test Unmute Functionality")
+    
+    # 6a: User A unmutes User B
+    print_test_header("6a: User A unmutes User B")
+    unmute_data = {
+        "muted_user_id": user_b_id
+    }
+    
+    try:
+        response = requests.post(f"{BACKEND_URL}/user/{user_a_id}/unmute", json=unmute_data)
+        
+        if response.status_code == 200:
+            unmute_result = response.json()
+            print_result(True, "User A successfully unmuted User B", {
+                "message": unmute_result.get("message"),
+                "unmuted_user_id": user_b_id
+            })
+        else:
+            print_result(False, f"Unmute request failed. Status: {response.status_code}", response.text)
+            all_tests_passed = False
+            
+    except Exception as e:
+        print_result(False, f"Error during unmute request: {str(e)}")
+        all_tests_passed = False
+    
+    # 6b: Verify User B is removed from User A's muted_users list
+    print_test_header("6b: Verify User B removed from User A's muted_users list")
+    
+    try:
+        response = requests.get(f"{BACKEND_URL}/profile/{user_a_id}")
+        
+        if response.status_code == 200:
+            profile_data = response.json()
+            muted_users = profile_data.get("muted_users", [])
+            
+            if user_b_id not in muted_users:
+                print_result(True, "✅ User B successfully removed from User A's muted_users list", {
+                    "muted_users_count": len(muted_users),
+                    "user_b_unmuted": True
+                })
+            else:
+                print_result(False, "❌ User B still in User A's muted_users list", {
+                    "muted_users": muted_users,
+                    "user_b_still_muted": True
+                })
+                all_tests_passed = False
+        else:
+            print_result(False, f"Failed to get User A profile after unmute. Status: {response.status_code}", response.text)
+            all_tests_passed = False
+            
+    except Exception as e:
+        print_result(False, f"Error checking unmute result: {str(e)}")
+        all_tests_passed = False
+    
+    # Step 7: Test Edge Cases
+    print_test_header("Step 7: Test Edge Cases")
+    
+    # 7a: Test blocking non-existent user
+    print_test_header("7a: Test blocking non-existent user")
+    fake_user_id = "non-existent-user-id-12345"
+    block_fake_data = {
+        "blocked_user_id": fake_user_id
+    }
+    
+    try:
+        response = requests.post(f"{BACKEND_URL}/user/{user_a_id}/block", json=block_fake_data)
+        
+        # Should still return success (graceful handling)
+        if response.status_code == 200:
+            print_result(True, "✅ Blocking non-existent user handled gracefully", {
+                "status_code": response.status_code,
+                "message": response.json().get("message")
+            })
+        else:
+            print_result(True, f"✅ Blocking non-existent user properly rejected. Status: {response.status_code}", response.text)
+            
+    except Exception as e:
+        print_result(False, f"Error testing non-existent user block: {str(e)}")
+        # Don't fail entire test for edge case
+    
+    # 7b: Test double blocking (blocking already blocked user)
+    print_test_header("7b: Test double blocking")
+    
+    # First block User B again
+    try:
+        response = requests.post(f"{BACKEND_URL}/user/{user_a_id}/block", json=block_data)
+        
+        if response.status_code == 200:
+            print_result(True, "✅ First block successful", response.json().get("message"))
+            
+            # Try to block again
+            response2 = requests.post(f"{BACKEND_URL}/user/{user_a_id}/block", json=block_data)
+            
+            if response2.status_code == 200:
+                print_result(True, "✅ Double blocking handled gracefully", {
+                    "message": response2.json().get("message"),
+                    "no_errors": True
+                })
+            else:
+                print_result(True, f"✅ Double blocking properly handled. Status: {response2.status_code}", response2.text)
+                
+        # Clean up - unblock User B
+        requests.post(f"{BACKEND_URL}/user/{user_a_id}/unblock", json=block_data)
+        
+    except Exception as e:
+        print_result(False, f"Error testing double blocking: {str(e)}")
+        # Don't fail entire test for edge case
+    
+    return all_tests_passed
+
 def main():
     """Main test execution for matching functionality debugging"""
     print(f"HeartLink Backend Matching Functionality Debug Test")
