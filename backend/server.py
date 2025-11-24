@@ -1509,11 +1509,14 @@ async def send_message_http(message_data: Message):
     sender = await db.users.find_one({"id": message_data.sender_id})
     
     if receiver and receiver.get('fcm_token') and sender:
-        send_message_notification(
-            token=receiver['fcm_token'],
-            sender_name=sender['name'],
-            message_preview=message_data.content
-        )
+        # Check if sender is muted by receiver
+        muted_users = receiver.get('muted_users', [])
+        if message_data.sender_id not in muted_users:
+            send_message_notification(
+                token=receiver['fcm_token'],
+                sender_name=sender['name'],
+                message_preview=message_data.content
+            )
     
     return message_dict
 
