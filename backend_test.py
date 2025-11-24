@@ -2204,41 +2204,49 @@ def test_block_unblock_mute_unmute_functionality():
     return all_tests_passed
 
 def main():
-    """Main test execution for matching functionality debugging"""
-    print(f"HeartLink Backend Matching Functionality Debug Test")
+    """Main test execution for HeartLink backend testing"""
+    print(f"🚀 HeartLink Backend Comprehensive Testing")
     print(f"Backend URL: {BACKEND_URL}")
     print(f"Test started at: {datetime.now()}")
-    print(f"Testing complete matching flow to debug frontend issues")
+    print(f"Testing Block/Unblock/Mute/Unmute functionality and other features")
     
     all_tests_passed = True
     
-    # Test 1: Demo1 Complete Like Flow
+    # Test 1: Block/Unblock/Mute/Unmute Functionality (NEW - PRIMARY TEST)
     print(f"\n{'='*80}")
-    print("TEST 1: DEMO1 COMPLETE LIKE FLOW")
+    print("TEST 1: BLOCK/UNBLOCK/MUTE/UNMUTE FUNCTIONALITY")
+    print(f"{'='*80}")
+    block_mute_test_passed = test_block_unblock_mute_unmute_functionality()
+    if not block_mute_test_passed:
+        all_tests_passed = False
+    
+    # Test 2: Demo1 Complete Like Flow
+    print(f"\n{'='*80}")
+    print("TEST 2: DEMO1 COMPLETE LIKE FLOW")
     print(f"{'='*80}")
     demo1_test_passed = test_demo1_complete_like_flow()
     if not demo1_test_passed:
         all_tests_passed = False
     
-    # Test 2: Existing Matches (Priya & Raj)
+    # Test 3: Existing Matches (Priya & Raj)
     print(f"\n{'='*80}")
-    print("TEST 2: EXISTING MATCHES (PRIYA & RAJ)")
+    print("TEST 3: EXISTING MATCHES (PRIYA & RAJ)")
     print(f"{'='*80}")
     existing_matches_test_passed = test_existing_matches_priya_raj()
     if not existing_matches_test_passed:
         all_tests_passed = False
     
-    # Test 3: Fresh Match Creation
+    # Test 4: Fresh Match Creation
     print(f"\n{'='*80}")
-    print("TEST 3: FRESH MATCH CREATION")
+    print("TEST 4: FRESH MATCH CREATION")
     print(f"{'='*80}")
     fresh_match_test_passed = test_fresh_match_creation()
     if not fresh_match_test_passed:
         all_tests_passed = False
     
-    # Test 4: Database Consistency
+    # Test 5: Database Consistency
     print(f"\n{'='*80}")
-    print("TEST 4: DATABASE CONSISTENCY CHECK")
+    print("TEST 5: DATABASE CONSISTENCY CHECK")
     print(f"{'='*80}")
     db_consistency_test_passed = test_database_consistency()
     if not db_consistency_test_passed:
