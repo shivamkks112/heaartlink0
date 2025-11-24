@@ -12,6 +12,7 @@ import ChatPage from '@/pages/ChatPage';
 import ProfilePage from '@/pages/ProfilePage';
 import UserProfilePage from '@/pages/UserProfilePage';
 import PrivacyPage from '@/pages/PrivacyPage';
+import SettingsPage from '@/pages/SettingsPage';
 import PrivacyPolicyPage from '@/pages/PrivacyPolicyPage';
 import DataDeletionPage from '@/pages/DataDeletionPage';
 import InstallPrompt from '@/components/InstallPrompt';
