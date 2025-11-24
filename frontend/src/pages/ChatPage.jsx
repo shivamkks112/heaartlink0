@@ -1,11 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Send, ArrowLeft, Shield, Flag } from 'lucide-react';
+import { Send, ArrowLeft, Shield, Flag, BellOff, Bell, MoreVertical } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || import.meta.env.REACT_APP_BACKEND_URL;
 if (!BACKEND_URL) console.error('⚠️ REACT_APP_BACKEND_URL is not set!');
@@ -19,6 +25,7 @@ const ChatPage = ({ user }) => {
   const [newMessage, setNewMessage] = useState('');
   const [otherUser, setOtherUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
   const messagesEndRef = useRef(null);
   const wsRef = useRef(null);
 
