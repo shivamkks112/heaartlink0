@@ -272,41 +272,71 @@ async def calculate_ai_compatibility(user1: dict, user2: dict) -> tuple:
         return 70.0, "Profiles show good compatibility potential."
 
 async def verify_profile_with_ai(user_data: dict) -> tuple:
-    """AI-powered profile verification"""
+    """AI-powered profile verification - More lenient approach"""
     try:
-        api_key = os.environ.get('EMERGENT_LLM_KEY')
-        chat = LlmChat(
-            api_key=api_key,
-            session_id=f"verify_{user_data['id']}",
-            system_message="You are a profile verification expert. Check if profile seems authentic."
-        ).with_model("openai", "gpt-4o-mini")
+        # Basic validation checks first
+        name = user_data.get('name', '')
+        age = user_data.get('age', 0)
+        bio = user_data.get('bio', '')
+        interests = user_data.get('interests', [])
         
-        prompt = f"""
-        Verify this dating profile for authenticity:
+        # Auto-reject obvious spam/fake profiles
+        spam_keywords = ['http://', 'https://', 'www.', 'whatsapp', 'telegram', 'snapchat', 'instagram', 'onlyfans']
+        if any(keyword in name.lower() for keyword in spam_keywords):
+            return False, "Profile contains suspicious content (URLs/Social media handles)"
         
-        Name: {user_data['name']}
-        Age: {user_data['age']}
-        Bio: {user_data.get('bio', 'No bio')}
-        Interests: {', '.join(user_data.get('interests', []))}
+        if any(keyword in bio.lower() for keyword in spam_keywords):
+            return False, "Bio contains suspicious links or social media handles"
         
-        Check for:
-        1. Realistic information
-        2. Appropriate content
-        3. Spam/scam indicators
+        # Check age validity
+        if age < 18 or age > 100:
+            return False, "Invalid age - Must be between 18-100"
         
-        Respond with: VERIFIED or REJECTED
-        Reason: [brief explanation]
-        """
+        # Check if profile has minimum information
+        if not name or len(name) < 2:
+            return False, "Name is too short"
         
-        response = await chat.send_message(UserMessage(text=prompt))
-        
-        if "VERIFIED" in response.upper():
-            return True, "Profile verified by AI"
+        # If basic checks pass, auto-verify for now (can enable AI later)
+        # AI verification can be too strict, so we'll use basic rules
+        if len(bio) > 10 and len(interests) > 0:
+            return True, "✅ Profile verified successfully!"
         else:
-            return False, "Profile needs manual review"
+            return False, "Profile needs more information (bio and interests required)"
+            
+        # Optional: AI verification (currently disabled for better UX)
+        # api_key = os.environ.get('EMERGENT_LLM_KEY')
+        # chat = LlmChat(
+        #     api_key=api_key,
+        #     session_id=f"verify_{user_data['id']}",
+        #     system_message="You are a profile verification expert. Check if profile seems authentic."
+        # ).with_model("openai", "gpt-4o-mini")
+        # 
+        # prompt = f"""
+        # Verify this dating profile for authenticity:
+        # 
+        # Name: {name}
+        # Age: {age}
+        # Bio: {bio}
+        # Interests: {', '.join(interests)}
+        # 
+        # Check for:
+        # 1. Realistic information
+        # 2. Appropriate content
+        # 3. Spam/scam indicators
+        # 
+        # Respond with: VERIFIED or REJECTED
+        # Reason: [brief explanation]
+        # """
+        # 
+        # response = await chat.send_message(UserMessage(text=prompt))
+        # 
+        # if "VERIFIED" in response.upper():
+        #     return True, "Profile verified by AI"
+        # else:
+        #     return False, "Profile needs manual review"
     except Exception as e:
         logging.error(f"AI verification error: {e}")
-        return False, "Verification pending"
+        return False, "Verification system error - Please try again"
 
 # Authentication Routes
 @api_router.post("/auth/signup")
