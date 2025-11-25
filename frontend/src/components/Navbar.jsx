@@ -1,4 +1,4 @@
-import { Heart, Compass, MessageSquare, User, Settings, LogOut } from 'lucide-react';
+import { Heart, Compass, MessageSquare, User, Settings, Shield, LogOut } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 
