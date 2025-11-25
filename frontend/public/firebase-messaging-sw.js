@@ -34,10 +34,18 @@ messaging.onBackgroundMessage((payload) => {
     tag: data?.type || 'default',
     data: data,
     requireInteraction: true,
+    // Sound and vibration settings
+    silent: false,  // Enable sound
+    vibrate: [200, 100, 200, 100, 200], // Vibration pattern (vibrate, pause, vibrate...)
+    // Visual customization
+    image: notification?.image || null,
+    // Priority
+    renotify: true,
     actions: [
       {
         action: 'open',
-        title: 'Open App'
+        title: 'Open App',
+        icon: '/icon-192.png'
       },
       {
         action: 'close',
