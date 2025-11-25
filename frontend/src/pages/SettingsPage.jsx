@@ -25,6 +25,21 @@ const SettingsPage = ({ user }) => {
 
   useEffect(() => {
     fetchUserSettings();
+    
+    // Check if app is already installed
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      setIsInstalled(true);
+    }
+    
+    // Listen for install prompt
+    const handler = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    
+    window.addEventListener('beforeinstallprompt', handler);
+    
+    return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
 
   const fetchUserSettings = async () => {
