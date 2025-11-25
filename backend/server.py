@@ -1626,6 +1626,82 @@ async def send_test_notification(user_id: str):
         logger.error(f"Error sending test notification: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# ONE-TIME ADMIN CREATION ENDPOINT
+# ⚠️ USE THIS ONCE AND THEN DISABLE IT FOR SECURITY
+class MakeAdminRequest(BaseModel):
+    secret_code: str
+    user_email: str
+
+@api_router.post("/admin/make-me-admin-once")
+async def make_me_admin_once(request: MakeAdminRequest):
+    """
+    🔐 ONE-TIME USE ONLY: Make a user admin
+    
+    How to use:
+    1. First signup on the site with your email
+    2. Call this endpoint with secret code and your email
+    3. You become admin
+    4. After using, set ADMIN_SETUP_COMPLETE=true in .env to disable this
+    
+    Security: Uses secret code from environment variable
+    """
+    # Check if already setup (security)
+    if os.environ.get('ADMIN_SETUP_COMPLETE', 'false').lower() == 'true':
+        raise HTTPException(
+            status_code=403, 
+            detail="Admin setup already completed. This endpoint is disabled for security."
+        )
+    
+    # Verify secret code
+    expected_secret = os.environ.get('ADMIN_SECRET_CODE', 'HeartLink@Admin#2024')
+    if request.secret_code != expected_secret:
+        raise HTTPException(status_code=403, detail="Invalid secret code")
+    
+    # Make user admin
+    try:
+        result = await db.users.update_one(
+            {"email": request.user_email},
+            {"$set": {"is_admin": True, "verified": True, "verification_status": "verified"}}
+        )
+        
+        if result.matched_count == 0:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"User with email {request.user_email} not found. Please signup first."
+            )
+        
+        if result.modified_count > 0:
+            # Get updated user
+            admin_user = await db.users.find_one({"email": request.user_email}, {"_id": 0})
+            
+            return {
+                "success": True,
+                "message": "✅ Admin account created successfully!",
+                "user": {
+                    "email": admin_user['email'],
+                    "name": admin_user['name'],
+                    "is_admin": admin_user['is_admin'],
+                    "id": admin_user['id']
+                },
+                "next_steps": [
+                    "1. Login with your email and password",
+                    "2. Go to /admin route to access admin dashboard",
+                    "3. IMPORTANT: Set ADMIN_SETUP_COMPLETE=true in .env to disable this endpoint"
+                ]
+            }
+        else:
+            return {
+                "success": True,
+                "message": "User was already admin",
+                "note": "Set ADMIN_SETUP_COMPLETE=true in .env to disable this endpoint"
+            }
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error making admin: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 # Include router - MUST be after all route definitions
 app.include_router(api_router)
 
