@@ -1531,7 +1531,7 @@ async def send_message_http(message_data: Message):
     return clean_message
 
 # WebSocket for real-time chat
-@app.websocket("/ws/{user_id}")
+@api_router.websocket("/ws/{user_id}")
 async def websocket_endpoint(websocket: WebSocket, user_id: str):
     await manager.connect(user_id, websocket)
     try:
