@@ -384,7 +384,7 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Critical Issues: Messages Not Sending & Profile Verification Button"
+    - "Real-Time Chat and WebSocket Notifications"
   stuck_tasks: 
     - "Email OTP Functionality with Titan SMTP"
   test_all: false
