@@ -34,10 +34,16 @@ const InstallPrompt = () => {
 
   const handleDismiss = () => {
     setShowPrompt(false);
-    localStorage.setItem('installPromptDismissed', 'true');
+    // Store dismiss timestamp instead of just true
+    localStorage.setItem('installPromptDismissed', Date.now().toString());
   };
 
-  if (!showPrompt || localStorage.getItem('installPromptDismissed')) {
+  // Check if dismissed - show again after 7 days
+  const dismissed = localStorage.getItem('installPromptDismissed');
+  const sevenDaysInMs = 7 * 24 * 60 * 60 * 1000;
+  const shouldShow = !dismissed || (Date.now() - parseInt(dismissed)) > sevenDaysInMs;
+
+  if (!showPrompt || !shouldShow) {
     return null;
   }
 
