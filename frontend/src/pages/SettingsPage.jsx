@@ -136,8 +136,26 @@ const SettingsPage = ({ user }) => {
     
     if (permission === 'granted') {
       toast.success('Notifications enabled! 🔔');
+      // Send a test notification
+      sendTestNotification();
     } else if (permission === 'denied') {
       toast.error('Notification permission denied. Enable from browser settings.');
+    }
+  };
+
+  const sendTestNotification = () => {
+    if (Notification.permission === 'granted') {
+      new Notification('HeartLink 💕', {
+        body: 'Notifications are working! You will get alerts for new messages and matches.',
+        icon: '/icon-192.png',
+        badge: '/icon-192.png',
+        vibrate: [200, 100, 200],
+        silent: false,
+        requireInteraction: false,
+        tag: 'test-notification'
+      });
+    } else {
+      toast.error('Please enable notifications first');
     }
   };
 
