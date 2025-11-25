@@ -109,6 +109,38 @@ const SettingsPage = ({ user }) => {
     }
   };
 
+  const handleInstallApp = async () => {
+    if (!deferredPrompt) {
+      toast.info('Install option not available on this browser. Please use Chrome or Safari.');
+      return;
+    }
+
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    
+    if (outcome === 'accepted') {
+      toast.success('App installed successfully! 🎉');
+      setIsInstalled(true);
+    }
+    
+    setDeferredPrompt(null);
+  };
+
+  const requestNotificationPermission = async () => {
+    if (!('Notification' in window)) {
+      toast.error('Notifications not supported on this browser');
+      return;
+    }
+
+    const permission = await Notification.requestPermission();
+    
+    if (permission === 'granted') {
+      toast.success('Notifications enabled! 🔔');
+    } else if (permission === 'denied') {
+      toast.error('Notification permission denied. Enable from browser settings.');
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 flex items-center justify-center page-with-bottom-nav status-bar-spacing">
