@@ -165,7 +165,52 @@ const SettingsPage = ({ user }) => {
       </div>
 
       {/* Content */}
-      <div className="p-4">
+      <div className="p-4 space-y-4">
+        {/* App Settings Section */}
+        <div className="bg-white rounded-xl p-4 shadow-sm space-y-3">
+          <h2 className="text-lg font-bold text-gray-900 mb-3">App Settings</h2>
+          
+          {/* Install App Option */}
+          {!isInstalled && (
+            <button
+              onClick={handleInstallApp}
+              className="w-full flex items-center justify-between p-3 bg-gradient-to-r from-pink-50 to-orange-50 rounded-lg hover:from-pink-100 hover:to-orange-100 transition-all"
+            >
+              <div className="flex items-center gap-3">
+                <Download className="w-5 h-5 text-pink-600" />
+                <div className="text-left">
+                  <p className="font-semibold text-gray-900">Install App</p>
+                  <p className="text-xs text-gray-600">Add to home screen for quick access</p>
+                </div>
+              </div>
+            </button>
+          )}
+          
+          {isInstalled && (
+            <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
+              <Download className="w-5 h-5 text-green-600" />
+              <div>
+                <p className="font-semibold text-gray-900">App Installed ✓</p>
+                <p className="text-xs text-gray-600">HeartLink is on your home screen</p>
+              </div>
+            </div>
+          )}
+          
+          {/* Enable Notifications Option */}
+          <button
+            onClick={requestNotificationPermission}
+            className="w-full flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg hover:from-blue-100 hover:to-purple-100 transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <Bell className="w-5 h-5 text-blue-600" />
+              <div className="text-left">
+                <p className="font-semibold text-gray-900">Enable Notifications</p>
+                <p className="text-xs text-gray-600">Get alerts for messages and matches</p>
+              </div>
+            </div>
+          </button>
+        </div>
+
         <Tabs defaultValue="blocked" className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-6">
             <TabsTrigger value="blocked">
