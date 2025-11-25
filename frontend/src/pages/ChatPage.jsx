@@ -75,7 +75,7 @@ const ChatPage = ({ user }) => {
 
   const connectWebSocket = () => {
     try {
-      wsRef.current = new WebSocket(`${WS_URL}/ws/${user.id}`);
+      wsRef.current = new WebSocket(`${WS_URL}/api/ws/${user.id}`);
       
       wsRef.current.onmessage = (event) => {
         const data = JSON.parse(event.data);
