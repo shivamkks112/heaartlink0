@@ -379,8 +379,8 @@ async def comprehensive_websocket_and_chat_test():
     user1_email = "shivamkks112@gmail.com"
     user2_email = "shub123@gmail.com"
     
-    # Try common passwords for these users
-    common_passwords = ["Demo123!", "Test@123", "password", "Password123!", "Test@12345", "Shivam@#110", "Shuba@123"]
+    # Try common passwords for these users (based on previous test results)
+    common_passwords = ["Demo123!", "Test@123", "password", "Password123!", "Test@12345", "Shivam@#110", "Shuba@123", "Shivamkks@#110"]
     
     # Step 1: Login both users
     print_test_header("Step 1: Login Test Users")
