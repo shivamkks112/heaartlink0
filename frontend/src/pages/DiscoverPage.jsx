@@ -153,7 +153,13 @@ const DiscoverPage = ({ user }) => {
       <Navbar user={user} />
       
       <div className="max-w-2xl mx-auto px-4 py-8 pb-24">
-        <div className="bg-white rounded-3xl shadow-elevated overflow-hidden relative hover-lift transition-all duration-300" data-testid="profile-card">
+        <div 
+          className={`bg-white rounded-3xl shadow-elevated overflow-hidden relative hover-lift transition-all duration-300 ${swipeDirection === 'left' ? 'translate-x-[-20px] opacity-80' : swipeDirection === 'right' ? 'translate-x-[20px] opacity-80' : ''}`}
+          data-testid="profile-card"
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+        >
           {/* Photo Section with enhanced animations */}
           <div className="relative h-96 bg-gradient-to-br from-pink-200 to-orange-200 overflow-hidden group">
             {currentProfile.profile_picture ? (
