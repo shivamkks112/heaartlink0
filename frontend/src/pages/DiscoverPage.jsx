@@ -39,7 +39,7 @@ const DiscoverPage = ({ user }) => {
 
   useEffect(() => {
     fetchProfiles();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line
   }, []);
 
   const handleAction = async (action) => {
