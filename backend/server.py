@@ -1322,7 +1322,7 @@ async def get_matches(user_id: str):
     matches = await db.matches.find({
         "$or": [{"user1_id": user_id}, {"user2_id": user_id}],
         "matched": True
-    }).to_list(None)
+    }).limit(1000).to_list(None)
     
     result = []
     for match in matches:
