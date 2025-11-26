@@ -262,40 +262,39 @@ const ChatPage = ({ user }) => {
               </h1>
             )}
             
-            <div className="flex items-center gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className="p-2 hover:bg-gray-100 rounded-full transition-all"
-                title="More options"
-              >
-                <MoreVertical className="w-5 h-5 text-gray-700" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={handleMute} className="cursor-pointer">
-                {isMuted ? (
-                  <>
-                    <Bell className="w-4 h-4 mr-2" />
-                    Unmute Notifications
-                  </>
-                ) : (
-                  <>
-                    <BellOff className="w-4 h-4 mr-2" />
-                    Mute Notifications
-                  </>
-                )}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleBlock} className="cursor-pointer text-red-600">
-                <Shield className="w-4 h-4 mr-2" />
-                Block User
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleReport} className="cursor-pointer text-orange-600">
-                <Flag className="w-4 h-4 mr-2" />
-                Report User
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="p-2 hover:bg-gray-100 rounded-full transition-all"
+                  title="More options"
+                >
+                  <MoreVertical className="w-5 h-5 text-gray-700" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={handleMute} className="cursor-pointer">
+                  {isMuted ? (
+                    <>
+                      <Bell className="w-4 h-4 mr-2" />
+                      Unmute Notifications
+                    </>
+                  ) : (
+                    <>
+                      <BellOff className="w-4 h-4 mr-2" />
+                      Mute Notifications
+                    </>
+                  )}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleBlock} className="cursor-pointer text-red-600">
+                  <Shield className="w-4 h-4 mr-2" />
+                  Block User
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleReport} className="cursor-pointer text-orange-600">
+                  <Flag className="w-4 h-4 mr-2" />
+                  Report User
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>
