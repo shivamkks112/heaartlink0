@@ -240,20 +240,20 @@ const MatchesPage = ({ user }) => {
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
                 {activeUsers.map((activeUser) => (
                   <div
                     key={activeUser.id}
                     data-testid="active-user-card"
-                    className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition-all transform hover:-translate-y-2 relative"
+                    className="bg-white rounded-xl sm:rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition-all transform hover:-translate-y-2 relative"
                   >
                     {/* Online Indicator */}
-                    <div className="absolute top-4 left-4 z-10 bg-green-500 text-white px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 shadow-lg">
-                      <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
+                    <div className="absolute top-2 sm:top-3 md:top-4 left-2 sm:left-3 md:left-4 z-10 bg-green-500 text-white px-2 sm:px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 shadow-lg">
+                      <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-white rounded-full animate-pulse"></span>
                       Online
                     </div>
 
-                    <div className="relative h-64 bg-gradient-to-br from-green-200 to-emerald-200">
+                    <div className="relative h-48 sm:h-56 md:h-64 bg-gradient-to-br from-green-200 to-emerald-200">
                       {activeUser.profile_picture ? (
                         <img
                           src={activeUser.profile_picture}
