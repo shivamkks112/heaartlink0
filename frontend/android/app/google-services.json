@@ -1,26 +1,95 @@
 {
   "project_info": {
-    "project_number": "1234567890",
+    "project_number": "803969423139",
+    "firebase_url": "https://heartlink-6abe9-default-rtdb.firebaseio.com",
     "project_id": "heartlink-6abe9",
-    "storage_bucket": "heartlink-6abe9.appspot.com"
+    "storage_bucket": "heartlink-6abe9.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1234567890:android:abcdef123456",
+        "mobilesdk_app_id": "1:803969423139:android:742583c43549f95efade96",
         "android_client_info": {
-          "package_name": "com.heartlink.app"
+          "package_name": "com.heartconnect.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "803969423139-d6si6853g0t25lvdujk95rrutdj3albb.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "AIzaSyDummy_Key_For_HeartLink_Replace_With_Real"
+          "current_key": "AIzaSyD_p4VHF6-cNHP_AnEiZ9rArGVGalY3Zw0"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "803969423139-d6si6853g0t25lvdujk95rrutdj3albb.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:803969423139:android:f6f75cc44b72b00afade96",
+        "android_client_info": {
+          "package_name": "com.heartlink.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "803969423139-d6si6853g0t25lvdujk95rrutdj3albb.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD_p4VHF6-cNHP_AnEiZ9rArGVGalY3Zw0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "803969423139-d6si6853g0t25lvdujk95rrutdj3albb.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:803969423139:android:239c8f4f971e07e3fade96",
+        "android_client_info": {
+          "package_name": "com.heartlink.dating"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "803969423139-d6si6853g0t25lvdujk95rrutdj3albb.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD_p4VHF6-cNHP_AnEiZ9rArGVGalY3Zw0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "803969423139-d6si6853g0t25lvdujk95rrutdj3albb.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
