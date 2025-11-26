@@ -73,9 +73,9 @@ const LikesYouPage = ({ user }) => {
   const displayedLikes = getDisplayedLikes();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50">
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 pb-20 sm:pb-24">
       {/* Header */}
-      <div className="sticky top-0 z-50 backdrop-blur-xl bg-white/80 border-b border-pink-100 shadow-sm">
+      <div className="sticky top-0 z-40 backdrop-blur-xl bg-white/80 border-b border-pink-100 shadow-sm">
         <div className="max-w-2xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <button
