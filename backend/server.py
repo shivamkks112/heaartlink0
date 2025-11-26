@@ -1416,7 +1416,7 @@ async def get_active_users(user_id: str, limit: int = 20):
     matches = await db.matches.find({
         "$or": [{"user1_id": user_id}, {"user2_id": user_id}],
         "matched": True
-    }).to_list(None)
+    }).limit(1000).to_list(None)
     matched_ids = set()
     for m in matches:
         matched_ids.add(m["user1_id"])
