@@ -183,6 +183,22 @@ const DiscoverPage = ({ user }) => {
             {/* Gradient overlay for better text visibility */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
 
+            {/* Swipe Direction Indicators */}
+            {swipeDirection === 'left' && (
+              <div className="absolute inset-0 bg-red-500/30 flex items-center justify-center">
+                <div className="bg-red-500 text-white px-6 py-3 rounded-full text-2xl font-bold shadow-lg rotate-[-15deg]">
+                  <X className="w-12 h-12" />
+                </div>
+              </div>
+            )}
+            {swipeDirection === 'right' && (
+              <div className="absolute inset-0 bg-green-500/30 flex items-center justify-center">
+                <div className="bg-green-500 text-white px-6 py-3 rounded-full text-2xl font-bold shadow-lg rotate-[15deg]">
+                  <Heart className="w-12 h-12" fill="white" />
+                </div>
+              </div>
+            )}
+
             {/* Photo Navigation */}
             {hasMultiplePhotos && (
               <>
