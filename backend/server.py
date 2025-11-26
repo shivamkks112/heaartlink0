@@ -801,7 +801,7 @@ async def make_user_admin_by_email(email: str = "admin@heartlink.com"):
 async def get_users_for_verification(status: str = "pending"):
     """Get users by verification status for admin review"""
     query = {"verification_status": status}
-    users = await db.users.find(query).to_list(None)
+    users = await db.users.find(query).limit(100).to_list(None)
     
     return [{
         "id": u["id"],
