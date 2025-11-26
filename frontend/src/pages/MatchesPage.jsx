@@ -101,12 +101,12 @@ const MatchesPage = ({ user }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 page-with-bottom-nav">
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 pb-20 sm:pb-24">
       <TopBar />
       <Toaster position="top-center" />
       <Navbar user={user} />
       
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 pb-24">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 pb-24 sm:pb-28">
         <div className="mb-4 sm:mb-6 md:mb-8">
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-1 sm:mb-2">Connections</h1>
           <p className="text-sm sm:text-base text-gray-600">Your matches and active users</p>
