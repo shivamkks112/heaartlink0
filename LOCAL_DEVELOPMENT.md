@@ -9,7 +9,7 @@
 ✅ All services UP
 
 ### Access Your Local App:
-1. Frontend: https://cupids-arrow-23.preview.emergentagent.com
+1. Frontend: https://dating-native-app.preview.emergentagent.com
 2. This is YOUR development environment
 3. Fully functional for testing
 
