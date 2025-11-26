@@ -1,0 +1,18 @@
+[
+  {
+    "content": "Analyze Kaniko job logs to identify root cause of build failure",
+    "status": "in_progress"
+  },
+  {
+    "content": "Verify yarn registry connectivity and 502 error",
+    "status": "pending"
+  },
+  {
+    "content": "Check app's package.json for dependency issues",
+    "status": "pending"
+  },
+  {
+    "content": "Generate RCA report with findings and recommendations",
+    "status": "pending"
+  }
+]
