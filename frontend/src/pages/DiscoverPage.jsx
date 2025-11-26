@@ -20,6 +20,11 @@ const DiscoverPage = ({ user }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [photoIndex, setPhotoIndex] = useState(0);
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
+  const [swipeDirection, setSwipeDirection] = useState(null);
+
+  const minSwipeDistance = 50;
 
   useEffect(() => {
     fetchProfiles();
