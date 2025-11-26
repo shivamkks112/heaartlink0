@@ -143,12 +143,12 @@ const ProfilePage = ({ user, onUpdate }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 page-with-bottom-nav">
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 pb-20 sm:pb-24">
       <TopBar />
       <Toaster position="top-center" />
       <Navbar user={user} />
       
-      <div className="max-w-4xl mx-auto px-4 py-8 pb-24">
+      <div className="max-w-4xl mx-auto px-4 py-8 pb-24 sm:pb-28">
         <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
           {/* Header with Profile Picture */}
           <div className="bg-gradient-to-r from-pink-500 via-rose-500 to-orange-500 px-8 py-12 text-white text-center relative">
