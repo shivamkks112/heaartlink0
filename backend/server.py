@@ -1008,7 +1008,7 @@ async def discover_users(user_id: str, limit: int = 10):
     blocked_users = current_user.get("blocked_users", [])
     
     # Find users who blocked current user
-    blockers = await db.users.find({"blocked_users": user_id}).to_list(None)
+    blockers = await db.users.find({"blocked_users": user_id}).limit(1000).to_list(None)
     blocker_ids = [u["id"] for u in blockers]
     
     # Get already interacted users
@@ -1091,7 +1091,7 @@ async def discover_nearby(user_id: str, max_distance: int = 25, limit: int = 20)
     blocked_users = current_user.get("blocked_users", [])
     
     # Find users who blocked current user
-    blockers = await db.users.find({"blocked_users": user_id}).to_list(None)
+    blockers = await db.users.find({"blocked_users": user_id}).limit(1000).to_list(None)
     blocker_ids = [u["id"] for u in blockers]
     
     # Get already interacted users
@@ -1409,7 +1409,7 @@ async def get_active_users(user_id: str, limit: int = 20):
     blocked_users = current_user.get("blocked_users", [])
     
     # Find users who blocked current user
-    blockers = await db.users.find({"blocked_users": user_id}).to_list(None)
+    blockers = await db.users.find({"blocked_users": user_id}).limit(1000).to_list(None)
     blocker_ids = [u["id"] for u in blockers]
     
     # Get already matched users
