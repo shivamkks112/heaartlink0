@@ -42,12 +42,12 @@ const PrivacyPage = ({ user }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 page-with-bottom-nav">
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 pb-20 sm:pb-24">
       <TopBar />
       <Toaster position="top-center" />
       <Navbar user={user} />
       
-      <div className="max-w-3xl mx-auto px-4 py-8 pb-24">
+      <div className="max-w-3xl mx-auto px-4 py-8 pb-24 sm:pb-28">
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">Privacy & Safety</h1>
           <p className="text-gray-600">Control who sees your profile and content</p>
