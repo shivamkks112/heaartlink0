@@ -168,11 +168,11 @@ const SettingsPage = ({ user }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 pb-20 sm:pb-24 status-bar-spacing">
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 pb-20 sm:pb-24 pt-16 status-bar-spacing">
       <Toaster position="top-center" />
       
       {/* Header */}
-      <div className="bg-white shadow-md px-4 py-4 flex items-center gap-4 sticky top-0 z-40">
+      <div className="bg-white shadow-md px-4 py-4 flex items-center gap-4 sticky top-16 z-40">
         <button
           onClick={() => navigate(-1)}
           className="p-2 hover:bg-gray-100 rounded-full transition-all"
