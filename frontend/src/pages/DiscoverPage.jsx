@@ -74,6 +74,37 @@ const DiscoverPage = ({ user }) => {
     }
   };
 
+  const onTouchStart = (e) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+    const distance = touchStart - e.targetTouches[0].clientX;
+    if (Math.abs(distance) > 20) {
+      setSwipeDirection(distance > 0 ? 'left' : 'right');
+    }
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+    
+    if (isLeftSwipe) {
+      handleAction('pass');
+    } else if (isRightSwipe) {
+      handleAction('like');
+    }
+    
+    setSwipeDirection(null);
+    setTouchStart(null);
+    setTouchEnd(null);
+  };
+
   const currentProfile = profiles[currentIndex];
 
   if (loading) {
