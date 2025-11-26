@@ -279,25 +279,25 @@ const MatchesPage = ({ user }) => {
                       )}
                     </div>
 
-                    <div className="p-5">
-                      <h3 className="text-xl font-bold text-gray-900 mb-1">
+                    <div className="p-3 sm:p-4 md:p-5">
+                      <h3 className="text-base sm:text-lg md:text-xl font-bold text-gray-900 mb-1 truncate">
                         {activeUser.name}, {activeUser.age}
                       </h3>
                       
-                      <p className="text-sm text-gray-600 mb-3">{activeUser.location}</p>
+                      <p className="text-xs sm:text-sm text-gray-600 mb-2 sm:mb-3 truncate">{activeUser.location}</p>
 
                       {activeUser.bio && (
-                        <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                        <p className="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4 line-clamp-2">
                           {activeUser.bio}
                         </p>
                       )}
 
                       <button
                         onClick={() => navigate(`/profile/${activeUser.id}`)}
-                        className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all"
+                        className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white py-2 sm:py-2.5 md:py-3 rounded-lg sm:rounded-xl font-semibold text-sm sm:text-base flex items-center justify-center gap-1 sm:gap-2 transition-all"
                       >
-                        <Heart className="w-5 h-5" />
-                        View Profile
+                        <Heart className="w-4 h-4 sm:w-5 sm:h-5" />
+                        <span className="hidden xs:inline">View </span>Profile
                       </button>
                     </div>
                   </div>
