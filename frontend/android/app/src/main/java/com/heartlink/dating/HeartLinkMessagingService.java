@@ -1,4 +1,4 @@
-package com.heartlink.dating;
+package com.heartlink.app;
 
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
