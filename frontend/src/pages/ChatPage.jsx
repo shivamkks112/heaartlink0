@@ -242,41 +242,27 @@ const ChatPage = ({ user }) => {
     <div className="h-screen flex flex-col bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50">
       <Toaster position="top-center" />
       
-      {/* Header - Fixed at top with high z-index */}
-      <div className="fixed top-0 left-0 right-0 z-[60] bg-white shadow-md px-4 py-3 sm:py-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <button
-            data-testid="back-btn"
-            onClick={() => navigate('/matches')}
-            className="p-2 hover:bg-gray-100 rounded-full transition-all"
-          >
-            <ArrowLeft className="w-6 h-6 text-gray-700" />
-          </button>
-          
-          {otherUser && (
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-pink-400 to-orange-400 flex items-center justify-center text-white font-bold text-lg overflow-hidden">
-                {otherUser.profile_picture ? (
-                  <img 
-                    src={otherUser.profile_picture} 
-                    alt={otherUser.name}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  otherUser.name.charAt(0)
-                )}
-              </div>
-              <div>
-                <h2 className="font-bold text-gray-900">{otherUser.name}</h2>
-                {otherUser.verified && (
-                  <span className="text-xs text-blue-600 font-semibold">✓ Verified</span>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2">
+      {/* Header - Simple like Likes page */}
+      <div className="fixed top-0 left-0 right-0 z-[60] backdrop-blur-xl bg-white/80 border-b border-pink-100 shadow-sm">
+        <div className="max-w-2xl mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <button
+              data-testid="back-btn"
+              onClick={() => navigate('/matches')}
+              className="p-2 hover:bg-pink-100 rounded-full transition-colors"
+            >
+              <svg className="w-6 h-6 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            
+            {otherUser && (
+              <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+                {otherUser.name}
+              </h1>
+            )}
+            
+            <div className="flex items-center gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
