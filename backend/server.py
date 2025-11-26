@@ -1014,7 +1014,7 @@ async def discover_users(user_id: str, limit: int = 10):
     # Get already interacted users
     matches = await db.matches.find({
         "$or": [{"user1_id": user_id}, {"user2_id": user_id}]
-    }).to_list(None)
+    }).limit(1000).to_list(None)
     interacted_ids = set()
     for m in matches:
         interacted_ids.add(m["user1_id"])
@@ -1097,7 +1097,7 @@ async def discover_nearby(user_id: str, max_distance: int = 25, limit: int = 20)
     # Get already interacted users
     matches = await db.matches.find({
         "$or": [{"user1_id": user_id}, {"user2_id": user_id}]
-    }).to_list(None)
+    }).limit(1000).to_list(None)
     interacted_ids = set()
     for m in matches:
         interacted_ids.add(m["user1_id"])
