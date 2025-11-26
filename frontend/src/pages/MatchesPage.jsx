@@ -105,38 +105,38 @@ const MatchesPage = ({ user }) => {
       <Toaster position="top-center" />
       <Navbar user={user} />
       
-      <div className="max-w-6xl mx-auto px-4 py-8 pb-24">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Connections</h1>
-          <p className="text-gray-600">Your matches and active users</p>
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 pb-24">
+        <div className="mb-4 sm:mb-6 md:mb-8">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-1 sm:mb-2">Connections</h1>
+          <p className="text-sm sm:text-base text-gray-600">Your matches and active users</p>
         </div>
 
-        {/* Enhanced Tabs */}
-        <div className="flex gap-4 mb-8 animate-slide-in-up" style={{animationDelay: '0.2s'}}>
+        {/* Enhanced Tabs - Responsive */}
+        <div className="flex gap-2 sm:gap-3 md:gap-4 mb-4 sm:mb-6 md:mb-8 animate-slide-in-up" style={{animationDelay: '0.2s'}}>
           <Button
             data-testid="tab-matches"
             onClick={() => setActiveTab('matches')}
-            className={`flex-1 py-6 rounded-xl font-semibold text-lg transition-all duration-300 transform hover:scale-105 ${
+            className={`flex-1 py-3 sm:py-4 md:py-6 rounded-lg sm:rounded-xl font-semibold text-sm sm:text-base md:text-lg transition-all duration-300 ${
               activeTab === 'matches'
-                ? 'bg-gradient-to-r from-pink-500 to-orange-500 text-white shadow-glow animate-glow'
-                : 'bg-white text-gray-700 hover:bg-gray-50 border-2 border-gray-200 hover:border-pink-300 hover-lift'
+                ? 'bg-gradient-to-r from-pink-500 to-orange-500 text-white shadow-lg'
+                : 'bg-white text-gray-700 hover:bg-gray-50 border-2 border-gray-200'
             }`}
           >
-            <Heart className={`w-5 h-5 mr-2 inline ${activeTab === 'matches' ? 'animate-heart-beat' : ''}`} />
-            My Matches ({matches.length})
+            <Heart className={`w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2 inline ${activeTab === 'matches' ? 'animate-heart-beat' : ''}`} />
+            <span className="hidden xs:inline">My </span>Matches ({matches.length})
           </Button>
 
           <Button
             data-testid="tab-active"
             onClick={() => setActiveTab('active')}
-            className={`flex-1 py-6 rounded-xl font-semibold text-lg transition-all duration-300 transform hover:scale-105 ${
+            className={`flex-1 py-3 sm:py-4 md:py-6 rounded-lg sm:rounded-xl font-semibold text-sm sm:text-base md:text-lg transition-all duration-300 ${
               activeTab === 'active'
-                ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-glow animate-glow'
-                : 'bg-white text-gray-700 hover:bg-gray-50 border-2 border-gray-200 hover:border-green-300 hover-lift'
+                ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg'
+                : 'bg-white text-gray-700 hover:bg-gray-50 border-2 border-gray-200'
             }`}
           >
-            <Zap className={`w-5 h-5 mr-2 inline ${activeTab === 'active' ? 'animate-pulse' : ''}`} />
-            Active Users ({activeUsers.length})
+            <Zap className={`w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2 inline ${activeTab === 'active' ? 'animate-pulse' : ''}`} />
+            Active ({activeUsers.length})
           </Button>
         </div>
 
