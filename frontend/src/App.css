@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 
 * {
   margin: 0;
@@ -7,570 +7,128 @@
 }
 
 body {
-  font-family: 'Inter', sans-serif;
-  background: linear-gradient(135deg, #ffeef8 0%, #fff5f0 50%, #f0f9ff 100%);
+  font-family: 'Poppins', sans-serif;
+  background: linear-gradient(135deg, #ffeef8 0%, #fff5f0 100%);
   min-height: 100vh;
-  /* Prevent mobile overscroll */
-  overscroll-behavior: none;
-  /* Prevent text selection on mobile */
-  -webkit-user-select: none;
-  user-select: none;
-  /* Smooth scrolling */
-  -webkit-overflow-scrolling: touch;
-  /* Safe area for status bar (top) and navigation bar (bottom) */
-  padding-top: env(safe-area-inset-top, 0);
-  padding-bottom: env(safe-area-inset-bottom, 0);
 }
 
-/* Allow text selection in inputs and text areas */
-input, textarea, [contenteditable] {
-  -webkit-user-select: text;
-  user-select: text;
+.gradient-bg {
+  background: linear-gradient(135deg, #ff6b9d 0%, #ff8a5b 100%);
 }
 
-.App {
-  min-height: 100vh;
-  /* Fix for mobile viewport height */
-  min-height: -webkit-fill-available;
-  /* Ensure content respects safe areas */
-  padding-top: max(env(safe-area-inset-top, 0), 20px);
+.gradient-text {
+  background: linear-gradient(135deg, #ff6b9d 0%, #ff8a5b 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
-/* Headings */
-h1, h2, h3 {
-  font-family: 'Playfair Display', serif;
+.card-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Custom Scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(255, 107, 157, 0.2);
 }
 
-::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.1);
+.btn-primary {
+  background: linear-gradient(135deg, #ff6b9d 0%, #ff8a5b 100%);
+  border: none;
+  color: white;
+  padding: 12px 32px;
+  border-radius: 24px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
 }
 
-::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #ff6b9d 0%, #c739d5 100%);
-  border-radius: 10px;
+.btn-primary:hover {
+  transform: scale(1.05);
+  box-shadow: 0 8px 16px rgba(255, 107, 157, 0.3);
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #ff5c8f 0%, #b830c4 100%);
+.nav-bottom {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: white;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
+  padding: 12px 0;
+  z-index: 1000;
 }
 
-/* Loading animation */
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
+.page-with-bottom-nav {
+  padding-bottom: 80px;
+}
+
+.trust-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+  color: white;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.verified-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+@media (min-width: 768px) {
+  .container {
+    max-width: 768px;
+    margin: 0 auto;
   }
-  50% {
-    opacity: 0.5;
-  }
 }
 
-.loading {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-/* Fade in animation */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+@media (min-width: 1024px) {
+  .container {
+    max-width: 1024px;
   }
 }
 
 .fade-in {
-  animation: fadeIn 0.5s ease-out;
+  animation: fadeIn 0.3s ease-in;
 }
 
-/* Slide in animation */
-@keyframes slideIn {
-  from {
-    transform: translateX(-100%);
-  }
-  to {
-    transform: translateX(0);
-  }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.slide-in {
-  animation: slideIn 0.3s ease-out;
-}
-
-/* Slide up animation for install prompt */
-@keyframes slideUp {
-  from {
-    transform: translateY(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-.animate-slide-up {
-  animation: slideUp 0.4s ease-out;
-}
-
-/* Blob animation for landing page */
-@keyframes blob {
-  0% {
-    transform: translate(0px, 0px) scale(1);
-  }
-  33% {
-    transform: translate(30px, -50px) scale(1.1);
-  }
-  66% {
-    transform: translate(-20px, 20px) scale(0.9);
-  }
-  100% {
-    transform: translate(0px, 0px) scale(1);
-  }
-}
-
-.animate-blob {
-  animation: blob 7s infinite;
-}
-
-.animation-delay-2000 {
-  animation-delay: 2s;
-}
-
-.animation-delay-4000 {
-  animation-delay: 4s;
-}
-
-/* Mobile-specific improvements */
-@media (max-width: 768px) {
-  /* Better touch targets */
-  button, a, [role="button"] {
-    min-height: 44px;
-    min-width: 44px;
-  }
-  
-  /* Prevent zoom on input focus */
-  input, select, textarea {
-    font-size: 16px !important;
-  }
-  
-  /* Better spacing for mobile */
-  .mobile-padding {
-    padding: 1rem;
-  }
-
-  /* Enhanced mobile animations */
-  .hover-lift:active {
-    transform: translateY(-4px) scale(0.98);
-  }
-
-  /* Mobile-optimized gradients */
-  .animate-gradient {
-    background-size: 200% 200%;
-  }
-
-  /* Touch-friendly navigation */
-  nav .flex {
-    gap: 0.25rem;
-  }
-
-  /* Mobile card improvements */
-  .mobile-card {
-    margin: 0.5rem;
-    border-radius: 1.5rem;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-  }
-}
-
-/* Enhanced tablet responsiveness */
-@media (min-width: 768px) and (max-width: 1024px) {
-  .grid-responsive {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-/* Large screen optimizations */
-@media (min-width: 1400px) {
-  .hero-container {
-    max-width: 1400px;
-  }
-}
-
-/* Dark mode support (future-ready) */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text-primary: #ffffff;
-    --text-secondary: #e5e5e5;
-    --background-primary: #1a1a1a;
-    --background-secondary: #2d2d2d;
-  }
-}
-
-/* Reduce motion for accessibility */
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-}
-
-/* Prevent double-tap zoom */
-button, a {
-  touch-action: manipulation;
-}
-
-/* Safe area for notch devices */
-@supports (padding: env(safe-area-inset-bottom)) {
-  body {
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-}
-
-/* Enhanced animations and transitions */
-@keyframes heartBeat {
-  0% {
-    transform: scale(1);
-  }
-  14% {
-    transform: scale(1.3);
-  }
-  28% {
-    transform: scale(1);
-  }
-  42% {
-    transform: scale(1.3);
-  }
-  70% {
-    transform: scale(1);
-  }
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: -200px 0;
-  }
-  100% {
-    background-position: calc(200px + 100%) 0;
-  }
-}
-
-@keyframes gradientShift {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
-}
-
-@keyframes bounceIn {
-  0% {
-    transform: scale(0.3);
-    opacity: 0;
-  }
-  50% {
-    transform: scale(1.05);
-  }
-  70% {
-    transform: scale(0.9);
-  }
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
-@keyframes slideInUp {
-  from {
-    transform: translate3d(0, 100%, 0);
-    visibility: visible;
-  }
-  to {
-    transform: translate3d(0, 0, 0);
-  }
-}
-
-@keyframes slideInDown {
-  from {
-    transform: translate3d(0, -100%, 0);
-    visibility: visible;
-  }
-  to {
-    transform: translate3d(0, 0, 0);
-  }
-}
-
-@keyframes glow {
-  0% {
-    box-shadow: 0 0 5px rgba(236, 72, 153, 0.3);
-  }
-  50% {
-    box-shadow: 0 0 20px rgba(236, 72, 153, 0.6);
-  }
-  100% {
-    box-shadow: 0 0 5px rgba(236, 72, 153, 0.3);
-  }
-}
-
-/* Animation classes */
-.animate-heart-beat {
-  animation: heartBeat 1.3s ease-in-out infinite;
-}
-
-.animate-shimmer {
-  background: linear-gradient(
-    90deg,
-    #f0f0f0 0px,
-    rgba(229, 229, 229, 0.8) 40px,
-    #f0f0f0 80px
-  );
-  background-size: 200px;
-  animation: shimmer 1.5s ease-in-out infinite;
-}
-
-.animate-gradient {
-  background: linear-gradient(-45deg, #ff6b9d, #c739d5, #ff6b9d, #c739d5);
-  background-size: 400% 400%;
-  animation: gradientShift 3s ease infinite;
-}
-
-.animate-bounce-in {
-  animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-}
-
-.animate-slide-in-up {
-  animation: slideInUp 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-}
-
-.animate-slide-in-down {
-  animation: slideInDown 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-}
-
-.animate-glow {
-  animation: glow 2s ease-in-out infinite alternate;
-}
-
-/* Enhanced hover effects */
-.hover-lift {
-  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-}
-
-.hover-lift:hover {
-  transform: translateY(-8px) scale(1.02);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
-}
-
-.glass-effect {
-  backdrop-filter: blur(10px);
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-/* Enhanced gradient backgrounds */
-.gradient-primary {
-  background: linear-gradient(135deg, #ff6b9d 0%, #c739d5 50%, #ff6b9d 100%);
-}
-
-.gradient-secondary {
-  background: linear-gradient(135deg, #ffeef8 0%, #fff5f0 50%, #f0f9ff 100%);
-}
-
-/* Skeleton loading */
 .skeleton {
-  background: linear-gradient(
-    90deg,
-    #f0f0f0 0px,
-    rgba(229, 229, 229, 0.8) 40px,
-    #f0f0f0 80px
-  );
-  background-size: 200px;
-  animation: shimmer 1.5s ease-in-out infinite;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
 }
 
-/* Enhanced shadows */
-.shadow-soft {
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+@keyframes loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
-.shadow-glow {
-  box-shadow: 0 8px 32px rgba(236, 72, 153, 0.3);
+img {
+  content-visibility: auto;
 }
 
-.shadow-elevated {
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+.lazy-load {
+  opacity: 0;
+  transition: opacity 0.3s;
 }
 
-/* Smooth transitions for better mobile experience */
-* {
-  -webkit-tap-highlight-color: transparent;
+.lazy-load.loaded {
+  opacity: 1;
 }
-
-/* Enhanced focus styles */
-.focus-visible {
-  outline: 2px solid #ec4899;
-  outline-offset: 2px;
-}
-
-/* Custom scrollbar with gradient */
-::-webkit-scrollbar {
-  width: 12px;
-}
-
-::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 6px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #ff6b9d 0%, #c739d5 100%);
-  border-radius: 6px;
-  border: 2px solid rgba(255, 255, 255, 0.1);
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #ff5c8f 0%, #b830c4 100%);
-}
-
-
-/* Bottom Navigation Spacing */
-.page-with-bottom-nav {
-  padding-top: max(env(safe-area-inset-top, 0), 20px); /* Space for top status bar */
-  padding-bottom: 80px; /* Space for bottom navigation */
-  min-height: 100vh;
-}
-
-/* Safe area for top status bar */
-.safe-area-inset-top {
-  padding-top: env(safe-area-inset-top, 20px);
-  margin-top: env(safe-area-inset-top, 0);
-}
-
-/* Safe area for bottom navigation on iOS/Android */
-.safe-area-inset-bottom {
-  padding-bottom: env(safe-area-inset-bottom, 0);
-}
-
-/* Enhanced touch targets for mobile navigation */
-.touch-manipulation {
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-/* Ensure bottom nav is always on top */
-nav[class*="bottom"] {
-  z-index: 9999 !important;
-}
-
-/* Prevent content from going behind bottom nav */
-@media (max-width: 768px) {
-  main, .main-content {
-    padding-top: max(env(safe-area-inset-top, 0), 24px);
-    padding-bottom: 100px;
-  }
-  
-  /* Ensure all pages respect status bar */
-  .min-h-screen {
-    padding-top: max(env(safe-area-inset-top, 0), 24px) !important;
-  }
-}
-
-/* ========================================
-   STATUS BAR & SAFE AREA OPTIMIZATIONS
-   ======================================== */
-
-/* Visible Top Bar for Status Bar Area */
-body::before {
-  content: '';
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 60px;
-  background: linear-gradient(135deg, #ff6b9d 0%, #ec4899 50%, #ff8c42 100%);
-  z-index: 9998;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-}
-
-/* Remove any gaps/margins */
-body {
-  margin: 0;
-  padding: 0;
-}
-
-.App {
-  margin: 0;
-  padding: 0;
-}
-
-/* Ensure content starts right below top bar */
-.page-with-bottom-nav {
-  margin-top: 0 !important;
-  padding-top: 60px !important;
-}
-
-/* iOS Safari Status Bar Fix */
-@supports (padding: env(safe-area-inset-top)) {
-  html {
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-  
-  body::before {
-    height: calc(60px + env(safe-area-inset-top, 0));
-    padding-top: env(safe-area-inset-top, 0);
-  }
-}
-
-/* Ensure content starts below status bar */
-.status-bar-spacing {
-  padding-top: max(env(safe-area-inset-top, 0), 24px);
-}
-
-/* Full viewport height accounting for safe areas */
-.full-viewport {
-  min-height: 100vh;
-  min-height: -webkit-fill-available;
-  padding-top: env(safe-area-inset-top, 0);
-  padding-bottom: env(safe-area-inset-bottom, 0);
-}
-
-/* iOS notch-safe design */
-@media screen and (device-aspect-ratio: 375/812) {
-  /* iPhone X, XS, 11 Pro */
-  .page-with-bottom-nav {
-    padding-top: 44px; /* Status bar + notch */
-  }
-}
-
-@media screen and (device-aspect-ratio: 414/896) {
-  /* iPhone XR, XS Max, 11, 11 Pro Max */
-  .page-with-bottom-nav {
-    padding-top: 44px;
-  }
-}
-
-/* Android status bar */
-@media (max-width: 768px) {
-  body {
-    padding-top: 24px; /* Android status bar height */
-  }
-  
-  /* Prevent content behind status bar */
-  .min-h-screen > div:first-child {
-    margin-top: 24px;
-  }
-}
-
-
