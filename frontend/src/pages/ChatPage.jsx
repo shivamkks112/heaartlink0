@@ -351,8 +351,8 @@ const ChatPage = ({ user }) => {
       </div>
 
       {/* Input */}
-      <div className="bg-white border-t border-gray-200 p-4">
-        <form onSubmit={sendMessage} className="flex gap-3">
+      <div className="sticky bottom-0 bg-white border-t border-gray-200 p-3 sm:p-4 pb-safe">
+        <form onSubmit={sendMessage} className="flex gap-2 sm:gap-3">
           <Input
             data-testid="message-input"
             type="text"
