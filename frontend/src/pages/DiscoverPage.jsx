@@ -26,10 +26,6 @@ const DiscoverPage = ({ user }) => {
 
   const minSwipeDistance = 50;
 
-  useEffect(() => {
-    fetchProfiles();
-  }, []);
-
   const fetchProfiles = async () => {
     try {
       const response = await axios.get(`${API}/discover/${user.id}`);
@@ -40,6 +36,11 @@ const DiscoverPage = ({ user }) => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchProfiles();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleAction = async (action) => {
     if (profiles.length === 0) return;
