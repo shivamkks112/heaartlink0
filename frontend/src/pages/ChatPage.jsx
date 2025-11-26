@@ -239,11 +239,11 @@ const ChatPage = ({ user }) => {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 page-with-bottom-nav status-bar-spacing">
+    <div className="h-screen flex flex-col bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 status-bar-spacing">
       <Toaster position="top-center" />
       
       {/* Header */}
-      <div className="bg-white shadow-md px-4 py-4 flex items-center justify-between">
+      <div className="sticky top-0 z-50 bg-white shadow-md px-4 py-3 sm:py-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button
             data-testid="back-btn"
