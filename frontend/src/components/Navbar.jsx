@@ -35,9 +35,9 @@ const Navbar = ({ user }) => {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md shadow-lg z-[9999] border-t border-gray-200 safe-area-inset-bottom">
-      <div className="max-w-7xl mx-auto px-2">
-        <div className="flex items-center justify-around h-16 sm:h-20">
+    <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md shadow-lg z-50 border-t border-gray-200 pb-safe">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4">
+        <div className="flex items-center justify-around h-16 sm:h-18 md:h-20">
           {/* Navigation */}
           <div className="flex items-center justify-around gap-1 sm:gap-4 w-full">
             <button
