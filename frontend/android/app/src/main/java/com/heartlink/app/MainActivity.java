@@ -1,4 +1,4 @@
-package com.heartlink.dating;
+package com.heartlink.app;
 
 import com.getcapacitor.BridgeActivity;
 
