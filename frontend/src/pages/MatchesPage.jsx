@@ -67,7 +67,7 @@ const MatchesPage = ({ user }) => {
     } else {
       fetchActiveUsers();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line
   }, [activeTab]);
 
   if (loading) {
