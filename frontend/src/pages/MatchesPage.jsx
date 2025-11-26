@@ -158,15 +158,15 @@ const MatchesPage = ({ user }) => {
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
                 {matches.map((match, index) => (
                   <div
                     key={match.match_id}
                     data-testid="match-card"
-                    className="bg-white rounded-2xl shadow-soft overflow-hidden hover:shadow-elevated transition-all duration-500 transform hover:-translate-y-4 hover:scale-105 group hover-lift animate-bounce-in"
+                    className="bg-white rounded-xl sm:rounded-2xl shadow-soft overflow-hidden hover:shadow-elevated transition-all duration-300 transform hover:-translate-y-2 group animate-bounce-in"
                     style={{animationDelay: `${index * 0.1}s`}}
                   >
-                    <div className="relative h-64 bg-gradient-to-br from-pink-200 to-orange-200">
+                    <div className="relative h-48 sm:h-56 md:h-64 bg-gradient-to-br from-pink-200 to-orange-200">
                       {match.user.profile_picture ? (
                         <img
                           src={match.user.profile_picture}
