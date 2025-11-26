@@ -101,7 +101,7 @@ const MatchesPage = ({ user }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 pb-20 sm:pb-24">
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 pb-20 sm:pb-24 pt-16">
       <TopBar />
       <Toaster position="top-center" />
       <Navbar user={user} />
