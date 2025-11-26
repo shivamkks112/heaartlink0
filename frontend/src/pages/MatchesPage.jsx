@@ -192,22 +192,22 @@ const MatchesPage = ({ user }) => {
                       )}
                     </div>
 
-                    <div className="p-5">
-                      <h3 className="text-xl font-bold text-gray-900 mb-1">
+                    <div className="p-3 sm:p-4 md:p-5">
+                      <h3 className="text-base sm:text-lg md:text-xl font-bold text-gray-900 mb-1 truncate">
                         {match.user.name}, {match.user.age}
                       </h3>
                       
                       {match.compatibility_score && (
-                        <div className="flex items-center gap-2 mb-3">
-                          <Sparkles className="w-4 h-4 text-pink-500" />
-                          <span className="text-sm font-semibold text-pink-600">
+                        <div className="flex items-center gap-1 sm:gap-2 mb-2 sm:mb-3">
+                          <Sparkles className="w-3 h-3 sm:w-4 sm:h-4 text-pink-500 flex-shrink-0" />
+                          <span className="text-xs sm:text-sm font-semibold text-pink-600">
                             {match.compatibility_score.toFixed(0)}% Compatible
                           </span>
                         </div>
                       )}
 
                       {match.ai_analysis && (
-                        <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                        <p className="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4 line-clamp-2">
                           {match.ai_analysis}
                         </p>
                       )}
@@ -215,10 +215,10 @@ const MatchesPage = ({ user }) => {
                       <button
                         data-testid="chat-btn"
                         onClick={() => navigate(`/chat/${match.match_id}`)}
-                        className="w-full bg-gradient-to-r from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all"
+                        className="w-full bg-gradient-to-r from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600 text-white py-2 sm:py-2.5 md:py-3 rounded-lg sm:rounded-xl font-semibold text-sm sm:text-base flex items-center justify-center gap-1 sm:gap-2 transition-all"
                       >
-                        <MessageCircle className="w-5 h-5" />
-                        Start Chat
+                        <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+                        <span className="hidden xs:inline">Start </span>Chat
                       </button>
                     </div>
                   </div>
