@@ -74,20 +74,20 @@ const MatchesPage = ({ user }) => {
       <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 page-with-bottom-nav">
         <TopBar />
         <Navbar user={user} />
-        <div className="max-w-6xl mx-auto px-4 py-8 pb-24">
-          <div className="mb-8 animate-slide-in-down">
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">Connections</h1>
-            <p className="text-gray-600">Your matches and active users</p>
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 pb-24">
+          <div className="mb-4 sm:mb-6 md:mb-8 animate-slide-in-down">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-1 sm:mb-2">Connections</h1>
+            <p className="text-sm sm:text-base text-gray-600">Your matches and active users</p>
           </div>
 
           {/* Tabs skeleton */}
-          <div className="flex gap-4 mb-8 animate-slide-in-up">
-            <div className="flex-1 h-16 bg-gray-200 rounded-xl animate-shimmer"></div>
-            <div className="flex-1 h-16 bg-gray-200 rounded-xl animate-shimmer"></div>
+          <div className="flex gap-2 sm:gap-3 md:gap-4 mb-4 sm:mb-6 md:mb-8 animate-slide-in-up">
+            <div className="flex-1 h-12 sm:h-14 md:h-16 bg-gray-200 rounded-lg sm:rounded-xl animate-shimmer"></div>
+            <div className="flex-1 h-12 sm:h-14 md:h-16 bg-gray-200 rounded-lg sm:rounded-xl animate-shimmer"></div>
           </div>
 
           {/* Cards skeleton */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
             {Array.from({ length: 6 }).map((_, idx) => (
               <div key={idx} className="animate-bounce-in" style={{animationDelay: `${idx * 0.1}s`}}>
                 <MatchCardSkeleton />
