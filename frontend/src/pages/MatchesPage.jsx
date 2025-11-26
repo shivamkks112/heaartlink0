@@ -22,14 +22,6 @@ const MatchesPage = ({ user }) => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('matches'); // 'matches' or 'active'
 
-  useEffect(() => {
-    if (activeTab === 'matches') {
-      fetchMatches();
-    } else {
-      fetchActiveUsers();
-    }
-  }, [activeTab]);
-
   const fetchMatches = async () => {
     setLoading(true);
     try {
@@ -68,6 +60,15 @@ const MatchesPage = ({ user }) => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (activeTab === 'matches') {
+      fetchMatches();
+    } else {
+      fetchActiveUsers();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   if (loading) {
     return (
