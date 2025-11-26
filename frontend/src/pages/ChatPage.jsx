@@ -296,6 +296,7 @@ const ChatPage = ({ user }) => {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          </div>
         </div>
       </div>
 
