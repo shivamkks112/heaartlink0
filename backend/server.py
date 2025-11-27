@@ -1489,6 +1489,21 @@ async def send_message_http(message_data: Message):
 @api_router.websocket("/ws/{user_id}")
 async def websocket_endpoint(websocket: WebSocket, user_id: str):
     await manager.connect(user_id, websocket)
+    
+    # Set user online
+    await db.users.update_one(
+        {"id": user_id},
+        {
+            "$set": {
+                "is_online": True,
+                "last_active": datetime.now(timezone.utc).isoformat()
+            }
+        }
+    )
+    
+    # Broadcast online status to all connected users
+    await manager.broadcast_status_update(user_id, True)
+    
     try:
         while True:
             data = await websocket.receive_text()
