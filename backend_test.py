@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """
-HeartLink Backend Critical Issues Debug Test
-Tests two critical issues:
-1. Messages Not Sending - Complete message sending flow via HTTP and WebSocket
-2. Profile Verification Button Not Visible - Verification status and endpoint testing
+HeartLink Backend Real-Time Online Status and Last Active Feature Test
+Tests the real-time online status tracking:
+1. Backend API - Check User Data (is_online and last_active fields)
+2. WebSocket Connection (/api/ws/{user_id})
+3. Online Status Update (is_online becomes true/false on connect/disconnect)
+4. Broadcast Functionality (status_update messages)
+5. Database Verification (MongoDB direct queries)
 """
 
 import requests
@@ -14,10 +17,12 @@ import websockets
 import threading
 import time
 from datetime import datetime
+import pymongo
+from pymongo import MongoClient
 
 # Backend URL from environment
 BACKEND_URL = "https://dating-native-app.preview.emergentagent.com/api"
-WEBSOCKET_URL = "wss://cupids-arrow-23.preview.emergentagent.com/ws"
+WEBSOCKET_URL = "wss://dating-native-app.preview.emergentagent.com/api/ws"
 
 def print_test_header(test_name):
     print(f"\n{'='*60}")
