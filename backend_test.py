@@ -3265,54 +3265,49 @@ def test_block_unblock_mute_unmute_functionality():
     return all_tests_passed
 
 def main():
-    """Main test execution for HeartLink backend critical issues testing"""
-    print(f"🚀 HeartLink Backend Critical Issues Testing")
+    """Main test execution for HeartLink backend real-time online status testing"""
+    print(f"🔄 HeartLink Backend Real-Time Online Status and Last Active Feature Test")
     print(f"Backend URL: {BACKEND_URL}")
     print(f"WebSocket URL: {WEBSOCKET_URL}")
     print(f"Test started at: {datetime.now()}")
-    print(f"Testing 2 Critical Issues: Messages Not Sending & Profile Verification Button")
+    print(f"Testing Real-time online status and last active feature")
     
     all_tests_passed = True
     
-    # CRITICAL ISSUE 1: Messages Not Sending
+    # REAL-TIME ONLINE STATUS FEATURE TEST
     print(f"\n{'='*80}")
-    print("🚨 CRITICAL ISSUE 1: MESSAGES NOT SENDING")
+    print("🔄 REAL-TIME ONLINE STATUS AND LAST ACTIVE FEATURE")
     print(f"{'='*80}")
-    issue1_passed = test_critical_issue_1_messages_not_sending()
-    if not issue1_passed:
-        all_tests_passed = False
-    
-    # CRITICAL ISSUE 2: Profile Verification Button Not Visible
-    print(f"\n{'='*80}")
-    print("🚨 CRITICAL ISSUE 2: PROFILE VERIFICATION BUTTON NOT VISIBLE")
-    print(f"{'='*80}")
-    issue2_passed = test_critical_issue_2_profile_verification()
-    if not issue2_passed:
+    online_status_passed = test_real_time_online_status_feature()
+    if not online_status_passed:
         all_tests_passed = False
     
     # Final summary
     print(f"\n{'='*80}")
-    print("🚨 HEARTLINK CRITICAL ISSUES TEST SUMMARY")
+    print("🔄 HEARTLINK REAL-TIME ONLINE STATUS TEST SUMMARY")
     print(f"{'='*80}")
     
     if all_tests_passed:
-        print("✅ ALL CRITICAL ISSUES RESOLVED")
-        print("   ✅ ISSUE 1: Messages sending working correctly (HTTP + WebSocket)")
-        print("   ✅ ISSUE 2: Profile verification button/status working correctly")
-        print("\n🎉 CONCLUSION: Both critical issues have been resolved!")
-        print("   Message sending functionality is operational")
-        print("   Profile verification system is working as expected")
+        print("✅ REAL-TIME ONLINE STATUS FEATURE WORKING CORRECTLY")
+        print("   ✅ Backend API includes is_online and last_active fields")
+        print("   ✅ WebSocket connections working properly")
+        print("   ✅ Online status updates on connect/disconnect")
+        print("   ✅ Status broadcast functionality working")
+        print("   ✅ Database verification successful")
+        print("   ✅ Backend logs show no WebSocket errors")
+        print("\n🎉 CONCLUSION: Real-time online status feature is fully operational!")
+        print("   Users' online status is tracked correctly")
+        print("   WebSocket connections update status in real-time")
+        print("   Status broadcasts are sent to all connected users")
         print("   Backend APIs are ready for production use")
         return True
     else:
-        print("❌ CRITICAL ISSUES STILL EXIST")
+        print("❌ REAL-TIME ONLINE STATUS FEATURE HAS ISSUES")
         print("   Check individual test results above for details")
-        print("\n🔍 CRITICAL ISSUES REQUIRING IMMEDIATE ATTENTION:")
-        if not issue1_passed:
-            print("   ❌ ISSUE 1: Messages not sending - needs immediate fix")
-        if not issue2_passed:
-            print("   ❌ ISSUE 2: Profile verification button issues - needs investigation")
-        print("\n   These critical issues must be resolved for proper app functionality")
+        print("\n🔍 ISSUES REQUIRING ATTENTION:")
+        if not online_status_passed:
+            print("   ❌ Real-time online status feature needs investigation")
+        print("\n   These issues should be resolved for optimal user experience")
         return False
 
 if __name__ == "__main__":
