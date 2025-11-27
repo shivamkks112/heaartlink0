@@ -198,6 +198,21 @@ const MatchesPage = ({ user }) => {
                         {match.user.name}, {match.user.age}
                       </h3>
                       
+                      {/* Online Status */}
+                      {match.user.is_online ? (
+                        <div className="flex items-center gap-1 mb-2">
+                          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                          <span className="text-xs text-green-600 font-medium">Online now</span>
+                        </div>
+                      ) : match.user.last_active && (
+                        <div className="flex items-center gap-1 mb-2">
+                          <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                          <span className="text-xs text-gray-500">
+                            {formatLastSeen(match.user.last_active)}
+                          </span>
+                        </div>
+                      )}
+                      
                       {match.compatibility_score && (
                         <div className="flex items-center gap-1 sm:gap-2 mb-2 sm:mb-3">
                           <Sparkles className="w-3 h-3 sm:w-4 sm:h-4 text-pink-500 flex-shrink-0" />
