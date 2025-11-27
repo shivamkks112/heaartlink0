@@ -297,10 +297,10 @@ const ChatPage = ({ user }) => {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  className="p-2 hover:bg-gray-100 rounded-full transition-all"
+                  className="p-2 hover:bg-white/20 rounded-full transition-all backdrop-blur-sm"
                   title="More options"
                 >
-                  <MoreVertical className="w-5 h-5 text-gray-700" />
+                  <MoreVertical className="w-5 h-5 text-white" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
