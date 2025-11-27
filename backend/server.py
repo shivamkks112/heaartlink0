@@ -1549,6 +1549,20 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
                     )
     except WebSocketDisconnect:
         manager.disconnect(user_id)
+        
+        # Set user offline
+        await db.users.update_one(
+            {"id": user_id},
+            {
+                "$set": {
+                    "is_online": False,
+                    "last_active": datetime.now(timezone.utc).isoformat()
+                }
+            }
+        )
+        
+        # Broadcast offline status
+        await manager.broadcast_status_update(user_id, False)
 
 # ============================================
 # FCM PUSH NOTIFICATIONS ENDPOINTS
