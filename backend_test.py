@@ -1515,7 +1515,7 @@ def test_real_time_online_status_feature():
     
     # Test 2: WebSocket Connection
     print_test_header("Test 2: WebSocket Connection (/api/ws/{user_id})")
-    websocket_test_passed = test_websocket_connection()
+    websocket_test_passed = test_websocket_connection_simple()
     if not websocket_test_passed:
         all_tests_passed = False
     
