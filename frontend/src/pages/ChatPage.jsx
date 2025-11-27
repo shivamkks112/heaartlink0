@@ -242,9 +242,9 @@ const ChatPage = ({ user }) => {
     <div className="h-screen flex flex-col bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50">
       <Toaster position="top-center" />
       
-      {/* Header - Simple like Likes page */}
-      <div className="fixed top-0 left-0 right-0 z-[60] backdrop-blur-xl bg-white/80 border-b border-pink-100 shadow-sm">
-        <div className="max-w-2xl mx-auto px-4 py-4">
+      {/* Header - Simple like Likes page with safe area */}
+      <div className="fixed top-0 left-0 right-0 z-[60] backdrop-blur-xl bg-white/80 border-b border-pink-100 shadow-sm pt-safe">
+        <div className="max-w-2xl mx-auto px-4 py-3 sm:py-4">
           <div className="flex items-center justify-between">
             <button
               data-testid="back-btn"
