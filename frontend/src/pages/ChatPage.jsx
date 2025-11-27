@@ -368,8 +368,8 @@ const ChatPage = ({ user }) => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
-      <div className="sticky bottom-0 bg-white border-t border-gray-200 p-3 sm:p-4 pb-safe">
+      {/* Input - Fixed at bottom */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 sm:p-4 pb-safe z-50">
         <form onSubmit={sendMessage} className="flex gap-2 sm:gap-3">
           <Input
             data-testid="message-input"
