@@ -246,6 +246,21 @@ const DiscoverPage = ({ user }) => {
               <h2 className="text-3xl font-bold text-gray-900">{currentProfile.name}, {currentProfile.age}</h2>
             </div>
             
+            {/* Online Status */}
+            {currentProfile.is_online ? (
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-sm text-green-600 font-semibold">Online now</span>
+              </div>
+            ) : currentProfile.last_active && (
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-2.5 h-2.5 bg-gray-400 rounded-full"></div>
+                <span className="text-sm text-gray-500">
+                  Active {formatLastSeen(currentProfile.last_active)}
+                </span>
+              </div>
+            )}
+            
             {currentProfile.location && (
               <div className="flex items-center gap-2 text-gray-600 mb-4">
                 <MapPin className="w-4 h-4" />
