@@ -402,6 +402,7 @@ test_plan:
     - "Real-Time Online Status and Last Active Feature"
   stuck_tasks: 
     - "Email OTP Functionality with Titan SMTP"
+    - "Real-Time Online Status and Last Active Feature"
   test_all: false
   test_priority: "high_first"
 
