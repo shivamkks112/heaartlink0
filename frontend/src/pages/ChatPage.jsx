@@ -79,6 +79,7 @@ const ChatPage = ({ user }) => {
       
       wsRef.current.onmessage = (event) => {
         const data = JSON.parse(event.data);
+        
         if (data.type === 'message' && data.message.match_id === matchId) {
           setMessages(prev => {
             // Remove temp message if exists
@@ -96,6 +97,15 @@ const ChatPage = ({ user }) => {
             if (exists) return prev;
             return [...withoutTemp, data.message];
           });
+        } else if (data.type === 'status_update') {
+          // Update other user's online status in real-time
+          if (otherUser && data.user_id === otherUser.id) {
+            setOtherUser(prev => ({
+              ...prev,
+              is_online: data.is_online,
+              last_active: data.last_active
+            }));
+          }
         }
       };
 
