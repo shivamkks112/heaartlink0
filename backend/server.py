@@ -56,6 +56,19 @@ class ConnectionManager:
                 await self.active_connections[user_id].send_json(message)
             except:
                 self.disconnect(user_id)
+    
+    async def broadcast_status_update(self, user_id: str, is_online: bool):
+        """Broadcast user online/offline status to all connected users"""
+        status_message = {
+            "type": "status_update",
+            "user_id": user_id,
+            "is_online": is_online,
+            "last_active": datetime.now(timezone.utc).isoformat()
+        }
+        
+        # Send to all connected users
+        for connected_user_id in list(self.active_connections.keys()):
+            await self.send_message(connected_user_id, status_message)
 
 manager = ConnectionManager()
 
