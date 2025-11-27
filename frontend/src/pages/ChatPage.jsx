@@ -239,7 +239,7 @@ const ChatPage = ({ user }) => {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50">
+    <div className="h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 relative overflow-hidden">
       <Toaster position="top-center" />
       
       {/* Header - Unique Chat Design with Gradient Background */}
