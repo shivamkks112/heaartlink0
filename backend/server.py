@@ -87,6 +87,7 @@ class User(BaseModel):
     blocked_users: List[str] = []
     muted_users: List[str] = []  # New: Muted users
     profile_views: int = 0  # New: Profile view count
+    is_online: bool = False  # Online status
     last_active: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())  # New: Last active timestamp
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     
