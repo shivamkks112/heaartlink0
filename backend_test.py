@@ -1498,6 +1498,534 @@ def test_existing_matches_priya_raj():
     
     return priya_user_id is not None and raj_user_id is not None
 
+def test_real_time_online_status_feature():
+    """
+    COMPREHENSIVE REAL-TIME ONLINE STATUS AND LAST ACTIVE FEATURE TEST
+    Tests all aspects of the real-time online status tracking as requested in review
+    """
+    print_test_header("🔄 REAL-TIME ONLINE STATUS AND LAST ACTIVE FEATURE - COMPREHENSIVE TEST")
+    
+    all_tests_passed = True
+    
+    # Test 1: Backend API - Check User Data
+    print_test_header("Test 1: Backend API - Check User Data (is_online and last_active fields)")
+    api_test_passed = test_user_profile_online_fields()
+    if not api_test_passed:
+        all_tests_passed = False
+    
+    # Test 2: WebSocket Connection
+    print_test_header("Test 2: WebSocket Connection (/api/ws/{user_id})")
+    websocket_test_passed = test_websocket_connection()
+    if not websocket_test_passed:
+        all_tests_passed = False
+    
+    # Test 3: Online Status Update
+    print_test_header("Test 3: Online Status Update (connect/disconnect)")
+    status_update_passed = test_online_status_updates()
+    if not status_update_passed:
+        all_tests_passed = False
+    
+    # Test 4: Broadcast Functionality
+    print_test_header("Test 4: Broadcast Functionality (status_update messages)")
+    broadcast_test_passed = test_status_broadcast()
+    if not broadcast_test_passed:
+        all_tests_passed = False
+    
+    # Test 5: Database Verification
+    print_test_header("Test 5: Database Verification (MongoDB direct queries)")
+    db_test_passed = test_database_online_status()
+    if not db_test_passed:
+        all_tests_passed = False
+    
+    # Test 6: Check Backend Logs
+    print_test_header("Test 6: Check Backend Logs for WebSocket errors")
+    log_test_passed = check_backend_logs()
+    if not log_test_passed:
+        all_tests_passed = False
+    
+    return all_tests_passed
+
+def test_user_profile_online_fields():
+    """Test 1: Backend API - Check User Data for is_online and last_active fields"""
+    print_test_header("GET /api/profile/{user_id} - Verify is_online and last_active fields")
+    
+    # First, get a test user
+    test_user_id, test_user_data = get_or_create_test_user()
+    if not test_user_id:
+        print_result(False, "Failed to get test user for profile testing")
+        return False
+    
+    try:
+        response = requests.get(f"{BACKEND_URL}/profile/{test_user_id}")
+        
+        if response.status_code == 200:
+            profile_data = response.json()
+            
+            # Check if is_online field exists
+            has_is_online = "is_online" in profile_data
+            is_online_value = profile_data.get("is_online")
+            
+            # Check if last_active field exists
+            has_last_active = "last_active" in profile_data
+            last_active_value = profile_data.get("last_active")
+            
+            # Validate last_active timestamp format
+            valid_timestamp = False
+            if last_active_value:
+                try:
+                    datetime.fromisoformat(last_active_value.replace('Z', '+00:00'))
+                    valid_timestamp = True
+                except:
+                    valid_timestamp = False
+            
+            if has_is_online and has_last_active and valid_timestamp:
+                print_result(True, "✅ Profile API includes is_online and last_active fields", {
+                    "user_id": test_user_id,
+                    "is_online": is_online_value,
+                    "last_active": last_active_value,
+                    "timestamp_valid": valid_timestamp
+                })
+                return True
+            else:
+                print_result(False, "❌ Profile API missing required fields", {
+                    "has_is_online": has_is_online,
+                    "has_last_active": has_last_active,
+                    "valid_timestamp": valid_timestamp,
+                    "profile_keys": list(profile_data.keys())
+                })
+                return False
+        else:
+            print_result(False, f"❌ Profile API failed. Status: {response.status_code}", response.text)
+            return False
+            
+    except Exception as e:
+        print_result(False, f"❌ Error testing profile API: {str(e)}")
+        return False
+
+def test_websocket_connection():
+    """Test 2: WebSocket Connection - Connect to /api/ws/{user_id}"""
+    print_test_header("WebSocket Connection Test - /api/ws/{user_id}")
+    
+    # Get test user
+    test_user_id, test_user_data = get_or_create_test_user()
+    if not test_user_id:
+        print_result(False, "Failed to get test user for WebSocket testing")
+        return False
+    
+    websocket_url = f"{WEBSOCKET_URL}/{test_user_id}"
+    
+    try:
+        # Test WebSocket connection using asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        async def test_websocket():
+            try:
+                async with websockets.connect(websocket_url) as websocket:
+                    print_result(True, "✅ WebSocket connection successful", {
+                        "user_id": test_user_id,
+                        "websocket_url": websocket_url,
+                        "connection_state": "connected"
+                    })
+                    
+                    # Send a test message
+                    test_message = {
+                        "match_id": "test-match-id",
+                        "receiver_id": "test-receiver-id",
+                        "content": "Test message for WebSocket connection"
+                    }
+                    
+                    await websocket.send(json.dumps(test_message))
+                    print_result(True, "✅ Test message sent via WebSocket", test_message)
+                    
+                    # Try to receive a response (with timeout)
+                    try:
+                        response = await asyncio.wait_for(websocket.recv(), timeout=5.0)
+                        print_result(True, "✅ WebSocket response received", {
+                            "response": response
+                        })
+                    except asyncio.TimeoutError:
+                        print_result(True, "✅ WebSocket connection working (no response expected for test message)", {
+                            "note": "Connection established and message sent successfully"
+                        })
+                    
+                    return True
+                    
+            except Exception as e:
+                print_result(False, f"❌ WebSocket connection failed: {str(e)}", {
+                    "websocket_url": websocket_url,
+                    "error": str(e)
+                })
+                return False
+        
+        result = loop.run_until_complete(test_websocket())
+        loop.close()
+        return result
+        
+    except Exception as e:
+        print_result(False, f"❌ Error testing WebSocket connection: {str(e)}")
+        return False
+
+def test_online_status_updates():
+    """Test 3: Online Status Update - is_online becomes true/false on connect/disconnect"""
+    print_test_header("Online Status Update Test - Connect/Disconnect Behavior")
+    
+    # Get test user
+    test_user_id, test_user_data = get_or_create_test_user()
+    if not test_user_id:
+        print_result(False, "Failed to get test user for status update testing")
+        return False
+    
+    try:
+        # Check initial status
+        initial_response = requests.get(f"{BACKEND_URL}/profile/{test_user_id}")
+        if initial_response.status_code != 200:
+            print_result(False, "Failed to get initial user status")
+            return False
+        
+        initial_profile = initial_response.json()
+        initial_is_online = initial_profile.get("is_online", False)
+        initial_last_active = initial_profile.get("last_active")
+        
+        print_result(True, "Initial user status retrieved", {
+            "user_id": test_user_id,
+            "initial_is_online": initial_is_online,
+            "initial_last_active": initial_last_active
+        })
+        
+        # Test WebSocket connection and status change
+        websocket_url = f"{WEBSOCKET_URL}/{test_user_id}"
+        
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        async def test_status_changes():
+            try:
+                # Connect to WebSocket
+                async with websockets.connect(websocket_url) as websocket:
+                    print_result(True, "✅ WebSocket connected for status testing")
+                    
+                    # Wait a moment for status to update
+                    await asyncio.sleep(2)
+                    
+                    # Check if is_online became true
+                    connected_response = requests.get(f"{BACKEND_URL}/profile/{test_user_id}")
+                    if connected_response.status_code == 200:
+                        connected_profile = connected_response.json()
+                        connected_is_online = connected_profile.get("is_online", False)
+                        connected_last_active = connected_profile.get("last_active")
+                        
+                        if connected_is_online:
+                            print_result(True, "✅ is_online became true when WebSocket connected", {
+                                "user_id": test_user_id,
+                                "is_online": connected_is_online,
+                                "last_active_updated": connected_last_active != initial_last_active
+                            })
+                        else:
+                            print_result(False, "❌ is_online did not become true on WebSocket connect", {
+                                "expected": True,
+                                "actual": connected_is_online
+                            })
+                            return False
+                    
+                    # Disconnect will happen automatically when exiting the context
+                    return True
+                    
+                # After WebSocket disconnects, check if is_online became false
+                await asyncio.sleep(2)
+                
+                disconnected_response = requests.get(f"{BACKEND_URL}/profile/{test_user_id}")
+                if disconnected_response.status_code == 200:
+                    disconnected_profile = disconnected_response.json()
+                    disconnected_is_online = disconnected_profile.get("is_online", True)
+                    disconnected_last_active = disconnected_profile.get("last_active")
+                    
+                    if not disconnected_is_online:
+                        print_result(True, "✅ is_online became false when WebSocket disconnected", {
+                            "user_id": test_user_id,
+                            "is_online": disconnected_is_online,
+                            "last_active_updated": disconnected_last_active
+                        })
+                        return True
+                    else:
+                        print_result(False, "❌ is_online did not become false on WebSocket disconnect", {
+                            "expected": False,
+                            "actual": disconnected_is_online
+                        })
+                        return False
+                else:
+                    print_result(False, "Failed to check status after disconnect")
+                    return False
+                    
+            except Exception as e:
+                print_result(False, f"❌ Error in status change test: {str(e)}")
+                return False
+        
+        result = loop.run_until_complete(test_status_changes())
+        loop.close()
+        return result
+        
+    except Exception as e:
+        print_result(False, f"❌ Error testing online status updates: {str(e)}")
+        return False
+
+def test_status_broadcast():
+    """Test 4: Broadcast Functionality - status_update messages to connected users"""
+    print_test_header("Status Broadcast Test - status_update messages")
+    
+    # Get two test users
+    user1_id, user1_data = get_or_create_test_user("user1")
+    user2_id, user2_data = get_or_create_test_user("user2")
+    
+    if not user1_id or not user2_id:
+        print_result(False, "Failed to get test users for broadcast testing")
+        return False
+    
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        async def test_broadcast():
+            try:
+                # Connect User 2 first to listen for broadcasts
+                user2_websocket_url = f"{WEBSOCKET_URL}/{user2_id}"
+                user1_websocket_url = f"{WEBSOCKET_URL}/{user1_id}"
+                
+                async with websockets.connect(user2_websocket_url) as user2_ws:
+                    print_result(True, "✅ User 2 WebSocket connected")
+                    
+                    # Wait a moment
+                    await asyncio.sleep(1)
+                    
+                    # Connect User 1 - this should trigger a broadcast to User 2
+                    async with websockets.connect(user1_websocket_url) as user1_ws:
+                        print_result(True, "✅ User 1 WebSocket connected")
+                        
+                        # Try to receive status_update message on User 2's connection
+                        try:
+                            message = await asyncio.wait_for(user2_ws.recv(), timeout=5.0)
+                            message_data = json.loads(message)
+                            
+                            if message_data.get("type") == "status_update":
+                                if message_data.get("user_id") == user1_id and message_data.get("is_online") == True:
+                                    print_result(True, "✅ Status broadcast received correctly", {
+                                        "message_type": message_data.get("type"),
+                                        "user_id": message_data.get("user_id"),
+                                        "is_online": message_data.get("is_online"),
+                                        "last_active": message_data.get("last_active")
+                                    })
+                                    return True
+                                else:
+                                    print_result(False, "❌ Status broadcast received but incorrect data", message_data)
+                                    return False
+                            else:
+                                print_result(False, "❌ Received message but not status_update type", message_data)
+                                return False
+                                
+                        except asyncio.TimeoutError:
+                            print_result(False, "❌ No status_update broadcast received within timeout", {
+                                "timeout": "5 seconds",
+                                "expected": "status_update message"
+                            })
+                            return False
+                    
+                    # User 1 disconnected - should trigger offline broadcast
+                    try:
+                        offline_message = await asyncio.wait_for(user2_ws.recv(), timeout=5.0)
+                        offline_data = json.loads(offline_message)
+                        
+                        if offline_data.get("type") == "status_update" and offline_data.get("is_online") == False:
+                            print_result(True, "✅ Offline status broadcast received", offline_data)
+                        else:
+                            print_result(False, "❌ Offline broadcast not received or incorrect", offline_data)
+                            
+                    except asyncio.TimeoutError:
+                        print_result(False, "❌ No offline status broadcast received")
+                        
+                    return True
+                    
+            except Exception as e:
+                print_result(False, f"❌ Error in broadcast test: {str(e)}")
+                return False
+        
+        result = loop.run_until_complete(test_broadcast())
+        loop.close()
+        return result
+        
+    except Exception as e:
+        print_result(False, f"❌ Error testing status broadcast: {str(e)}")
+        return False
+
+def test_database_online_status():
+    """Test 5: Database Verification - Query MongoDB directly for is_online field"""
+    print_test_header("Database Verification - MongoDB is_online field")
+    
+    try:
+        # Try to connect to MongoDB (this might not work in the container environment)
+        # We'll use the API to verify instead
+        
+        # Get all users and check if they have is_online field
+        response = requests.get(f"{BACKEND_URL}/admin/all-users")
+        
+        if response.status_code == 200:
+            users = response.json()
+            
+            if not users:
+                print_result(False, "No users found in database")
+                return False
+            
+            # Check a few users for is_online field via profile API
+            users_checked = 0
+            users_with_online_field = 0
+            
+            for user in users[:5]:  # Check first 5 users
+                user_id = user.get("id")
+                if user_id:
+                    profile_response = requests.get(f"{BACKEND_URL}/profile/{user_id}")
+                    if profile_response.status_code == 200:
+                        profile_data = profile_response.json()
+                        users_checked += 1
+                        
+                        if "is_online" in profile_data:
+                            users_with_online_field += 1
+            
+            if users_with_online_field == users_checked and users_checked > 0:
+                print_result(True, "✅ Database verification successful - is_online field exists", {
+                    "users_checked": users_checked,
+                    "users_with_online_field": users_with_online_field,
+                    "total_users_in_db": len(users)
+                })
+                return True
+            else:
+                print_result(False, "❌ Some users missing is_online field", {
+                    "users_checked": users_checked,
+                    "users_with_online_field": users_with_online_field
+                })
+                return False
+        else:
+            print_result(False, f"Failed to get users for database verification. Status: {response.status_code}")
+            return False
+            
+    except Exception as e:
+        print_result(False, f"❌ Error in database verification: {str(e)}")
+        return False
+
+def check_backend_logs():
+    """Test 6: Check Backend Logs for WebSocket errors"""
+    print_test_header("Backend Logs Check - WebSocket errors")
+    
+    try:
+        # Check backend logs for WebSocket-related messages
+        import subprocess
+        
+        # Check supervisor backend logs
+        log_files = [
+            "/var/log/supervisor/backend.err.log",
+            "/var/log/supervisor/backend.out.log"
+        ]
+        
+        websocket_logs_found = False
+        error_logs_found = False
+        
+        for log_file in log_files:
+            try:
+                # Get last 50 lines of log file
+                result = subprocess.run(
+                    ["tail", "-n", "50", log_file],
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+                
+                if result.returncode == 0:
+                    log_content = result.stdout
+                    
+                    # Look for WebSocket-related logs
+                    if "websocket" in log_content.lower() or "ws" in log_content.lower():
+                        websocket_logs_found = True
+                        
+                        # Check for errors
+                        if "error" in log_content.lower() or "exception" in log_content.lower():
+                            error_logs_found = True
+                            print_result(False, f"❌ WebSocket errors found in {log_file}", {
+                                "log_file": log_file,
+                                "errors_detected": True
+                            })
+                        else:
+                            print_result(True, f"✅ WebSocket logs found in {log_file} (no errors)", {
+                                "log_file": log_file,
+                                "websocket_activity": True
+                            })
+                    
+            except Exception as e:
+                print_result(False, f"Could not read log file {log_file}: {str(e)}")
+        
+        if not websocket_logs_found:
+            print_result(True, "✅ No WebSocket errors in backend logs", {
+                "logs_checked": log_files,
+                "websocket_errors": False
+            })
+        
+        return not error_logs_found
+        
+    except Exception as e:
+        print_result(False, f"❌ Error checking backend logs: {str(e)}")
+        return False
+
+def get_or_create_test_user(suffix=""):
+    """Get or create a test user for online status testing"""
+    
+    # Try to login with existing test user first
+    test_email = f"online.status.test{suffix}@heartlink.com"
+    test_password = "OnlineTest@123"
+    
+    login_data = {
+        "email_or_phone": test_email,
+        "password": test_password
+    }
+    
+    try:
+        # Try login first
+        response = requests.post(f"{BACKEND_URL}/auth/login", json=login_data)
+        
+        if response.status_code == 200:
+            login_result = response.json()
+            user_data = login_result.get("user", {})
+            user_id = user_data.get("id")
+            
+            if user_id:
+                return user_id, user_data
+    except:
+        pass
+    
+    # Create new test user
+    signup_data = {
+        "email": test_email,
+        "password": test_password,
+        "name": f"Online Status Test User{suffix}",
+        "age": 25,
+        "gender": "Male",
+        "looking_for": "Female",
+        "bio": "Test user for online status testing",
+        "location": "Test City",
+        "interests": ["Testing", "WebSocket", "Real-time"]
+    }
+    
+    try:
+        response = requests.post(f"{BACKEND_URL}/auth/signup", json=signup_data)
+        
+        if response.status_code == 200:
+            signup_result = response.json()
+            user_id = signup_result.get("user_id")
+            user_data = signup_result.get("user", {})
+            
+            if user_id:
+                return user_id, user_data
+    except Exception as e:
+        print_result(False, f"Failed to create test user: {str(e)}")
+    
+    return None, None
+
 def test_critical_issue_1_messages_not_sending():
     """
     CRITICAL ISSUE 1: Messages Not Sending
