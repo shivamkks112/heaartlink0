@@ -396,7 +396,7 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Real-Time Chat and WebSocket Notifications"
+    - "Real-Time Online Status and Last Active Feature"
   stuck_tasks: 
     - "Email OTP Functionality with Titan SMTP"
   test_all: false
