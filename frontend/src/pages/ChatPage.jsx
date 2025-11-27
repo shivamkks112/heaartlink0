@@ -249,8 +249,12 @@ const ChatPage = ({ user }) => {
             {/* Back Button - Keep as is */}
             <button
               data-testid="back-btn"
-              onClick={() => navigate('/matches')}
-              className="p-2 hover:bg-white/20 rounded-full transition-all backdrop-blur-sm relative z-10"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate('/matches');
+              }}
+              className="p-3 hover:bg-white/20 rounded-full transition-all backdrop-blur-sm relative z-10 active:scale-95"
+              style={{ minWidth: '44px', minHeight: '44px' }}
             >
               <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
