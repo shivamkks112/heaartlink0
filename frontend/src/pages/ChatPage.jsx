@@ -331,8 +331,8 @@ const ChatPage = ({ user }) => {
         </div>
       </div>
 
-      {/* Messages - With gradient header spacing */}
-      <div className="flex-1 overflow-y-auto p-4 pt-24 sm:pt-22 pb-6 space-y-4 bg-gradient-to-b from-pink-50/50 to-transparent" data-testid="messages-container">
+      {/* Messages - Proper spacing between header and input */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gradient-to-b from-pink-50/50 to-transparent" style={{ marginTop: '70px', marginBottom: '80px' }} data-testid="messages-container">
         {messages.length === 0 ? (
           <div className="text-center py-20">
             <p className="text-gray-500">Start the conversation!</p>
