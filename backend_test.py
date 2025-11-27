@@ -1602,7 +1602,7 @@ def test_user_profile_online_fields():
         print_result(False, f"❌ Error testing profile API: {str(e)}")
         return False
 
-def test_websocket_connection():
+def test_websocket_connection_simple():
     """Test 2: WebSocket Connection - Connect to /api/ws/{user_id}"""
     print_test_header("WebSocket Connection Test - /api/ws/{user_id}")
     
