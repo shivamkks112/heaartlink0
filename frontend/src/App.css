@@ -138,6 +138,10 @@ img {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
 /* Ensure content doesn't hide behind navbar on all devices */
 .page-container {
   padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
