@@ -203,6 +203,22 @@ const LikesYouPage = ({ user }) => {
                     <h3 className="text-2xl font-bold mb-1">
                       {likedUser.name}, {likedUser.age}
                     </h3>
+                    
+                    {/* Online Status */}
+                    {likedUser.is_online ? (
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-lg"></div>
+                        <span className="text-xs text-green-300 font-semibold">Online now</span>
+                      </div>
+                    ) : likedUser.last_active && (
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-2 h-2 bg-white/60 rounded-full"></div>
+                        <span className="text-xs text-white/80">
+                          Active {formatLastSeen(likedUser.last_active)}
+                        </span>
+                      </div>
+                    )}
+                    
                     {likedUser.location && (
                       <p className="text-sm text-white/90 mb-2">📍 {likedUser.location}</p>
                     )}
