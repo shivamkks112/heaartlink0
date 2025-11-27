@@ -186,6 +186,27 @@ const ProfilePage = ({ user, onUpdate }) => {
             </div>
             <h2 className="text-3xl font-bold mt-4">{profile.name}</h2>
             <p className="text-white/90 mt-2">{profile.email || profile.phone}</p>
+            
+            {/* Online Status / Last Seen */}
+            <div className="flex items-center justify-center gap-2 mt-3">
+              {profile.is_online ? (
+                <div className="flex items-center gap-2 bg-green-500/30 backdrop-blur-sm px-4 py-2 rounded-full border border-green-300/50">
+                  <div className="w-2.5 h-2.5 bg-green-400 rounded-full animate-pulse shadow-lg"></div>
+                  <span className="text-sm font-semibold">Online Now</span>
+                </div>
+              ) : profile.last_active ? (
+                <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full">
+                  <div className="w-2.5 h-2.5 bg-gray-400 rounded-full"></div>
+                  <span className="text-sm">Last seen {formatLastSeen(profile.last_active)}</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full">
+                  <div className="w-2.5 h-2.5 bg-gray-400 rounded-full"></div>
+                  <span className="text-sm">Offline</span>
+                </div>
+              )}
+            </div>
+            
             <div className="flex items-center justify-center gap-2 mt-4 flex-wrap">
               {profile.verified && (
                 <div className="flex items-center gap-1 bg-white/20 px-3 py-1 rounded-full">
