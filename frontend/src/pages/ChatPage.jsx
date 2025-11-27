@@ -300,7 +300,7 @@ const ChatPage = ({ user }) => {
       </div>
 
       {/* Messages - Add top padding for fixed header */}
-      <div className="flex-1 overflow-y-auto p-4 pt-20 pb-6 space-y-4" data-testid="messages-container">
+      <div className="flex-1 overflow-y-auto p-4 pt-24 sm:pt-20 pb-6 space-y-4" data-testid="messages-container">
         {messages.length === 0 ? (
           <div className="text-center py-20">
             <p className="text-gray-500">Start the conversation!</p>
