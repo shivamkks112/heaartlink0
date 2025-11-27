@@ -336,7 +336,7 @@ const ChatPage = ({ user }) => {
       </div>
 
       {/* Messages - Absolute positioned with proper top spacing */}
-      <div className="absolute inset-0 overflow-y-auto px-4 py-6 space-y-4 bg-gradient-to-b from-pink-50/50 to-transparent" style={{ top: '85px', bottom: '85px' }} data-testid="messages-container">
+      <div className="absolute inset-0 overflow-y-auto px-4 py-6 space-y-4 bg-gradient-to-b from-pink-50/50 to-transparent" style={{ top: '92px', bottom: '88px' }} data-testid="messages-container">
         {messages.length === 0 ? (
           <div className="text-center py-20">
             <p className="text-gray-500">Start the conversation!</p>
