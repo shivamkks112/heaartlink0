@@ -242,24 +242,56 @@ const ChatPage = ({ user }) => {
     <div className="h-screen flex flex-col bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50">
       <Toaster position="top-center" />
       
-      {/* Header - Simple like Likes page with safe area */}
-      <div className="fixed top-0 left-0 right-0 z-[60] backdrop-blur-xl bg-white/80 border-b border-pink-100 shadow-sm pt-safe">
+      {/* Header - Unique Chat Design with Gradient Background */}
+      <div className="fixed top-0 left-0 right-0 z-[60] bg-gradient-to-r from-pink-500 via-rose-500 to-orange-500 shadow-lg pt-safe">
         <div className="max-w-2xl mx-auto px-4 py-3 sm:py-4">
           <div className="flex items-center justify-between">
+            {/* Back Button - Keep as is */}
             <button
               data-testid="back-btn"
               onClick={() => navigate('/matches')}
-              className="p-2 hover:bg-pink-100 rounded-full transition-colors"
+              className="p-2 hover:bg-white/20 rounded-full transition-all backdrop-blur-sm"
             >
-              <svg className="w-6 h-6 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
             
+            {/* User Info - Clickable to open profile */}
             {otherUser && (
-              <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
-                {otherUser.name}
-              </h1>
+              <button
+                onClick={() => navigate(`/profile/${otherUser.id}`)}
+                className="flex items-center gap-3 hover:bg-white/10 rounded-2xl px-3 py-2 transition-all"
+              >
+                <div className="relative">
+                  <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white font-bold border-2 border-white/30 overflow-hidden">
+                    {otherUser.profile_picture ? (
+                      <img 
+                        src={otherUser.profile_picture} 
+                        alt={otherUser.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-lg">{otherUser.name.charAt(0)}</span>
+                    )}
+                  </div>
+                  {/* Online Status Indicator */}
+                  <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 border-white rounded-full"></div>
+                </div>
+                <div className="text-left">
+                  <h1 className="text-base sm:text-lg font-bold text-white">
+                    {otherUser.name}
+                  </h1>
+                  {otherUser.verified && (
+                    <span className="text-xs text-white/80 flex items-center gap-1">
+                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+                      </svg>
+                      Verified
+                    </span>
+                  )}
+                </div>
+              </button>
             )}
             
             <DropdownMenu>
