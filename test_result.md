@@ -378,15 +378,18 @@ frontend:
 
   - task: "Real-Time Online Status and Last Active Feature"
     implemented: true
-    working: true
+    working: false
     file: "server.py"
-    stuck_count: 0
+    stuck_count: 1
     priority: "high"
     needs_retesting: false
     status_history:
         - working: true
           agent: "testing"
           comment: "🔄 REAL-TIME ONLINE STATUS AND LAST ACTIVE FEATURE COMPREHENSIVE TESTING COMPLETE: ALL CRITICAL TESTS PASSED! Successfully verified complete real-time online status tracking functionality as requested in review_request. TESTED SCENARIOS: ✅ 1) BACKEND API - USER DATA: GET /api/profile/{user_id} correctly includes is_online and last_active fields with valid timestamp format (ISO 8601), ✅ 2) WEBSOCKET CONNECTION: WebSocket connections to /api/ws/{user_id} working perfectly - successful connection establishment, test message sending, and automatic status_update broadcasts received, ✅ 3) ONLINE STATUS UPDATE: is_online field correctly updates to true when WebSocket connects and false when disconnects, last_active timestamp updates properly on status changes, ✅ 4) BROADCAST FUNCTIONALITY: Status update messages with type:'status_update' successfully broadcast to all connected users when user goes online/offline, message format correct with user_id, is_online, and last_active fields, ✅ 5) DATABASE VERIFICATION: All users in database (13 total) have is_online field present, field updates correctly when WebSocket connects/disconnects, ✅ 6) BACKEND LOGS: WebSocket connections logged correctly with 'WebSocket /api/ws/{user_id} accepted' messages, connection open/closed events tracked, no WebSocket errors detected. COMPREHENSIVE VERIFICATION: ✅ Real-time status tracking working correctly, ✅ WebSocket-based online/offline detection functional, ✅ Status broadcasts sent to all connected users, ✅ Database migration successful (is_online field exists for all users), ✅ Backend logs show proper WebSocket activity without errors. PERFORMANCE: All API endpoints responding quickly (1-3 seconds), WebSocket connections stable, status updates instantaneous. The real-time online status and last active feature is fully operational and production-ready."
+        - working: false
+          agent: "testing"
+          comment: "❌ FRONTEND ONLINE STATUS DISPLAY CRITICAL ISSUES IDENTIFIED: Comprehensive testing of real-time online status display on frontend reveals multiple critical issues. BACKEND VERIFICATION: ✅ Backend APIs working perfectly - both test users (shivam.fresh@heartlink.com, shub123@gmail.com) exist with is_online and last_active fields, WebSocket connections established successfully in backend logs. FRONTEND ISSUES IDENTIFIED: ❌ 1) AUTHENTICATION PROBLEM: Users can login successfully but get redirected to landing page instead of staying authenticated, preventing access to profile/chat pages, ❌ 2) ONLINE STATUS DISPLAY MISSING: No online status badges found on profile pages - missing 'Online Now', 'Last seen X ago', or 'Offline' indicators, ❌ 3) WEBSOCKET INTEGRATION MISSING: JavaScript code analysis shows no WebSocket functionality, status_update handling, or formatLastSeen function detected in frontend bundle, ❌ 4) CHAT HEADER STATUS MISSING: No online status display found in chat headers, ❌ 5) PROFILE STATUS MISSING: No online status badges found on user profile pages. ROOT CAUSE: Frontend is not properly implementing the online status display components despite backend functionality being operational. The ProfilePage.jsx and ChatPage.jsx components have the code for online status display, but it's not being rendered or the authentication flow is broken. REQUIRES IMMEDIATE ATTENTION: Fix frontend authentication persistence and ensure online status components are properly rendered with real-time WebSocket integration."
 
 metadata:
   created_by: "main_agent"
