@@ -1174,14 +1174,21 @@ async def discover_nearby(user_id: str, max_distance: int = 25, limit: int = 20)
 @api_router.post("/profile/{user_id}/view")
 async def track_profile_view(user_id: str, viewer_id: str = None):
     """Track profile view"""
+    # Check if viewer is in incognito mode
+    viewer_incognito = False
+    if viewer_id:
+        viewer = await db.users.find_one({"id": viewer_id}, {"_id": 0, "privacy_settings": 1})
+        if viewer and viewer.get("privacy_settings", {}).get("incognito_mode", False):
+            viewer_incognito = True
+    
     # Increment profile views
     await db.users.update_one(
         {"id": user_id},
         {"$inc": {"profile_views": 1}}
     )
     
-    # Optionally store who viewed (for "Who Viewed Me" feature)
-    if viewer_id:
+    # Only store who viewed if NOT in incognito mode
+    if viewer_id and not viewer_incognito:
         view_doc = {
             "profile_id": user_id,
             "viewer_id": viewer_id,
@@ -1189,7 +1196,7 @@ async def track_profile_view(user_id: str, viewer_id: str = None):
         }
         await db.profile_views.insert_one(view_doc)
     
-    return {"message": "Profile view tracked"}
+    return {"message": "Profile view tracked", "incognito": viewer_incognito}
 
 @api_router.post("/user/{user_id}/update-activity")
 async def update_last_active(user_id: str):
