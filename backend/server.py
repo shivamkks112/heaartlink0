@@ -1361,16 +1361,32 @@ async def get_matches(user_id: str):
             if user_id in other_blocked:
                 continue
                 
+            # Check show_photos privacy setting
+            privacy_settings = other_user.get("privacy_settings", {})
+            show_photos = privacy_settings.get("show_photos", True)
+            
+            # Build user data with conditional photo visibility
+            user_data = {
+                "id": other_user["id"],
+                "name": other_user["name"],
+                "age": other_user["age"],
+                "verified": other_user.get("verified", False),
+                "is_online": other_user.get("is_online", False),
+                "last_active": other_user.get("last_active")
+            }
+            
+            # Only include photos if show_photos is True (since they're matched)
+            if show_photos:
+                user_data["photos"] = other_user.get("photos", [])
+                user_data["profile_picture"] = other_user.get("profile_picture")
+            else:
+                # Provide placeholder or empty
+                user_data["photos"] = []
+                user_data["profile_picture"] = None
+            
             result.append({
                 "match_id": match["id"],
-                "user": {
-                    "id": other_user["id"],
-                    "name": other_user["name"],
-                    "age": other_user["age"],
-                    "photos": other_user.get("photos", []),
-                    "profile_picture": other_user.get("profile_picture"),
-                    "verified": other_user.get("verified", False)
-                },
+                "user": user_data,
                 "compatibility_score": match.get("compatibility_score"),
                 "ai_analysis": match.get("ai_analysis", ""),
                 "created_at": match.get("created_at")
