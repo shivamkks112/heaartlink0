@@ -92,55 +92,7 @@ const SettingsPage = ({ user }) => {
     }
   };
 
-  const handleInstallApp = async () => {
-    if (!deferredPrompt) {
-      toast.info('Install option not available on this browser. Please use Chrome or Safari.');
-      return;
-    }
-
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    
-    if (outcome === 'accepted') {
-      toast.success('App installed successfully! 🎉');
-      setIsInstalled(true);
-    }
-    
-    setDeferredPrompt(null);
-  };
-
-  const requestNotificationPermission = async () => {
-    if (!('Notification' in window)) {
-      toast.error('Notifications not supported on this browser');
-      return;
-    }
-
-    const permission = await Notification.requestPermission();
-    
-    if (permission === 'granted') {
-      toast.success('Notifications enabled! 🔔');
-      // Send a test notification
-      sendTestNotification();
-    } else if (permission === 'denied') {
-      toast.error('Notification permission denied. Enable from browser settings.');
-    }
-  };
-
-  const sendTestNotification = () => {
-    if (Notification.permission === 'granted') {
-      new Notification('HeartLink 💕', {
-        body: 'Notifications are working! You will get alerts for new messages and matches.',
-        icon: '/icon-192.png',
-        badge: '/icon-192.png',
-        vibrate: [200, 100, 200],
-        silent: false,
-        requireInteraction: false,
-        tag: 'test-notification'
-      });
-    } else {
-      toast.error('Please enable notifications first');
-    }
-  };
+ 
 
   if (loading) {
     return (
