@@ -292,10 +292,10 @@ const ChatPage = ({ user }) => {
             {otherUser && (
               <button
                 onClick={() => navigate(`/profile/${otherUser.id}`)}
-                className="flex items-center gap-3 hover:bg-white/10 rounded-2xl px-3 py-2 transition-all"
+                className="flex-1 flex items-center gap-2 hover:bg-white/10 rounded-xl px-2 py-1.5 transition-all min-w-0"
               >
-                <div className="relative">
-                  <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white font-bold border-2 border-white/30 overflow-hidden">
+                <div className="relative flex-shrink-0">
+                  <div className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white font-bold border-2 border-white/30 overflow-hidden">
                     {otherUser.profile_picture ? (
                       <img 
                         src={otherUser.profile_picture} 
@@ -303,34 +303,31 @@ const ChatPage = ({ user }) => {
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <span className="text-lg">{otherUser.name.charAt(0)}</span>
+                      <span className="text-sm">{otherUser.name.charAt(0)}</span>
                     )}
                   </div>
                   {/* Online Status Indicator */}
-                  <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 border-white rounded-full"></div>
+                  <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-400 border-2 border-white rounded-full"></div>
                 </div>
-                <div className="text-left">
-                  <h1 className="text-base sm:text-lg font-bold text-white">
+                <div className="text-left min-w-0 flex-1">
+                  <h1 className="text-sm font-bold text-white truncate">
                     {otherUser.name}
                   </h1>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     {otherUser.is_online ? (
                       <span className="text-xs text-green-300 flex items-center gap-1">
-                        <div className="w-2 h-2 bg-green-300 rounded-full animate-pulse"></div>
-                        Online
+                        <div className="w-1.5 h-1.5 bg-green-300 rounded-full animate-pulse"></div>
+                        <span className="truncate">Online</span>
                       </span>
                     ) : otherUser.last_active ? (
-                      <span className="text-xs text-white/70">
+                      <span className="text-xs text-white/70 truncate">
                         {formatLastSeen(otherUser.last_active)}
                       </span>
                     ) : null}
                     {otherUser.verified && (
-                      <span className="text-xs text-white/80 flex items-center gap-1">
-                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
-                        </svg>
-                        Verified
-                      </span>
+                      <svg className="w-3 h-3 text-white/80 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+                      </svg>
                     )}
                   </div>
                 </div>
