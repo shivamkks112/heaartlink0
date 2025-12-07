@@ -271,8 +271,8 @@ const ChatPage = ({ user }) => {
       
       {/* Header - Unique Chat Design with Gradient Background */}
       <div className="fixed top-0 left-0 right-0 z-[60] bg-gradient-to-r from-pink-500 via-rose-500 to-orange-500 shadow-lg pt-safe">
-        <div className="max-w-2xl mx-auto px-4 py-3 sm:py-4">
-          <div className="flex items-center justify-between">
+        <div className="max-w-2xl mx-auto px-3 py-3">
+          <div className="flex items-center justify-between gap-2">
             {/* Back Button - Keep as is */}
             <button
               data-testid="back-btn"
