@@ -93,6 +93,7 @@ function App() {
           <Route path="/auth" element={!user ? <AuthPage onLogin={handleLogin} /> : <Navigate to="/discover" />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+          <Route path="/terms" element={<TermsPage />} />
           <Route path="/data-deletion" element={<DataDeletionPage />} />
           <Route path="/admin" element={user && user.is_admin ? <AdminDashboard user={user} /> : <Navigate to="/" />} />
           <Route path="/discover" element={user ? <DiscoverPage user={user} /> : <Navigate to="/" />} />
