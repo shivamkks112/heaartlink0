@@ -15,6 +15,7 @@ import PrivacyPage from '@/pages/PrivacyPage';
 import SettingsPage from '@/pages/SettingsPage';
 import PrivacyPolicyPage from '@/pages/PrivacyPolicyPage';
 import DataDeletionPage from '@/pages/DataDeletionPage';
+import TermsPage from '@/pages/TermsPage';
 import InstallPrompt from '@/components/InstallPrompt';
 import { requestNotificationPermission, setupForegroundMessageListener } from '@/firebase/messaging';
 import { initGoogleAuth } from '@/utils/nativeGoogleAuth';
