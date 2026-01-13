@@ -8,7 +8,8 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || import.meta.env?.REACT_APP_BACKEND_URL;
+if (!BACKEND_URL) console.error('⚠️ REACT_APP_BACKEND_URL is not set!');
 const API = `${BACKEND_URL}/api`;
 
 const AuthPage = ({ onLogin }) => {
