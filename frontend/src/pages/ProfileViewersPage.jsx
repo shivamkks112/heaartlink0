@@ -150,7 +150,7 @@ const ProfileViewersPage = ({ user }) => {
         {/* Info */}
         <div className="mt-6 bg-blue-50 rounded-xl p-4 border border-blue-200">
           <p className="text-sm text-blue-800">
-            <strong>Note:</strong> Users browsing in Incognito Mode won't appear in your viewers list.
+            <strong>Note:</strong> Users browsing in Incognito Mode will not appear in your viewers list.
             Enable Incognito Mode in Privacy settings to browse privately.
           </p>
         </div>
