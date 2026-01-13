@@ -413,7 +413,7 @@ const PrivacyPage = ({ user, onUpdate }) => {
                   <li>• Block and report users who make you uncomfortable</li>
                   <li>• Never share personal info like address or finances</li>
                   <li>• Meet in public places for first dates</li>
-                  <li>• Tell a friend where you're going</li>
+                  <li>• Tell a friend where you are going</li>
                   <li>• Trust your instincts - if something feels wrong, leave</li>
                 </ul>
               </div>
