@@ -65,10 +65,14 @@ const ProfileEnhancementPage = ({ user, onUpdate }) => {
   const timerRef = useRef(null);
 
   useEffect(() => {
-    fetchProfile();
-  }, []);
+    if (user?.id) {
+      fetchProfile();
+    }
+  }, [user?.id]);
 
   const fetchProfile = async () => {
+    if (!user?.id) return;
+    
     setLoading(true);
     try {
       const response = await axios.get(`${API}/profile/${user.id}`);
@@ -82,6 +86,7 @@ const ProfileEnhancementPage = ({ user, onUpdate }) => {
       setVoiceIntroUrl(data.bio_voice_intro_url || '');
       setVideoIntroUrl(data.intro_video_url || '');
     } catch (error) {
+      console.error('Profile enhancement load error:', error);
       toast.error('Failed to load profile');
     } finally {
       setLoading(false);
