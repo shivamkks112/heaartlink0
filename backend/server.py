@@ -829,18 +829,28 @@ async def delete_account_request(request: DeleteAccountRequest):
 # Profile Routes
 @api_router.get("/profile/{user_id}")
 async def get_profile(user_id: str):
-    """Get user profile - PERMANENT FIX"""
-    user = await db.users.find_one({"id": user_id})
+    """Get user profile - OPTIMIZED with caching"""
+    # Check cache first
+    cached = get_cached_user(user_id)
+    if cached:
+        return cached
+    
+    # Use projection to fetch only needed fields (faster query)
+    user = await db.users.find_one(
+        {"id": user_id},
+        {"_id": 0, "password_hash": 0}  # Exclude these fields in query itself
+    )
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Serialize for response
-    clean_user = serialize_user_for_response(user, exclude_password=True)
+    # Clean and cache
+    clean_user = clean_user_data(user)
+    set_cached_user(user_id, clean_user)
     return clean_user
 
 @api_router.put("/profile/{user_id}")
 async def update_profile(user_id: str, updates: dict):
-    """Update user profile - PERMANENT FIX"""
+    """Update user profile - OPTIMIZED"""
     # Remove sensitive fields
     updates.pop("password_hash", None)
     updates.pop("id", None)
