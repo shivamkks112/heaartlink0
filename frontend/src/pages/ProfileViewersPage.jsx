@@ -104,9 +104,9 @@ const ProfileViewersPage = ({ user }) => {
               </div>
               <h3 className="text-xl font-semibold text-gray-700 mb-2">No viewers yet</h3>
               <p className="text-gray-500">
-                When someone views your profile, they'll appear here.
+                When someone views your profile, they will appear here.
                 <br />
-                <span className="text-sm">(Incognito viewers won't be shown)</span>
+                <span className="text-sm">(Incognito viewers will not be shown)</span>
               </p>
             </div>
           ) : (
