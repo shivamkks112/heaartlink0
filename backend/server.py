@@ -2229,12 +2229,7 @@ def check_women_safety_restrictions(sender: dict, receiver: dict) -> tuple:
         
         # First message delay for males (2 min)
         if sender_gender == "male" and not sender.get("first_message_delay_exempt"):
-            # Check if this is first message
-            existing_messages = db.messages.find_one({
-                "sender_id": sender["id"],
-                "receiver_id": receiver["id"]
-            })
-            # This is async but we'll handle it in the message endpoint
+            # Check if this is first message - handled in message endpoint
             return True, "first_message_check_needed", 120  # 2 min delay
     
     return True, "", 0
