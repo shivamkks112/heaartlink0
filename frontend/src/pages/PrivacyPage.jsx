@@ -44,10 +44,14 @@ const PrivacyPage = ({ user, onUpdate }) => {
   });
 
   useEffect(() => {
-    fetchProfile();
-  }, []);
+    if (user?.id) {
+      fetchProfile();
+    }
+  }, [user?.id]);
 
   const fetchProfile = async () => {
+    if (!user?.id) return;
+    
     try {
       const response = await axios.get(`${API}/profile/${user.id}`);
       const data = response.data;
@@ -68,6 +72,7 @@ const PrivacyPage = ({ user, onUpdate }) => {
         night_quiet_hours_enabled: data.night_quiet_hours_enabled || false
       });
     } catch (error) {
+      console.error('Privacy settings load error:', error);
       toast.error('Failed to load settings');
     }
   };
