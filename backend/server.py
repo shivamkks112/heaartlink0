@@ -865,14 +865,21 @@ async def update_profile(user_id: str, updates: dict):
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Fetch updated user
-    user = await db.users.find_one({"id": user_id})
+    # Invalidate cache
+    invalidate_user_cache(user_id)
+    
+    # Fetch updated user with projection
+    user = await db.users.find_one(
+        {"id": user_id},
+        {"_id": 0, "password_hash": 0}
+    )
     
     if not user:
         raise HTTPException(status_code=404, detail="User not found after update")
     
-    # Serialize for response
-    clean_user = serialize_user_for_response(user, exclude_password=True)
+    # Clean and update cache
+    clean_user = clean_user_data(user)
+    set_cached_user(user_id, clean_user)
     return clean_user
 
 @api_router.post("/profile/{user_id}/verify")
