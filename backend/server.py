@@ -28,14 +28,105 @@ from firebase_config import (
     send_verification_notification
 )
 
-# MongoDB connection
+# MongoDB connection with connection pooling for better performance
 mongo_url = os.environ.get('MONGO_URL', 'mongodb://localhost:27017')
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ.get('DB_NAME', 'dating_app_db')]  # In production, Emergent provides DB_NAME
+client = AsyncIOMotorClient(
+    mongo_url,
+    maxPoolSize=50,  # Maximum connections in pool
+    minPoolSize=10,  # Minimum connections to maintain
+    maxIdleTimeMS=30000,  # Close idle connections after 30 sec
+    connectTimeoutMS=5000,  # Connection timeout
+    serverSelectionTimeoutMS=5000  # Server selection timeout
+)
+db = client[os.environ.get('DB_NAME', 'dating_app_db')]
 
 # Create the main app
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
+
+# Simple in-memory cache for frequently accessed data
+from functools import lru_cache
+from cachetools import TTLCache
+import time
+
+# Cache for user profiles (5 min TTL, max 1000 items)
+user_cache = TTLCache(maxsize=1000, ttl=300)
+# Cache for discover results (1 min TTL)
+discover_cache = TTLCache(maxsize=500, ttl=60)
+
+def get_cached_user(user_id: str):
+    """Get user from cache"""
+    return user_cache.get(user_id)
+
+def set_cached_user(user_id: str, user_data: dict):
+    """Set user in cache"""
+    user_cache[user_id] = user_data
+
+def invalidate_user_cache(user_id: str):
+    """Invalidate user cache"""
+    user_cache.pop(user_id, None)
+
+# Database index creation on startup
+async def create_indexes():
+    """Create MongoDB indexes for better query performance"""
+    try:
+        # Users collection indexes
+        await db.users.create_index("id", unique=True, background=True)
+        await db.users.create_index("email", sparse=True, background=True)
+        await db.users.create_index("phone", sparse=True, background=True)
+        await db.users.create_index("gender", background=True)
+        await db.users.create_index("looking_for", background=True)
+        await db.users.create_index("location", background=True)
+        await db.users.create_index("is_online", background=True)
+        await db.users.create_index("last_active", background=True)
+        await db.users.create_index("verification_status", background=True)
+        await db.users.create_index("is_shadow_banned", background=True)
+        await db.users.create_index("is_permanently_banned", background=True)
+        await db.users.create_index("trust_badge_level", background=True)
+        await db.users.create_index("relationship_intent", background=True)
+        # Compound index for discover queries
+        await db.users.create_index([
+            ("gender", 1), 
+            ("looking_for", 1), 
+            ("is_shadow_banned", 1),
+            ("is_permanently_banned", 1)
+        ], background=True)
+        
+        # Matches collection indexes
+        await db.matches.create_index("id", unique=True, background=True)
+        await db.matches.create_index("user1_id", background=True)
+        await db.matches.create_index("user2_id", background=True)
+        await db.matches.create_index("matched", background=True)
+        await db.matches.create_index([("user1_id", 1), ("user2_id", 1)], background=True)
+        await db.matches.create_index([("matched", 1), ("user1_id", 1)], background=True)
+        await db.matches.create_index([("matched", 1), ("user2_id", 1)], background=True)
+        
+        # Messages collection indexes
+        await db.messages.create_index("id", unique=True, background=True)
+        await db.messages.create_index("match_id", background=True)
+        await db.messages.create_index("sender_id", background=True)
+        await db.messages.create_index("receiver_id", background=True)
+        await db.messages.create_index([("match_id", 1), ("created_at", 1)], background=True)
+        
+        # Reports collection indexes
+        await db.reports.create_index("reporter_id", background=True)
+        await db.reports.create_index("reported_user_id", background=True)
+        await db.reports.create_index("status", background=True)
+        
+        # Profile views collection indexes
+        await db.profile_views.create_index("profile_id", background=True)
+        await db.profile_views.create_index("viewer_id", background=True)
+        await db.profile_views.create_index([("profile_id", 1), ("viewed_at", -1)], background=True)
+        
+        logging.info("✅ MongoDB indexes created successfully")
+    except Exception as e:
+        logging.error(f"❌ Error creating indexes: {e}")
+
+@app.on_event("startup")
+async def startup_event():
+    """Run on app startup"""
+    await create_indexes()
+    logging.info("🚀 HeartLink server started with optimized indexes")
 
 # WebSocket connection manager
 class ConnectionManager:
