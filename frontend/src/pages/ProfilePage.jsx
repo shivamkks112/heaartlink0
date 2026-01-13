@@ -326,6 +326,38 @@ const ProfilePage = ({ user, onUpdate }) => {
               />
             </div>
 
+            {/* Enhance Profile Link */}
+            <button
+              onClick={() => navigate('/enhance-profile')}
+              className="w-full bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 rounded-xl p-4 flex items-center justify-between hover:shadow-md transition-all group"
+              data-testid="enhance-profile-btn"
+            >
+              <div className="flex items-center gap-3">
+                <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-2.5 rounded-xl">
+                  <Sparkles className="w-5 h-5 text-white" />
+                </div>
+                <div className="text-left">
+                  <h4 className="font-bold text-gray-900">Enhance Your Profile</h4>
+                  <p className="text-sm text-gray-600">Add values, lifestyle, voice & video intro</p>
+                </div>
+              </div>
+              <ChevronRight className="w-5 h-5 text-purple-500 group-hover:translate-x-1 transition-transform" />
+            </button>
+
+            {/* Display Trust Badge */}
+            {profile.trust_badge_level && (
+              <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200">
+                <Shield className={`w-6 h-6 ${
+                  profile.trust_badge_level === 'high' ? 'text-green-600' :
+                  profile.trust_badge_level === 'medium' ? 'text-yellow-600' : 'text-gray-500'
+                }`} />
+                <div>
+                  <p className="font-semibold text-gray-900">Trust Level: {(profile.trust_badge_level || 'low').toUpperCase()}</p>
+                  <p className="text-xs text-gray-500">Complete your profile to increase trust</p>
+                </div>
+              </div>
+            )}
+
             {/* Save Button */}
             <div className="flex justify-end gap-3">
               {hasChanges && (
