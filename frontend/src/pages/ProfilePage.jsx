@@ -48,12 +48,21 @@ const ProfilePage = ({ user, onUpdate }) => {
   };
 
   const fetchProfile = async () => {
+    if (!user?.id) {
+      console.error('No user ID available');
+      setFetchError(true);
+      return;
+    }
+    
     try {
+      setFetchError(false);
       const response = await axios.get(`${API}/profile/${user.id}`);
       setProfile(response.data);
       setFormData(response.data);
     } catch (error) {
-      toast.error('Failed to load profile');
+      console.error('Profile fetch error:', error.response?.data || error.message);
+      setFetchError(true);
+      toast.error('Failed to load profile. Please refresh.');
     }
   };
 
