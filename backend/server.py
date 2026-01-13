@@ -1604,64 +1604,91 @@ async def user_action(user_id: str, action: LikeAction):
 # Matches Routes
 @api_router.get("/matches/{user_id}")
 async def get_matches(user_id: str):
-    # Get current user to check blocked users
-    current_user = await db.users.find_one({"id": user_id})
+    """Get user matches - OPTIMIZED with batch queries"""
+    # Get current user blocked list only
+    current_user = await db.users.find_one(
+        {"id": user_id},
+        {"_id": 0, "blocked_users": 1}
+    )
     if not current_user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    blocked_users = current_user.get("blocked_users", [])
+    blocked_users = set(current_user.get("blocked_users", []))
     
-    matches = await db.matches.find({
-        "$or": [{"user1_id": user_id}, {"user2_id": user_id}],
-        "matched": True
-    }).limit(1000).to_list(None)
+    # Get matches with projection
+    matches = await db.matches.find(
+        {
+            "$or": [{"user1_id": user_id}, {"user2_id": user_id}],
+            "matched": True
+        },
+        {"_id": 0, "id": 1, "user1_id": 1, "user2_id": 1, "compatibility_score": 1, "ai_analysis": 1, "created_at": 1}
+    ).limit(100).to_list(None)
+    
+    # Get all other user IDs
+    other_user_ids = []
+    for match in matches:
+        other_id = match["user2_id"] if match["user1_id"] == user_id else match["user1_id"]
+        if other_id not in blocked_users:
+            other_user_ids.append(other_id)
+    
+    if not other_user_ids:
+        return []
+    
+    # Batch fetch all matched users in ONE query
+    matched_users = await db.users.find(
+        {"id": {"$in": other_user_ids}},
+        {
+            "_id": 0, "id": 1, "name": 1, "age": 1, "verified": 1,
+            "is_online": 1, "last_active": 1, "photos": 1,
+            "profile_picture": 1, "privacy_settings": 1, "blocked_users": 1
+        }
+    ).to_list(None)
+    
+    # Create lookup dict
+    users_dict = {u["id"]: u for u in matched_users}
     
     result = []
     for match in matches:
         other_id = match["user2_id"] if match["user1_id"] == user_id else match["user1_id"]
         
-        # Skip if user is blocked
         if other_id in blocked_users:
             continue
-            
-        other_user = await db.users.find_one({"id": other_id})
         
-        if other_user:
-            # Also check if the other user has blocked current user
-            other_blocked = other_user.get("blocked_users", [])
-            if user_id in other_blocked:
-                continue
-                
-            # Check show_photos privacy setting
-            privacy_settings = other_user.get("privacy_settings", {})
-            show_photos = privacy_settings.get("show_photos", True)
-            
-            # Build user data with conditional photo visibility
-            user_data = {
-                "id": other_user["id"],
-                "name": other_user["name"],
-                "age": other_user["age"],
-                "verified": other_user.get("verified", False),
-                "is_online": other_user.get("is_online", False),
-                "last_active": other_user.get("last_active")
-            }
-            
-            # Only include photos if show_photos is True (since they're matched)
-            if show_photos:
-                user_data["photos"] = other_user.get("photos", [])
-                user_data["profile_picture"] = other_user.get("profile_picture")
-            else:
-                # Provide placeholder or empty
-                user_data["photos"] = []
-                user_data["profile_picture"] = None
-            
-            result.append({
-                "match_id": match["id"],
-                "user": user_data,
-                "compatibility_score": match.get("compatibility_score"),
-                "ai_analysis": match.get("ai_analysis", ""),
-                "created_at": match.get("created_at")
-            })
+        other_user = users_dict.get(other_id)
+        if not other_user:
+            continue
+        
+        # Check if other user blocked current user
+        if user_id in other_user.get("blocked_users", []):
+            continue
+        
+        # Privacy settings
+        privacy_settings = other_user.get("privacy_settings", {})
+        show_photos = privacy_settings.get("show_photos", True)
+        
+        user_data = {
+            "id": other_user["id"],
+            "name": other_user["name"],
+            "age": other_user["age"],
+            "verified": other_user.get("verified", False),
+            "is_online": other_user.get("is_online", False),
+            "last_active": other_user.get("last_active")
+        }
+        
+        if show_photos:
+            user_data["photos"] = other_user.get("photos", [])
+            user_data["profile_picture"] = other_user.get("profile_picture")
+        else:
+            user_data["photos"] = []
+            user_data["profile_picture"] = None
+        
+        result.append({
+            "match_id": match["id"],
+            "user": user_data,
+            "compatibility_score": match.get("compatibility_score"),
+            "ai_analysis": match.get("ai_analysis", ""),
+            "created_at": match.get("created_at")
+        })
     
     return result
 
