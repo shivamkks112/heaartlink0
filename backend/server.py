@@ -227,6 +227,45 @@ class PrivacyUpdate(BaseModel):
     show_photos: Optional[bool] = None
     incognito_mode: Optional[bool] = None
 
+# === NEW MODELS FOR SAFETY FEATURES ===
+
+class GenderLockUpdate(BaseModel):
+    gender_lock_enabled: Optional[bool] = None
+    show_to_gender: Optional[str] = None  # male/female/both
+    hide_profile_from_gender: Optional[str] = None  # male/female/none
+
+class ProfileEnhancementUpdate(BaseModel):
+    about_me: Optional[str] = None
+    bio_voice_intro_url: Optional[str] = None
+    intro_video_url: Optional[str] = None
+    values: Optional[List[str]] = None  # respect, family, ambition, spirituality, freedom
+    relationship_intent: Optional[str] = None  # serious, casual, friendship, marriage
+    lifestyle_tags: Optional[List[str]] = None  # non-smoker, vegetarian, fitness, travel
+
+class WomenSafetyUpdate(BaseModel):
+    women_safety_mode: Optional[bool] = None
+    night_quiet_hours_enabled: Optional[bool] = None
+
+class AdminUserUpdate(BaseModel):
+    user_id: str
+    gender_lock_enabled: Optional[bool] = None
+    is_verified_male: Optional[bool] = None
+    trust_badge_level: Optional[str] = None
+    risk_score: Optional[int] = None
+    is_shadow_banned: Optional[bool] = None
+    is_permanently_banned: Optional[bool] = None
+    ban_reason: Optional[str] = None
+
+class DeviceBlock(BaseModel):
+    device_id: str
+
+class DiscoverFilters(BaseModel):
+    relationship_intent: Optional[str] = None
+    values: Optional[List[str]] = None
+    lifestyle_tags: Optional[List[str]] = None
+    trust_badge_level: Optional[str] = None
+    last_active_within_hours: Optional[int] = None  # e.g., 24 = active in last 24 hours
+
 class AdminVerification(BaseModel):
     user_id: str
     action: str  # 'approve' or 'reject'
