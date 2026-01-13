@@ -1873,6 +1873,305 @@ async def make_me_admin_once(request: MakeAdminRequest):
         logger.error(f"Error making admin: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# ============================================
+# NEW SAFETY & TRUST ENDPOINTS
+# ============================================
+
+# === GENDER LOCK SETTINGS ===
+@api_router.put("/user/{user_id}/gender-lock")
+async def update_gender_lock(user_id: str, settings: GenderLockUpdate):
+    """Update gender lock settings for a user"""
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    updates = {}
+    if settings.gender_lock_enabled is not None:
+        updates["gender_lock_enabled"] = settings.gender_lock_enabled
+    if settings.show_to_gender is not None:
+        if settings.show_to_gender not in ["male", "female", "both"]:
+            raise HTTPException(status_code=400, detail="Invalid show_to_gender value")
+        updates["show_to_gender"] = settings.show_to_gender
+    if settings.hide_profile_from_gender is not None:
+        if settings.hide_profile_from_gender not in ["male", "female", "none"]:
+            raise HTTPException(status_code=400, detail="Invalid hide_profile_from_gender value")
+        updates["hide_profile_from_gender"] = settings.hide_profile_from_gender
+    
+    if updates:
+        await db.users.update_one({"id": user_id}, {"$set": updates})
+    
+    return {"message": "Gender lock settings updated", "updates": updates}
+
+# === PROFILE ENHANCEMENT ===
+@api_router.put("/user/{user_id}/profile-enhancement")
+async def update_profile_enhancement(user_id: str, updates: ProfileEnhancementUpdate):
+    """Update profile with values, intent, lifestyle tags, voice/video intro"""
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    update_dict = {}
+    
+    if updates.about_me is not None:
+        update_dict["about_me"] = updates.about_me
+    if updates.bio_voice_intro_url is not None:
+        update_dict["bio_voice_intro_url"] = updates.bio_voice_intro_url
+    if updates.intro_video_url is not None:
+        update_dict["intro_video_url"] = updates.intro_video_url
+    if updates.values is not None:
+        # Validate values
+        valid_values = ["respect", "family", "ambition", "spirituality", "freedom"]
+        for v in updates.values:
+            if v not in valid_values:
+                raise HTTPException(status_code=400, detail=f"Invalid value: {v}. Valid values: {valid_values}")
+        update_dict["values"] = updates.values
+    if updates.relationship_intent is not None:
+        valid_intents = ["serious", "casual", "friendship", "marriage", ""]
+        if updates.relationship_intent not in valid_intents:
+            raise HTTPException(status_code=400, detail=f"Invalid relationship_intent")
+        update_dict["relationship_intent"] = updates.relationship_intent
+    if updates.lifestyle_tags is not None:
+        valid_tags = ["non-smoker", "vegetarian", "fitness", "travel", "night-owl", "early-bird", "pet-lover", "foodie"]
+        for tag in updates.lifestyle_tags:
+            if tag not in valid_tags:
+                raise HTTPException(status_code=400, detail=f"Invalid lifestyle tag: {tag}")
+        update_dict["lifestyle_tags"] = updates.lifestyle_tags
+    
+    if update_dict:
+        await db.users.update_one({"id": user_id}, {"$set": update_dict})
+    
+    # Fetch and return updated user
+    updated_user = await db.users.find_one({"id": user_id})
+    return serialize_user_for_response(updated_user, exclude_password=True)
+
+# === WOMEN SAFETY MODE ===
+@api_router.put("/user/{user_id}/women-safety")
+async def update_women_safety(user_id: str, settings: WomenSafetyUpdate):
+    """Enable/disable women safety features"""
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    updates = {}
+    if settings.women_safety_mode is not None:
+        updates["women_safety_mode"] = settings.women_safety_mode
+    if settings.night_quiet_hours_enabled is not None:
+        updates["night_quiet_hours_enabled"] = settings.night_quiet_hours_enabled
+    
+    if updates:
+        await db.users.update_one({"id": user_id}, {"$set": updates})
+    
+    return {"message": "Women safety settings updated", "settings": updates}
+
+# === PROFILE VIEWERS (Last 5) ===
+@api_router.get("/user/{user_id}/profile-viewers")
+async def get_profile_viewers(user_id: str):
+    """Get last 5 users who viewed the profile"""
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    viewers = user.get("profile_viewers", [])[-5:]  # Last 5
+    
+    # Get viewer details
+    viewer_details = []
+    for viewer in viewers:
+        viewer_user = await db.users.find_one({"id": viewer.get("user_id")})
+        if viewer_user:
+            viewer_details.append({
+                "id": viewer_user["id"],
+                "name": viewer_user["name"],
+                "age": viewer_user.get("age"),
+                "profile_picture": viewer_user.get("profile_picture"),
+                "viewed_at": viewer.get("viewed_at")
+            })
+    
+    return {"viewers": viewer_details, "total_views": user.get("profile_views", 0)}
+
+# === TRACK PROFILE VIEW (Enhanced) ===
+@api_router.post("/user/{user_id}/track-view")
+async def track_profile_view_enhanced(user_id: str, viewer_id: str):
+    """Track who viewed a profile and store in profile_viewers"""
+    # Check if viewer is in incognito mode
+    viewer = await db.users.find_one({"id": viewer_id})
+    if not viewer:
+        return {"tracked": False, "reason": "Viewer not found"}
+    
+    viewer_incognito = viewer.get("privacy_settings", {}).get("incognito_mode", False)
+    
+    # Increment profile views
+    await db.users.update_one(
+        {"id": user_id},
+        {"$inc": {"profile_views": 1}}
+    )
+    
+    # Only store viewer if NOT in incognito
+    if not viewer_incognito:
+        view_entry = {
+            "user_id": viewer_id,
+            "viewed_at": datetime.now(timezone.utc).isoformat()
+        }
+        
+        # Add to profile_viewers array, keep only last 10
+        await db.users.update_one(
+            {"id": user_id},
+            {
+                "$push": {
+                    "profile_viewers": {
+                        "$each": [view_entry],
+                        "$slice": -10  # Keep only last 10
+                    }
+                }
+            }
+        )
+    
+    return {"tracked": True, "incognito": viewer_incognito}
+
+# === DEVICE BLOCKING ===
+@api_router.post("/user/{user_id}/block-device")
+async def block_device(user_id: str, device: DeviceBlock):
+    """Block a device ID"""
+    await db.users.update_one(
+        {"id": user_id},
+        {"$addToSet": {"blocked_device_ids": device.device_id}}
+    )
+    return {"message": "Device blocked"}
+
+@api_router.post("/user/{user_id}/register-device")
+async def register_device(user_id: str, device: DeviceBlock):
+    """Register a device ID for the user"""
+    await db.users.update_one(
+        {"id": user_id},
+        {"$addToSet": {"device_ids": device.device_id}}
+    )
+    return {"message": "Device registered"}
+
+# === SCREENSHOT ALERT ===
+@api_router.post("/user/{user_id}/screenshot-alert")
+async def screenshot_alert(user_id: str, screenshotter_id: str):
+    """Alert user that someone took a screenshot"""
+    # Store screenshot event
+    screenshot_event = {
+        "id": str(uuid.uuid4()),
+        "target_user_id": user_id,
+        "screenshotter_id": screenshotter_id,
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+    await db.screenshot_events.insert_one(screenshot_event)
+    
+    # Send real-time notification
+    await manager.send_message(user_id, {
+        "type": "screenshot_alert",
+        "screenshotter_id": screenshotter_id,
+        "timestamp": screenshot_event["timestamp"]
+    })
+    
+    return {"message": "Screenshot alert sent"}
+
+# === ADMIN: USER MANAGEMENT ===
+@api_router.put("/admin/user-settings")
+async def admin_update_user(updates: AdminUserUpdate):
+    """Admin endpoint to update user safety settings"""
+    user = await db.users.find_one({"id": updates.user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    update_dict = {}
+    
+    if updates.gender_lock_enabled is not None:
+        update_dict["gender_lock_enabled"] = updates.gender_lock_enabled
+    if updates.is_verified_male is not None:
+        update_dict["is_verified_male"] = updates.is_verified_male
+    if updates.trust_badge_level is not None:
+        if updates.trust_badge_level not in ["low", "medium", "high"]:
+            raise HTTPException(status_code=400, detail="Invalid trust_badge_level")
+        update_dict["trust_badge_level"] = updates.trust_badge_level
+    if updates.risk_score is not None:
+        if updates.risk_score < 0 or updates.risk_score > 100:
+            raise HTTPException(status_code=400, detail="risk_score must be 0-100")
+        update_dict["risk_score"] = updates.risk_score
+    if updates.is_shadow_banned is not None:
+        update_dict["is_shadow_banned"] = updates.is_shadow_banned
+    if updates.is_permanently_banned is not None:
+        update_dict["is_permanently_banned"] = updates.is_permanently_banned
+    if updates.ban_reason is not None:
+        update_dict["ban_reason"] = updates.ban_reason
+    
+    if update_dict:
+        await db.users.update_one({"id": updates.user_id}, {"$set": update_dict})
+    
+    return {"message": "User settings updated", "updates": update_dict}
+
+@api_router.get("/admin/pending-intros")
+async def get_pending_intros():
+    """Get users with voice/video intros pending approval"""
+    users = await db.users.find({
+        "$or": [
+            {"bio_voice_intro_url": {"$exists": True, "$ne": None}},
+            {"intro_video_url": {"$exists": True, "$ne": None}}
+        ]
+    }).limit(50).to_list(None)
+    
+    return [{
+        "id": u["id"],
+        "name": u["name"],
+        "bio_voice_intro_url": u.get("bio_voice_intro_url"),
+        "intro_video_url": u.get("intro_video_url"),
+        "created_at": u.get("created_at")
+    } for u in users]
+
+@api_router.get("/admin/high-risk-users")
+async def get_high_risk_users():
+    """Get users with risk_score > 50"""
+    users = await db.users.find({"risk_score": {"$gt": 50}}).limit(100).to_list(None)
+    
+    return [{
+        "id": u["id"],
+        "name": u["name"],
+        "email": u.get("email"),
+        "risk_score": u.get("risk_score", 0),
+        "trust_badge_level": u.get("trust_badge_level", "low"),
+        "is_shadow_banned": u.get("is_shadow_banned", False),
+        "is_permanently_banned": u.get("is_permanently_banned", False)
+    } for u in users]
+
+# === WOMEN SAFETY: MESSAGE CHECKS ===
+def check_women_safety_restrictions(sender: dict, receiver: dict) -> tuple:
+    """
+    Check if message can be sent based on women safety mode
+    Returns (can_send: bool, reason: str, delay_seconds: int)
+    """
+    # If receiver has women_safety_mode enabled
+    if receiver.get("women_safety_mode"):
+        sender_gender = sender.get("gender", "").lower()
+        
+        # Only verified males can message
+        if sender_gender == "male" and not sender.get("is_verified_male"):
+            return False, "Only verified males can message this user", 0
+        
+        # Check night quiet hours (10pm - 7am IST)
+        if receiver.get("night_quiet_hours_enabled"):
+            # IST is UTC+5:30
+            now_utc = datetime.now(timezone.utc)
+            ist_offset = timedelta(hours=5, minutes=30)
+            now_ist = now_utc + ist_offset
+            hour_ist = now_ist.hour
+            
+            if hour_ist >= 22 or hour_ist < 7:
+                return False, "This user has enabled quiet hours (10 PM - 7 AM)", 0
+        
+        # First message delay for males (2 min)
+        if sender_gender == "male" and not sender.get("first_message_delay_exempt"):
+            # Check if this is first message
+            existing_messages = db.messages.find_one({
+                "sender_id": sender["id"],
+                "receiver_id": receiver["id"]
+            })
+            # This is async but we'll handle it in the message endpoint
+            return True, "first_message_check_needed", 120  # 2 min delay
+    
+    return True, "", 0
+
 # Include router - MUST be after all route definitions
 app.include_router(api_router)
 
