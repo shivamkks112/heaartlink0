@@ -1205,96 +1205,108 @@ async def report_user(user_id: str, report_data: ReportUser):
 @api_router.get("/discover/{user_id}")
 async def discover_users(user_id: str, limit: int = 10, relationship_intent: str = None, trust_badge_level: str = None, last_active_hours: int = None):
     """
-    Discover users with safety filters:
-    - Excludes banned users (shadow and permanent)
-    - Applies gender lock logic
-    - Supports filtering by intent, trust level, and activity
+    Discover users with safety filters - OPTIMIZED
+    - Uses projection to fetch only needed fields
+    - Parallel queries for better performance
+    - Indexed queries
     """
-    current_user = await db.users.find_one({"id": user_id})
+    # Use projection to fetch only needed fields from current user
+    current_user = await db.users.find_one(
+        {"id": user_id},
+        {
+            "_id": 0, "id": 1, "gender": 1, "looking_for": 1,
+            "blocked_users": 1, "blocked_device_ids": 1,
+            "gender_lock_enabled": 1, "show_to_gender": 1
+        }
+    )
     if not current_user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Get blocked users
+    # Get blocked users and device IDs
     blocked_users = current_user.get("blocked_users", [])
     blocked_device_ids = current_user.get("blocked_device_ids", [])
     
-    # Find users who blocked current user
-    blockers = await db.users.find({"blocked_users": user_id}).limit(1000).to_list(None)
-    blocker_ids = [u["id"] for u in blockers]
+    # Run blocking queries in parallel for speed
+    blockers_task = db.users.find(
+        {"blocked_users": user_id},
+        {"_id": 0, "id": 1}
+    ).limit(500).to_list(None)
     
-    # Get already interacted users
-    matches = await db.matches.find({
-        "$or": [{"user1_id": user_id}, {"user2_id": user_id}]
-    }).limit(1000).to_list(None)
+    matches_task = db.matches.find(
+        {"$or": [{"user1_id": user_id}, {"user2_id": user_id}]},
+        {"_id": 0, "user1_id": 1, "user2_id": 1}
+    ).limit(500).to_list(None)
+    
+    # Await both tasks concurrently
+    blockers, matches = await asyncio.gather(blockers_task, matches_task)
+    
+    blocker_ids = [u["id"] for u in blockers]
     interacted_ids = set()
     for m in matches:
         interacted_ids.add(m["user1_id"])
         interacted_ids.add(m["user2_id"])
     
-    # Find potential matches
-    looking_for_gender = current_user["looking_for"].lower() if current_user.get("looking_for") else None
-    current_gender = current_user["gender"].lower() if current_user.get("gender") else None
+    # Gender preferences
+    looking_for_gender = current_user.get("looking_for", "").lower()
+    current_gender = current_user.get("gender", "").lower()
     
-    # Base query - exclude banned users
+    # Build optimized query
+    exclude_ids = list(set(blocked_users + blocker_ids + list(interacted_ids)))
+    exclude_ids.append(user_id)
+    
     query = {
-        "id": {"$ne": user_id, "$nin": blocked_users + blocker_ids + list(interacted_ids)},
-        "privacy_settings.show_profile": True,
+        "id": {"$nin": exclude_ids},
+        "privacy_settings.show_profile": {"$ne": False},
         "is_shadow_banned": {"$ne": True},
         "is_permanently_banned": {"$ne": True}
     }
     
-    # === GENDER LOCK LOGIC ===
-    # If current user has gender lock enabled, only show profiles of selected gender
+    # Gender lock logic
     if current_user.get("gender_lock_enabled"):
         show_to = current_user.get("show_to_gender", "both")
         if show_to != "both":
-            query["gender"] = {"$regex": f"^{show_to}$", "$options": "i"}
+            query["gender"] = show_to
     
-    # Filter out users who have hidden their profile from current user's gender
-    if current_gender:
-        query["$or"] = [
-            {"hide_profile_from_gender": "none"},
-            {"hide_profile_from_gender": {"$exists": False}},
-            {"hide_profile_from_gender": {"$ne": current_gender}}
-        ]
+    # Gender preferences filter
+    if looking_for_gender:
+        query["gender"] = looking_for_gender
     
-    # Check if other user's gender_lock allows them to see current user
-    # This is done in post-processing
-    
-    # Add gender filters if both users have gender preferences
-    if looking_for_gender and current_gender:
-        # Add to existing query
-        if "$and" not in query:
-            query["$and"] = []
-        query["$and"].append({
-            "gender": {"$regex": f"^{looking_for_gender}$", "$options": "i"}
-        })
-    
-    # === OPTIONAL FILTERS ===
+    # Optional filters
     if relationship_intent:
         query["relationship_intent"] = relationship_intent
-    
     if trust_badge_level:
         query["trust_badge_level"] = trust_badge_level
-    
     if last_active_hours:
         cutoff_time = (datetime.now(timezone.utc) - timedelta(hours=last_active_hours)).isoformat()
         query["last_active"] = {"$gte": cutoff_time}
-    
-    # Block by device ID - exclude users whose device is blocked
     if blocked_device_ids:
         query["device_ids"] = {"$nin": blocked_device_ids}
     
-    users = await db.users.find(query).limit(limit * 2).to_list(None)  # Get extra for filtering
+    # Projection for discover - only fields needed for cards
+    discover_projection = {
+        "_id": 0, "id": 1, "name": 1, "age": 1, "bio": 1,
+        "photos": 1, "interests": 1, "verified": 1, "location": 1,
+        "profile_picture": 1, "is_online": 1, "last_active": 1,
+        "trust_badge_level": 1, "relationship_intent": 1,
+        "values": 1, "lifestyle_tags": 1,
+        "gender_lock_enabled": 1, "show_to_gender": 1, "hide_profile_from_gender": 1
+    }
+    
+    users = await db.users.find(query, discover_projection).limit(limit * 2).to_list(None)
     
     # Post-process: Check gender lock from other user's perspective
     filtered_users = []
     for u in users:
-        # If other user has gender_lock_enabled, check if current user matches their preference
+        # Check if other user hides from our gender
+        hide_from = u.get("hide_profile_from_gender", "none")
+        if hide_from != "none" and current_gender and hide_from == current_gender:
+            continue
+        
+        # Check if other user's gender_lock allows them to see current user
         if u.get("gender_lock_enabled"):
             other_show_to = u.get("show_to_gender", "both")
-            if other_show_to != "both" and current_gender and current_gender != other_show_to.lower():
-                continue  # Skip - this user doesn't want to be shown to current user's gender
+            if other_show_to != "both" and current_gender and current_gender != other_show_to:
+                continue
         
         filtered_users.append(u)
         if len(filtered_users) >= limit:
