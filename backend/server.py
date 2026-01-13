@@ -156,11 +156,16 @@ class UserSignup(BaseModel):
     password: str
     name: str
     age: int
-    gender: str
+    gender: str  # male/female/non-binary
     looking_for: str
     bio: str = ""
     location: str
     interests: List[str] = []
+    # New optional fields during signup
+    show_to_gender: str = "both"
+    relationship_intent: str = ""
+    values: List[str] = []
+    lifestyle_tags: List[str] = []
 
 class UserLogin(BaseModel):
     email_or_phone: str
