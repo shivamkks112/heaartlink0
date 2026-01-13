@@ -17,15 +17,23 @@ const ProfileViewersPage = ({ user }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchViewers();
-  }, []);
+    if (user?.id) {
+      fetchViewers();
+    }
+  }, [user?.id]);
 
   const fetchViewers = async () => {
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
+    
     try {
       const response = await axios.get(`${API}/user/${user.id}/profile-viewers`);
       setViewers(response.data.viewers || []);
       setTotalViews(response.data.total_views || 0);
     } catch (error) {
+      console.error('Profile viewers load error:', error);
       toast.error('Failed to load profile viewers');
     } finally {
       setLoading(false);
