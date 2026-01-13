@@ -16,16 +16,19 @@ const API = `${BACKEND_URL}/api`;
 
 const ProfilePage = ({ user, onUpdate }) => {
   const navigate = useNavigate();
-  const [profile, setProfile] = useState(user);
+  const [profile, setProfile] = useState(user || {});
   const [formData, setFormData] = useState({});
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [fetchError, setFetchError] = useState(false);
 
   useEffect(() => {
-    fetchProfile();
-  }, []);
+    if (user?.id) {
+      fetchProfile();
+    }
+  }, [user?.id]);
 
   const formatLastSeen = (lastActive) => {
     if (!lastActive) return 'recently';
