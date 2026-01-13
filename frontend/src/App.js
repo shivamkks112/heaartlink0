@@ -104,8 +104,10 @@ function App() {
           <Route path="/chat/:matchId" element={user ? <ChatPage user={user} /> : <Navigate to="/" />} />
           <Route path="/profile" element={user ? <ProfilePage user={user} onUpdate={handleLogin} /> : <Navigate to="/" />} />
           <Route path="/profile/:userId" element={user ? <UserProfilePage user={user} /> : <Navigate to="/" />} />
-          <Route path="/privacy" element={user ? <PrivacyPage user={user} /> : <Navigate to="/" />} />
+          <Route path="/privacy" element={user ? <PrivacyPage user={user} onUpdate={handleLogin} /> : <Navigate to="/" />} />
           <Route path="/settings" element={user ? <SettingsPage user={user} /> : <Navigate to="/" />} />
+          <Route path="/profile-viewers" element={user ? <ProfileViewersPage user={user} /> : <Navigate to="/" />} />
+          <Route path="/enhance-profile" element={user ? <ProfileEnhancementPage user={user} onUpdate={handleLogin} /> : <Navigate to="/" />} />
         </Routes>
       </BrowserRouter>
       
