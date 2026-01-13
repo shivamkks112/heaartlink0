@@ -80,7 +80,7 @@ class User(BaseModel):
     password_hash: str
     name: str
     age: int
-    gender: str
+    gender: str  # male/female/non-binary
     looking_for: str
     bio: str = ""
     location: str
@@ -92,24 +92,62 @@ class User(BaseModel):
     verification_status: str = "pending"  # pending, verified, rejected
     is_admin: bool = False  # Admin flag
     fcm_token: Optional[str] = None  # Firebase Cloud Messaging token for push notifications
+    
+    # === NEW SAFETY & TRUST FIELDS ===
+    # Gender Lock Feature
+    show_to_gender: str = "both"  # male/female/both
+    gender_lock_enabled: bool = False
+    hide_profile_from_gender: str = "none"  # male/female/none
+    
+    # Profile Media
+    bio_voice_intro_url: Optional[str] = None  # 15 sec voice intro
+    intro_video_url: Optional[str] = None  # Optional intro video
+    
+    # Trust & Safety
+    trust_badge_level: str = "low"  # low/medium/high
+    risk_score: int = 0  # 0-100, admin only visible
+    is_verified_male: bool = False  # For women safety - verified male
+    
+    # Profile Enhancement
+    about_me: str = ""  # Extended bio
+    values: List[str] = []  # respect, family, ambition, spirituality, freedom
+    relationship_intent: str = ""  # serious, casual, friendship, marriage
+    lifestyle_tags: List[str] = []  # non-smoker, vegetarian, fitness, travel
+    
+    # Profile Viewers
+    profile_viewers: List[Dict] = []  # Last 5 viewers [{user_id, viewed_at}]
+    
+    # Device Blocking
+    device_ids: List[str] = []  # User's device IDs
+    blocked_device_ids: List[str] = []  # Blocked device IDs
+    
+    # Women Safety Mode
+    women_safety_mode: bool = False  # Enable extra safety features
+    night_quiet_hours_enabled: bool = False  # 10pm-7am auto mute
+    first_message_delay_exempt: bool = False  # Exempted from 2 min delay
+    
+    # Banning
+    is_shadow_banned: bool = False
+    is_permanently_banned: bool = False
+    ban_reason: Optional[str] = None
+    
+    # Legacy fields
     privacy_settings: Dict = Field(default_factory=lambda: {
         "show_profile": True,
         "show_photos": True,
         "incognito_mode": False
     })
     blocked_users: List[str] = []
-    muted_users: List[str] = []  # New: Muted users
-    profile_views: int = 0  # New: Profile view count
-    is_online: bool = False  # Online status
-    last_active: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())  # New: Last active timestamp
+    muted_users: List[str] = []
+    profile_views: int = 0
+    is_online: bool = False
+    last_active: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     
     class Config:
-        # Exclude MongoDB _id field from serialization
         json_encoders = {
             datetime: lambda v: v.isoformat()
         }
-        # Allow arbitrary types
         arbitrary_types_allowed = True
 
 class UserSignup(BaseModel):
