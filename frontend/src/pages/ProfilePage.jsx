@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Camera, User, Heart, MapPin, Calendar, Briefcase, GraduationCap, Ruler, Dumbbell, Wine, Cigarette, CheckCircle, Shield } from 'lucide-react';
+import { Camera, User, Heart, MapPin, Calendar, Briefcase, GraduationCap, Ruler, Dumbbell, Wine, Cigarette, CheckCircle, Shield, Sparkles, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
+import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import TopBar from '@/components/TopBar';
 import { Button } from '@/components/ui/button';
@@ -14,6 +15,7 @@ if (!BACKEND_URL) console.error('⚠️ REACT_APP_BACKEND_URL is not set!');
 const API = `${BACKEND_URL}/api`;
 
 const ProfilePage = ({ user, onUpdate }) => {
+  const navigate = useNavigate();
   const [profile, setProfile] = useState(user);
   const [formData, setFormData] = useState({});
   const [loading, setLoading] = useState(false);
