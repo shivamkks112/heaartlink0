@@ -1641,6 +1641,76 @@ async def get_messages(match_id: str):
 
 @api_router.post("/messages")
 async def send_message_http(message_data: Message):
+    """Send message with women safety checks"""
+    # Get sender and receiver
+    sender = await db.users.find_one({"id": message_data.sender_id})
+    receiver = await db.users.find_one({"id": message_data.receiver_id})
+    
+    if not sender or not receiver:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # === WOMEN SAFETY MODE CHECKS ===
+    if receiver.get("women_safety_mode"):
+        sender_gender = sender.get("gender", "").lower()
+        
+        # Only verified males can message
+        if sender_gender == "male" and not sender.get("is_verified_male"):
+            raise HTTPException(
+                status_code=403, 
+                detail="Only verified males can message this user. Please complete verification."
+            )
+        
+        # Check night quiet hours (10pm - 7am IST)
+        if receiver.get("night_quiet_hours_enabled"):
+            now_utc = datetime.now(timezone.utc)
+            ist_offset = timedelta(hours=5, minutes=30)
+            now_ist = now_utc + ist_offset
+            hour_ist = now_ist.hour
+            
+            if hour_ist >= 22 or hour_ist < 7:
+                raise HTTPException(
+                    status_code=403,
+                    detail="This user has quiet hours enabled (10 PM - 7 AM). Please try again later."
+                )
+        
+        # First message delay for males (2 min)
+        if sender_gender == "male" and not sender.get("first_message_delay_exempt"):
+            # Check if this is first message to this user
+            existing_message = await db.messages.find_one({
+                "sender_id": message_data.sender_id,
+                "receiver_id": message_data.receiver_id
+            })
+            
+            if not existing_message:
+                # Check if delay has passed (stored in a temp collection)
+                delay_record = await db.message_delays.find_one({
+                    "sender_id": message_data.sender_id,
+                    "receiver_id": message_data.receiver_id
+                })
+                
+                if not delay_record:
+                    # Start delay timer
+                    await db.message_delays.insert_one({
+                        "sender_id": message_data.sender_id,
+                        "receiver_id": message_data.receiver_id,
+                        "started_at": datetime.now(timezone.utc).isoformat()
+                    })
+                    raise HTTPException(
+                        status_code=403,
+                        detail="First message requires a 2-minute wait. Please try again in 2 minutes."
+                    )
+                else:
+                    # Check if 2 minutes have passed
+                    started = datetime.fromisoformat(delay_record["started_at"])
+                    elapsed = (datetime.now(timezone.utc) - started).total_seconds()
+                    if elapsed < 120:
+                        remaining = int(120 - elapsed)
+                        raise HTTPException(
+                            status_code=403,
+                            detail=f"Please wait {remaining} more seconds before sending your first message."
+                        )
+    
+    # Proceed with message
     message_dict = message_data.dict()
     await db.messages.insert_one(message_dict)
     
@@ -1657,10 +1727,7 @@ async def send_message_http(message_data: Message):
     await manager.send_message(message_data.sender_id, message_payload)
     
     # Send push notification to receiver
-    receiver = await db.users.find_one({"id": message_data.receiver_id})
-    sender = await db.users.find_one({"id": message_data.sender_id})
-    
-    if receiver and receiver.get('fcm_token') and sender:
+    if receiver.get('fcm_token') and sender:
         # Check if sender is muted by receiver
         muted_users = receiver.get('muted_users', [])
         if message_data.sender_id not in muted_users:
