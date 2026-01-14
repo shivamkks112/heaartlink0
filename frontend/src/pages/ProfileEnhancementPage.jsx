@@ -231,15 +231,13 @@ const ProfileEnhancementPage = ({ user, onUpdate }) => {
   }
 
   return (
-    <div 
-      className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 pb-20 sm:pb-24"
-      style={{ 
-        paddingTop: '130px'
-      }}
-    >
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 pb-20 sm:pb-24">
       <TopBar />
       <Toaster position="top-center" />
       <Navbar user={user} />
+      
+      {/* Spacer for fixed TopBar */}
+      <div style={{ height: '95px' }}></div>
       
       <div className="max-w-3xl mx-auto px-4 pb-24 sm:pb-28">
         {/* Header */}
