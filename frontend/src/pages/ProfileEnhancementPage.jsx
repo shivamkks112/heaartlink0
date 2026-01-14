@@ -236,10 +236,7 @@ const ProfileEnhancementPage = ({ user, onUpdate }) => {
       <Toaster position="top-center" />
       <Navbar user={user} />
       
-      {/* Spacer for fixed TopBar */}
-      <div style={{ height: '95px' }}></div>
-      
-      <div className="max-w-3xl mx-auto px-4 pb-24 sm:pb-28">
+      <div className="max-w-3xl mx-auto px-4 pb-24 sm:pb-28" style={{ marginTop: '95px' }}>
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
           <button
