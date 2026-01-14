@@ -95,6 +95,7 @@ function App() {
           <Route path="/" element={!user ? <LandingPage /> : <Navigate to="/discover" />} />
           <Route path="/auth" element={!user ? <AuthPage onLogin={handleLogin} /> : <Navigate to="/discover" />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/complete-profile" element={<CompleteProfilePage onLogin={handleLogin} />} />
           <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/data-deletion" element={<DataDeletionPage />} />
