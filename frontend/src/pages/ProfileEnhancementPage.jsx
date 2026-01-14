@@ -234,7 +234,7 @@ const ProfileEnhancementPage = ({ user, onUpdate }) => {
     <div 
       className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 pb-20 sm:pb-24"
       style={{ 
-        paddingTop: 'calc(115px + env(safe-area-inset-top, 0px))'
+        paddingTop: '130px'
       }}
     >
       <TopBar />
