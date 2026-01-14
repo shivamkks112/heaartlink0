@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import LandingPage from '@/pages/LandingPage';
 import AuthPage from '@/pages/AuthPage';
 import ForgotPasswordPage from '@/pages/ForgotPasswordPage';
+import CompleteProfilePage from '@/pages/CompleteProfilePage';
 import AdminDashboard from '@/pages/AdminDashboard';
 import DiscoverPage from '@/pages/DiscoverPage';
 import MatchesPage from '@/pages/MatchesPage';
