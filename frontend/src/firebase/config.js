@@ -1,6 +1,6 @@
 // Firebase Configuration
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
 import { getStorage } from 'firebase/storage';
 import { getAnalytics } from 'firebase/analytics';
 import { getMessaging, getToken, onMessage } from 'firebase/messaging';
@@ -24,6 +24,47 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const storage = getStorage(app);
 export const googleProvider = new GoogleAuthProvider();
+
+// Phone Auth helpers
+export const setupRecaptcha = (containerId) => {
+  if (!window.recaptchaVerifier) {
+    window.recaptchaVerifier = new RecaptchaVerifier(auth, containerId, {
+      'size': 'invisible',
+      'callback': (response) => {
+        console.log('reCAPTCHA solved');
+      },
+      'expired-callback': () => {
+        console.log('reCAPTCHA expired');
+        window.recaptchaVerifier = null;
+      }
+    });
+  }
+  return window.recaptchaVerifier;
+};
+
+export const sendOTP = async (phoneNumber, recaptchaVerifier) => {
+  try {
+    const confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, recaptchaVerifier);
+    window.confirmationResult = confirmationResult;
+    return { success: true, confirmationResult };
+  } catch (error) {
+    console.error('Error sending OTP:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+export const verifyOTP = async (otp) => {
+  try {
+    if (!window.confirmationResult) {
+      throw new Error('No OTP was sent. Please request a new OTP.');
+    }
+    const result = await window.confirmationResult.confirm(otp);
+    return { success: true, user: result.user };
+  } catch (error) {
+    console.error('Error verifying OTP:', error);
+    return { success: false, error: error.message };
+  }
+};
 
 // Initialize Firebase Cloud Messaging
 let messaging = null;
