@@ -369,7 +369,7 @@ const AuthPage = ({ onLogin }) => {
                             maxLength={10}
                           />
                         </div>
-                        <p className="text-xs text-gray-500 mt-1">We'll send you an OTP to verify</p>
+                        <p className="text-xs text-gray-500 mt-1">We will send you an OTP to verify</p>
                       </div>
 
                       <Button
