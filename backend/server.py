@@ -598,6 +598,108 @@ async def login(credentials: UserLogin):
     
     return {"message": "Login successful", "user": clean_user}
 
+class PhoneLogin(BaseModel):
+    phone: str
+    firebase_uid: str
+
+@api_router.post("/auth/phone-login")
+async def phone_login(credentials: PhoneLogin):
+    """
+    Phone OTP login - Firebase verified
+    """
+    # Normalize phone number
+    phone = credentials.phone
+    if not phone.startswith('+'):
+        phone = '+' + phone
+    
+    # Find user by phone
+    user = await db.users.find_one({
+        "$or": [
+            {"phone": phone},
+            {"phone": phone.replace('+91', '')},
+            {"phone": phone.replace('+', '')}
+        ]
+    })
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found. Please sign up first.")
+    
+    # Update firebase_uid if not set
+    if not user.get("firebase_uid"):
+        await db.users.update_one(
+            {"id": user["id"]},
+            {"$set": {"firebase_uid": credentials.firebase_uid}}
+        )
+    
+    # Invalidate cache
+    invalidate_user_cache(user["id"])
+    
+    # Serialize for response
+    clean_user = serialize_user_for_response(user, exclude_password=True)
+    
+    return {"message": "Login successful", "user": clean_user}
+
+class PhoneSignup(BaseModel):
+    phone: str
+    firebase_uid: str
+    name: str
+    age: int
+    gender: str
+    looking_for: str
+    location: str
+    bio: str = ""
+    interests: List[str] = []
+
+@api_router.post("/auth/phone-signup")
+async def phone_signup(data: PhoneSignup):
+    """
+    Phone signup - for users who verified via OTP
+    """
+    # Normalize phone
+    phone = data.phone
+    if not phone.startswith('+'):
+        phone = '+' + phone
+    
+    # Check if user already exists
+    existing = await db.users.find_one({
+        "$or": [
+            {"phone": phone},
+            {"firebase_uid": data.firebase_uid}
+        ]
+    })
+    
+    if existing:
+        raise HTTPException(status_code=400, detail="User already exists with this phone number")
+    
+    # Create user
+    user_id = str(uuid.uuid4())
+    user = User(
+        id=user_id,
+        phone=phone,
+        password_hash=hash_password(str(uuid.uuid4())),  # Random password since using OTP
+        name=data.name,
+        age=data.age,
+        gender=data.gender,
+        looking_for=data.looking_for,
+        location=data.location,
+        bio=data.bio,
+        interests=data.interests,
+        verified=True  # Phone verified via OTP
+    )
+    
+    user_dict = user.dict()
+    user_dict["firebase_uid"] = data.firebase_uid
+    user_dict.pop("_id", None)
+    
+    await db.users.insert_one(user_dict)
+    
+    # Fetch created user
+    created_user = await db.users.find_one({"id": user_id})
+    clean_user = serialize_user_for_response(created_user, exclude_password=True)
+    
+    return {"message": "Signup successful", "user": clean_user}
+
+
 @api_router.post("/auth/forgot-password")
 async def forgot_password(request: ForgotPasswordRequest):
     """Request password reset - generates 6-digit OTP"""
