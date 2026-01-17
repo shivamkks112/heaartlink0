@@ -170,6 +170,21 @@ const CompleteProfilePage = ({ onLogin }) => {
             </div>
 
             <div>
+              <Label className="text-gray-700 font-semibold">Relationship Status</Label>
+              <select
+                value={profileData.relationship_status}
+                onChange={(e) => setProfileData({...profileData, relationship_status: e.target.value})}
+                className="w-full mt-2 p-3 rounded-xl border-2 border-gray-200 focus:border-pink-500 bg-white"
+              >
+                <option value="Single">Single</option>
+                <option value="Divorced">Divorced</option>
+                <option value="Widowed">Widowed</option>
+                <option value="Separated">Separated</option>
+                <option value="Complicated">It's Complicated</option>
+              </select>
+            </div>
+
+            <div>
               <Label className="text-gray-700 font-semibold">Bio (Optional)</Label>
               <textarea
                 placeholder="Tell us about yourself..."
