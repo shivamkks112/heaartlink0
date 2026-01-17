@@ -255,6 +255,7 @@ class UserSignup(BaseModel):
     interests: List[str] = []
     # New optional fields during signup
     show_to_gender: str = "both"
+    relationship_status: str = ""  # single, divorced, widowed, separated, complicated
     relationship_intent: str = ""
     values: List[str] = []
     lifestyle_tags: List[str] = []
