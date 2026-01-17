@@ -22,6 +22,7 @@ const CompleteProfilePage = ({ onLogin }) => {
     age: '',
     gender: 'Male',
     looking_for: 'Female',
+    relationship_status: 'Single',
     location: '',
     bio: '',
     interests: ''
