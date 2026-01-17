@@ -202,6 +202,7 @@ class User(BaseModel):
     # Profile Enhancement
     about_me: str = ""  # Extended bio
     values: List[str] = []  # respect, family, ambition, spirituality, freedom
+    relationship_status: str = ""  # single, divorced, widowed, separated, complicated
     relationship_intent: str = ""  # serious, casual, friendship, marriage
     lifestyle_tags: List[str] = []  # non-smoker, vegetarian, fitness, travel
     
