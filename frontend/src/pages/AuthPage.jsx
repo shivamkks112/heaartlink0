@@ -36,6 +36,7 @@ const AuthPage = ({ onLogin }) => {
     age: '',
     gender: 'Male',
     looking_for: 'Female',
+    relationship_status: 'Single',
     bio: '',
     location: '',
     interests: ''
