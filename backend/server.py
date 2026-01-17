@@ -687,6 +687,7 @@ async def phone_signup(data: PhoneSignup):
         location=data.location,
         bio=data.bio,
         interests=data.interests,
+        relationship_status=data.relationship_status,
         verified=True  # Phone verified via OTP
     )
     
