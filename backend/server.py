@@ -651,6 +651,7 @@ class PhoneSignup(BaseModel):
     location: str
     bio: str = ""
     interests: List[str] = []
+    relationship_status: str = ""  # single, divorced, widowed, separated, complicated
 
 @api_router.post("/auth/phone-signup")
 async def phone_signup(data: PhoneSignup):
