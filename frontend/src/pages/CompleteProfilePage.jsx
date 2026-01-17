@@ -56,6 +56,7 @@ const CompleteProfilePage = ({ onLogin }) => {
         age: parseInt(profileData.age),
         gender: profileData.gender,
         looking_for: profileData.looking_for,
+        relationship_status: profileData.relationship_status,
         location: profileData.location,
         bio: profileData.bio,
         interests: profileData.interests ? profileData.interests.split(',').map(i => i.trim()) : []
