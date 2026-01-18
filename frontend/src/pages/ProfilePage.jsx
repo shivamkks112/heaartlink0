@@ -111,6 +111,17 @@ const ProfilePage = ({ user, onUpdate }) => {
       return;
     }
 
+    // Validation for required fields
+    if (!formData.bio || formData.bio.trim().length < 10) {
+      toast.error('Please write a bio (at least 10 characters)');
+      return;
+    }
+
+    if (!formData.relationship_status) {
+      toast.error('Please select your relationship status');
+      return;
+    }
+
     setLoading(true);
     try {
       // Only send changed fields
