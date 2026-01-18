@@ -19,7 +19,9 @@ import DataDeletionPage from '@/pages/DataDeletionPage';
 import TermsPage from '@/pages/TermsPage';
 import ProfileViewersPage from '@/pages/ProfileViewersPage';
 import ProfileEnhancementPage from '@/pages/ProfileEnhancementPage';
+import PremiumPage from '@/pages/PremiumPage';
 import InstallPrompt from '@/components/InstallPrompt';
+import { AdProvider } from '@/context/AdContext';
 import { requestNotificationPermission, setupForegroundMessageListener } from '@/firebase/messaging';
 import { initGoogleAuth } from '@/utils/nativeGoogleAuth';
 import { initPushNotifications } from '@/services/pushNotifications';
@@ -90,28 +92,31 @@ function App() {
 
   return (
     <div className="App">
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={!user ? <LandingPage /> : <Navigate to="/discover" />} />
-          <Route path="/auth" element={!user ? <AuthPage onLogin={handleLogin} /> : <Navigate to="/discover" />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/complete-profile" element={<CompleteProfilePage onLogin={handleLogin} />} />
-          <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
-          <Route path="/terms" element={<TermsPage />} />
-          <Route path="/data-deletion" element={<DataDeletionPage />} />
-          <Route path="/admin" element={user && user.is_admin ? <AdminDashboard user={user} /> : <Navigate to="/" />} />
-          <Route path="/discover" element={user ? <DiscoverPage user={user} /> : <Navigate to="/" />} />
-          <Route path="/matches" element={user ? <MatchesPage user={user} /> : <Navigate to="/" />} />
-          <Route path="/likes" element={user ? <LikesYouPage user={user} /> : <Navigate to="/" />} />
-          <Route path="/chat/:matchId" element={user ? <ChatPage user={user} /> : <Navigate to="/" />} />
-          <Route path="/profile" element={user ? <ProfilePage user={user} onUpdate={handleLogin} /> : <Navigate to="/" />} />
-          <Route path="/profile/:userId" element={user ? <UserProfilePage user={user} /> : <Navigate to="/" />} />
-          <Route path="/privacy" element={user ? <PrivacyPage user={user} onUpdate={handleLogin} /> : <Navigate to="/" />} />
-          <Route path="/settings" element={user ? <SettingsPage user={user} /> : <Navigate to="/" />} />
-          <Route path="/profile-viewers" element={user ? <ProfileViewersPage user={user} /> : <Navigate to="/" />} />
-          <Route path="/enhance-profile" element={user ? <ProfileEnhancementPage user={user} onUpdate={handleLogin} /> : <Navigate to="/" />} />
-        </Routes>
-      </BrowserRouter>
+      <AdProvider user={user}>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={!user ? <LandingPage /> : <Navigate to="/discover" />} />
+            <Route path="/auth" element={!user ? <AuthPage onLogin={handleLogin} /> : <Navigate to="/discover" />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/complete-profile" element={<CompleteProfilePage onLogin={handleLogin} />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+            <Route path="/terms" element={<TermsPage />} />
+            <Route path="/data-deletion" element={<DataDeletionPage />} />
+            <Route path="/admin" element={user && user.is_admin ? <AdminDashboard user={user} /> : <Navigate to="/" />} />
+            <Route path="/discover" element={user ? <DiscoverPage user={user} /> : <Navigate to="/" />} />
+            <Route path="/matches" element={user ? <MatchesPage user={user} /> : <Navigate to="/" />} />
+            <Route path="/likes" element={user ? <LikesYouPage user={user} /> : <Navigate to="/" />} />
+            <Route path="/chat/:matchId" element={user ? <ChatPage user={user} /> : <Navigate to="/" />} />
+            <Route path="/profile" element={user ? <ProfilePage user={user} onUpdate={handleLogin} /> : <Navigate to="/" />} />
+            <Route path="/profile/:userId" element={user ? <UserProfilePage user={user} /> : <Navigate to="/" />} />
+            <Route path="/privacy" element={user ? <PrivacyPage user={user} onUpdate={handleLogin} /> : <Navigate to="/" />} />
+            <Route path="/settings" element={user ? <SettingsPage user={user} /> : <Navigate to="/" />} />
+            <Route path="/profile-viewers" element={user ? <ProfileViewersPage user={user} /> : <Navigate to="/" />} />
+            <Route path="/enhance-profile" element={user ? <ProfileEnhancementPage user={user} onUpdate={handleLogin} /> : <Navigate to="/" />} />
+            <Route path="/premium" element={user ? <PremiumPage user={user} /> : <Navigate to="/" />} />
+          </Routes>
+        </BrowserRouter>
+      </AdProvider>
       
       {/* PWA Install Prompt */}
       <InstallPrompt />
