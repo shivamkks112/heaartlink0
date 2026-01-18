@@ -2704,6 +2704,329 @@ def check_women_safety_restrictions(sender: dict, receiver: dict) -> tuple:
     
     return True, "", 0
 
+# ==================== ADS & MONETIZATION APIS ====================
+
+class AdImpressionRequest(BaseModel):
+    user_id: str
+    ad_type: str  # rewarded, interstitial, banner
+    reward_type: Optional[str] = None  # extra_swipes, profile_boost, priority_message
+    amount: Optional[int] = None
+    timestamp: str
+
+class AdRewardRequest(BaseModel):
+    user_id: str
+    reward_type: str  # extra_swipes, profile_boost, priority_message
+    amount: int
+    timestamp: str
+
+@api_router.post("/ads/impression")
+async def track_ad_impression(data: AdImpressionRequest):
+    """
+    Track ad impression for analytics
+    Business Rules:
+    - Only male, non-premium users can have ad impressions
+    - Max 1 interstitial per day
+    """
+    # Verify user exists and is eligible
+    user = await db.users.find_one({"id": data.user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Check eligibility - only male non-premium users
+    if user.get("gender", "").lower() != "male":
+        raise HTTPException(status_code=403, detail="Ads only for male users")
+    
+    if user.get("is_premium") or user.get("isPremium"):
+        raise HTTPException(status_code=403, detail="Premium users don't see ads")
+    
+    # Record impression
+    impression_doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": data.user_id,
+        "ad_type": data.ad_type,
+        "reward_type": data.reward_type,
+        "amount": data.amount,
+        "timestamp": data.timestamp,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.ad_impressions.insert_one(impression_doc)
+    
+    # Update user's ad stats
+    await db.users.update_one(
+        {"id": data.user_id},
+        {
+            "$inc": {f"ad_stats.{data.ad_type}_count": 1},
+            "$set": {"ad_stats.last_ad_shown": data.timestamp}
+        }
+    )
+    
+    return {"success": True, "impression_id": impression_doc["id"]}
+
+@api_router.post("/ads/reward")
+async def track_ad_reward(data: AdRewardRequest):
+    """Track reward earned from watching ad"""
+    user = await db.users.find_one({"id": data.user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Record reward
+    reward_doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": data.user_id,
+        "reward_type": data.reward_type,
+        "amount": data.amount,
+        "timestamp": data.timestamp,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.ad_rewards.insert_one(reward_doc)
+    
+    # Apply reward to user based on type
+    update_fields = {}
+    
+    if data.reward_type == "extra_swipes":
+        update_fields["extra_swipes"] = user.get("extra_swipes", 0) + data.amount
+    elif data.reward_type == "profile_boost":
+        boost_end = datetime.now(timezone.utc) + timedelta(minutes=data.amount)
+        update_fields["profile_boost_end"] = boost_end.isoformat()
+        update_fields["is_boosted"] = True
+    elif data.reward_type == "priority_message":
+        update_fields["priority_messages"] = user.get("priority_messages", 0) + data.amount
+    
+    if update_fields:
+        await db.users.update_one(
+            {"id": data.user_id},
+            {"$set": update_fields}
+        )
+    
+    invalidate_user_cache(data.user_id)
+    
+    return {"success": True, "reward_applied": data.reward_type, "amount": data.amount}
+
+@api_router.get("/ads/stats/{user_id}")
+async def get_ad_stats(user_id: str):
+    """Get user's ad statistics"""
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Get today's impressions
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    today_impressions = await db.ad_impressions.count_documents({
+        "user_id": user_id,
+        "created_at": {"$gte": today_start.isoformat()}
+    })
+    
+    today_interstitials = await db.ad_impressions.count_documents({
+        "user_id": user_id,
+        "ad_type": "interstitial",
+        "created_at": {"$gte": today_start.isoformat()}
+    })
+    
+    # Get total rewards earned
+    rewards_pipeline = [
+        {"$match": {"user_id": user_id}},
+        {"$group": {
+            "_id": "$reward_type",
+            "total_amount": {"$sum": "$amount"},
+            "count": {"$sum": 1}
+        }}
+    ]
+    rewards_summary = await db.ad_rewards.aggregate(rewards_pipeline).to_list(None)
+    
+    return {
+        "user_id": user_id,
+        "is_eligible": user.get("gender", "").lower() == "male" and not user.get("is_premium"),
+        "today_impressions": today_impressions,
+        "today_interstitials": today_interstitials,
+        "can_show_interstitial": today_interstitials < 1,  # Max 1 per day
+        "extra_swipes": user.get("extra_swipes", 0),
+        "priority_messages": user.get("priority_messages", 0),
+        "is_boosted": user.get("is_boosted", False),
+        "boost_end": user.get("profile_boost_end"),
+        "rewards_summary": {r["_id"]: {"total": r["total_amount"], "count": r["count"]} for r in rewards_summary}
+    }
+
+@api_router.get("/ads/frequency-cap/{user_id}")
+async def check_frequency_cap(user_id: str):
+    """Check if user can see interstitial ad today"""
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Check eligibility
+    if user.get("gender", "").lower() != "male":
+        return {"can_show": False, "reason": "female_user"}
+    
+    if user.get("is_premium") or user.get("isPremium"):
+        return {"can_show": False, "reason": "premium_user"}
+    
+    # Check today's interstitial count
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    today_interstitials = await db.ad_impressions.count_documents({
+        "user_id": user_id,
+        "ad_type": "interstitial",
+        "created_at": {"$gte": today_start.isoformat()}
+    })
+    
+    if today_interstitials >= 1:
+        # Calculate next eligible time (midnight UTC)
+        tomorrow = today_start + timedelta(days=1)
+        return {
+            "can_show": False,
+            "reason": "daily_limit_reached",
+            "next_eligible_at": tomorrow.isoformat()
+        }
+    
+    return {"can_show": True}
+
+# ==================== PREMIUM SUBSCRIPTION APIS ====================
+
+class SubscriptionCreateRequest(BaseModel):
+    user_id: str
+    plan_id: str  # monthly, quarterly, yearly
+
+@api_router.post("/subscription/create")
+async def create_subscription(data: SubscriptionCreateRequest):
+    """
+    Create a subscription order
+    In production, this would integrate with Razorpay/Stripe
+    """
+    user = await db.users.find_one({"id": data.user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Plan pricing (in INR)
+    plans = {
+        "monthly": {"price": 299, "days": 30, "name": "Premium Monthly"},
+        "quarterly": {"price": 699, "days": 90, "name": "Premium Quarterly"},
+        "yearly": {"price": 1999, "days": 365, "name": "Premium Yearly"}
+    }
+    
+    if data.plan_id not in plans:
+        raise HTTPException(status_code=400, detail="Invalid plan ID")
+    
+    plan = plans[data.plan_id]
+    
+    # Create order record
+    order_doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": data.user_id,
+        "plan_id": data.plan_id,
+        "plan_name": plan["name"],
+        "amount": plan["price"],
+        "currency": "INR",
+        "status": "pending",  # pending, completed, failed
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.subscription_orders.insert_one(order_doc)
+    
+    # In production, integrate with payment gateway here
+    # For now, return order details
+    return {
+        "order_id": order_doc["id"],
+        "amount": plan["price"],
+        "currency": "INR",
+        "plan_name": plan["name"],
+        "days": plan["days"],
+        "message": "Payment integration coming soon"
+    }
+
+@api_router.post("/subscription/activate/{user_id}")
+async def activate_subscription(user_id: str, plan_id: str, order_id: str = None):
+    """
+    Activate premium subscription for user
+    Called after successful payment verification
+    """
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Plan durations
+    plan_days = {
+        "monthly": 30,
+        "quarterly": 90,
+        "yearly": 365
+    }
+    
+    if plan_id not in plan_days:
+        raise HTTPException(status_code=400, detail="Invalid plan ID")
+    
+    # Calculate subscription end date
+    days = plan_days[plan_id]
+    end_date = datetime.now(timezone.utc) + timedelta(days=days)
+    
+    # Update user to premium
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {
+            "is_premium": True,
+            "premium_plan": plan_id,
+            "premium_start": datetime.now(timezone.utc).isoformat(),
+            "premium_end": end_date.isoformat()
+        }}
+    )
+    
+    # Update order status if provided
+    if order_id:
+        await db.subscription_orders.update_one(
+            {"id": order_id},
+            {"$set": {
+                "status": "completed",
+                "completed_at": datetime.now(timezone.utc).isoformat()
+            }}
+        )
+    
+    invalidate_user_cache(user_id)
+    
+    return {
+        "success": True,
+        "message": "Premium activated successfully",
+        "plan": plan_id,
+        "expires_at": end_date.isoformat()
+    }
+
+@api_router.get("/subscription/status/{user_id}")
+async def get_subscription_status(user_id: str):
+    """Get user's subscription status"""
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    is_premium = user.get("is_premium", False)
+    
+    # Check if subscription expired
+    if is_premium and user.get("premium_end"):
+        end_date = datetime.fromisoformat(user["premium_end"].replace("Z", "+00:00"))
+        if datetime.now(timezone.utc) > end_date:
+            # Subscription expired, update user
+            await db.users.update_one(
+                {"id": user_id},
+                {"$set": {"is_premium": False}}
+            )
+            invalidate_user_cache(user_id)
+            is_premium = False
+    
+    return {
+        "user_id": user_id,
+        "is_premium": is_premium,
+        "plan": user.get("premium_plan"),
+        "started_at": user.get("premium_start"),
+        "expires_at": user.get("premium_end"),
+        "features": {
+            "no_ads": is_premium,
+            "unlimited_swipes": is_premium,
+            "see_who_liked": is_premium,
+            "profile_boost": is_premium,
+            "super_likes": is_premium,
+            "rewind": is_premium
+        }
+    }
+
 # Include router - MUST be after all route definitions
 app.include_router(api_router)
 
