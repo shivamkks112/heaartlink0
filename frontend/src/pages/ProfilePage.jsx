@@ -326,16 +326,49 @@ const ProfilePage = ({ user, onUpdate }) => {
               </div>
             </div>
 
-            {/* Bio */}
+            {/* Bio - Required */}
             <div>
-              <label className="text-sm font-medium text-gray-600 mb-2 block">Bio</label>
+              <label className="text-sm font-medium text-gray-600 mb-2 block">
+                Bio <span className="text-red-500">*</span>
+              </label>
               <textarea
                 value={formData.bio || ''}
                 onChange={(e) => handleFieldChange('bio', e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
                 rows="4"
                 placeholder="Tell us about yourself..."
+                required
               />
+              <div className="mt-2 text-sm text-gray-500">
+                <p className="font-medium text-gray-600 mb-1">💡 Bio Ideas:</p>
+                <ul className="list-disc list-inside space-y-1 text-xs">
+                  <li>What do you do for fun on weekends?</li>
+                  <li>Your favorite travel destination</li>
+                  <li>What makes you laugh?</li>
+                  <li>Your dream date idea</li>
+                  <li>A fun fact about yourself</li>
+                </ul>
+              </div>
+            </div>
+
+            {/* Relationship Status - Required */}
+            <div>
+              <label className="text-sm font-medium text-gray-600 mb-2 block">
+                Relationship Status <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={formData.relationship_status || ''}
+                onChange={(e) => handleFieldChange('relationship_status', e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                required
+              >
+                <option value="">Select your status</option>
+                <option value="Single">Single</option>
+                <option value="Divorced">Divorced</option>
+                <option value="Widowed">Widowed</option>
+                <option value="Separated">Separated</option>
+                <option value="Complicated">It's Complicated</option>
+              </select>
             </div>
 
             {/* Enhance Profile Link */}
