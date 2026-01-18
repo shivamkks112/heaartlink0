@@ -92,7 +92,7 @@ Firebase Console
 ## ✅ After Adding Domains
 
 ### Test Google Sign-In:
-1. Go to: https://dating-app-debug-1.preview.emergentagent.com/auth
+1. Go to: https://heartmatch-india.preview.emergentagent.com/auth
 2. Click **"Sign in with Google"** button
 3. Google login popup should appear
 4. Select your Google account
@@ -146,7 +146,7 @@ Before testing, make sure:
 
 **Domain format:**
 - ✅ Correct: `heartlink-app-2.preview.emergentagent.com`
-- ❌ Wrong: `https://dating-app-debug-1.preview.emergentagent.com`
+- ❌ Wrong: `https://heartmatch-india.preview.emergentagent.com`
 - ❌ Wrong: `heartlink-app-2.preview.emergentagent.com/`
 - Just the domain, no protocol, no trailing slash
 

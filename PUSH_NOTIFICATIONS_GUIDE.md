@@ -67,7 +67,7 @@ Push notifications are now **fully functional** in your HeartLink dating app!
 Use the built-in test endpoint:
 
 ```bash
-curl -X POST "https://dating-app-debug-1.preview.emergentagent.com/api/fcm/send-test?user_id=YOUR_USER_ID"
+curl -X POST "https://heartmatch-india.preview.emergentagent.com/api/fcm/send-test?user_id=YOUR_USER_ID"
 ```
 
 ### **Method 2: Real Actions**
