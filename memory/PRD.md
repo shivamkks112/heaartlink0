@@ -5,148 +5,125 @@ Build a modern, safe, trust-based dating app for Android called "HeartLink" for 
 
 ## Core Features
 
-### Implemented (Phase 1) - January 2025
+### Implemented Features
 
-#### 1. User Schema Updates ✅
-New fields added to User model:
-- `gender` (male/female/non-binary)
-- `show_to_gender` (male/female/both)
-- `gender_lock_enabled` (boolean)
-- `hide_profile_from_gender` (male/female/none)
-- `last_active` (datetime)
-- `bio_voice_intro_url` (string)
-- `intro_video_url` (string)
-- `trust_badge_level` (low/medium/high)
-- `risk_score` (0-100, admin visible only)
-- `is_verified_male` (boolean)
-- `about_me` (extended bio)
-- `values` (array: respect, family, ambition, spirituality, freedom)
-- `relationship_intent` (serious, casual, friendship, marriage)
-- `lifestyle_tags` (array: non-smoker, vegetarian, fitness, travel, etc.)
-- `profile_viewers` (array of last viewers)
-- `device_ids`, `blocked_device_ids` (for device blocking)
-- `women_safety_mode`, `night_quiet_hours_enabled`
-- `is_shadow_banned`, `is_permanently_banned`, `ban_reason`
+#### Phase 1 - Safety & Trust (January 2025) ✅
+1. **User Schema Updates** - Gender lock, trust badges, risk scores, women safety mode fields
+2. **Performance Optimizations** - MongoDB indexes, connection pooling, in-memory caching
+3. **Gender Lock Feature** - Strict gender filtering for profile visibility
+4. **Profile Enhancement** - Voice intro, values, relationship intent, lifestyle tags
+5. **Safety & Control** - Profile view history, incognito mode, device blocking
+6. **Trust UI** - Trust badges on profiles (low/medium/high)
+7. **Women Safety Mode** - Verified males only, message delays, quiet hours
+8. **Admin Controls** - User settings management, banning, verification
 
-#### 2. Performance Optimizations ✅ (NEW)
-- **MongoDB Connection Pooling**: maxPoolSize=50, minPoolSize=10
-- **Database Indexes**: 15+ indexes on frequently queried fields
-- **In-Memory Caching**: TTLCache for user profiles (5 min TTL)
-- **Query Projections**: Fetch only needed fields
-- **Parallel Queries**: asyncio.gather for concurrent DB operations
-- **Batch Fetching**: Single query for multiple users in matches
+#### Phase 2 - AdMob Integration (January 2025) ✅ NEW
+1. **Google AdMob Integration**
+   - Rewarded Ads: Extra swipes, profile boost, priority messages
+   - Interstitial Ads: Max 1 per day per user
+   - Banner Ads: Bottom of screen (optional)
 
-#### Performance Results:
-- Profile API: ~45ms (with cache hit)
-- Discover API: ~57ms
-- Matches API: ~46ms
-- Login API: ~83ms
+2. **Gender-Based Ad Targeting**
+   - Female users: Completely AD-FREE experience
+   - Male users: See ads (rewarded optional, interstitial limited)
+   - Premium users: NO ADS at all
 
-#### 2. Gender Lock Feature ✅
-- Users can enable strict gender filtering
-- `show_to_gender` controls who sees your profile
-- `hide_profile_from_gender` hides profile from specific gender
-- Applied in discover endpoint
+3. **Ad Reward System**
+   - Watch ad → +10 extra swipes
+   - Watch ad → 30 min profile boost
+   - Watch ad → 1 priority message
 
-#### 3. Profile Enhancement ✅
-- About Me (extended text)
-- Voice Intro (15 sec recording)
-- Intro Video (optional upload)
-- Values selector (5 options)
-- Relationship Intent picker (4 options)
-- Lifestyle tags (8 options)
+4. **Premium Subscription System**
+   - Monthly (₹299), Quarterly (₹699), Yearly (₹1999)
+   - Features: No ads, unlimited swipes, see who liked, profile boost, super likes
 
-#### 4. Safety & Control Features ✅
-- Profile view history (last 5 viewers)
-- Incognito mode (browse without being seen)
-- Block by device ID
-- Screenshot alert endpoint (POST /api/user/{id}/screenshot-alert)
+5. **Backend Ad Tracking APIs**
+   - `/api/ads/impression` - Track ad views
+   - `/api/ads/reward` - Apply rewards
+   - `/api/ads/stats/{user_id}` - Get ad statistics
+   - `/api/ads/frequency-cap/{user_id}` - Check interstitial eligibility
+   - `/api/subscription/*` - Subscription management
 
-#### 5. Trust UI ✅
-- Trust badge displayed on profiles (low/medium/high)
-- Badge shown in Discover page cards
-- Admin can set trust_badge_level
+### Ad Integration Details
 
-#### 6. Women Safety Mode ✅
-- Only verified males can message when enabled
-- 2-minute first message delay for males
-- Night quiet hours (10pm-7am IST auto mute)
-- Settings visible only to female users
+| Ad Type | Target | Frequency | Screen |
+|---------|--------|-----------|--------|
+| Rewarded | Male non-premium | Unlimited (user-initiated) | Discover, Profile |
+| Interstitial | Male non-premium | Max 1/day | Home, After boost |
+| Banner | Male non-premium | Continuous | Bottom (not in chat) |
 
-#### 7. Admin Controls ✅
-- PUT /api/admin/user-settings - Update user safety settings
-- Toggle gender lock, verification, trust badge
-- Shadow ban / permanent ban
-- View pending voice/video intros
-- View high risk users (risk_score > 50)
+### Business Rules
+- ❌ Never show ads to female users
+- ❌ Never show ads to premium subscribers
+- ❌ Never show ads in chat screens
+- ✅ Rewarded ads are optional and user-initiated
+- ✅ Max 1 interstitial per day per user
+- ✅ Track all impressions for analytics
 
-#### 8. Filters ✅
-- Filter discover by relationship_intent
-- Filter by trust_badge_level
-- Filter by last_active (hours)
-- Excludes is_shadow_banned and is_permanently_banned users
+### AdMob Credentials
+- App ID: `ca-app-pub-3735972538807236~9004238866`
+- Interstitial: `ca-app-pub-3735972538807236/8105078421`
+- Rewarded: `ca-app-pub-3735972538807236/8182111801`
+- Banner: `ca-app-pub-3735972538807236/9418160097`
 
-### API Endpoints (Phase 1)
+### New Frontend Components
+| Component | Path | Description |
+|-----------|------|-------------|
+| AdMobService | `/src/services/adMobService.js` | AdMob SDK wrapper |
+| AdContext | `/src/context/AdContext.jsx` | React context for ads |
+| RewardedAdButton | `/src/components/ads/RewardedAdButton.jsx` | Watch ad button |
+| AdRewardCard | `/src/components/ads/AdRewardCard.jsx` | Reward options card |
+| PremiumPage | `/src/pages/PremiumPage.jsx` | Subscription plans |
 
+### New API Endpoints
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| PUT | /api/user/{id}/gender-lock | Update gender lock settings |
-| PUT | /api/user/{id}/profile-enhancement | Update values, intent, lifestyle |
-| PUT | /api/user/{id}/women-safety | Toggle women safety mode |
-| GET | /api/user/{id}/profile-viewers | Get last 5 profile viewers |
-| POST | /api/user/{id}/track-view | Track profile view |
-| POST | /api/user/{id}/block-device | Block a device ID |
-| POST | /api/user/{id}/register-device | Register device ID |
-| POST | /api/user/{id}/screenshot-alert | Alert about screenshot |
-| PUT | /api/admin/user-settings | Admin user management |
-| GET | /api/admin/pending-intros | Get pending voice/video intros |
-| GET | /api/admin/high-risk-users | Get users with risk_score > 50 |
-
-### Frontend Pages (Phase 1)
-
-| Route | Page | Features |
-|-------|------|----------|
-| /privacy | Privacy & Safety | Visibility, Gender Lock, Women Safety, Trust Badge |
-| /enhance-profile | Profile Enhancement | About Me, Values, Intent, Lifestyle, Voice/Video |
-| /profile-viewers | Profile Viewers | Total views, Recent viewers list |
+| POST | /api/ads/impression | Track ad impression |
+| POST | /api/ads/reward | Apply ad reward |
+| GET | /api/ads/stats/{user_id} | Get ad statistics |
+| GET | /api/ads/frequency-cap/{user_id} | Check frequency cap |
+| POST | /api/subscription/create | Create subscription order |
+| POST | /api/subscription/activate/{user_id} | Activate premium |
+| GET | /api/subscription/status/{user_id} | Get subscription status |
 
 ## Tech Stack
 - **Frontend**: React + TailwindCSS + Shadcn/UI
 - **Backend**: FastAPI (Python)
 - **Database**: MongoDB
 - **Native App**: Capacitor (Android)
-- **Storage**: Firebase Storage (voice/video intros)
+- **Ads**: Google AdMob (@capacitor-community/admob)
+- **Storage**: Firebase Storage
 - **Notifications**: Firebase Cloud Messaging
 
-## Testing Status
-- Backend: 34/34 tests PASS (100%)
-- Frontend: All pages verified working
-
-## Upcoming Tasks (Phase 2)
+## Upcoming Tasks
 
 ### P0 - High Priority
-- [ ] Screenshot detection native implementation (Capacitor plugin)
-- [ ] AI Trust Score algorithm implementation
-- [ ] Instant Match feature
+- [ ] Razorpay/Stripe payment integration for subscriptions
+- [ ] Screenshot detection native implementation
+- [ ] AI Trust Score algorithm
 
-### P1 - Medium Priority  
+### P1 - Medium Priority
 - [ ] Chat without match functionality
 - [ ] Typing indicators and read receipts
-- [ ] Admin dashboard UI for new controls
+- [ ] Native Android app build with AdMob
 
 ### P2 - Lower Priority
-- [ ] Data merge from heartlink-dating-1
 - [ ] Advanced reporting system
-- [ ] User verification flow (selfie/ID)
-
-## System Tone
-The app should feel:
-- Calm and emotionally mature
-- Safe and respectful
-- Premium quality
-- NOT hookup or spammy
+- [ ] AI-based photo verification
+- [ ] Redis caching for scalability
 
 ## Test Credentials
-- Email: shivam.fresh@heartlink.com
-- Password: Shivam@#110
-- User ID: 4f67c382-84dd-4cf1-a455-d554210fd47c
+- Admin Email: shivamkks112@gmail.com
+- Admin Password: Test@123
+
+## Files Modified/Created (This Session)
+- `/app/frontend/src/services/adMobService.js` - NEW
+- `/app/frontend/src/context/AdContext.jsx` - NEW
+- `/app/frontend/src/components/ads/RewardedAdButton.jsx` - NEW
+- `/app/frontend/src/components/ads/AdRewardCard.jsx` - NEW
+- `/app/frontend/src/pages/PremiumPage.jsx` - NEW
+- `/app/frontend/src/pages/DiscoverPage.jsx` - MODIFIED (added ad components)
+- `/app/frontend/src/App.js` - MODIFIED (AdProvider, Premium route)
+- `/app/frontend/.env` - MODIFIED (AdMob config)
+- `/app/frontend/android/app/src/main/AndroidManifest.xml` - MODIFIED (AdMob App ID)
+- `/app/backend/server.py` - MODIFIED (Ad & Subscription APIs)
