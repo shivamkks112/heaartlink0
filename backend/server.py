@@ -2455,6 +2455,223 @@ async def get_high_risk_users():
         "is_permanently_banned": u.get("is_permanently_banned", False)
     } for u in users]
 
+# === ADMIN: ALL USERS LIST ===
+@api_router.get("/admin/all-users")
+async def get_all_users(search: str = "", page: int = 1, limit: int = 20):
+    """Get all users with search and pagination for admin"""
+    skip = (page - 1) * limit
+    
+    # Build search query
+    query = {}
+    if search:
+        query["$or"] = [
+            {"name": {"$regex": search, "$options": "i"}},
+            {"email": {"$regex": search, "$options": "i"}},
+            {"phone": {"$regex": search, "$options": "i"}}
+        ]
+    
+    # Get total count
+    total = await db.users.count_documents(query)
+    
+    # Get users with pagination
+    users = await db.users.find(query).skip(skip).limit(limit).to_list(None)
+    
+    return {
+        "users": [{
+            "id": u["id"],
+            "name": u["name"],
+            "email": u.get("email"),
+            "phone": u.get("phone"),
+            "age": u.get("age"),
+            "gender": u.get("gender"),
+            "location": u.get("location"),
+            "profile_picture": u.get("profile_picture"),
+            "verified": u.get("verified", False),
+            "verification_status": u.get("verification_status", "pending"),
+            "is_online": u.get("is_online", False),
+            "is_shadow_banned": u.get("is_shadow_banned", False),
+            "is_permanently_banned": u.get("is_permanently_banned", False),
+            "trust_badge_level": u.get("trust_badge_level", "low"),
+            "created_at": u.get("created_at"),
+            "selfie_verification_url": u.get("selfie_verification_url"),
+            "selfie_verification_status": u.get("selfie_verification_status", "none")
+        } for u in users],
+        "total": total,
+        "page": page,
+        "pages": (total + limit - 1) // limit
+    }
+
+# === ADMIN: DELETE USER ===
+@api_router.delete("/admin/user/{user_id}")
+async def admin_delete_user(user_id: str):
+    """Permanently delete a user and all their data"""
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Delete user
+    await db.users.delete_one({"id": user_id})
+    
+    # Delete user's matches
+    await db.matches.delete_many({
+        "$or": [{"user1_id": user_id}, {"user2_id": user_id}]
+    })
+    
+    # Delete user's messages
+    await db.messages.delete_many({
+        "$or": [{"sender_id": user_id}, {"receiver_id": user_id}]
+    })
+    
+    # Delete user's reports
+    await db.reports.delete_many({
+        "$or": [{"reporter_id": user_id}, {"reported_user_id": user_id}]
+    })
+    
+    # Invalidate cache
+    invalidate_user_cache(user_id)
+    
+    return {"message": f"User {user['name']} deleted successfully"}
+
+# === ADMIN: BLOCK/UNBLOCK USER ===
+@api_router.post("/admin/user/{user_id}/block")
+async def admin_block_user(user_id: str, permanent: bool = False, reason: str = ""):
+    """Block or shadow ban a user"""
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if permanent:
+        await db.users.update_one(
+            {"id": user_id},
+            {"$set": {
+                "is_permanently_banned": True,
+                "ban_reason": reason,
+                "banned_at": datetime.now(timezone.utc).isoformat()
+            }}
+        )
+        return {"message": f"User {user['name']} permanently banned"}
+    else:
+        await db.users.update_one(
+            {"id": user_id},
+            {"$set": {
+                "is_shadow_banned": True,
+                "ban_reason": reason,
+                "shadow_banned_at": datetime.now(timezone.utc).isoformat()
+            }}
+        )
+        return {"message": f"User {user['name']} shadow banned"}
+
+@api_router.post("/admin/user/{user_id}/unblock")
+async def admin_unblock_user(user_id: str):
+    """Unblock a user"""
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {
+            "is_shadow_banned": False,
+            "is_permanently_banned": False,
+            "ban_reason": None
+        }}
+    )
+    
+    invalidate_user_cache(user_id)
+    return {"message": f"User {user['name']} unblocked"}
+
+# === PHOTO VERIFICATION SYSTEM ===
+class SelfieVerificationRequest(BaseModel):
+    user_id: str
+    selfie_url: str
+
+@api_router.post("/user/submit-selfie-verification")
+async def submit_selfie_verification(data: SelfieVerificationRequest):
+    """User submits selfie for verification"""
+    user = await db.users.find_one({"id": data.user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    await db.users.update_one(
+        {"id": data.user_id},
+        {"$set": {
+            "selfie_verification_url": data.selfie_url,
+            "selfie_verification_status": "pending",
+            "selfie_submitted_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    invalidate_user_cache(data.user_id)
+    return {"message": "Selfie submitted for verification"}
+
+@api_router.get("/admin/pending-verifications")
+async def get_pending_verifications():
+    """Get all users with pending selfie verification"""
+    users = await db.users.find({
+        "selfie_verification_status": "pending"
+    }).to_list(100)
+    
+    return [{
+        "id": u["id"],
+        "name": u["name"],
+        "email": u.get("email"),
+        "phone": u.get("phone"),
+        "profile_picture": u.get("profile_picture"),
+        "selfie_verification_url": u.get("selfie_verification_url"),
+        "selfie_submitted_at": u.get("selfie_submitted_at"),
+        "photos": u.get("photos", [])
+    } for u in users]
+
+class VerifySelfieRequest(BaseModel):
+    user_id: str
+    action: str  # approve or reject
+    reason: str = ""
+
+@api_router.post("/admin/verify-selfie")
+async def admin_verify_selfie(data: VerifySelfieRequest):
+    """Admin approves or rejects selfie verification"""
+    user = await db.users.find_one({"id": data.user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if data.action == "approve":
+        await db.users.update_one(
+            {"id": data.user_id},
+            {"$set": {
+                "selfie_verification_status": "verified",
+                "verified": True,
+                "verification_status": "verified",
+                "trust_badge_level": "high",
+                "selfie_verified_at": datetime.now(timezone.utc).isoformat()
+            }}
+        )
+        
+        # Send notification
+        if user.get('fcm_token'):
+            send_verification_notification(user['fcm_token'], "approved")
+        
+        invalidate_user_cache(data.user_id)
+        return {"message": "Selfie verification approved"}
+    
+    elif data.action == "reject":
+        await db.users.update_one(
+            {"id": data.user_id},
+            {"$set": {
+                "selfie_verification_status": "rejected",
+                "selfie_rejection_reason": data.reason,
+                "selfie_rejected_at": datetime.now(timezone.utc).isoformat()
+            }}
+        )
+        
+        # Send notification
+        if user.get('fcm_token'):
+            send_verification_notification(user['fcm_token'], "rejected")
+        
+        invalidate_user_cache(data.user_id)
+        return {"message": "Selfie verification rejected", "reason": data.reason}
+    
+    raise HTTPException(status_code=400, detail="Invalid action")
+
 # === WOMEN SAFETY: MESSAGE CHECKS ===
 def check_women_safety_restrictions(sender: dict, receiver: dict) -> tuple:
     """
