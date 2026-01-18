@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Heart, X, Sparkles, MapPin, Award, Zap, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Heart, X, Sparkles, MapPin, Award, Zap, ChevronLeft, ChevronRight, Crown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import TopBar from '@/components/TopBar';
+import AdRewardCard from '@/components/ads/AdRewardCard';
+import { useAds } from '@/context/AdContext';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || import.meta.env.REACT_APP_BACKEND_URL;
 if (!BACKEND_URL) {
@@ -23,6 +25,10 @@ const DiscoverPage = ({ user }) => {
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
   const [swipeDirection, setSwipeDirection] = useState(null);
+  const [showAdCard, setShowAdCard] = useState(false);
+  
+  // Ad context for eligible users
+  const { isEligible, boostActive, showInterstitialIfEligible } = useAds();
 
   const minSwipeDistance = 50;
 
@@ -39,6 +45,21 @@ const DiscoverPage = ({ user }) => {
 
   useEffect(() => {
     fetchProfiles();
+    
+    // Show interstitial ad on page load for eligible users (max 1/day)
+    if (isEligible) {
+      setTimeout(() => {
+        showInterstitialIfEligible('discover');
+      }, 2000); // Wait 2 seconds after page load
+    }
+    
+    // Show ad card occasionally for eligible users
+    if (isEligible && !user?.is_premium) {
+      const timer = setTimeout(() => {
+        setShowAdCard(true);
+      }, 10000); // Show after 10 seconds
+      return () => clearTimeout(timer);
+    }
     // eslint-disable-next-line
   }, []);
 
@@ -402,6 +423,39 @@ const DiscoverPage = ({ user }) => {
         <div className="mt-6 text-center text-gray-600">
           <p>{profiles.length - currentIndex} profiles remaining</p>
         </div>
+
+        {/* Premium CTA for non-premium users */}
+        {!user?.is_premium && !user?.isPremium && (
+          <div className="mt-6 text-center">
+            <Button
+              onClick={() => navigate('/premium')}
+              variant="outline"
+              className="border-amber-400 text-amber-600 hover:bg-amber-50"
+              data-testid="premium-cta-btn"
+            >
+              <Crown className="w-4 h-4 mr-2" />
+              Upgrade to Premium
+            </Button>
+          </div>
+        )}
+
+        {/* Ad Reward Card for eligible male users */}
+        {showAdCard && isEligible && (
+          <div className="mt-6">
+            <AdRewardCard 
+              showCloseButton={true}
+              onClose={() => setShowAdCard(false)}
+            />
+          </div>
+        )}
+
+        {/* Boost Active Indicator */}
+        {boostActive && (
+          <div className="fixed top-20 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-400 to-orange-500 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 z-50 animate-pulse">
+            <Zap className="w-4 h-4" />
+            <span className="text-sm font-medium">Profile Boosted!</span>
+          </div>
+        )}
       </div>
     </div>
   );
