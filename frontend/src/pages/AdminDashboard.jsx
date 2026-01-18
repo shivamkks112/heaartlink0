@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { CheckCircle, XCircle, User, Shield, Search, Filter } from 'lucide-react';
+import { 
+  CheckCircle, XCircle, User, Shield, Search, Trash2, 
+  Ban, Eye, Camera, Users, AlertTriangle, ChevronLeft, 
+  ChevronRight, RefreshCw, UserCheck, UserX
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
@@ -9,33 +13,38 @@ import Navbar from '@/components/Navbar';
 import TopBar from '@/components/TopBar';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || import.meta.env.REACT_APP_BACKEND_URL;
-if (!BACKEND_URL) console.error('⚠️ REACT_APP_BACKEND_URL is not set!');
 const API = `${BACKEND_URL}/api`;
 
 const AdminDashboard = ({ user }) => {
-  const [pendingUsers, setPendingUsers] = useState([]);
-  const [verifiedUsers, setVerifiedUsers] = useState([]);
-  const [rejectedUsers, setRejectedUsers] = useState([]);
+  const [activeTab, setActiveTab] = useState('users'); // users, verifications, reports
+  const [users, setUsers] = useState([]);
+  const [pendingVerifications, setPendingVerifications] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('pending'); // pending, verified, rejected
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showBlockModal, setShowBlockModal] = useState(false);
+  const [blockReason, setBlockReason] = useState('');
+  const [blockPermanent, setBlockPermanent] = useState(false);
 
   useEffect(() => {
-    fetchUsers();
-  }, [filter]);
+    if (activeTab === 'users') {
+      fetchUsers();
+    } else if (activeTab === 'verifications') {
+      fetchPendingVerifications();
+    }
+  }, [activeTab, currentPage, searchQuery]);
 
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API}/admin/users?status=${filter}`);
-      
-      if (filter === 'pending') {
-        setPendingUsers(response.data);
-      } else if (filter === 'verified') {
-        setVerifiedUsers(response.data);
-      } else {
-        setRejectedUsers(response.data);
-      }
+      const response = await axios.get(`${API}/admin/all-users`, {
+        params: { search: searchQuery, page: currentPage, limit: 15 }
+      });
+      setUsers(response.data.users);
+      setTotalPages(response.data.pages);
     } catch (error) {
       toast.error('Failed to load users');
     } finally {
@@ -43,267 +52,408 @@ const AdminDashboard = ({ user }) => {
     }
   };
 
-  const handleVerify = async (userId, action, reason = '') => {
+  const fetchPendingVerifications = async () => {
+    setLoading(true);
     try {
-      await axios.post(`${API}/admin/verify-user`, {
-        user_id: userId,
-        action: action, // 'approve' or 'reject'
-        reason: reason,
-        verified_by: user.id
-      });
+      const response = await axios.get(`${API}/admin/pending-verifications`);
+      setPendingVerifications(response.data);
+    } catch (error) {
+      toast.error('Failed to load verifications');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      toast.success(`User ${action === 'approve' ? 'verified' : 'rejected'} successfully`);
+  const handleDeleteUser = async () => {
+    if (!selectedUser) return;
+    
+    try {
+      await axios.delete(`${API}/admin/user/${selectedUser.id}`);
+      toast.success(`User ${selectedUser.name} deleted`);
+      setShowDeleteModal(false);
+      setSelectedUser(null);
       fetchUsers();
     } catch (error) {
-      toast.error('Verification failed');
+      toast.error('Failed to delete user');
     }
   };
 
-  const handleApprove = (userId) => {
-    if (window.confirm('Approve this user?')) {
-      handleVerify(userId, 'approve');
-    }
-  };
-
-  const handleReject = (userId) => {
-    const reason = window.prompt('Reason for rejection:');
-    if (reason) {
-      handleVerify(userId, 'reject', reason);
-    }
-  };
-
-  const filteredUsers = () => {
-    let users = filter === 'pending' ? pendingUsers : 
-                filter === 'verified' ? verifiedUsers : rejectedUsers;
+  const handleBlockUser = async () => {
+    if (!selectedUser) return;
     
-    if (searchQuery) {
-      users = users.filter(u => 
-        u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        u.email?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+    try {
+      await axios.post(`${API}/admin/user/${selectedUser.id}/block`, null, {
+        params: { permanent: blockPermanent, reason: blockReason }
+      });
+      toast.success(`User ${selectedUser.name} ${blockPermanent ? 'permanently banned' : 'shadow banned'}`);
+      setShowBlockModal(false);
+      setSelectedUser(null);
+      setBlockReason('');
+      setBlockPermanent(false);
+      fetchUsers();
+    } catch (error) {
+      toast.error('Failed to block user');
     }
-    
-    return users;
   };
 
-  if (!user.is_admin) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 flex items-center justify-center page-with-bottom-nav">
-        <TopBar />
-        <div className="text-center">
-          <Shield className="w-20 h-20 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-800">Access Denied</h2>
-          <p className="text-gray-600">You don't have admin privileges</p>
-        </div>
-      </div>
-    );
-  }
+  const handleUnblockUser = async (userId, userName) => {
+    try {
+      await axios.post(`${API}/admin/user/${userId}/unblock`);
+      toast.success(`User ${userName} unblocked`);
+      fetchUsers();
+    } catch (error) {
+      toast.error('Failed to unblock user');
+    }
+  };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 page-with-bottom-nav">
-      <TopBar />
-      <Toaster position="top-center" />
-      <Navbar user={user} />
-      
-      <div className="max-w-7xl mx-auto px-4 py-8 pb-24">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
-          <p className="text-gray-600">Manage user verifications</p>
-        </div>
+  const handleVerifySelfie = async (userId, action, reason = '') => {
+    try {
+      await axios.post(`${API}/admin/verify-selfie`, {
+        user_id: userId,
+        action: action,
+        reason: reason
+      });
+      toast.success(`Verification ${action === 'approve' ? 'approved' : 'rejected'}`);
+      fetchPendingVerifications();
+    } catch (error) {
+      toast.error('Failed to process verification');
+    }
+  };
 
-        {/* Filters */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
-          <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-            {/* Status Filter */}
-            <div className="flex gap-2">
-              <Button
-                data-testid="filter-pending"
-                onClick={() => setFilter('pending')}
-                className={`px-6 py-3 rounded-xl font-semibold ${
-                  filter === 'pending'
-                    ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                Pending ({pendingUsers.length})
-              </Button>
-              
-              <Button
-                data-testid="filter-verified"
-                onClick={() => setFilter('verified')}
-                className={`px-6 py-3 rounded-xl font-semibold ${
-                  filter === 'verified'
-                    ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                Verified ({verifiedUsers.length})
-              </Button>
-              
-              <Button
-                data-testid="filter-rejected"
-                onClick={() => setFilter('rejected')}
-                className={`px-6 py-3 rounded-xl font-semibold ${
-                  filter === 'rejected'
-                    ? 'bg-gradient-to-r from-red-500 to-rose-500 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                Rejected ({rejectedUsers.length})
-              </Button>
-            </div>
-
-            {/* Search */}
-            <div className="relative w-full md:w-64">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <Input
-                type="text"
-                placeholder="Search users..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 py-3 rounded-xl border-2 border-gray-200"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Users List */}
-        {loading ? (
-          <div className="text-center py-20">
-            <div className="w-16 h-16 border-4 border-pink-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading users...</p>
-          </div>
+  const UserCard = ({ u }) => (
+    <div className="bg-white rounded-xl shadow-md p-4 flex items-start gap-4">
+      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-pink-400 to-orange-400 flex items-center justify-center overflow-hidden flex-shrink-0">
+        {u.profile_picture ? (
+          <img src={u.profile_picture} alt={u.name} className="w-full h-full object-cover" />
         ) : (
-          <div className="grid grid-cols-1 gap-4">
-            {filteredUsers().length === 0 ? (
-              <div className="bg-white rounded-2xl shadow-lg p-12 text-center">
-                <User className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-600">No users found</p>
-              </div>
-            ) : (
-              filteredUsers().map((userItem) => (
-                <div
-                  key={userItem.id}
-                  data-testid="user-verification-card"
-                  className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      {/* Profile Picture */}
-                      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-pink-400 to-orange-400 flex items-center justify-center text-white font-bold text-xl overflow-hidden">
-                        {userItem.profile_picture ? (
-                          <img 
-                            src={userItem.profile_picture} 
-                            alt={userItem.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          userItem.name.charAt(0)
-                        )}
-                      </div>
-
-                      {/* User Info */}
-                      <div>
-                        <h3 className="text-xl font-bold text-gray-900">
-                          {userItem.name}, {userItem.age}
-                        </h3>
-                        <p className="text-gray-600">{userItem.email || userItem.phone}</p>
-                        <p className="text-sm text-gray-500">{userItem.location}</p>
-                        
-                        {/* Status Badge */}
-                        <div className="mt-2">
-                          {userItem.verification_status === 'pending' && (
-                            <span className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-semibold">
-                              Pending Review
-                            </span>
-                          )}
-                          {userItem.verification_status === 'verified' && (
-                            <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-semibold">
-                              ✓ Verified
-                            </span>
-                          )}
-                          {userItem.verification_status === 'rejected' && (
-                            <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-semibold">
-                              ✗ Rejected
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Action Buttons */}
-                    {filter === 'pending' && (
-                      <div className="flex gap-3">
-                        <Button
-                          data-testid="approve-user-btn"
-                          onClick={() => handleApprove(userItem.id)}
-                          className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-xl font-semibold flex items-center gap-2"
-                        >
-                          <CheckCircle className="w-5 h-5" />
-                          Approve
-                        </Button>
-                        
-                        <Button
-                          data-testid="reject-user-btn"
-                          onClick={() => handleReject(userItem.id)}
-                          className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-xl font-semibold flex items-center gap-2"
-                        >
-                          <XCircle className="w-5 h-5" />
-                          Reject
-                        </Button>
-                      </div>
-                    )}
-
-                    {userItem.rejection_reason && (
-                      <div className="ml-4">
-                        <p className="text-sm text-red-600">
-                          <strong>Reason:</strong> {userItem.rejection_reason}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* User Details */}
-                  <div className="mt-4 pt-4 border-t border-gray-200">
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="text-gray-500">Gender:</span>
-                        <span className="ml-2 font-semibold">{userItem.gender}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">Looking for:</span>
-                        <span className="ml-2 font-semibold">{userItem.looking_for}</span>
-                      </div>
-                      <div className="col-span-2">
-                        <span className="text-gray-500">Bio:</span>
-                        <p className="mt-1 text-gray-700">{userItem.bio || 'No bio'}</p>
-                      </div>
-                      <div className="col-span-2">
-                        <span className="text-gray-500">Interests:</span>
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          {userItem.interests && userItem.interests.length > 0 ? (
-                            userItem.interests.map((interest, idx) => (
-                              <span
-                                key={idx}
-                                className="bg-gradient-to-r from-pink-100 to-orange-100 text-gray-800 px-3 py-1 rounded-full text-xs"
-                              >
-                                {interest}
-                              </span>
-                            ))
-                          ) : (
-                            <span className="text-gray-400 text-xs">No interests</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+          <User className="w-8 h-8 text-white" />
         )}
       </div>
+      
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <h3 className="font-bold text-gray-900">{u.name}</h3>
+          {u.verified && <CheckCircle className="w-4 h-4 text-green-500" />}
+          {u.is_shadow_banned && (
+            <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs rounded-full">Shadow Banned</span>
+          )}
+          {u.is_permanently_banned && (
+            <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded-full">Banned</span>
+          )}
+        </div>
+        <p className="text-sm text-gray-500 truncate">{u.email || u.phone || 'No contact'}</p>
+        <p className="text-xs text-gray-400">{u.gender}, {u.age} • {u.location || 'Unknown'}</p>
+        
+        <div className="flex items-center gap-2 mt-2 flex-wrap">
+          <span className={`px-2 py-0.5 text-xs rounded-full ${
+            u.trust_badge_level === 'high' ? 'bg-green-100 text-green-700' :
+            u.trust_badge_level === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+            'bg-gray-100 text-gray-600'
+          }`}>
+            {u.trust_badge_level || 'low'} trust
+          </span>
+          {u.is_online && (
+            <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">Online</span>
+          )}
+        </div>
+      </div>
+      
+      <div className="flex flex-col gap-2">
+        {(u.is_shadow_banned || u.is_permanently_banned) ? (
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-green-600 border-green-600"
+            onClick={() => handleUnblockUser(u.id, u.name)}
+          >
+            <UserCheck className="w-4 h-4" />
+          </Button>
+        ) : (
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-yellow-600 border-yellow-600"
+            onClick={() => { setSelectedUser(u); setShowBlockModal(true); }}
+          >
+            <Ban className="w-4 h-4" />
+          </Button>
+        )}
+        <Button
+          size="sm"
+          variant="outline"
+          className="text-red-600 border-red-600"
+          onClick={() => { setSelectedUser(u); setShowDeleteModal(true); }}
+        >
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      </div>
+    </div>
+  );
+
+  const VerificationCard = ({ v }) => (
+    <div className="bg-white rounded-xl shadow-md p-4">
+      <div className="flex items-start gap-4">
+        <div className="w-20 h-20 rounded-lg overflow-hidden bg-gray-100">
+          {v.profile_picture ? (
+            <img src={v.profile_picture} alt="Profile" className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <User className="w-10 h-10 text-gray-400" />
+            </div>
+          )}
+        </div>
+        <div className="w-20 h-20 rounded-lg overflow-hidden bg-gray-100 border-2 border-blue-500">
+          {v.selfie_verification_url ? (
+            <img src={v.selfie_verification_url} alt="Selfie" className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <Camera className="w-10 h-10 text-gray-400" />
+            </div>
+          )}
+        </div>
+        <div className="flex-1">
+          <h3 className="font-bold text-gray-900">{v.name}</h3>
+          <p className="text-sm text-gray-500">{v.email || v.phone}</p>
+          <p className="text-xs text-gray-400 mt-1">
+            Submitted: {new Date(v.selfie_submitted_at).toLocaleDateString()}
+          </p>
+        </div>
+      </div>
+      
+      <div className="flex gap-2 mt-4">
+        <Button
+          className="flex-1 bg-green-500 hover:bg-green-600"
+          onClick={() => handleVerifySelfie(v.id, 'approve')}
+        >
+          <CheckCircle className="w-4 h-4 mr-2" />
+          Approve
+        </Button>
+        <Button
+          className="flex-1 bg-red-500 hover:bg-red-600"
+          onClick={() => handleVerifySelfie(v.id, 'reject', 'Photo does not match')}
+        >
+          <XCircle className="w-4 h-4 mr-2" />
+          Reject
+        </Button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-gray-50 pb-20" style={{ paddingTop: '70px' }}>
+      <TopBar />
+      <Toaster position="top-center" richColors />
+      <Navbar user={user} />
+
+      <div className="max-w-6xl mx-auto px-4 py-6">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+            <p className="text-gray-600">Manage users and verifications</p>
+          </div>
+          <Button onClick={() => activeTab === 'users' ? fetchUsers() : fetchPendingVerifications()}>
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-2 mb-6">
+          <Button
+            onClick={() => setActiveTab('users')}
+            className={activeTab === 'users' ? 'bg-pink-500' : 'bg-gray-200 text-gray-700'}
+          >
+            <Users className="w-4 h-4 mr-2" />
+            All Users
+          </Button>
+          <Button
+            onClick={() => setActiveTab('verifications')}
+            className={activeTab === 'verifications' ? 'bg-pink-500' : 'bg-gray-200 text-gray-700'}
+          >
+            <Camera className="w-4 h-4 mr-2" />
+            Verifications
+            {pendingVerifications.length > 0 && (
+              <span className="ml-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                {pendingVerifications.length}
+              </span>
+            )}
+          </Button>
+        </div>
+
+        {/* Users Tab */}
+        {activeTab === 'users' && (
+          <>
+            {/* Search */}
+            <div className="relative mb-4">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Input
+                placeholder="Search by name, email or phone..."
+                value={searchQuery}
+                onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                className="pl-10"
+              />
+            </div>
+
+            {loading ? (
+              <div className="flex justify-center py-12">
+                <div className="w-12 h-12 border-4 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            ) : (
+              <>
+                <div className="grid gap-4 md:grid-cols-2">
+                  {users.map(u => <UserCard key={u.id} u={u} />)}
+                </div>
+
+                {users.length === 0 && (
+                  <div className="text-center py-12 text-gray-500">
+                    No users found
+                  </div>
+                )}
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="flex justify-center items-center gap-4 mt-6">
+                    <Button
+                      variant="outline"
+                      disabled={currentPage === 1}
+                      onClick={() => setCurrentPage(p => p - 1)}
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </Button>
+                    <span className="text-gray-600">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      disabled={currentPage === totalPages}
+                      onClick={() => setCurrentPage(p => p + 1)}
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
+          </>
+        )}
+
+        {/* Verifications Tab */}
+        {activeTab === 'verifications' && (
+          <>
+            {loading ? (
+              <div className="flex justify-center py-12">
+                <div className="w-12 h-12 border-4 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            ) : pendingVerifications.length === 0 ? (
+              <div className="text-center py-12">
+                <Camera className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-gray-600">No pending verifications</h3>
+                <p className="text-gray-400">All caught up!</p>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {pendingVerifications.map(v => <VerificationCard key={v.id} v={v} />)}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Delete Modal */}
+      {showDeleteModal && selectedUser && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                <AlertTriangle className="w-6 h-6 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Delete User</h3>
+                <p className="text-sm text-gray-500">This action cannot be undone</p>
+              </div>
+            </div>
+            
+            <p className="text-gray-700 mb-6">
+              Are you sure you want to delete <strong>{selectedUser.name}</strong>? 
+              All their data including matches and messages will be permanently removed.
+            </p>
+            
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => { setShowDeleteModal(false); setSelectedUser(null); }}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 bg-red-500 hover:bg-red-600"
+                onClick={handleDeleteUser}
+              >
+                Delete
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Block Modal */}
+      {showBlockModal && selectedUser && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
+                <Ban className="w-6 h-6 text-yellow-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Block User</h3>
+                <p className="text-sm text-gray-500">{selectedUser.name}</p>
+              </div>
+            </div>
+            
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Reason</label>
+                <Input
+                  placeholder="Enter reason for blocking..."
+                  value={blockReason}
+                  onChange={(e) => setBlockReason(e.target.value)}
+                />
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  id="permanent"
+                  checked={blockPermanent}
+                  onChange={(e) => setBlockPermanent(e.target.checked)}
+                  className="w-4 h-4 text-red-500"
+                />
+                <label htmlFor="permanent" className="text-sm text-gray-700">
+                  Permanent ban (user cannot be unblocked)
+                </label>
+              </div>
+            </div>
+            
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => { setShowBlockModal(false); setSelectedUser(null); setBlockReason(''); setBlockPermanent(false); }}
+              >
+                Cancel
+              </Button>
+              <Button
+                className={`flex-1 ${blockPermanent ? 'bg-red-500 hover:bg-red-600' : 'bg-yellow-500 hover:bg-yellow-600'}`}
+                onClick={handleBlockUser}
+              >
+                {blockPermanent ? 'Permanent Ban' : 'Shadow Ban'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
