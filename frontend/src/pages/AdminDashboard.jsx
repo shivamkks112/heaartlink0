@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { 
-  CheckCircle, XCircle, User, Shield, Search, Trash2, 
-  Ban, Eye, Camera, Users, AlertTriangle, ChevronLeft, 
-  ChevronRight, RefreshCw, UserCheck, UserX
+  CheckCircle, XCircle, User, Search, Trash2, 
+  Ban, Camera, Users, AlertTriangle, ChevronLeft, 
+  ChevronRight, RefreshCw, UserCheck
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,147 +12,18 @@ import { Toaster } from '@/components/ui/sonner';
 import Navbar from '@/components/Navbar';
 import TopBar from '@/components/TopBar';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || import.meta.env?.REACT_APP_BACKEND_URL || '';
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || '';
 const API = `${BACKEND_URL}/api`;
 
-// Error boundary component
-const ErrorFallback = ({ error, resetError }) => (
-  <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-    <div className="bg-white rounded-xl shadow-lg p-6 max-w-md text-center">
-      <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-      <h2 className="text-xl font-bold text-gray-900 mb-2">Something went wrong</h2>
-      <p className="text-gray-600 mb-4">{error?.message || 'An error occurred loading the admin dashboard'}</p>
-      <Button onClick={resetError} className="bg-pink-500 hover:bg-pink-600">
-        Try Again
-      </Button>
-    </div>
-  </div>
-);
-
-const AdminDashboard = ({ user }) => {
-  const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('users'); // users, verifications, reports
-  const [users, setUsers] = useState([]);
-  const [pendingVerifications, setPendingVerifications] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showBlockModal, setShowBlockModal] = useState(false);
-  const [blockReason, setBlockReason] = useState('');
-  const [blockPermanent, setBlockPermanent] = useState(false);
-
-  useEffect(() => {
-    if (activeTab === 'users') {
-      fetchUsers();
-    } else if (activeTab === 'verifications') {
-      fetchPendingVerifications();
-    }
-  }, [activeTab, currentPage, searchQuery]);
-
-  const fetchUsers = async () => {
-    setLoading(true);
-    try {
-      const response = await axios.get(`${API}/admin/all-users`, {
-        params: { search: searchQuery, page: currentPage, limit: 15 }
-      });
-      
-      // Handle both old format (array) and new format (object with users)
-      if (Array.isArray(response.data)) {
-        // Old API format - direct array
-        setUsers(response.data);
-        setTotalPages(1);
-      } else {
-        // New API format - object with users array
-        setUsers(response.data.users || []);
-        setTotalPages(response.data.pages || 1);
-      }
-    } catch (error) {
-      console.error('Failed to load users:', error);
-      toast.error('Failed to load users');
-      setUsers([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchPendingVerifications = async () => {
-    setLoading(true);
-    try {
-      const response = await axios.get(`${API}/admin/pending-verifications`);
-      setPendingVerifications(Array.isArray(response.data) ? response.data : []);
-    } catch (error) {
-      console.error('Failed to load verifications:', error);
-      toast.error('Failed to load verifications');
-      setPendingVerifications([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDeleteUser = async () => {
-    if (!selectedUser) return;
-    
-    try {
-      await axios.delete(`${API}/admin/user/${selectedUser.id}`);
-      toast.success(`User ${selectedUser.name} deleted`);
-      setShowDeleteModal(false);
-      setSelectedUser(null);
-      fetchUsers();
-    } catch (error) {
-      toast.error('Failed to delete user');
-    }
-  };
-
-  const handleBlockUser = async () => {
-    if (!selectedUser) return;
-    
-    try {
-      await axios.post(`${API}/admin/user/${selectedUser.id}/block`, null, {
-        params: { permanent: blockPermanent, reason: blockReason }
-      });
-      toast.success(`User ${selectedUser.name} ${blockPermanent ? 'permanently banned' : 'shadow banned'}`);
-      setShowBlockModal(false);
-      setSelectedUser(null);
-      setBlockReason('');
-      setBlockPermanent(false);
-      fetchUsers();
-    } catch (error) {
-      toast.error('Failed to block user');
-    }
-  };
-
-  const handleUnblockUser = async (userId, userName) => {
-    try {
-      await axios.post(`${API}/admin/user/${userId}/unblock`);
-      toast.success(`User ${userName} unblocked`);
-      fetchUsers();
-    } catch (error) {
-      toast.error('Failed to unblock user');
-    }
-  };
-
-  const handleVerifySelfie = async (userId, action, reason = '') => {
-    try {
-      await axios.post(`${API}/admin/verify-selfie`, {
-        user_id: userId,
-        action: action,
-        reason: reason
-      });
-      toast.success(`Verification ${action === 'approve' ? 'approved' : 'rejected'}`);
-      fetchPendingVerifications();
-    } catch (error) {
-      toast.error('Failed to process verification');
-    }
-  };
-
-  const UserCard = ({ u }) => (
+// UserCard Component - defined outside AdminDashboard
+const UserCard = ({ u, onBlock, onUnblock, onDelete }) => {
+  if (!u) return null;
+  
+  return (
     <div className="bg-white rounded-xl shadow-md p-4 flex items-start gap-4">
       <div className="w-16 h-16 rounded-full bg-gradient-to-br from-pink-400 to-orange-400 flex items-center justify-center overflow-hidden flex-shrink-0">
         {u.profile_picture ? (
-          <img src={u.profile_picture} alt={u.name} className="w-full h-full object-cover" />
+          <img src={u.profile_picture} alt={u.name || 'User'} className="w-full h-full object-cover" />
         ) : (
           <User className="w-8 h-8 text-white" />
         )}
@@ -160,7 +31,7 @@ const AdminDashboard = ({ user }) => {
       
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <h3 className="font-bold text-gray-900">{u.name}</h3>
+          <h3 className="font-bold text-gray-900">{u.name || 'Unknown'}</h3>
           {u.verified && <CheckCircle className="w-4 h-4 text-green-500" />}
           {u.is_shadow_banned && (
             <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs rounded-full">Shadow Banned</span>
@@ -170,7 +41,7 @@ const AdminDashboard = ({ user }) => {
           )}
         </div>
         <p className="text-sm text-gray-500 truncate">{u.email || u.phone || 'No contact'}</p>
-        <p className="text-xs text-gray-400">{u.gender}, {u.age} • {u.location || 'Unknown'}</p>
+        <p className="text-xs text-gray-400">{u.gender || 'Unknown'}, {u.age || '?'} • {u.location || 'Unknown'}</p>
         
         <div className="flex items-center gap-2 mt-2 flex-wrap">
           <span className={`px-2 py-0.5 text-xs rounded-full ${
@@ -192,7 +63,7 @@ const AdminDashboard = ({ user }) => {
             size="sm"
             variant="outline"
             className="text-green-600 border-green-600"
-            onClick={() => handleUnblockUser(u.id, u.name)}
+            onClick={() => onUnblock(u.id, u.name)}
           >
             <UserCheck className="w-4 h-4" />
           </Button>
@@ -201,7 +72,7 @@ const AdminDashboard = ({ user }) => {
             size="sm"
             variant="outline"
             className="text-yellow-600 border-yellow-600"
-            onClick={() => { setSelectedUser(u); setShowBlockModal(true); }}
+            onClick={() => onBlock(u)}
           >
             <Ban className="w-4 h-4" />
           </Button>
@@ -210,15 +81,20 @@ const AdminDashboard = ({ user }) => {
           size="sm"
           variant="outline"
           className="text-red-600 border-red-600"
-          onClick={() => { setSelectedUser(u); setShowDeleteModal(true); }}
+          onClick={() => onDelete(u)}
         >
           <Trash2 className="w-4 h-4" />
         </Button>
       </div>
     </div>
   );
+};
 
-  const VerificationCard = ({ v }) => (
+// VerificationCard Component - defined outside AdminDashboard
+const VerificationCard = ({ v, onVerify }) => {
+  if (!v) return null;
+  
+  return (
     <div className="bg-white rounded-xl shadow-md p-4">
       <div className="flex items-start gap-4">
         <div className="w-20 h-20 rounded-lg overflow-hidden bg-gray-100">
@@ -240,10 +116,10 @@ const AdminDashboard = ({ user }) => {
           )}
         </div>
         <div className="flex-1">
-          <h3 className="font-bold text-gray-900">{v.name}</h3>
-          <p className="text-sm text-gray-500">{v.email || v.phone}</p>
+          <h3 className="font-bold text-gray-900">{v.name || 'Unknown'}</h3>
+          <p className="text-sm text-gray-500">{v.email || v.phone || 'No contact'}</p>
           <p className="text-xs text-gray-400 mt-1">
-            Submitted: {new Date(v.selfie_submitted_at).toLocaleDateString()}
+            Submitted: {v.selfie_submitted_at ? new Date(v.selfie_submitted_at).toLocaleDateString() : 'Unknown'}
           </p>
         </div>
       </div>
@@ -251,14 +127,14 @@ const AdminDashboard = ({ user }) => {
       <div className="flex gap-2 mt-4">
         <Button
           className="flex-1 bg-green-500 hover:bg-green-600"
-          onClick={() => handleVerifySelfie(v.id, 'approve')}
+          onClick={() => onVerify(v.id, 'approve')}
         >
           <CheckCircle className="w-4 h-4 mr-2" />
           Approve
         </Button>
         <Button
           className="flex-1 bg-red-500 hover:bg-red-600"
-          onClick={() => handleVerifySelfie(v.id, 'reject', 'Photo does not match')}
+          onClick={() => onVerify(v.id, 'reject', 'Photo does not match')}
         >
           <XCircle className="w-4 h-4 mr-2" />
           Reject
@@ -266,6 +142,139 @@ const AdminDashboard = ({ user }) => {
       </div>
     </div>
   );
+};
+
+// Error Fallback Component
+const ErrorFallback = ({ error, resetError }) => (
+  <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+    <div className="bg-white rounded-xl shadow-lg p-6 max-w-md text-center">
+      <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+      <h2 className="text-xl font-bold text-gray-900 mb-2">Something went wrong</h2>
+      <p className="text-gray-600 mb-4">{error?.message || 'An error occurred loading the admin dashboard'}</p>
+      <Button onClick={resetError} className="bg-pink-500 hover:bg-pink-600">
+        Try Again
+      </Button>
+    </div>
+  </div>
+);
+
+// Main AdminDashboard Component
+const AdminDashboard = ({ user }) => {
+  const [error, setError] = useState(null);
+  const [activeTab, setActiveTab] = useState('users');
+  const [users, setUsers] = useState([]);
+  const [pendingVerifications, setPendingVerifications] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showBlockModal, setShowBlockModal] = useState(false);
+  const [blockReason, setBlockReason] = useState('');
+  const [blockPermanent, setBlockPermanent] = useState(false);
+
+  const fetchUsers = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await axios.get(`${API}/admin/all-users`, {
+        params: { search: searchQuery, page: currentPage, limit: 15 }
+      });
+      
+      // Handle both old format (array) and new format (object with users)
+      if (Array.isArray(response.data)) {
+        setUsers(response.data);
+        setTotalPages(1);
+      } else {
+        setUsers(response.data.users || []);
+        setTotalPages(response.data.pages || 1);
+      }
+    } catch (err) {
+      console.error('Failed to load users:', err);
+      toast.error('Failed to load users');
+      setUsers([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [searchQuery, currentPage]);
+
+  const fetchPendingVerifications = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await axios.get(`${API}/admin/pending-verifications`);
+      setPendingVerifications(Array.isArray(response.data) ? response.data : []);
+    } catch (err) {
+      console.error('Failed to load verifications:', err);
+      toast.error('Failed to load verifications');
+      setPendingVerifications([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'users') {
+      fetchUsers();
+    } else if (activeTab === 'verifications') {
+      fetchPendingVerifications();
+    }
+  }, [activeTab, fetchUsers, fetchPendingVerifications]);
+
+  const handleDeleteUser = async () => {
+    if (!selectedUser) return;
+    
+    try {
+      await axios.delete(`${API}/admin/user/${selectedUser.id}`);
+      toast.success(`User ${selectedUser.name} deleted`);
+      setShowDeleteModal(false);
+      setSelectedUser(null);
+      fetchUsers();
+    } catch (err) {
+      toast.error('Failed to delete user');
+    }
+  };
+
+  const handleBlockUser = async () => {
+    if (!selectedUser) return;
+    
+    try {
+      await axios.post(`${API}/admin/user/${selectedUser.id}/block`, null, {
+        params: { permanent: blockPermanent, reason: blockReason }
+      });
+      toast.success(`User ${selectedUser.name} ${blockPermanent ? 'permanently banned' : 'shadow banned'}`);
+      setShowBlockModal(false);
+      setSelectedUser(null);
+      setBlockReason('');
+      setBlockPermanent(false);
+      fetchUsers();
+    } catch (err) {
+      toast.error('Failed to block user');
+    }
+  };
+
+  const handleUnblockUser = async (userId, userName) => {
+    try {
+      await axios.post(`${API}/admin/user/${userId}/unblock`);
+      toast.success(`User ${userName} unblocked`);
+      fetchUsers();
+    } catch (err) {
+      toast.error('Failed to unblock user');
+    }
+  };
+
+  const handleVerifySelfie = async (userId, action, reason = '') => {
+    try {
+      await axios.post(`${API}/admin/verify-selfie`, {
+        user_id: userId,
+        action: action,
+        reason: reason
+      });
+      toast.success(`Verification ${action === 'approve' ? 'approved' : 'rejected'}`);
+      fetchPendingVerifications();
+    } catch (err) {
+      toast.error('Failed to process verification');
+    }
+  };
 
   // Show error fallback if there's a critical error
   if (error) {
@@ -306,7 +315,7 @@ const AdminDashboard = ({ user }) => {
           >
             <Camera className="w-4 h-4 mr-2" />
             Verifications
-            {pendingVerifications.length > 0 && (
+            {pendingVerifications && pendingVerifications.length > 0 && (
               <span className="ml-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
                 {pendingVerifications.length}
               </span>
@@ -335,9 +344,17 @@ const AdminDashboard = ({ user }) => {
             ) : (
               <>
                 <div className="grid gap-4 md:grid-cols-2">
-                  {users && users.length > 0 ? (
-                    users.map(u => u && u.id ? <UserCard key={u.id} u={u} /> : null)
-                  ) : null}
+                  {users && users.length > 0 && users.map(u => (
+                    u && u.id ? (
+                      <UserCard 
+                        key={u.id} 
+                        u={u} 
+                        onBlock={(usr) => { setSelectedUser(usr); setShowBlockModal(true); }}
+                        onUnblock={handleUnblockUser}
+                        onDelete={(usr) => { setSelectedUser(usr); setShowDeleteModal(true); }}
+                      />
+                    ) : null
+                  ))}
                 </div>
 
                 {(!users || users.length === 0) && (
@@ -388,7 +405,11 @@ const AdminDashboard = ({ user }) => {
               </div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {pendingVerifications.map(v => v && v.id ? <VerificationCard key={v.id} v={v} /> : null)}
+                {pendingVerifications.map(v => (
+                  v && v.id ? (
+                    <VerificationCard key={v.id} v={v} onVerify={handleVerifySelfie} />
+                  ) : null
+                ))}
               </div>
             )}
           </>
