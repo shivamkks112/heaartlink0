@@ -67,9 +67,11 @@ const AdminDashboard = ({ user }) => {
     setLoading(true);
     try {
       const response = await axios.get(`${API}/admin/pending-verifications`);
-      setPendingVerifications(response.data);
+      setPendingVerifications(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
+      console.error('Failed to load verifications:', error);
       toast.error('Failed to load verifications');
+      setPendingVerifications([]);
     } finally {
       setLoading(false);
     }
