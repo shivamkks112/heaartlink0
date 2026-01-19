@@ -335,10 +335,12 @@ const AdminDashboard = ({ user }) => {
             ) : (
               <>
                 <div className="grid gap-4 md:grid-cols-2">
-                  {users.map(u => <UserCard key={u.id} u={u} />)}
+                  {users && users.length > 0 ? (
+                    users.map(u => u && u.id ? <UserCard key={u.id} u={u} /> : null)
+                  ) : null}
                 </div>
 
-                {users.length === 0 && (
+                {(!users || users.length === 0) && (
                   <div className="text-center py-12 text-gray-500">
                     No users found
                   </div>
