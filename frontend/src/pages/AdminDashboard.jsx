@@ -380,7 +380,7 @@ const AdminDashboard = ({ user }) => {
               <div className="flex justify-center py-12">
                 <div className="w-12 h-12 border-4 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
               </div>
-            ) : pendingVerifications.length === 0 ? (
+            ) : (!pendingVerifications || pendingVerifications.length === 0) ? (
               <div className="text-center py-12">
                 <Camera className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-xl font-semibold text-gray-600">No pending verifications</h3>
@@ -388,9 +388,9 @@ const AdminDashboard = ({ user }) => {
               </div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {pendingVerifications.map(v => <VerificationCard key={v.id} v={v} />)}
+                {pendingVerifications.map(v => v && v.id ? <VerificationCard key={v.id} v={v} /> : null)}
               </div>
-            )}
+            )}}
           </>
         )}
       </div>
