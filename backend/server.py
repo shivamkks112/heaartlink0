@@ -1068,16 +1068,7 @@ async def update_privacy(user_id: str, privacy: PrivacyUpdate):
 # Old block and report endpoints removed - using new endpoints at /user/{user_id}/block and /user/{user_id}/report
 
 # Admin Routes
-@api_router.get("/admin/all-users")
-async def get_all_users(limit: int = 100):
-    """Get all users (for admin testing) - limited to prevent memory issues"""
-    users = await db.users.find({}).limit(limit).to_list(None)
-    return [{
-        "id": u["id"],
-        "name": u["name"],
-        "email": u.get("email"),
-        "is_admin": u.get("is_admin", False)
-    } for u in users]
+# NOTE: Main /admin/all-users endpoint with pagination is defined later in the file
 
 @api_router.post("/admin/make-admin/{user_id}")
 async def make_user_admin(user_id: str):
