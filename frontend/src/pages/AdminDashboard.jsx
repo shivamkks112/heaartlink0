@@ -267,6 +267,11 @@ const AdminDashboard = ({ user }) => {
     </div>
   );
 
+  // Show error fallback if there's a critical error
+  if (error) {
+    return <ErrorFallback error={error} resetError={() => { setError(null); fetchUsers(); }} />;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 pb-20" style={{ paddingTop: '70px' }}>
       <TopBar />
