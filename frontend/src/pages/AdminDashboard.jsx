@@ -12,10 +12,25 @@ import { Toaster } from '@/components/ui/sonner';
 import Navbar from '@/components/Navbar';
 import TopBar from '@/components/TopBar';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || import.meta.env.REACT_APP_BACKEND_URL;
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || import.meta.env?.REACT_APP_BACKEND_URL || '';
 const API = `${BACKEND_URL}/api`;
 
+// Error boundary component
+const ErrorFallback = ({ error, resetError }) => (
+  <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+    <div className="bg-white rounded-xl shadow-lg p-6 max-w-md text-center">
+      <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+      <h2 className="text-xl font-bold text-gray-900 mb-2">Something went wrong</h2>
+      <p className="text-gray-600 mb-4">{error?.message || 'An error occurred loading the admin dashboard'}</p>
+      <Button onClick={resetError} className="bg-pink-500 hover:bg-pink-600">
+        Try Again
+      </Button>
+    </div>
+  </div>
+);
+
 const AdminDashboard = ({ user }) => {
+  const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('users'); // users, verifications, reports
   const [users, setUsers] = useState([]);
   const [pendingVerifications, setPendingVerifications] = useState([]);
