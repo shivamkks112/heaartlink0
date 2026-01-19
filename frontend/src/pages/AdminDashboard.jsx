@@ -282,7 +282,7 @@ const AdminDashboard = ({ user }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20" style={{ paddingTop: '95px' }}>
+    <div className="min-h-screen bg-gray-50 pb-20" style={{ paddingTop: '120px' }}>
       <TopBar />
       <Toaster position="top-center" richColors />
       <Navbar user={user} />
