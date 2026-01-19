@@ -43,10 +43,21 @@ const AdminDashboard = ({ user }) => {
       const response = await axios.get(`${API}/admin/all-users`, {
         params: { search: searchQuery, page: currentPage, limit: 15 }
       });
-      setUsers(response.data.users);
-      setTotalPages(response.data.pages);
+      
+      // Handle both old format (array) and new format (object with users)
+      if (Array.isArray(response.data)) {
+        // Old API format - direct array
+        setUsers(response.data);
+        setTotalPages(1);
+      } else {
+        // New API format - object with users array
+        setUsers(response.data.users || []);
+        setTotalPages(response.data.pages || 1);
+      }
     } catch (error) {
+      console.error('Failed to load users:', error);
       toast.error('Failed to load users');
+      setUsers([]);
     } finally {
       setLoading(false);
     }
