@@ -390,7 +390,7 @@ const AdminDashboard = ({ user }) => {
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {pendingVerifications.map(v => v && v.id ? <VerificationCard key={v.id} v={v} /> : null)}
               </div>
-            )}}
+            )}
           </>
         )}
       </div>
