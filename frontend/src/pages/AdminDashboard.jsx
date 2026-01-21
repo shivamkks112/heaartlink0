@@ -302,7 +302,7 @@ const AdminDashboard = ({ user }) => {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 mb-6">
+        <div className="flex gap-2 mb-6 flex-wrap">
           <Button
             onClick={() => setActiveTab('users')}
             className={activeTab === 'users' ? 'bg-pink-500' : 'bg-gray-200 text-gray-700'}
@@ -322,7 +322,19 @@ const AdminDashboard = ({ user }) => {
               </span>
             )}
           </Button>
+          <Button
+            onClick={() => setActiveTab('notifications')}
+            className={activeTab === 'notifications' ? 'bg-pink-500' : 'bg-gray-200 text-gray-700'}
+          >
+            <Bell className="w-4 h-4 mr-2" />
+            Notifications
+          </Button>
         </div>
+
+        {/* Notifications Tab */}
+        {activeTab === 'notifications' && (
+          <NotificationManager />
+        )}
 
         {/* Users Tab */}
         {activeTab === 'users' && (
