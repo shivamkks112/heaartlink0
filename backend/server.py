@@ -2699,6 +2699,176 @@ def check_women_safety_restrictions(sender: dict, receiver: dict) -> tuple:
     
     return True, "", 0
 
+# ==================== NOTIFICATION APIS ====================
+
+class BulkNotificationRequest(BaseModel):
+    title: str
+    body: str
+    target: str = "all"  # all, male, female, inactive
+
+class ScheduledNotificationRequest(BaseModel):
+    title: str
+    body: str
+    target: str = "all"
+    schedule_time: str  # ISO format datetime
+
+@api_router.post("/admin/send-notification")
+async def send_bulk_notification(data: BulkNotificationRequest):
+    """
+    Send notification to all users or specific group
+    Target options: all, male, female, inactive
+    """
+    # Build query based on target
+    query = {"fcm_token": {"$exists": True, "$ne": None}}
+    
+    if data.target == "male":
+        query["gender"] = {"$regex": "^male$", "$options": "i"}
+    elif data.target == "female":
+        query["gender"] = {"$regex": "^female$", "$options": "i"}
+    elif data.target == "inactive":
+        # Users not active in last 7 days
+        week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+        query["last_active"] = {"$lt": week_ago}
+    
+    # Get all FCM tokens
+    users = await db.users.find(query, {"fcm_token": 1}).to_list(None)
+    tokens = [u["fcm_token"] for u in users if u.get("fcm_token")]
+    
+    if not tokens:
+        return {"success": False, "message": "No users with FCM tokens found"}
+    
+    # Send notifications in batches of 500 (FCM limit)
+    total_success = 0
+    total_failure = 0
+    
+    for i in range(0, len(tokens), 500):
+        batch_tokens = tokens[i:i+500]
+        result = send_notification_to_multiple(batch_tokens, data.title, data.body)
+        if result.get("success"):
+            total_success += result.get("success_count", 0)
+            total_failure += result.get("failure_count", 0)
+    
+    # Log notification
+    await db.notification_logs.insert_one({
+        "id": str(uuid.uuid4()),
+        "title": data.title,
+        "body": data.body,
+        "target": data.target,
+        "total_sent": len(tokens),
+        "success_count": total_success,
+        "failure_count": total_failure,
+        "sent_at": datetime.now(timezone.utc).isoformat()
+    })
+    
+    return {
+        "success": True,
+        "total_users": len(tokens),
+        "success_count": total_success,
+        "failure_count": total_failure
+    }
+
+@api_router.get("/admin/notification-templates")
+async def get_notification_templates():
+    """Get pre-defined notification templates"""
+    templates = [
+        {
+            "id": "new_matches",
+            "title": "💕 New matches waiting!",
+            "body": "Someone special liked your profile. Open HeartLink now!"
+        },
+        {
+            "id": "daily_reminder",
+            "title": "❤️ Don't miss out!",
+            "body": "New profiles are waiting for you. Start swiping!"
+        },
+        {
+            "id": "inactive_reminder",
+            "title": "😢 We miss you!",
+            "body": "It's been a while! Come back and find your match."
+        },
+        {
+            "id": "weekend_special",
+            "title": "🎉 Weekend Special!",
+            "body": "More users are online on weekends. Find your match now!"
+        },
+        {
+            "id": "profile_boost",
+            "title": "🚀 Boost your profile!",
+            "body": "Get more visibility with a free profile boost. Limited time!"
+        },
+        {
+            "id": "new_feature",
+            "title": "✨ New Feature Alert!",
+            "body": "Check out our latest features. Update your app now!"
+        }
+    ]
+    return templates
+
+@api_router.get("/admin/notification-history")
+async def get_notification_history(limit: int = 20):
+    """Get history of sent notifications"""
+    logs = await db.notification_logs.find({}).sort("sent_at", -1).limit(limit).to_list(None)
+    return [{
+        "id": log.get("id"),
+        "title": log.get("title"),
+        "body": log.get("body"),
+        "target": log.get("target"),
+        "total_sent": log.get("total_sent"),
+        "success_count": log.get("success_count"),
+        "sent_at": log.get("sent_at")
+    } for log in logs]
+
+@api_router.post("/admin/schedule-notification")
+async def schedule_notification(data: ScheduledNotificationRequest):
+    """Schedule a notification for later"""
+    scheduled_doc = {
+        "id": str(uuid.uuid4()),
+        "title": data.title,
+        "body": data.body,
+        "target": data.target,
+        "schedule_time": data.schedule_time,
+        "status": "pending",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.scheduled_notifications.insert_one(scheduled_doc)
+    
+    return {
+        "success": True,
+        "message": "Notification scheduled",
+        "scheduled_id": scheduled_doc["id"],
+        "schedule_time": data.schedule_time
+    }
+
+@api_router.get("/admin/scheduled-notifications")
+async def get_scheduled_notifications():
+    """Get all pending scheduled notifications"""
+    notifications = await db.scheduled_notifications.find(
+        {"status": "pending"}
+    ).sort("schedule_time", 1).to_list(None)
+    
+    return [{
+        "id": n.get("id"),
+        "title": n.get("title"),
+        "body": n.get("body"),
+        "target": n.get("target"),
+        "schedule_time": n.get("schedule_time"),
+        "status": n.get("status")
+    } for n in notifications]
+
+@api_router.delete("/admin/scheduled-notification/{notification_id}")
+async def cancel_scheduled_notification(notification_id: str):
+    """Cancel a scheduled notification"""
+    result = await db.scheduled_notifications.update_one(
+        {"id": notification_id},
+        {"$set": {"status": "cancelled"}}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    
+    return {"success": True, "message": "Notification cancelled"}
+
 # ==================== ADS & MONETIZATION APIS ====================
 
 class AdImpressionRequest(BaseModel):
