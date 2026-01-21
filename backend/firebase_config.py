@@ -147,3 +147,33 @@ def send_verification_notification(token: str, status: str):
             "status": status
         }
     )
+
+
+def send_promotional_notification(tokens: list, title: str, body: str):
+    """Send promotional/engagement notification to multiple users"""
+    return send_notification_to_multiple(
+        tokens=tokens,
+        title=title,
+        body=body,
+        data={"type": "promotional"}
+    )
+
+
+def send_daily_reminder(token: str):
+    """Send daily engagement reminder"""
+    return send_notification(
+        token=token,
+        title="💕 New matches waiting!",
+        body="Someone special might be waiting for you. Open HeartLink now!",
+        data={"type": "daily_reminder"}
+    )
+
+
+def send_inactive_user_notification(token: str, days_inactive: int):
+    """Send notification to inactive users"""
+    return send_notification(
+        token=token,
+        title="😢 We miss you!",
+        body=f"You haven't checked HeartLink in {days_inactive} days. New profiles are waiting!",
+        data={"type": "re_engagement"}
+    )
