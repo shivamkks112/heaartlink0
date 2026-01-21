@@ -2480,20 +2480,120 @@ async def get_all_users(search: str = "", page: int = 1, limit: int = 20):
             "age": u.get("age"),
             "gender": u.get("gender"),
             "location": u.get("location"),
+            "looking_for": u.get("looking_for"),
+            "bio": u.get("bio"),
+            "interests": u.get("interests", []),
             "profile_picture": u.get("profile_picture"),
             "verified": u.get("verified", False),
             "verification_status": u.get("verification_status", "pending"),
             "is_online": u.get("is_online", False),
             "is_shadow_banned": u.get("is_shadow_banned", False),
             "is_permanently_banned": u.get("is_permanently_banned", False),
+            "is_premium": u.get("is_premium", False),
+            "is_admin": u.get("is_admin", False),
             "trust_badge_level": u.get("trust_badge_level", "low"),
+            "risk_score": u.get("risk_score", 0),
             "created_at": u.get("created_at"),
+            "last_active": u.get("last_active"),
+            "total_matches": u.get("total_matches", 0),
+            "total_likes_received": u.get("total_likes_received", 0),
             "selfie_verification_url": u.get("selfie_verification_url"),
             "selfie_verification_status": u.get("selfie_verification_status", "none")
         } for u in users],
         "total": total,
         "page": page,
         "pages": (total + limit - 1) // limit
+    }
+
+# === ADMIN: DASHBOARD STATS ===
+@api_router.get("/admin/dashboard-stats")
+async def get_dashboard_stats():
+    """Get comprehensive dashboard statistics"""
+    now = datetime.now(timezone.utc)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    week_ago = now - timedelta(days=7)
+    
+    # Total users
+    total_users = await db.users.count_documents({})
+    
+    # Gender breakdown
+    male_users = await db.users.count_documents({"gender": {"$regex": "^male$", "$options": "i"}})
+    female_users = await db.users.count_documents({"gender": {"$regex": "^female$", "$options": "i"}})
+    
+    # New users today
+    new_today = await db.users.count_documents({
+        "created_at": {"$gte": today_start.isoformat()}
+    })
+    
+    # New users this week
+    new_this_week = await db.users.count_documents({
+        "created_at": {"$gte": week_ago.isoformat()}
+    })
+    
+    # Active users today
+    active_today = await db.users.count_documents({
+        "last_active": {"$gte": today_start.isoformat()}
+    })
+    
+    # Inactive users (7+ days)
+    inactive_users = await db.users.count_documents({
+        "$or": [
+            {"last_active": {"$lt": week_ago.isoformat()}},
+            {"last_active": {"$exists": False}}
+        ]
+    })
+    
+    # Premium users
+    premium_users = await db.users.count_documents({"is_premium": True})
+    
+    # Verified users
+    verified_users = await db.users.count_documents({"verified": True})
+    
+    # Banned users
+    banned_users = await db.users.count_documents({
+        "$or": [
+            {"is_shadow_banned": True},
+            {"is_permanently_banned": True}
+        ]
+    })
+    
+    # Pending verifications
+    pending_verifications = await db.users.count_documents({
+        "selfie_verification_status": "pending"
+    })
+    
+    # Total matches
+    total_matches = await db.matches.count_documents({})
+    
+    # Total messages
+    total_messages = await db.messages.count_documents({})
+    
+    # Recent signups (last 10)
+    recent_signups_cursor = db.users.find({}).sort("created_at", -1).limit(10)
+    recent_signups = await recent_signups_cursor.to_list(None)
+    
+    return {
+        "total_users": total_users,
+        "male_users": male_users,
+        "female_users": female_users,
+        "new_today": new_today,
+        "new_this_week": new_this_week,
+        "active_today": active_today,
+        "inactive_users": inactive_users,
+        "premium_users": premium_users,
+        "verified_users": verified_users,
+        "banned_users": banned_users,
+        "pending_verifications": pending_verifications,
+        "total_matches": total_matches,
+        "total_messages": total_messages,
+        "recent_signups": [{
+            "id": u["id"],
+            "name": u["name"],
+            "email": u.get("email"),
+            "gender": u.get("gender"),
+            "profile_picture": u.get("profile_picture"),
+            "created_at": u.get("created_at")
+        } for u in recent_signups]
     }
 
 # === ADMIN: DELETE USER ===
