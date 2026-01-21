@@ -25,7 +25,11 @@ from firebase_config import (
     send_match_notification,
     send_message_notification,
     send_like_notification,
-    send_verification_notification
+    send_verification_notification,
+    send_notification_to_multiple,
+    send_promotional_notification,
+    send_daily_reminder,
+    send_inactive_user_notification
 )
 
 # MongoDB connection with connection pooling for better performance
