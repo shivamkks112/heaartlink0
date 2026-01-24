@@ -2876,7 +2876,10 @@ async def send_bulk_notification(data: BulkNotificationRequest):
 async def get_fcm_status():
     """Check how many users have FCM tokens"""
     total = await db.users.count_documents({})
-    with_token = await db.users.count_documents({"fcm_token": {"$exists": True, "$ne": None, "$ne": ""}})
+    
+    # Get all users and check tokens properly
+    users = await db.users.find({}, {"fcm_token": 1}).to_list(None)
+    with_token = sum(1 for u in users if u.get("fcm_token") and str(u.get("fcm_token")).strip())
     
     return {
         "total_users": total,
