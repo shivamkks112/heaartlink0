@@ -3,7 +3,7 @@ import axios from 'axios';
 import { 
   Bell, Send, Clock, Users, Calendar, 
   Trash2, RefreshCw, CheckCircle, AlertTriangle,
-  ChevronDown
+  ChevronDown, Smartphone, AlertCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,12 +23,23 @@ const NotificationManager = () => {
   const [activeTab, setActiveTab] = useState('send');
   const [scheduleDate, setScheduleDate] = useState('');
   const [scheduleTime, setScheduleTime] = useState('');
+  const [fcmStatus, setFcmStatus] = useState(null);
 
   useEffect(() => {
     fetchTemplates();
     fetchHistory();
     fetchScheduled();
+    fetchFcmStatus();
   }, []);
+
+  const fetchFcmStatus = async () => {
+    try {
+      const res = await axios.get(`${API}/admin/fcm-status`);
+      setFcmStatus(res.data);
+    } catch (e) {
+      console.error('Failed to fetch FCM status', e);
+    }
+  };
 
   const fetchTemplates = async () => {
     try {
