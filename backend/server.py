@@ -2819,7 +2819,7 @@ async def send_bulk_notification(data: BulkNotificationRequest):
     Target options: all, male, female, inactive
     """
     # Build query based on target
-    query = {"fcm_token": {"$exists": True, "$ne": None}}
+    query = {"fcm_token": {"$exists": True, "$ne": None, "$ne": ""}}
     
     if data.target == "male":
         query["gender"] = {"$regex": "^male$", "$options": "i"}
@@ -2831,11 +2831,16 @@ async def send_bulk_notification(data: BulkNotificationRequest):
         query["last_active"] = {"$lt": week_ago}
     
     # Get all FCM tokens
-    users = await db.users.find(query, {"fcm_token": 1}).to_list(None)
+    users = await db.users.find(query, {"fcm_token": 1, "name": 1}).to_list(None)
     tokens = [u["fcm_token"] for u in users if u.get("fcm_token")]
     
     if not tokens:
-        return {"success": False, "message": "No users with FCM tokens found"}
+        return {
+            "success": False, 
+            "message": "No users with FCM tokens found. Users need to login from the Android app and allow notifications first.",
+            "total_users_checked": len(users),
+            "users_with_tokens": 0
+        }
     
     # Send notifications in batches of 500 (FCM limit)
     total_success = 0
@@ -2865,6 +2870,20 @@ async def send_bulk_notification(data: BulkNotificationRequest):
         "total_users": len(tokens),
         "success_count": total_success,
         "failure_count": total_failure
+    }
+
+@api_router.get("/admin/fcm-status")
+async def get_fcm_status():
+    """Check how many users have FCM tokens"""
+    total = await db.users.count_documents({})
+    with_token = await db.users.count_documents({"fcm_token": {"$exists": True, "$ne": None, "$ne": ""}})
+    
+    return {
+        "total_users": total,
+        "users_with_fcm_token": with_token,
+        "users_without_token": total - with_token,
+        "can_send_notifications": with_token > 0,
+        "message": "Users need to login from Android app and allow notifications" if with_token == 0 else f"{with_token} users can receive notifications"
     }
 
 @api_router.get("/admin/notification-templates")
