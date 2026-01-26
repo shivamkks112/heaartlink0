@@ -8,9 +8,13 @@ android {
         applicationId "com.heartlink.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 10
-        versionName "2.0.2"
+        versionCode 11
+        versionName "2.0.3"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        
+        // Multi-dex support for large apps with many dependencies
+        multiDexEnabled true
+        
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
@@ -28,6 +32,12 @@ android {
             shrinkResources false
         }
     }
+    
+    // Java compatibility
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
 }
 
 repositories {
@@ -43,10 +53,16 @@ dependencies {
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
     
-    // Firebase for push notifications - with explicit versions
+    // Firebase for push notifications
     implementation 'com.google.firebase:firebase-messaging:23.4.1'
     implementation 'com.google.firebase:firebase-analytics:21.5.1'
     implementation 'com.google.android.gms:play-services-base:18.3.0'
+    
+    // Google AdMob - REQUIRED for ads
+    implementation 'com.google.android.gms:play-services-ads:23.0.0'
+    
+    // Multi-dex support
+    implementation 'androidx.multidex:multidex:2.0.1'
     
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"

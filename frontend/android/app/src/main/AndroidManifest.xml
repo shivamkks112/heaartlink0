@@ -11,7 +11,7 @@
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     
-    <!-- AdMob requires AD_ID permission for personalized ads -->
+    <!-- AdMob AD_ID permission - REQUIRED for personalized ads -->
     <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
 
     <application
@@ -45,6 +45,7 @@
             </intent-filter>
         </service>
 
+        <!-- Firebase Notification Config -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
             android:resource="@mipmap/ic_launcher" />
@@ -55,10 +56,18 @@
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="heartlink_notifications" />
 
-        <!-- Google AdMob App ID -->
+        <!-- Google AdMob App ID - CRITICAL: Must match AdMob Console -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="ca-app-pub-3735972538807236~9004238866"/>
+            
+        <!-- AdMob Optimization Flags -->
+        <meta-data
+            android:name="com.google.android.gms.ads.flag.OPTIMIZE_INITIALIZATION"
+            android:value="true"/>
+        <meta-data
+            android:name="com.google.android.gms.ads.flag.OPTIMIZE_AD_LOADING"
+            android:value="true"/>
 
     </application>
 
