@@ -643,7 +643,7 @@ const AuthPage = ({ onLogin }) => {
                   <option value="Divorced">Divorced</option>
                   <option value="Widowed">Widowed</option>
                   <option value="Separated">Separated</option>
-                  <option value="Complicated">It's Complicated</option>
+                  <option value="Complicated">Its Complicated</option>
                 </select>
               </div>
 
