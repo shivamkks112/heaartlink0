@@ -216,7 +216,7 @@ TECHNICAL SPECS:
 🔒 Security: Standard mobile app security
 
 EXISTING BACKEND:
-🌐 API Base: https://heartmatch-india.preview.emergentagent.com/api
+🌐 API Base: https://dating-admin.preview.emergentagent.com/api
 📊 Database: Already implemented
 🔐 Auth: Working login/signup system
 💬 Chat: Real-time functionality exists

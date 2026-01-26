@@ -96,7 +96,7 @@ Add to `/app/frontend/.env`:
 
 ```env
 # Existing variables
-REACT_APP_BACKEND_URL=https://heartmatch-india.preview.emergentagent.com
+REACT_APP_BACKEND_URL=https://dating-admin.preview.emergentagent.com
 WDS_SOCKET_PORT=443
 
 # Firebase Configuration
