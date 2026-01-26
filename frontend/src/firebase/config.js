@@ -67,7 +67,9 @@ export const setupRecaptcha = (containerId) => {
         if (recaptchaVerifierInstance) {
           try {
             recaptchaVerifierInstance.clear();
-          } catch (e) {}
+          } catch (e) {
+            // Ignore clear errors
+          }
           recaptchaVerifierInstance = null;
         }
         window.recaptchaVerifier = null;
@@ -86,13 +88,17 @@ export const clearRecaptcha = () => {
   if (recaptchaVerifierInstance) {
     try {
       recaptchaVerifierInstance.clear();
-    } catch (e) {}
+    } catch (e) {
+      // Ignore clear errors
+    }
     recaptchaVerifierInstance = null;
   }
   if (window.recaptchaVerifier) {
     try {
       window.recaptchaVerifier.clear();
-    } catch (e) {}
+    } catch (e) {
+      // Ignore clear errors
+    }
     window.recaptchaVerifier = null;
   }
   
