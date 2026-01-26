@@ -496,8 +496,8 @@ const DiscoverPage = ({ user }) => {
           )}
         </div>
 
-        {/* Premium CTA for non-premium users */}
-        {!user?.is_premium && !user?.isPremium && (
+        {/* Premium CTA - HIDDEN FOR NOW */}
+        {/* {!user?.is_premium && !user?.isPremium && (
           <div className="mt-6 text-center">
             <Button
               onClick={() => navigate('/premium')}
@@ -509,7 +509,7 @@ const DiscoverPage = ({ user }) => {
               Upgrade to Premium
             </Button>
           </div>
-        )}
+        )} */}
 
         {/* Ad Reward Card for eligible male users */}
         {showAdCard && isEligible && (
