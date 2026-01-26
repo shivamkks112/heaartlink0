@@ -50,6 +50,20 @@ const AuthPage = ({ onLogin }) => {
     }
   }, [countdown]);
 
+  // Cleanup recaptcha on component unmount or auth method change
+  useEffect(() => {
+    return () => {
+      clearRecaptcha();
+    };
+  }, []);
+
+  // Clear recaptcha when switching auth methods
+  useEffect(() => {
+    if (authMethod === 'email') {
+      clearRecaptcha();
+    }
+  }, [authMethod]);
+
   const formatPhoneNumber = (phone) => {
     // Remove all non-digits
     let cleaned = phone.replace(/\D/g, '');
