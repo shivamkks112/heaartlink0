@@ -239,8 +239,15 @@ const AuthPage = ({ onLogin }) => {
   const handleSignup = async (e) => {
     e.preventDefault();
     
-    if (!signupData.email && !signupData.phone) {
-      toast.error('Please enter either email or phone number');
+    // Email is compulsory
+    if (!signupData.email || !signupData.email.includes('@')) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+    
+    // Phone is compulsory
+    if (!signupData.phone || signupData.phone.length !== 10) {
+      toast.error('Please enter a valid 10-digit phone number');
       return;
     }
     
@@ -251,6 +258,11 @@ const AuthPage = ({ onLogin }) => {
     
     if (!signupData.name || !signupData.age || !signupData.location) {
       toast.error('Please fill in all required fields');
+      return;
+    }
+    
+    if (!signupData.gender) {
+      toast.error('Please select your gender');
       return;
     }
     
