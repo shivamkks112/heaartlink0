@@ -3381,6 +3381,217 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# ==================== DAILY NOTIFICATION CRON ====================
+
+# Daily notification messages (random selection)
+DAILY_NOTIFICATION_MESSAGES = [
+    {"title": "💕 New matches waiting!", "body": "Someone special might be waiting for you. Open HeartLink now!"},
+    {"title": "❤️ Find your match today!", "body": "New profiles have been added. Start swiping!"},
+    {"title": "🌟 Your daily match is here!", "body": "Check out today's top profiles selected for you."},
+    {"title": "💫 Love is in the air!", "body": "Many new users joined today. Don't miss out!"},
+    {"title": "🔥 Hot profiles near you!", "body": "New matches in your area. Open HeartLink now!"},
+    {"title": "😊 Good morning!", "body": "Start your day by finding your perfect match on HeartLink."},
+    {"title": "💝 Someone liked you!", "body": "Check who liked your profile. Open HeartLink now!"},
+]
+
+async def send_daily_notifications():
+    """
+    Background task to send daily notifications to all users with FCM tokens
+    Called automatically once per day
+    """
+    import random
+    
+    try:
+        # Get all users with FCM tokens
+        users_with_tokens = await db.users.find({
+            "fcm_token": {"$exists": True, "$ne": None, "$ne": ""}
+        }).to_list(None)
+        
+        if not users_with_tokens:
+            logger.info("Daily Notification: No users with FCM tokens found")
+            return {"sent": 0, "message": "No users with FCM tokens"}
+        
+        # Get random message
+        message = random.choice(DAILY_NOTIFICATION_MESSAGES)
+        
+        # Collect all tokens
+        tokens = [u["fcm_token"] for u in users_with_tokens if u.get("fcm_token")]
+        
+        if not tokens:
+            return {"sent": 0, "message": "No valid tokens"}
+        
+        # Send to all at once
+        result = send_notification_to_multiple(
+            tokens=tokens,
+            title=message["title"],
+            body=message["body"]
+        )
+        
+        # Log the notification
+        log_entry = {
+            "id": str(uuid.uuid4()),
+            "type": "daily_automated",
+            "title": message["title"],
+            "body": message["body"],
+            "target": "all_with_tokens",
+            "total_sent": len(tokens),
+            "success_count": result.get("success_count", 0),
+            "failure_count": result.get("failure_count", 0),
+            "sent_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.notification_logs.insert_one(log_entry)
+        
+        logger.info(f"Daily Notification: Sent to {len(tokens)} users")
+        
+        return {
+            "sent": len(tokens),
+            "success": result.get("success_count", 0),
+            "failed": result.get("failure_count", 0)
+        }
+        
+    except Exception as e:
+        logger.error(f"Daily Notification Error: {str(e)}")
+        return {"error": str(e)}
+
+async def send_inactive_user_notifications():
+    """
+    Send notifications to users who haven't been active for 3+ days
+    """
+    try:
+        three_days_ago = datetime.now(timezone.utc) - timedelta(days=3)
+        
+        # Find inactive users with FCM tokens
+        inactive_users = await db.users.find({
+            "fcm_token": {"$exists": True, "$ne": None, "$ne": ""},
+            "last_active": {"$lt": three_days_ago.isoformat()}
+        }).to_list(100)
+        
+        if not inactive_users:
+            return {"sent": 0, "message": "No inactive users found"}
+        
+        success_count = 0
+        for user in inactive_users:
+            if user.get("fcm_token"):
+                # Calculate days inactive
+                last_active = datetime.fromisoformat(user.get("last_active", datetime.now(timezone.utc).isoformat()).replace('Z', '+00:00'))
+                days_inactive = (datetime.now(timezone.utc) - last_active).days
+                
+                result = send_inactive_user_notification(user["fcm_token"], days_inactive)
+                if result.get("success"):
+                    success_count += 1
+        
+        return {"sent": success_count, "total": len(inactive_users)}
+        
+    except Exception as e:
+        logger.error(f"Inactive Notification Error: {str(e)}")
+        return {"error": str(e)}
+
+# Background scheduler for daily notifications
+daily_notification_running = False
+
+async def daily_notification_scheduler():
+    """
+    Runs in background, sends notifications once per day at 10 AM IST
+    """
+    global daily_notification_running
+    
+    if daily_notification_running:
+        return
+    
+    daily_notification_running = True
+    
+    while True:
+        try:
+            # Get current time in IST (UTC+5:30)
+            now_utc = datetime.now(timezone.utc)
+            ist_offset = timedelta(hours=5, minutes=30)
+            now_ist = now_utc + ist_offset
+            
+            # Target time: 10:00 AM IST
+            target_hour = 10
+            target_minute = 0
+            
+            # Check if it's notification time (within 5 minute window)
+            if now_ist.hour == target_hour and 0 <= now_ist.minute < 5:
+                # Check if we already sent today
+                today_date = now_ist.date().isoformat()
+                existing_log = await db.notification_logs.find_one({
+                    "type": "daily_automated",
+                    "sent_at": {"$regex": f"^{today_date}"}
+                })
+                
+                if not existing_log:
+                    logger.info("Sending daily notifications...")
+                    await send_daily_notifications()
+                    
+                    # Also send to inactive users
+                    await send_inactive_user_notifications()
+            
+            # Sleep for 5 minutes before checking again
+            await asyncio.sleep(300)
+            
+        except Exception as e:
+            logger.error(f"Daily scheduler error: {str(e)}")
+            await asyncio.sleep(60)
+
+# API to manually trigger daily notifications (admin only)
+@api_router.post("/admin/trigger-daily-notification")
+async def trigger_daily_notification():
+    """
+    Manually trigger daily notifications (for testing)
+    """
+    result = await send_daily_notifications()
+    inactive_result = await send_inactive_user_notifications()
+    
+    return {
+        "daily": result,
+        "inactive": inactive_result
+    }
+
+# API to check daily notification status
+@api_router.get("/admin/daily-notification-status")
+async def get_daily_notification_status():
+    """
+    Get status of daily notifications
+    """
+    # Get last notification log
+    last_log = await db.notification_logs.find_one(
+        {"type": "daily_automated"},
+        sort=[("sent_at", -1)]
+    )
+    
+    # Count users with FCM tokens
+    users_with_tokens = await db.users.count_documents({
+        "fcm_token": {"$exists": True, "$ne": None, "$ne": ""}
+    })
+    
+    # Count inactive users
+    three_days_ago = datetime.now(timezone.utc) - timedelta(days=3)
+    inactive_count = await db.users.count_documents({
+        "fcm_token": {"$exists": True, "$ne": None, "$ne": ""},
+        "last_active": {"$lt": three_days_ago.isoformat()}
+    })
+    
+    return {
+        "scheduler_running": daily_notification_running,
+        "users_with_fcm_tokens": users_with_tokens,
+        "inactive_users": inactive_count,
+        "last_notification": {
+            "title": last_log.get("title") if last_log else None,
+            "sent_at": last_log.get("sent_at") if last_log else None,
+            "total_sent": last_log.get("total_sent") if last_log else 0,
+            "success_count": last_log.get("success_count") if last_log else 0
+        } if last_log else None,
+        "next_scheduled": "10:00 AM IST daily"
+    }
+
+@app.on_event("startup")
+async def startup_event():
+    """Start background tasks on app startup"""
+    # Start daily notification scheduler
+    asyncio.create_task(daily_notification_scheduler())
+    logger.info("✅ Daily notification scheduler started")
+
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
