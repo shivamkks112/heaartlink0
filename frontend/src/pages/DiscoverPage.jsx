@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import TopBar from '@/components/TopBar';
 import AdRewardCard from '@/components/ads/AdRewardCard';
+import OutOfSwipesModal from '@/components/ads/OutOfSwipesModal';
 import { useAds } from '@/context/AdContext';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || import.meta.env.REACT_APP_BACKEND_URL;
@@ -26,9 +27,15 @@ const DiscoverPage = ({ user }) => {
   const [touchEnd, setTouchEnd] = useState(null);
   const [swipeDirection, setSwipeDirection] = useState(null);
   const [showAdCard, setShowAdCard] = useState(false);
+  const [showOutOfSwipes, setShowOutOfSwipes] = useState(false);
+  const [dailySwipeCount, setDailySwipeCount] = useState(0);
+  const [extraSwipes, setExtraSwipes] = useState(0);
   
   // Ad context for eligible users
-  const { isEligible, boostActive, showInterstitialIfEligible } = useAds();
+  const { isEligible, boostActive, showInterstitialIfEligible, hasExtraSwipes, useExtraSwipe } = useAds();
+  
+  // Daily swipe limit (50 for free users)
+  const DAILY_SWIPE_LIMIT = 50;
 
   const minSwipeDistance = 50;
 
@@ -45,6 +52,22 @@ const DiscoverPage = ({ user }) => {
 
   useEffect(() => {
     fetchProfiles();
+    
+    // Load daily swipe count from localStorage
+    const today = new Date().toDateString();
+    const storedDate = localStorage.getItem('heartlink_swipe_date');
+    if (storedDate !== today) {
+      localStorage.setItem('heartlink_swipe_date', today);
+      localStorage.setItem('heartlink_swipe_count', '0');
+      setDailySwipeCount(0);
+    } else {
+      const count = parseInt(localStorage.getItem('heartlink_swipe_count') || '0');
+      setDailySwipeCount(count);
+    }
+    
+    // Load extra swipes
+    const extra = parseInt(localStorage.getItem('heartlink_extra_swipes') || '0');
+    setExtraSwipes(extra);
     
     // Show interstitial ad on page load for eligible users (max 1/day)
     if (isEligible) {
@@ -83,6 +106,35 @@ const DiscoverPage = ({ user }) => {
   const handleAction = async (action) => {
     if (profiles.length === 0) return;
     
+    // Check swipe limit for non-premium users (only for like/pass actions)
+    if (!user?.is_premium && !user?.isPremium && (action === 'like' || action === 'pass')) {
+      const currentExtra = parseInt(localStorage.getItem('heartlink_extra_swipes') || '0');
+      
+      if (dailySwipeCount >= DAILY_SWIPE_LIMIT && currentExtra <= 0) {
+        // Out of swipes - show modal
+        setShowOutOfSwipes(true);
+        return;
+      }
+      
+      // Use extra swipe if daily limit reached
+      if (dailySwipeCount >= DAILY_SWIPE_LIMIT && currentExtra > 0) {
+        const newExtra = currentExtra - 1;
+        localStorage.setItem('heartlink_extra_swipes', String(newExtra));
+        setExtraSwipes(newExtra);
+        toast.info(`Extra swipe used! ${newExtra} remaining`);
+      } else {
+        // Increment daily swipe count
+        const newCount = dailySwipeCount + 1;
+        localStorage.setItem('heartlink_swipe_count', String(newCount));
+        setDailySwipeCount(newCount);
+        
+        // Show warning when approaching limit
+        if (newCount === DAILY_SWIPE_LIMIT - 5) {
+          toast.warning('⚠️ Sirf 5 swipes bache hain!');
+        }
+      }
+    }
+    
     try {
       const response = await axios.post(`${API}/action/${user.id}`, {
         target_user_id: profiles[currentIndex].id,
@@ -111,6 +163,13 @@ const DiscoverPage = ({ user }) => {
     } catch (error) {
       toast.error('Action failed');
     }
+  };
+  
+  const handleSwipesAdded = (count) => {
+    const currentExtra = parseInt(localStorage.getItem('heartlink_extra_swipes') || '0');
+    const newExtra = currentExtra + count;
+    localStorage.setItem('heartlink_extra_swipes', String(newExtra));
+    setExtraSwipes(newExtra);
   };
 
   const onTouchStart = (e) => {
@@ -422,6 +481,19 @@ const DiscoverPage = ({ user }) => {
 
         <div className="mt-6 text-center text-gray-600">
           <p>{profiles.length - currentIndex} profiles remaining</p>
+          {/* Swipe Counter for non-premium */}
+          {!user?.is_premium && !user?.isPremium && (
+            <div className="mt-2 flex items-center justify-center gap-4 text-sm">
+              <span className={`${dailySwipeCount >= DAILY_SWIPE_LIMIT - 10 ? 'text-orange-500 font-semibold' : 'text-gray-500'}`}>
+                Daily: {Math.max(0, DAILY_SWIPE_LIMIT - dailySwipeCount)} left
+              </span>
+              {extraSwipes > 0 && (
+                <span className="text-green-600 font-semibold">
+                  +{extraSwipes} extra
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Premium CTA for non-premium users */}
@@ -457,6 +529,13 @@ const DiscoverPage = ({ user }) => {
           </div>
         )}
       </div>
+      
+      {/* Out of Swipes Modal */}
+      <OutOfSwipesModal 
+        isOpen={showOutOfSwipes}
+        onClose={() => setShowOutOfSwipes(false)}
+        onSwipesAdded={handleSwipesAdded}
+      />
     </div>
   );
 };
