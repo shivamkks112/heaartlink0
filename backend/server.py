@@ -961,10 +961,10 @@ async def get_profile(user_id: str):
 @api_router.put("/profile/{user_id}")
 async def update_profile(user_id: str, updates: dict):
     """Update user profile - OPTIMIZED"""
-    # Remove sensitive fields
-    updates.pop("password_hash", None)
-    updates.pop("id", None)
-    updates.pop("_id", None)
+    # Remove sensitive/locked fields that should NEVER be changed
+    locked_fields = ["password_hash", "id", "_id", "name", "gender", "email", "phone", "firebase_uid", "created_at"]
+    for field in locked_fields:
+        updates.pop(field, None)
     
     # Filter out None values to prevent validation errors
     filtered_updates = {k: v for k, v in updates.items() if v is not None}
