@@ -104,8 +104,8 @@ const OutOfSwipesModal = ({ isOpen, onClose, onSwipesAdded }) => {
             </button>
           )}
 
-          {/* Premium Option */}
-          <button
+          {/* Premium Option - HIDDEN FOR NOW */}
+          {/* <button
             onClick={() => {
               onClose();
               navigate('/premium');
@@ -123,7 +123,7 @@ const OutOfSwipesModal = ({ isOpen, onClose, onSwipesAdded }) => {
               </div>
             </div>
             <Sparkles className="w-6 h-6" />
-          </button>
+          </button> */}
 
           {/* Wait Option */}
           <div className="text-center pt-2">
