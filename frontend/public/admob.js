@@ -135,7 +135,7 @@
           adId: this.ADS.banner,
           adSize: 'ADAPTIVE_BANNER',
           position: 'BOTTOM_CENTER',
-          margin: 70  // Space for navigation bar (60-70px height)
+          margin: 80  // Space for navigation bar (64px height + safe area)
         });
         
         this.bannerVisible = true;
