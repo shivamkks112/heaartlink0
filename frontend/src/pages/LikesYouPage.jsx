@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Heart, Sparkles, X, Check, User } from 'lucide-react';
+import { Heart, Sparkles, X, Check, User, Crown, Eye, Lock, Play } from 'lucide-react';
 import Navbar from '@/components/Navbar';
+import SeeWhoLikedYouCard from '@/components/ads/SeeWhoLikedYouCard';
+import { useAds } from '@/context/AdContext';
+import { Button } from '@/components/ui/button';
 
 const API = process.env.REACT_APP_BACKEND_URL + '/api';
 
@@ -11,9 +14,19 @@ const LikesYouPage = ({ user }) => {
   const [likes, setLikes] = useState({ regular_likes: [], super_likes: [], total_count: 0 });
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState(null);
+  const [revealedProfiles, setRevealedProfiles] = useState([]);
+  
+  // Ad context
+  const { isEligible } = useAds();
+  
+  // Check if user is premium
+  const isPremium = user?.is_premium || user?.isPremium;
 
   useEffect(() => {
     fetchLikes();
+    // Load revealed profiles from localStorage
+    const revealed = JSON.parse(localStorage.getItem('heartlink_revealed_likes') || '[]');
+    setRevealedProfiles(revealed);
   }, [user.id]);
 
   const fetchLikes = async () => {
@@ -88,6 +101,18 @@ const LikesYouPage = ({ user }) => {
   };
 
   const displayedLikes = getDisplayedLikes();
+  
+  // Handle profile reveal after watching ad
+  const handleProfileReveal = (profileId) => {
+    const newRevealed = [...revealedProfiles, profileId];
+    setRevealedProfiles(newRevealed);
+    localStorage.setItem('heartlink_revealed_likes', JSON.stringify(newRevealed));
+  };
+  
+  // Check if profile is revealed
+  const isProfileRevealed = (profileId) => {
+    return isPremium || revealedProfiles.includes(profileId);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 pb-20 sm:pb-24" style={{ paddingTop: '95px' }}>
@@ -181,109 +206,158 @@ const LikesYouPage = ({ user }) => {
             </button>
           </div>
         ) : (
-          <div className="grid gap-4">
-            {displayedLikes.map((likedUser, index) => (
-              <div
-                key={likedUser.id}
-                className="group relative bg-white rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden"
-                style={{
-                  animation: `slideIn 0.3s ease-out ${index * 0.1}s both`
-                }}
-              >
-                {/* Background Image with Gradient Overlay */}
-                <div className="relative h-64 overflow-hidden">
-                  {likedUser.profile_picture ? (
-                    <img
-                      src={likedUser.profile_picture}
-                      alt={likedUser.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-pink-200 via-rose-200 to-orange-200 flex items-center justify-center">
-                      <User className="w-20 h-20 text-white/50" />
+          <>
+            {/* Premium Banner for non-premium users */}
+            {!isPremium && isEligible && displayedLikes.length > 0 && (
+              <div className="mb-6 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-gradient-to-r from-amber-400 to-orange-500 p-2 rounded-full">
+                      <Crown className="w-5 h-5 text-white" />
                     </div>
-                  )}
-                  
-                  {/* Gradient Overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
-                  
-                  {/* Verified Badge */}
-                  {likedUser.verified && (
-                    <div className="absolute top-4 right-4 bg-blue-500 text-white px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 shadow-lg">
-                      <Check className="w-3 h-3" />
-                      Verified
-                    </div>
-                  )}
-                  
-                  {/* User Info Overlay */}
-                  <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
-                    <h3 className="text-2xl font-bold mb-1">
-                      {likedUser.name}, {likedUser.age}
-                    </h3>
-                    
-                    {/* Online Status */}
-                    {likedUser.is_online ? (
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-lg"></div>
-                        <span className="text-xs text-green-300 font-semibold">Online now</span>
-                      </div>
-                    ) : likedUser.last_active && (
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="w-2 h-2 bg-white/60 rounded-full"></div>
-                        <span className="text-xs text-white/80">
-                          Active {formatLastSeen(likedUser.last_active)}
-                        </span>
-                      </div>
-                    )}
-                    
-                    {likedUser.location && (
-                      <p className="text-sm text-white/90 mb-2">📍 {likedUser.location}</p>
-                    )}
-                    {likedUser.bio && (
-                      <p className="text-sm text-white/80 line-clamp-2">{likedUser.bio}</p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Interests */}
-                {likedUser.interests && likedUser.interests.length > 0 && (
-                  <div className="px-6 py-3 border-b border-gray-100">
-                    <div className="flex flex-wrap gap-2">
-                      {likedUser.interests.slice(0, 5).map((interest, i) => (
-                        <span
-                          key={i}
-                          className="px-3 py-1 bg-pink-50 text-pink-600 rounded-full text-xs font-medium"
-                        >
-                          {interest}
-                        </span>
-                      ))}
+                    <div>
+                      <p className="font-semibold text-gray-800">Sab dekho bina ad ke!</p>
+                      <p className="text-sm text-gray-600">Premium me unlimited access</p>
                     </div>
                   </div>
-                )}
-
-                {/* Action Buttons */}
-                <div className="p-6 flex gap-4">
-                  <button
-                    onClick={() => handleAction(likedUser.id, 'pass')}
-                    disabled={processingId === likedUser.id}
-                    className="flex-1 py-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-2xl font-semibold text-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2 group-hover:scale-105"
+                  <Button
+                    onClick={() => navigate('/premium')}
+                    className="bg-gradient-to-r from-amber-400 to-orange-500 text-white px-4 py-2 rounded-full text-sm font-semibold"
+                    data-testid="premium-banner-btn"
                   >
-                    <X className="w-6 h-6" />
-                    Pass
-                  </button>
-                  
-                  <button
-                    onClick={() => handleAction(likedUser.id, 'like')}
-                    disabled={processingId === likedUser.id}
-                    className="flex-1 py-4 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-2xl font-semibold text-lg transition-all shadow-lg shadow-pink-300 disabled:opacity-50 flex items-center justify-center gap-2 group-hover:scale-105"
-                  >
-                    <Heart className="w-6 h-6 fill-current" />
-                    Like Back
-                  </button>
+                    Upgrade
+                  </Button>
                 </div>
               </div>
-            ))}
-          </div>
+            )}
+            
+            <div className="grid gap-4">
+              {displayedLikes.map((likedUser, index) => {
+                const revealed = isProfileRevealed(likedUser.id);
+                
+                // For non-premium users, show blurred cards (except first 2)
+                if (!isPremium && !revealed && index >= 2) {
+                  return (
+                    <div
+                      key={likedUser.id}
+                      style={{ animation: `slideIn 0.3s ease-out ${index * 0.1}s both` }}
+                    >
+                      <SeeWhoLikedYouCard
+                        likedUser={likedUser}
+                        onReveal={handleProfileReveal}
+                        isRevealed={false}
+                      />
+                    </div>
+                  );
+                }
+                
+                // Show normal card for premium users or revealed profiles
+                return (
+                  <div
+                    key={likedUser.id}
+                    className="group relative bg-white rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden"
+                    style={{
+                      animation: `slideIn 0.3s ease-out ${index * 0.1}s both`
+                    }}
+                  >
+                    {/* Background Image with Gradient Overlay */}
+                    <div className="relative h-64 overflow-hidden">
+                      {likedUser.profile_picture ? (
+                        <img
+                          src={likedUser.profile_picture}
+                          alt={likedUser.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-pink-200 via-rose-200 to-orange-200 flex items-center justify-center">
+                          <User className="w-20 h-20 text-white/50" />
+                        </div>
+                      )}
+                      
+                      {/* Gradient Overlay */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+                      
+                      {/* Verified Badge */}
+                      {likedUser.verified && (
+                        <div className="absolute top-4 right-4 bg-blue-500 text-white px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 shadow-lg">
+                          <Check className="w-3 h-3" />
+                          Verified
+                        </div>
+                      )}
+                      
+                      {/* User Info Overlay */}
+                      <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
+                        <h3 className="text-2xl font-bold mb-1">
+                          {likedUser.name}, {likedUser.age}
+                        </h3>
+                        
+                        {/* Online Status */}
+                        {likedUser.is_online ? (
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-lg"></div>
+                            <span className="text-xs text-green-300 font-semibold">Online now</span>
+                          </div>
+                        ) : likedUser.last_active && (
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="w-2 h-2 bg-white/60 rounded-full"></div>
+                            <span className="text-xs text-white/80">
+                              Active {formatLastSeen(likedUser.last_active)}
+                            </span>
+                          </div>
+                        )}
+                        
+                        {likedUser.location && (
+                          <p className="text-sm text-white/90 mb-2">📍 {likedUser.location}</p>
+                        )}
+                        {likedUser.bio && (
+                          <p className="text-sm text-white/80 line-clamp-2">{likedUser.bio}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Interests */}
+                    {likedUser.interests && likedUser.interests.length > 0 && (
+                      <div className="px-6 py-3 border-b border-gray-100">
+                        <div className="flex flex-wrap gap-2">
+                          {likedUser.interests.slice(0, 5).map((interest, i) => (
+                            <span
+                              key={i}
+                              className="px-3 py-1 bg-pink-50 text-pink-600 rounded-full text-xs font-medium"
+                            >
+                              {interest}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Action Buttons */}
+                    <div className="p-6 flex gap-4">
+                      <button
+                        onClick={() => handleAction(likedUser.id, 'pass')}
+                        disabled={processingId === likedUser.id}
+                        className="flex-1 py-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-2xl font-semibold text-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2 group-hover:scale-105"
+                        data-testid={`pass-btn-${likedUser.id}`}
+                      >
+                        <X className="w-6 h-6" />
+                        Pass
+                      </button>
+                      
+                      <button
+                        onClick={() => handleAction(likedUser.id, 'like')}
+                        disabled={processingId === likedUser.id}
+                        className="flex-1 py-4 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-2xl font-semibold text-lg transition-all shadow-lg shadow-pink-300 disabled:opacity-50 flex items-center justify-center gap-2 group-hover:scale-105"
+                        data-testid={`like-btn-${likedUser.id}`}
+                      >
+                        <Heart className="w-6 h-6 fill-current" />
+                        Like Back
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
       </div>
 
