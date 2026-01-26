@@ -145,7 +145,8 @@ const SeeWhoLikedYouCard = ({ likedUser, onReveal, isRevealed = false }) => {
               </Button>
             )}
             
-            <Button
+            {/* Premium Button - HIDDEN FOR NOW */}
+            {/* <Button
               onClick={() => navigate('/premium')}
               variant="outline"
               className="w-full bg-white/10 hover:bg-white/20 border-white/30 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2"
@@ -153,7 +154,7 @@ const SeeWhoLikedYouCard = ({ likedUser, onReveal, isRevealed = false }) => {
             >
               <Crown className="w-4 h-4" />
               Premium se Sab Dekho
-            </Button>
+            </Button> */}
           </div>
         </div>
       </div>
