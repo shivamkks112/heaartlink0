@@ -224,17 +224,40 @@ const DiscoverPage = ({ user }) => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50">
         <Navbar user={user} />
-        <div className="max-w-2xl mx-auto px-4 py-20 text-center">
-          <div className="bg-white rounded-3xl p-12 shadow-xl">
-            <Heart className="w-20 h-20 text-gray-300 mx-auto mb-4" />
-            <h2 className="text-3xl font-bold text-gray-800 mb-4">No More Profiles</h2>
+        <div className="max-w-2xl mx-auto px-4 py-12 text-center">
+          <div className="bg-white rounded-3xl p-8 shadow-xl">
+            <Heart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">No More Profiles</h2>
             <p className="text-gray-600 mb-6">Check back later for new matches!</p>
             <Button
               onClick={() => navigate('/matches')}
-              className="bg-gradient-to-r from-pink-500 to-orange-500 text-white px-8 py-4 rounded-full"
+              className="bg-gradient-to-r from-pink-500 to-orange-500 text-white px-6 py-3 rounded-full"
+              data-testid="view-matches-btn"
             >
               View Your Matches
             </Button>
+          </div>
+          
+          {/* Ad Reward Section for eligible users */}
+          {isEligible && (
+            <div className="mt-6 bg-white rounded-3xl p-6 shadow-xl">
+              <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center justify-center gap-2">
+                <Gift className="w-5 h-5 text-pink-500" />
+                Free Rewards
+              </h3>
+              <p className="text-gray-600 text-sm mb-4">
+                Watch short ads to get extra benefits!
+              </p>
+              <AdRewardCard showCloseButton={false} />
+            </div>
+          )}
+          
+          {/* Banner Ad Placeholder */}
+          <div className="mt-6 bg-gray-100 rounded-2xl p-4 text-center">
+            <p className="text-xs text-gray-400">Advertisement</p>
+            <div id="banner-ad-no-profiles" className="min-h-[60px] flex items-center justify-center">
+              {/* Banner ad will be shown here by AdMob */}
+            </div>
           </div>
         </div>
       </div>
