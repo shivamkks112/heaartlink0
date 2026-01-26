@@ -84,3 +84,19 @@ code {
     @apply bg-background text-foreground;
     }
 }
+
+/* Safe area padding for navigation bar + banner ad */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+/* Extra padding for pages with navbar to accommodate banner ads */
+.page-with-navbar {
+  padding-bottom: 160px; /* navbar (64px) + banner ad (~80px) + safe area */
+}
+
+/* Banner ad container spacing */
+.banner-ad-space {
+  height: 80px;
+  margin-bottom: 70px;
+}
