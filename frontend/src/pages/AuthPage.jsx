@@ -618,29 +618,36 @@ const AuthPage = ({ onLogin }) => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-gray-700 font-semibold">I am</Label>
+                  <Label className="text-gray-700 font-semibold">
+                    I am <span className="text-red-500">*</span>
+                  </Label>
                   <select
                     data-testid="signup-gender-select"
                     value={signupData.gender}
                     onChange={(e) => setSignupData({...signupData, gender: e.target.value})}
                     className="w-full mt-2 p-3 rounded-xl border-2 border-gray-200 focus:border-pink-500 bg-white"
+                    required
                   >
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Non-binary">Non-binary</option>
+                    <option value="">Select</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
                   </select>
+                  <p className="text-xs text-orange-500 mt-1">⚠️ Signup ke baad change nahi hoga</p>
                 </div>
                 <div>
-                  <Label className="text-gray-700 font-semibold">Looking for</Label>
+                  <Label className="text-gray-700 font-semibold">Looking for <span className="text-red-500">*</span></Label>
                   <select
                     data-testid="signup-looking-for-select"
                     value={signupData.looking_for}
                     onChange={(e) => setSignupData({...signupData, looking_for: e.target.value})}
                     className="w-full mt-2 p-3 rounded-xl border-2 border-gray-200 focus:border-pink-500 bg-white"
+                    required
                   >
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Both">Both</option>
+                    <option value="">Select</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="both">Both</option>
                   </select>
                 </div>
               </div>
