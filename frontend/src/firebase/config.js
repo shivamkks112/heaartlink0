@@ -26,30 +26,111 @@ export const storage = getStorage(app);
 export const googleProvider = new GoogleAuthProvider();
 
 // Phone Auth helpers
+let recaptchaVerifierInstance = null;
+
 export const setupRecaptcha = (containerId) => {
-  if (!window.recaptchaVerifier) {
-    window.recaptchaVerifier = new RecaptchaVerifier(auth, containerId, {
+  // Clear any existing reCAPTCHA
+  if (recaptchaVerifierInstance) {
+    try {
+      recaptchaVerifierInstance.clear();
+    } catch (e) {
+      console.log('Error clearing recaptcha:', e);
+    }
+    recaptchaVerifierInstance = null;
+  }
+  
+  // Also clear the window reference
+  if (window.recaptchaVerifier) {
+    try {
+      window.recaptchaVerifier.clear();
+    } catch (e) {
+      console.log('Error clearing window recaptcha:', e);
+    }
+    window.recaptchaVerifier = null;
+  }
+  
+  // Clear the container
+  const container = document.getElementById(containerId);
+  if (container) {
+    container.innerHTML = '';
+  }
+  
+  // Create new reCAPTCHA verifier
+  try {
+    recaptchaVerifierInstance = new RecaptchaVerifier(auth, containerId, {
       'size': 'invisible',
       'callback': (response) => {
-        console.log('reCAPTCHA solved');
+        console.log('reCAPTCHA solved successfully');
       },
       'expired-callback': () => {
-        console.log('reCAPTCHA expired');
+        console.log('reCAPTCHA expired, clearing...');
+        if (recaptchaVerifierInstance) {
+          try {
+            recaptchaVerifierInstance.clear();
+          } catch (e) {}
+          recaptchaVerifierInstance = null;
+        }
         window.recaptchaVerifier = null;
       }
     });
+    
+    window.recaptchaVerifier = recaptchaVerifierInstance;
+    return recaptchaVerifierInstance;
+  } catch (error) {
+    console.error('Error creating reCAPTCHA:', error);
+    throw error;
   }
-  return window.recaptchaVerifier;
+};
+
+export const clearRecaptcha = () => {
+  if (recaptchaVerifierInstance) {
+    try {
+      recaptchaVerifierInstance.clear();
+    } catch (e) {}
+    recaptchaVerifierInstance = null;
+  }
+  if (window.recaptchaVerifier) {
+    try {
+      window.recaptchaVerifier.clear();
+    } catch (e) {}
+    window.recaptchaVerifier = null;
+  }
+  
+  // Clear container
+  const container = document.getElementById('recaptcha-container');
+  if (container) {
+    container.innerHTML = '';
+  }
 };
 
 export const sendOTP = async (phoneNumber, recaptchaVerifier) => {
   try {
+    // Validate phone number format
+    if (!phoneNumber || phoneNumber.length < 12) {
+      return { success: false, error: 'Invalid phone number format' };
+    }
+    
+    console.log('Sending OTP to:', phoneNumber);
     const confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, recaptchaVerifier);
     window.confirmationResult = confirmationResult;
     return { success: true, confirmationResult };
   } catch (error) {
     console.error('Error sending OTP:', error);
-    return { success: false, error: error.message };
+    
+    // Clear recaptcha on error
+    clearRecaptcha();
+    
+    // Provide user-friendly error messages
+    let errorMessage = error.message;
+    if (error.code === 'auth/invalid-phone-number') {
+      errorMessage = 'Invalid phone number. Please enter a valid 10-digit number.';
+    } else if (error.code === 'auth/too-many-requests') {
+      errorMessage = 'Too many attempts. Please try again later.';
+    } else if (error.code === 'auth/captcha-check-failed') {
+      errorMessage = 'reCAPTCHA verification failed. Please try again.';
+    }
+    
+    return { success: false, error: errorMessage };
   }
 };
 
