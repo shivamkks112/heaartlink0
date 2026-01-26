@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
-import { setupRecaptcha, sendOTP, verifyOTP } from '@/firebase/config';
+import { setupRecaptcha, sendOTP, verifyOTP, clearRecaptcha } from '@/firebase/config';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || import.meta.env?.REACT_APP_BACKEND_URL;
 if (!BACKEND_URL) console.error('⚠️ REACT_APP_BACKEND_URL is not set!');
@@ -53,43 +53,87 @@ const AuthPage = ({ onLogin }) => {
   const formatPhoneNumber = (phone) => {
     // Remove all non-digits
     let cleaned = phone.replace(/\D/g, '');
-    // Add India country code if not present
-    if (!cleaned.startsWith('91') && cleaned.length === 10) {
-      cleaned = '91' + cleaned;
+    
+    // Ensure it's 10 digits
+    if (cleaned.length !== 10) {
+      return null;
     }
-    return '+' + cleaned;
+    
+    // Add India country code
+    return '+91' + cleaned;
   };
 
   const handleSendOTP = async () => {
-    if (!phoneNumber || phoneNumber.length < 10) {
-      toast.error('Please enter a valid phone number');
+    // Validate phone number
+    if (!phoneNumber || phoneNumber.length !== 10) {
+      toast.error('Please enter a valid 10-digit phone number');
       return;
     }
 
     setLoading(true);
     try {
       const formattedPhone = formatPhoneNumber(phoneNumber);
+      
+      if (!formattedPhone) {
+        toast.error('Invalid phone number format');
+        setLoading(false);
+        return;
+      }
+      
       console.log('Sending OTP to:', formattedPhone);
       
+      // Clear any existing recaptcha first
+      clearRecaptcha();
+      
+      // Wait a bit for cleanup
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Setup fresh recaptcha
       const recaptchaVerifier = setupRecaptcha('recaptcha-container');
+      
+      // Render the recaptcha (needed for invisible recaptcha)
+      await recaptchaVerifier.render();
+      
       const result = await sendOTP(formattedPhone, recaptchaVerifier);
       
       if (result.success) {
         setOtpSent(true);
         setCountdown(60); // 60 seconds countdown
-        toast.success('OTP sent successfully!');
+        toast.success('OTP sent successfully! Check your phone.');
       } else {
         toast.error(result.error || 'Failed to send OTP');
-        // Reset recaptcha on error
-        window.recaptchaVerifier = null;
+        clearRecaptcha();
       }
     } catch (error) {
       console.error('Send OTP error:', error);
-      toast.error('Failed to send OTP. Please try again.');
-      window.recaptchaVerifier = null;
+      
+      let errorMessage = 'Failed to send OTP. Please try again.';
+      if (error.message?.includes('already been rendered')) {
+        errorMessage = 'Please wait a moment and try again.';
+        clearRecaptcha();
+      } else if (error.message?.includes('too-short')) {
+        errorMessage = 'Phone number is too short. Enter 10 digits.';
+      }
+      
+      toast.error(errorMessage);
+      clearRecaptcha();
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleResendOTP = async () => {
+    if (countdown > 0) return;
+    
+    // Clear existing state and recaptcha
+    clearRecaptcha();
+    setOtp('');
+    
+    // Wait for cleanup
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Send OTP again
+    await handleSendOTP();
   };
 
   const handleVerifyOTP = async () => {
@@ -418,13 +462,17 @@ const AuthPage = ({ onLogin }) => {
 
                       <div className="flex justify-between items-center mt-4">
                         <button
-                          onClick={() => { setOtpSent(false); setOtp(''); }}
+                          onClick={() => { 
+                            setOtpSent(false); 
+                            setOtp(''); 
+                            clearRecaptcha();
+                          }}
                           className="text-gray-600 hover:text-gray-800 text-sm"
                         >
                           ← Change Number
                         </button>
                         <button
-                          onClick={handleSendOTP}
+                          onClick={handleResendOTP}
                           disabled={countdown > 0 || loading}
                           className={`text-sm font-medium ${
                             countdown > 0 ? 'text-gray-400' : 'text-pink-600 hover:text-pink-700'
