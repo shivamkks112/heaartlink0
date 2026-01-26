@@ -106,6 +106,12 @@ const ProfilePage = ({ user, onUpdate }) => {
   };
 
   const handleFieldChange = (field, value) => {
+    // Prevent changing locked fields
+    if (field === 'name' || field === 'gender') {
+      toast.error('Yeh field change nahi ho sakta');
+      return;
+    }
+    
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -119,7 +125,27 @@ const ProfilePage = ({ user, onUpdate }) => {
       return;
     }
 
-    // Validation for required fields
+    // Validation for ALL required fields
+    if (!formData.age || formData.age < 18 || formData.age > 100) {
+      toast.error('Please enter valid age (18-100)');
+      return;
+    }
+    
+    if (!formData.looking_for) {
+      toast.error('Please select who you are looking for');
+      return;
+    }
+    
+    if (!formData.city || formData.city.trim().length < 2) {
+      toast.error('Please enter your city');
+      return;
+    }
+    
+    if (!formData.state || formData.state.trim().length < 2) {
+      toast.error('Please enter your state');
+      return;
+    }
+
     if (!formData.bio || formData.bio.trim().length < 10) {
       toast.error('Please write a bio (at least 10 characters)');
       return;
@@ -132,10 +158,12 @@ const ProfilePage = ({ user, onUpdate }) => {
 
     setLoading(true);
     try {
-      // Only send changed fields
+      // Only send changed fields (excluding locked fields)
       const updates = {};
+      const lockedFields = ['name', 'gender', 'id', 'email', 'phone'];
+      
       Object.keys(formData).forEach(key => {
-        if (formData[key] !== profile[key]) {
+        if (!lockedFields.includes(key) && formData[key] !== profile[key]) {
           updates[key] = formData[key];
         }
       });
