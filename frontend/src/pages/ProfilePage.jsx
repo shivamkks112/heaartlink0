@@ -295,53 +295,106 @@ const ProfilePage = ({ user, onUpdate }) => {
                 Basic Information
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Name - LOCKED */}
                 <div>
-                  <label className="text-sm font-medium text-gray-600">Age</label>
+                  <label className="text-sm font-medium text-gray-600 flex items-center gap-1">
+                    Name <span className="text-xs text-gray-400 ml-1">🔒</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.name || ''}
+                    disabled
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
+                    placeholder="Name"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Name change nahi ho sakta</p>
+                </div>
+                
+                {/* Age - Required */}
+                <div>
+                  <label className="text-sm font-medium text-gray-600">
+                    Age <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="number"
                     value={formData.age || ''}
                     onChange={(e) => handleFieldChange('age', parseInt(e.target.value))}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
                     placeholder="Enter your age"
+                    min="18"
+                    max="100"
+                    required
                   />
                 </div>
+                
+                {/* Gender - LOCKED */}
                 <div>
-                  <label className="text-sm font-medium text-gray-600">Gender</label>
+                  <label className="text-sm font-medium text-gray-600 flex items-center gap-1">
+                    Gender <span className="text-xs text-gray-400 ml-1">🔒</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.gender ? formData.gender.charAt(0).toUpperCase() + formData.gender.slice(1) : ''}
+                    disabled
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
+                    placeholder="Gender"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Gender change nahi ho sakta</p>
+                </div>
+                
+                {/* Looking For - Required */}
+                <div>
+                  <label className="text-sm font-medium text-gray-600">
+                    Looking For <span className="text-red-500">*</span>
+                  </label>
                   <select
-                    value={formData.gender || ''}
-                    onChange={(e) => handleFieldChange('gender', e.target.value)}
+                    value={formData.looking_for || ''}
+                    onChange={(e) => handleFieldChange('looking_for', e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                    required
                   >
-                    <option value="">Select gender</option>
+                    <option value="">Select preference</option>
                     <option value="male">Male</option>
                     <option value="female">Female</option>
-                    <option value="other">Other</option>
+                    <option value="both">Both</option>
                   </select>
                 </div>
               </div>
             </div>
 
-            {/* Location */}
+            {/* Location - Required */}
             <div>
               <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
                 <MapPin className="w-5 h-5 text-pink-500" />
-                Location
+                Location <span className="text-red-500 text-sm">*</span>
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <input
-                  type="text"
-                  value={formData.city || ''}
-                  onChange={(e) => handleFieldChange('city', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                  placeholder="City"
-                />
-                <input
-                  type="text"
-                  value={formData.state || ''}
-                  onChange={(e) => handleFieldChange('state', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                  placeholder="State"
-                />
+                <div>
+                  <label className="text-sm font-medium text-gray-600">
+                    City <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.city || ''}
+                    onChange={(e) => handleFieldChange('city', e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                    placeholder="City"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-600">
+                    State <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.state || ''}
+                    onChange={(e) => handleFieldChange('state', e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                    placeholder="State"
+                    required
+                  />
+                </div>
               </div>
             </div>
 
