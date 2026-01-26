@@ -3314,10 +3314,7 @@ async def get_subscription_status(user_id: str):
         }
     }
 
-# Include router - MUST be after all route definitions
-app.include_router(api_router)
-
-# CORS
+# CORS - Add before routes
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
