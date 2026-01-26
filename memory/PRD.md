@@ -3,6 +3,34 @@
 ## Original Problem Statement
 Build a modern, safe, trust-based dating app for Android called "HeartLink" for Indian users. The app focuses on creating a premium, respectful, safe dating experience with emphasis on genuine users and female safety.
 
+## Latest Update (January 2025)
+
+### Rewarded Ads - Complete Implementation ✅
+Three new rewarded ad features have been implemented:
+
+1. **Out of Swipes Modal** (`/src/components/ads/OutOfSwipesModal.jsx`)
+   - Shows when daily swipe limit (50) is reached
+   - "Free Swipes Pao!" - Watch ad for +10 extra swipes
+   - "Premium Upgrade" button for unlimited access
+   - Hinglish text for Indian users
+
+2. **See Who Liked You Cards** (`/src/components/ads/SeeWhoLikedYouCard.jsx`)
+   - First 2 profiles show normally
+   - Remaining profiles are blurred with lock icon
+   - "Ad Dekho, Profile Dekho" button to reveal
+   - Premium users see all profiles without blur
+
+3. **Profile Page Ad Rewards** 
+   - AdRewardCard component added to Profile page
+   - Three reward options: Extra Swipes, Profile Boost, Priority Message
+   - Only visible to male, non-premium users
+
+### Swipe Counter System
+- Daily limit: 50 swipes for free users
+- Extra swipes stored in localStorage
+- Warning shown at 45 swipes (5 remaining)
+- Counter resets at midnight
+
 ## Core Features
 
 ### Implemented Features
