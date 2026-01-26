@@ -113,7 +113,9 @@ function App() {
             <Route path="/settings" element={user ? <SettingsPage user={user} /> : <Navigate to="/" />} />
             <Route path="/profile-viewers" element={user ? <ProfileViewersPage user={user} /> : <Navigate to="/" />} />
             <Route path="/enhance-profile" element={user ? <ProfileEnhancementPage user={user} onUpdate={handleLogin} /> : <Navigate to="/" />} />
-            <Route path="/premium" element={user ? <PremiumPage user={user} /> : <Navigate to="/" />} />
+            {/* Premium Route - HIDDEN FOR NOW */}
+            {/* <Route path="/premium" element={user ? <PremiumPage user={user} /> : <Navigate to="/" />} /> */}
+            <Route path="/premium" element={<Navigate to="/discover" />} />
           </Routes>
         </BrowserRouter>
       </AdProvider>
