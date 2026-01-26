@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Camera, User, Heart, MapPin, Calendar, Briefcase, GraduationCap, Ruler, Dumbbell, Wine, Cigarette, CheckCircle, Shield, Sparkles, ChevronRight } from 'lucide-react';
+import { Camera, User, Heart, MapPin, Calendar, Briefcase, GraduationCap, Ruler, Dumbbell, Wine, Cigarette, CheckCircle, Shield, Sparkles, ChevronRight, Gift } from 'lucide-react';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
 import { useNavigate } from 'react-router-dom';
@@ -9,6 +9,8 @@ import TopBar from '@/components/TopBar';
 import { Button } from '@/components/ui/button';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '@/firebase/config';
+import AdRewardCard from '@/components/ads/AdRewardCard';
+import { useAds } from '@/context/AdContext';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || import.meta.env.REACT_APP_BACKEND_URL;
 if (!BACKEND_URL) console.error('⚠️ REACT_APP_BACKEND_URL is not set!');
@@ -23,6 +25,12 @@ const ProfilePage = ({ user, onUpdate }) => {
   const [hasChanges, setHasChanges] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [fetchError, setFetchError] = useState(false);
+  
+  // Ad context
+  const { isEligible, boostActive, getBoostTimeRemaining } = useAds();
+  
+  // Check if user is premium
+  const isPremium = user?.is_premium || user?.isPremium;
 
   useEffect(() => {
     if (user?.id) {
@@ -411,6 +419,30 @@ const ProfilePage = ({ user, onUpdate }) => {
                   <p className="font-semibold text-gray-900">Trust Level: {(profile.trust_badge_level || 'low').toUpperCase()}</p>
                   <p className="text-xs text-gray-500">Complete your profile to increase trust</p>
                 </div>
+              </div>
+            )}
+            
+            {/* Boost Status Indicator */}
+            {boostActive && (
+              <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200 animate-pulse">
+                <div className="bg-gradient-to-r from-amber-400 to-orange-500 p-2 rounded-full">
+                  <Sparkles className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-900">Profile Boosted! 🚀</p>
+                  <p className="text-xs text-gray-500">{getBoostTimeRemaining()} minutes remaining</p>
+                </div>
+              </div>
+            )}
+
+            {/* Ad Rewards Section - Only for eligible non-premium users */}
+            {isEligible && !isPremium && (
+              <div className="mt-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <Gift className="w-5 h-5 text-pink-500" />
+                  <h3 className="text-lg font-bold text-gray-900">Free Rewards</h3>
+                </div>
+                <AdRewardCard />
               </div>
             )}
 
