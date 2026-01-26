@@ -3589,6 +3589,9 @@ async def startup_event():
     asyncio.create_task(daily_notification_scheduler())
     logger.info("✅ Daily notification scheduler started")
 
+# Include router - MUST be at the very end after all route definitions
+app.include_router(api_router)
+
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
