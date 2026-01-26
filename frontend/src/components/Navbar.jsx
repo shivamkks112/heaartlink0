@@ -180,6 +180,7 @@ const Navbar = ({ user }) => {
         </div>
       </div>
     </nav>
+    </>
   );
 };
 
