@@ -207,8 +207,8 @@ const LikesYouPage = ({ user }) => {
           </div>
         ) : (
           <>
-            {/* Premium Banner for non-premium users */}
-            {!isPremium && isEligible && displayedLikes.length > 0 && (
+            {/* Premium Banner - HIDDEN FOR NOW */}
+            {/* {!isPremium && isEligible && displayedLikes.length > 0 && (
               <div className="mb-6 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -229,7 +229,7 @@ const LikesYouPage = ({ user }) => {
                   </Button>
                 </div>
               </div>
-            )}
+            )} */}
             
             <div className="grid gap-4">
               {displayedLikes.map((likedUser, index) => {
