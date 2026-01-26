@@ -551,7 +551,7 @@ const AuthPage = ({ onLogin }) => {
               </div>
 
               <div>
-                <Label className="text-gray-700 font-semibold">Email</Label>
+                <Label className="text-gray-700 font-semibold">Email <span className="text-red-500">*</span></Label>
                 <div className="relative mt-2">
                   <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <Input
@@ -561,12 +561,13 @@ const AuthPage = ({ onLogin }) => {
                     value={signupData.email}
                     onChange={(e) => setSignupData({...signupData, email: e.target.value})}
                     className="pl-10 py-5 rounded-xl border-2 border-gray-200 focus:border-pink-500"
+                    required
                   />
                 </div>
               </div>
 
               <div>
-                <Label className="text-gray-700 font-semibold">Phone Number</Label>
+                <Label className="text-gray-700 font-semibold">Phone Number <span className="text-red-500">*</span></Label>
                 <div className="relative mt-2">
                   <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <Input
@@ -577,6 +578,7 @@ const AuthPage = ({ onLogin }) => {
                     onChange={(e) => setSignupData({...signupData, phone: e.target.value.replace(/\D/g, '').slice(0, 10)})}
                     className="pl-10 py-5 rounded-xl border-2 border-gray-200 focus:border-pink-500"
                     maxLength={10}
+                    required
                   />
                 </div>
               </div>
