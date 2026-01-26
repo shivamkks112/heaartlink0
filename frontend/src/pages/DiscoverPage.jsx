@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Heart, X, Sparkles, MapPin, Award, Zap, ChevronLeft, ChevronRight, Crown } from 'lucide-react';
+import { Heart, X, Sparkles, MapPin, Award, Zap, ChevronLeft, ChevronRight, Crown, Gift } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
