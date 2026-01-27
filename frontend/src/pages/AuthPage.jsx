@@ -281,6 +281,18 @@ const AuthPage = ({ onLogin }) => {
       return;
     }
     
+    // Age must be 18+
+    if (parseInt(signupData.age) < 18) {
+      toast.error('You must be 18 years or older to use HeartLink');
+      return;
+    }
+    
+    // Age verification checkbox required
+    if (!signupData.ageVerified) {
+      toast.error('Please confirm that you are 18 years or older');
+      return;
+    }
+    
     setLoading(true);
     
     try {
