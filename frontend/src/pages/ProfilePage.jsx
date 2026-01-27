@@ -24,9 +24,6 @@ const ProfilePage = ({ user, onUpdate }) => {
   const [verifying, setVerifying] = useState(false);
   const [fetchError, setFetchError] = useState(false);
   
-  // Ad context
-  const { isEligible, boostActive, getBoostTimeRemaining } = useAds();
-  
   // Check if user is premium
   const isPremium = user?.is_premium || user?.isPremium;
 
