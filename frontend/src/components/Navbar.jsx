@@ -36,11 +36,6 @@ const Navbar = ({ user }) => {
 
   return (
     <>
-      {/* Banner Ad Space Placeholder - sits above navbar */}
-      <div className="fixed bottom-16 left-0 right-0 z-40 pointer-events-none" id="banner-ad-container">
-        {/* Banner ad will be positioned here by AdMob plugin */}
-      </div>
-      
       <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md shadow-lg z-50 border-t border-gray-200 pb-safe">
         <div className="max-w-7xl mx-auto px-2 sm:px-4">
           <div className="flex items-center justify-around h-16 sm:h-18 md:h-20">
