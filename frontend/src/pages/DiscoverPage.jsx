@@ -243,7 +243,7 @@ const DiscoverPage = ({ user }) => {
 
   if (!currentProfile) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50">
+      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 pb-24">
         <Navbar user={user} />
         <div className="max-w-2xl mx-auto px-4 py-12 text-center">
           <div className="bg-white rounded-3xl p-8 shadow-xl">
@@ -259,27 +259,28 @@ const DiscoverPage = ({ user }) => {
             </Button>
           </div>
           
-          {/* Ad Reward Section for eligible users */}
-          {isEligible && (
+          {/* Rewarded Ad for Extra Swipes - Only for eligible users */}
+          {shouldShowAds && (
             <div className="mt-6 bg-white rounded-3xl p-6 shadow-xl">
-              <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center justify-center gap-2">
-                <Gift className="w-5 h-5 text-pink-500" />
-                Free Rewards
-              </h3>
+              <h3 className="text-lg font-bold text-gray-800 mb-3">🎁 Get Extra Swipes</h3>
               <p className="text-gray-600 text-sm mb-4">
-                Watch short ads to get extra benefits!
+                Watch a short video to get +{EXTRA_SWIPES_REWARD} extra swipes!
               </p>
-              <AdRewardCard showCloseButton={false} />
+              <Button
+                onClick={handleWatchAdForSwipes}
+                disabled={showingAd}
+                className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-6 py-3 rounded-full flex items-center gap-2 mx-auto"
+                data-testid="watch-ad-btn"
+              >
+                {showingAd ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Play className="w-5 h-5" />
+                )}
+                Watch Ad for +{EXTRA_SWIPES_REWARD} Swipes
+              </Button>
             </div>
           )}
-          
-          {/* Banner Ad Placeholder */}
-          <div className="mt-6 bg-gray-100 rounded-2xl p-4 text-center">
-            <p className="text-xs text-gray-400">Advertisement</p>
-            <div id="banner-ad-no-profiles" className="min-h-[60px] flex items-center justify-center">
-              {/* Banner ad will be shown here by AdMob */}
-            </div>
-          </div>
         </div>
       </div>
     );
