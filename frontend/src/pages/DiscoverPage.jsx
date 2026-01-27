@@ -52,6 +52,11 @@ const DiscoverPage = ({ user }) => {
   useEffect(() => {
     fetchProfiles();
     
+    // Initialize ads service
+    if (shouldShowAds) {
+      adsService.initialize();
+    }
+    
     // Load daily swipe count from localStorage
     const today = new Date().toDateString();
     const storedDate = localStorage.getItem('heartlink_swipe_date');
@@ -68,20 +73,6 @@ const DiscoverPage = ({ user }) => {
     const extra = parseInt(localStorage.getItem('heartlink_extra_swipes') || '0');
     setExtraSwipes(extra);
     
-    // Show interstitial ad on page load for eligible users (max 1/day)
-    if (isEligible) {
-      setTimeout(() => {
-        showInterstitialIfEligible('discover');
-      }, 2000); // Wait 2 seconds after page load
-    }
-    
-    // Show ad card occasionally for eligible users
-    if (isEligible && !user?.is_premium) {
-      const timer = setTimeout(() => {
-        setShowAdCard(true);
-      }, 10000); // Show after 10 seconds
-      return () => clearTimeout(timer);
-    }
     // eslint-disable-next-line
   }, []);
 
