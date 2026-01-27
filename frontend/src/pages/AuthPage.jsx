@@ -39,7 +39,8 @@ const AuthPage = ({ onLogin }) => {
     relationship_status: 'Single',
     bio: '',
     location: '',
-    interests: ''
+    interests: '',
+    ageVerified: false
   });
 
   // Countdown timer for OTP resend
