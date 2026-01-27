@@ -497,30 +497,6 @@ const ProfilePage = ({ user, onUpdate }) => {
                 </div>
               </div>
             )}
-            
-            {/* Boost Status Indicator */}
-            {boostActive && (
-              <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200 animate-pulse">
-                <div className="bg-gradient-to-r from-amber-400 to-orange-500 p-2 rounded-full">
-                  <Sparkles className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <p className="font-semibold text-gray-900">Profile Boosted! 🚀</p>
-                  <p className="text-xs text-gray-500">{getBoostTimeRemaining()} minutes remaining</p>
-                </div>
-              </div>
-            )}
-
-            {/* Ad Rewards Section - Only for eligible non-premium users */}
-            {isEligible && !isPremium && (
-              <div className="mt-6">
-                <div className="flex items-center gap-2 mb-3">
-                  <Gift className="w-5 h-5 text-pink-500" />
-                  <h3 className="text-lg font-bold text-gray-900">Free Rewards</h3>
-                </div>
-                <AdRewardCard />
-              </div>
-            )}
 
             {/* Save Button */}
             <div className="flex justify-end gap-3">
