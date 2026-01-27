@@ -539,45 +539,72 @@ const DiscoverPage = ({ user }) => {
               )}
             </div>
           )}
+          
+          {/* Ad Counter - Show when ads are enabled */}
+          {shouldShowAds && (
+            <p className="text-xs text-gray-400 mt-1">
+              Ad in {swipesUntilAd} swipes
+            </p>
+          )}
         </div>
-
-        {/* Premium CTA - HIDDEN FOR NOW */}
-        {/* {!user?.is_premium && !user?.isPremium && (
-          <div className="mt-6 text-center">
-            <Button
-              onClick={() => navigate('/premium')}
-              variant="outline"
-              className="border-amber-400 text-amber-600 hover:bg-amber-50"
-              data-testid="premium-cta-btn"
-            >
-              <Crown className="w-4 h-4 mr-2" />
-              Upgrade to Premium
-            </Button>
-          </div>
-        )} */}
-
-        {/* Ad Reward Card for eligible male users */}
-        {showAdCard && isEligible && (
-          <div className="mt-6">
-            <AdRewardCard 
-              showCloseButton={true}
-              onClose={() => setShowAdCard(false)}
-            />
-          </div>
-        )}
-
-        {/* Boost Active Indicator */}
-        {boostActive && (
-          <div className="fixed top-20 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-400 to-orange-500 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 z-50 animate-pulse">
-            <Zap className="w-4 h-4" />
-            <span className="text-sm font-medium">Profile Boosted!</span>
-          </div>
-        )}
       </div>
       
       {/* Out of Swipes Modal */}
-      <OutOfSwipesModal 
-        isOpen={showOutOfSwipes}
+      {showOutOfSwipes && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowOutOfSwipes(false)} />
+          
+          <div className="relative bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95">
+            <button
+              onClick={() => setShowOutOfSwipes(false)}
+              className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full z-10"
+            >
+              <X className="w-5 h-5 text-gray-500" />
+            </button>
+
+            <div className="bg-gradient-to-br from-pink-500 via-rose-500 to-orange-500 px-6 py-8 text-center text-white">
+              <div className="w-20 h-20 mx-auto mb-4 bg-white/20 rounded-full flex items-center justify-center">
+                <Heart className="w-10 h-10 text-white" />
+              </div>
+              <h2 className="text-2xl font-bold mb-2">Swipes Khatam! 😅</h2>
+              <p className="text-white/90 text-sm">Aapne aaj ke saare swipes use kar liye</p>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {/* Watch Ad Option */}
+              {shouldShowAds && (
+                <button
+                  onClick={handleWatchAdForSwipes}
+                  disabled={showingAd}
+                  className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white p-4 rounded-2xl flex items-center justify-between transition-all shadow-lg"
+                  data-testid="watch-ad-swipes-btn"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="bg-white/20 p-2 rounded-full">
+                      <Play className="w-6 h-6" />
+                    </div>
+                    <div className="text-left">
+                      <p className="font-bold text-lg">Free Swipes!</p>
+                      <p className="text-sm text-white/80">Watch ad, get +{EXTRA_SWIPES_REWARD} swipes</p>
+                    </div>
+                  </div>
+                  {showingAd ? (
+                    <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Play className="w-6 h-6" />
+                  )}
+                </button>
+              )}
+
+              <div className="text-center pt-2">
+                <p className="text-gray-500 text-sm">
+                  Ya phir <span className="font-semibold text-pink-600">kal</span> naye swipes milenge
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
         onClose={() => setShowOutOfSwipes(false)}
         onSwipesAdded={handleSwipesAdded}
       />
