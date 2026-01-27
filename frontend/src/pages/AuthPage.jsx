@@ -667,6 +667,27 @@ const AuthPage = ({ onLogin }) => {
                 </div>
               </div>
 
+              {/* Age Verification - REQUIRED for Child Safety Compliance */}
+              <div className="bg-orange-50 border-2 border-orange-200 rounded-xl p-4">
+                <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    id="age-verification"
+                    data-testid="age-verification-checkbox"
+                    checked={signupData.ageVerified || false}
+                    onChange={(e) => setSignupData({...signupData, ageVerified: e.target.checked})}
+                    className="mt-1 w-5 h-5 accent-pink-500"
+                    required
+                  />
+                  <label htmlFor="age-verification" className="text-sm text-gray-700">
+                    <span className="font-bold text-orange-600">Age Verification Required *</span>
+                    <br />
+                    I confirm that I am <span className="font-bold">18 years or older</span>. 
+                    I understand that HeartLink is an adult dating platform and users under 18 are strictly prohibited.
+                  </label>
+                </div>
+              </div>
+
               <div>
                 <Label className="text-gray-700 font-semibold">Relationship Status</Label>
                 <select
