@@ -48,6 +48,32 @@ db = client[os.environ.get('DB_NAME', 'dating_app_db')]
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
 
+# Health check endpoint for Kubernetes/deployment health checks
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for deployment monitoring"""
+    try:
+        # Quick MongoDB ping
+        await client.admin.command('ping')
+        return {
+            "status": "healthy",
+            "service": "HeartLink API",
+            "database": "connected"
+        }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "service": "HeartLink API",
+            "database": "disconnected",
+            "error": str(e)
+        }
+
+# Also add /api/health for API-prefixed health checks
+@api_router.get("/health")
+async def api_health_check():
+    """API health check endpoint"""
+    return {"status": "healthy", "service": "HeartLink API"}
+
 # Simple in-memory cache for frequently accessed data
 from functools import lru_cache
 from cachetools import TTLCache
