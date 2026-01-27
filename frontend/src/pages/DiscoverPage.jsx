@@ -1,15 +1,13 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Heart, X, Sparkles, MapPin, Award, Zap, ChevronLeft, ChevronRight, Crown, Gift } from 'lucide-react';
+import { Heart, X, Sparkles, MapPin, Award, Zap, ChevronLeft, ChevronRight, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import TopBar from '@/components/TopBar';
-import AdRewardCard from '@/components/ads/AdRewardCard';
-import OutOfSwipesModal from '@/components/ads/OutOfSwipesModal';
-import { useAds } from '@/context/AdContext';
+import adsService, { SWIPES_BEFORE_AD, EXTRA_SWIPES_REWARD } from '@/services/AdsService';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || import.meta.env.REACT_APP_BACKEND_URL;
 if (!BACKEND_URL) {
@@ -26,16 +24,17 @@ const DiscoverPage = ({ user }) => {
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
   const [swipeDirection, setSwipeDirection] = useState(null);
-  const [showAdCard, setShowAdCard] = useState(false);
   const [showOutOfSwipes, setShowOutOfSwipes] = useState(false);
   const [dailySwipeCount, setDailySwipeCount] = useState(0);
   const [extraSwipes, setExtraSwipes] = useState(0);
-  
-  // Ad context for eligible users
-  const { isEligible, boostActive, showInterstitialIfEligible, hasExtraSwipes, useExtraSwipe } = useAds();
+  const [swipesUntilAd, setSwipesUntilAd] = useState(SWIPES_BEFORE_AD);
+  const [showingAd, setShowingAd] = useState(false);
   
   // Daily swipe limit (50 for free users)
   const DAILY_SWIPE_LIMIT = 50;
+  
+  // Check if user should see ads (male, non-premium)
+  const shouldShowAds = user?.gender === 'male' && !user?.is_premium && !user?.isPremium;
 
   const minSwipeDistance = 50;
 
