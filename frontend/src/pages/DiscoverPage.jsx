@@ -123,6 +123,16 @@ const DiscoverPage = ({ user }) => {
           toast.warning('⚠️ Sirf 5 swipes bache hain!');
         }
       }
+      
+      // Track swipe for interstitial ads (after every 6 swipes)
+      if (shouldShowAds) {
+        const adShown = await adsService.trackSwipe();
+        setSwipesUntilAd(adsService.getSwipesUntilAd());
+        if (adShown) {
+          setShowingAd(true);
+          setTimeout(() => setShowingAd(false), 500);
+        }
+      }
     }
     
     try {
@@ -153,6 +163,27 @@ const DiscoverPage = ({ user }) => {
     } catch (error) {
       toast.error('Action failed');
     }
+  };
+  
+  // Watch rewarded ad for +10 extra swipes
+  const handleWatchAdForSwipes = async () => {
+    setShowingAd(true);
+    
+    const result = await adsService.showRewardedForSwipes((reward) => {
+      if (reward.success) {
+        handleSwipesAdded(reward.swipes);
+        toast.success(`🎉 +${reward.swipes} Extra Swipes Added!`);
+        setShowOutOfSwipes(false);
+      }
+    });
+    
+    setShowingAd(false);
+    
+    if (!result.success && result.error) {
+      toast.error(result.error);
+    }
+    
+    return result;
   };
   
   const handleSwipesAdded = (count) => {
