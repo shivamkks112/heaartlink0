@@ -195,7 +195,22 @@ const AuthPage = ({ onLogin }) => {
       }
     } catch (error) {
       console.error('Verify OTP error:', error);
-      toast.error('Verification failed. Please try again.');
+      
+      // Better error messages
+      let errorMessage = 'Verification failed. Please try again.';
+      if (error.code === 'auth/code-expired') {
+        errorMessage = 'OTP expired! Please request a new one.';
+      } else if (error.code === 'auth/invalid-verification-code') {
+        errorMessage = 'Invalid OTP. Please check and try again.';
+      } else if (error.message?.includes('expired')) {
+        errorMessage = 'OTP expired! Please request a new one.';
+      }
+      
+      toast.error(errorMessage);
+      
+      // Clear OTP and allow resend
+      setOtp('');
+      setCountdown(0);
     } finally {
       setLoading(false);
     }
