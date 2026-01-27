@@ -605,9 +605,6 @@ const DiscoverPage = ({ user }) => {
           </div>
         </div>
       )}
-        onClose={() => setShowOutOfSwipes(false)}
-        onSwipesAdded={handleSwipesAdded}
-      />
     </div>
   );
 };
