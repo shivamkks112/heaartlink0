@@ -5,6 +5,25 @@ Build a modern, safe, trust-based dating app for Android called "HeartLink" for 
 
 ## Latest Update (January 2025)
 
+### Google Play AD_ID Permission Fix ✅ (Updated Jan 28, 2025)
+
+**Problem:** Play Console rejected the app due to missing AD_ID permission declaration for Android 13+ (API 33+).
+
+**Solution Applied:**
+1. **Added `tools:node="merge"`** to AD_ID permission - ensures all child dependencies inherit this permission
+2. **Added `<queries>` block** for Android 11+ (API 30+) - required for proper advertising ID service discovery
+3. **Full Google Play Services compatibility** - includes package query for `com.google.android.gms`
+
+**Files Updated:**
+- `/frontend/android/app/src/main/AndroidManifest.xml` - Complete AD_ID fix with merge directive
+
+**Play Console Action Required:**
+1. Build new AAB file with updated manifest
+2. Upload to Play Console
+3. Update "Advertising ID Declaration" in Play Console → App Content → Advertising ID
+4. Select: "Yes, my app uses advertising ID"
+5. Check: "Advertising and Marketing"
+
 ### Ad Logic Refactor - Complete ✅ (Updated Jan 28, 2025)
 
 **Changes Made:**
