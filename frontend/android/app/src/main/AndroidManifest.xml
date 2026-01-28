@@ -14,23 +14,31 @@
     
     <!-- 
         Google Advertising ID Permission - REQUIRED for Android 13+ (API 33+)
-        This permission is MANDATORY for apps using Google AdMob.
-        tools:node="merge" ensures this permission is included in all merged manifests
-        from dependencies (Firebase, Play Services, AdMob SDK, etc.)
+        CRITICAL: Using tools:node="replace" to FORCE this permission across ALL dependencies
+        This overrides any conflicting declarations from child libraries
     -->
     <uses-permission 
         android:name="com.google.android.gms.permission.AD_ID"
-        tools:node="merge" />
+        tools:node="replace" />
     
     <!-- 
         Queries declaration for Android 11+ (API 30+)
         Required for advertising ID to work properly with Google Play Services
+        Including all possible advertising-related intents and packages
     -->
     <queries>
+        <!-- Google Advertising ID Service -->
         <intent>
             <action android:name="com.google.android.gms.ads.identifier.service.START" />
         </intent>
+        <!-- Google Play Services -->
         <package android:name="com.google.android.gms" />
+        <!-- Google Ads SDK -->
+        <intent>
+            <action android:name="com.google.android.gms.ads.service.START" />
+        </intent>
+        <!-- Files by Google (nbu.files) - for storage access -->
+        <package android:name="com.google.android.apps.nbu.files" />
     </queries>
 
     <application
