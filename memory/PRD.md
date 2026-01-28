@@ -5,31 +5,37 @@ Build a modern, safe, trust-based dating app for Android called "HeartLink" for 
 
 ## Latest Update (January 2025)
 
-### Rewarded Ads - Complete Implementation ✅
-Three new rewarded ad features have been implemented:
+### Ad Logic Refactor - Complete ✅ (Updated Jan 28, 2025)
 
-1. **Out of Swipes Modal** (`/src/components/ads/OutOfSwipesModal.jsx`)
-   - Shows when daily swipe limit (50) is reached
-   - "Free Swipes Pao!" - Watch ad for +10 extra swipes
-   - "Premium Upgrade" button for unlimited access
-   - Hinglish text for Indian users
+**Changes Made:**
+1. **Removed ALL Banner Ads** - No banner ads anywhere in the app
+2. **Interstitial Ads After 6 Swipes** - Using centralized `AdsService.js`
+3. **Rewarded Ads for +10 Extra Swipes** - User-initiated only
+4. **No Ads on Chat/Profile Pages** - Clean experience
 
-2. **See Who Liked You Cards** (`/src/components/ads/SeeWhoLikedYouCard.jsx`)
-   - First 2 profiles show normally
-   - Remaining profiles are blurred with lock icon
-   - "Ad Dekho, Profile Dekho" button to reveal
-   - Premium users see all profiles without blur
+**Files Updated:**
+- `/frontend/src/services/AdsService.js` - Centralized ad service (NEW)
+- `/frontend/src/pages/DiscoverPage.jsx` - Swipe tracking + ad integration
+- `/frontend/src/pages/ProfilePage.jsx` - Removed all ad components
+- `/frontend/src/components/Navbar.jsx` - Removed banner container
+- `/frontend/public/admob.js` - DELETED (old ad logic)
+- `/frontend/public/index.html` - Removed admob.js reference
 
-3. **Profile Page Ad Rewards** 
-   - AdRewardCard component added to Profile page
-   - Three reward options: Extra Swipes, Profile Boost, Priority Message
-   - Only visible to male, non-premium users
+**Ad Logic Summary:**
+| Feature | Implementation |
+|---------|---------------|
+| Banner Ads | ❌ REMOVED |
+| Interstitial | Every 6 swipes (male non-premium only) |
+| Rewarded | +10 swipes on user request |
+| Chat Page | No ads |
+| Profile Page | No ads |
 
 ### Swipe Counter System
 - Daily limit: 50 swipes for free users
 - Extra swipes stored in localStorage
 - Warning shown at 45 swipes (5 remaining)
 - Counter resets at midnight
+- "Ad in X swipes" indicator for eligible users
 
 ## Core Features
 
@@ -45,11 +51,11 @@ Three new rewarded ad features have been implemented:
 7. **Women Safety Mode** - Verified males only, message delays, quiet hours
 8. **Admin Controls** - User settings management, banning, verification
 
-#### Phase 2 - AdMob Integration (January 2025) ✅ NEW
+#### Phase 2 - AdMob Integration (January 2025) ✅
 1. **Google AdMob Integration**
-   - Rewarded Ads: Extra swipes, profile boost, priority messages
-   - Interstitial Ads: Max 1 per day per user
-   - Banner Ads: Bottom of screen (optional)
+   - Rewarded Ads: Extra swipes (+10)
+   - Interstitial Ads: After every 6 swipes
+   - Banner Ads: REMOVED as per user request
 
 2. **Gender-Based Ad Targeting**
    - Female users: Completely AD-FREE experience
