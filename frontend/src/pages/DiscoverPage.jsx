@@ -295,49 +295,90 @@ const DiscoverPage = ({ user }) => {
       <Toaster position="top-center" />
       <Navbar user={user} />
       
-      <div className="max-w-2xl mx-auto px-4 py-8 pb-32">
+      <div className="max-w-2xl mx-auto px-4 py-6 pb-32">
         <div 
-          className={`bg-white rounded-3xl shadow-elevated overflow-hidden relative hover-lift transition-all duration-300 ${swipeDirection === 'left' ? 'translate-x-[-20px] opacity-80' : swipeDirection === 'right' ? 'translate-x-[20px] opacity-80' : ''}`}
+          className={`bg-white rounded-[2rem] shadow-2xl overflow-hidden relative transition-all duration-300 ${swipeDirection === 'left' ? 'translate-x-[-30px] rotate-[-3deg] opacity-70' : swipeDirection === 'right' ? 'translate-x-[30px] rotate-[3deg] opacity-70' : ''}`}
           data-testid="profile-card"
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
         >
-          {/* Photo Section with enhanced animations */}
-          <div className="relative h-96 bg-gradient-to-br from-pink-200 to-orange-200 overflow-hidden group">
+          {/* Photo Section - Modern Design */}
+          <div className="relative h-[420px] bg-gradient-to-br from-pink-300 via-rose-200 to-orange-200 overflow-hidden">
             {currentProfile.profile_picture ? (
               <img
                 src={currentProfile.profile_picture}
                 alt={currentProfile.name}
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                className="w-full h-full object-cover"
               />
             ) : photos.length > 0 ? (
               <img
                 src={photos[photoIndex]}
                 alt={currentProfile.name}
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                className="w-full h-full object-cover"
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
-                <Heart className="w-24 h-24 text-white animate-heart-beat" />
+                <div className="w-32 h-32 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
+                  <Heart className="w-16 h-16 text-white/80" />
+                </div>
               </div>
             )}
 
-            {/* Gradient overlay for better text visibility */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            {/* Bottom gradient for text readability */}
+            <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/60 via-black/30 to-transparent"></div>
+
+            {/* Profile Info Overlay on Image */}
+            <div className="absolute bottom-0 left-0 right-0 p-5 text-white">
+              <div className="flex items-center gap-3 mb-2">
+                <h2 className="text-3xl font-bold drop-shadow-lg">{currentProfile.name}, {currentProfile.age}</h2>
+                {currentProfile.verified && (
+                  <div className="bg-blue-500 p-1.5 rounded-full shadow-lg">
+                    <Award className="w-4 h-4 text-white" fill="white" />
+                  </div>
+                )}
+                {currentProfile.trust_badge_level && currentProfile.trust_badge_level !== 'low' && (
+                  <div className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                    currentProfile.trust_badge_level === 'high' 
+                      ? 'bg-green-500' 
+                      : 'bg-yellow-500'
+                  }`}>
+                    {currentProfile.trust_badge_level.toUpperCase()}
+                  </div>
+                )}
+              </div>
+              
+              {/* Location & Status */}
+              <div className="flex items-center gap-3 text-white/90 text-sm">
+                {currentProfile.location && (
+                  <div className="flex items-center gap-1">
+                    <MapPin className="w-4 h-4" />
+                    <span>{currentProfile.location}</span>
+                  </div>
+                )}
+                {currentProfile.is_online ? (
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                    <span className="text-green-300 font-medium">Online</span>
+                  </div>
+                ) : currentProfile.last_active && (
+                  <span className="text-white/70">Active {formatLastSeen(currentProfile.last_active)}</span>
+                )}
+              </div>
+            </div>
 
             {/* Swipe Direction Indicators */}
             {swipeDirection === 'left' && (
-              <div className="absolute inset-0 bg-red-500/30 flex items-center justify-center">
-                <div className="bg-red-500 text-white px-6 py-3 rounded-full text-2xl font-bold shadow-lg rotate-[-15deg]">
-                  <X className="w-12 h-12" />
+              <div className="absolute inset-0 bg-gradient-to-r from-red-500/40 to-transparent flex items-center justify-start pl-8">
+                <div className="bg-red-500 text-white px-6 py-3 rounded-2xl text-xl font-bold shadow-2xl rotate-[-12deg] border-4 border-white">
+                  NOPE
                 </div>
               </div>
             )}
             {swipeDirection === 'right' && (
-              <div className="absolute inset-0 bg-green-500/30 flex items-center justify-center">
-                <div className="bg-green-500 text-white px-6 py-3 rounded-full text-2xl font-bold shadow-lg rotate-[15deg]">
-                  <Heart className="w-12 h-12" fill="white" />
+              <div className="absolute inset-0 bg-gradient-to-l from-green-500/40 to-transparent flex items-center justify-end pr-8">
+                <div className="bg-gradient-to-r from-pink-500 to-rose-500 text-white px-6 py-3 rounded-2xl text-xl font-bold shadow-2xl rotate-[12deg] border-4 border-white">
+                  LIKE
                 </div>
               </div>
             )}
@@ -348,56 +389,49 @@ const DiscoverPage = ({ user }) => {
                 <button
                   onClick={() => setPhotoIndex(Math.max(0, photoIndex - 1))}
                   disabled={photoIndex === 0}
-                  className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white p-2 rounded-full shadow-lg disabled:opacity-0 transition-all"
+                  className="absolute left-3 top-1/2 transform -translate-y-1/2 bg-white/90 hover:bg-white p-2 rounded-full shadow-xl disabled:opacity-0 transition-all backdrop-blur-sm"
                 >
-                  <ChevronLeft className="w-6 h-6" />
+                  <ChevronLeft className="w-5 h-5 text-gray-700" />
                 </button>
                 <button
                   onClick={() => setPhotoIndex(Math.min(photos.length - 1, photoIndex + 1))}
                   disabled={photoIndex === photos.length - 1}
-                  className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white p-2 rounded-full shadow-lg disabled:opacity-0 transition-all"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 bg-white/90 hover:bg-white p-2 rounded-full shadow-xl disabled:opacity-0 transition-all backdrop-blur-sm"
                 >
-                  <ChevronRight className="w-6 h-6" />
+                  <ChevronRight className="w-5 h-5 text-gray-700" />
                 </button>
                 
-                {/* Photo indicators */}
-                <div className="absolute top-4 left-0 right-0 flex justify-center gap-2">
+                {/* Photo indicators - Top */}
+                <div className="absolute top-3 left-3 right-3 flex gap-1">
                   {photos.map((_, idx) => (
                     <div
                       key={idx}
-                      className={`h-1 rounded-full transition-all ${
-                        idx === photoIndex ? 'w-8 bg-white' : 'w-4 bg-white/50'
+                      className={`h-1 flex-1 rounded-full transition-all ${
+                        idx === photoIndex ? 'bg-white' : 'bg-white/40'
                       }`}
                     />
                   ))}
                 </div>
               </>
             )}
-
-            {currentProfile.verified && (
-              <div className="absolute top-4 right-4 bg-blue-500 text-white px-3 py-1 rounded-full flex items-center gap-1 shadow-lg">
-                <Award className="w-4 h-4" />
-                <span className="text-sm font-semibold">Verified</span>
-              </div>
-            )}
           </div>
 
-          {/* Profile Info */}
-          <div className="p-6">
-            <div className="flex items-center gap-2 mb-2">
-              <h2 className="text-3xl font-bold text-gray-900">{currentProfile.name}, {currentProfile.age}</h2>
-              {/* Trust Badge */}
-              {currentProfile.trust_badge_level && currentProfile.trust_badge_level !== 'low' && (
-                <div className={`px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1 ${
-                  currentProfile.trust_badge_level === 'high' 
-                    ? 'bg-green-100 text-green-700' 
-                    : 'bg-yellow-100 text-yellow-700'
-                }`}>
-                  <Award className="w-3 h-3" />
-                  {currentProfile.trust_badge_level.toUpperCase()}
-                </div>
-              )}
-            </div>
+          {/* Profile Details Section */}
+          <div className="p-5 bg-white">
+            {/* Relationship Intent */}
+            {currentProfile.relationship_intent && (
+              <div className="inline-flex items-center gap-1.5 bg-gradient-to-r from-pink-50 to-rose-50 text-pink-600 px-3 py-1.5 rounded-full text-sm font-semibold mb-3 border border-pink-100">
+                <Heart className="w-3.5 h-3.5" fill="currentColor" />
+                {currentProfile.relationship_intent === 'serious' && 'Serious Relationship'}
+                {currentProfile.relationship_intent === 'casual' && 'Casual Dating'}
+                {currentProfile.relationship_intent === 'friendship' && 'Friendship First'}
+                {currentProfile.relationship_intent === 'marriage' && 'Marriage'}
+              </div>
+            )}
+
+            {currentProfile.bio && (
+              <p className="text-gray-600 text-sm leading-relaxed mb-4">{currentProfile.bio}</p>
+            )}
             
             {/* Online Status */}
             {currentProfile.is_online ? (
