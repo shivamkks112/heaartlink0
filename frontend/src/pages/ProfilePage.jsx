@@ -31,7 +31,7 @@ const ProfilePage = ({ user, onUpdate }) => {
     if (user?.id) {
       fetchProfile();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line
   }, [user?.id]);
 
   const formatLastSeen = (lastActive) => {
