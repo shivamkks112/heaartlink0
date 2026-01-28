@@ -489,37 +489,54 @@ const DiscoverPage = ({ user }) => {
             )}
           </div>
 
-          {/* Enhanced Action Buttons */}
-          <div className="p-6 flex justify-center items-center gap-8">
-            <button
-              data-testid="pass-btn"
-              onClick={() => handleAction('pass')}
-              className="bg-white hover:bg-gray-50 border-4 border-gray-300 hover:border-gray-400 w-16 h-16 rounded-full flex items-center justify-center shadow-soft hover:shadow-elevated transform hover:scale-125 transition-all duration-300 group"
-            >
-              <X className="w-8 h-8 text-gray-500 group-hover:text-gray-700 transition-colors" />
-            </button>
+          {/* Premium Action Buttons - Modern Design */}
+          <div className="p-6 pt-4">
+            <div className="flex justify-center items-end gap-4">
+              {/* Pass Button */}
+              <button
+                data-testid="pass-btn"
+                onClick={() => handleAction('pass')}
+                className="group relative"
+              >
+                <div className="absolute inset-0 bg-gradient-to-b from-gray-200 to-gray-300 rounded-full blur-md opacity-50 group-hover:opacity-80 transition-opacity"></div>
+                <div className="relative bg-white hover:bg-gray-50 border-2 border-gray-200 w-14 h-14 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transform hover:scale-110 active:scale-95 transition-all duration-200">
+                  <X className="w-7 h-7 text-gray-400 group-hover:text-red-400 transition-colors" strokeWidth={3} />
+                </div>
+                <span className="block text-xs text-gray-500 mt-2 text-center font-medium">Pass</span>
+              </button>
 
-            <button
-              data-testid="superlike-btn"
-              onClick={() => handleAction('superlike')}
-              className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 w-16 h-16 rounded-full flex items-center justify-center shadow-soft hover:shadow-glow transform hover:scale-125 transition-all duration-300 group animate-glow"
-            >
-              <Sparkles className="w-8 h-8 text-white group-hover:animate-pulse" />
-            </button>
+              {/* Like Button - Main CTA */}
+              <button
+                data-testid="like-btn"
+                onClick={() => handleAction('like')}
+                className="group relative -mt-4"
+              >
+                <div className="absolute inset-0 bg-gradient-to-b from-pink-400 to-rose-500 rounded-full blur-lg opacity-60 group-hover:opacity-90 animate-pulse transition-opacity"></div>
+                <div className="relative bg-gradient-to-br from-pink-500 via-rose-500 to-red-500 hover:from-pink-600 hover:via-rose-600 hover:to-red-600 w-20 h-20 rounded-full flex items-center justify-center shadow-2xl hover:shadow-pink-500/50 transform hover:scale-110 active:scale-95 transition-all duration-200 ring-4 ring-white">
+                  <Heart className="w-10 h-10 text-white drop-shadow-lg" fill="white" strokeWidth={0} />
+                </div>
+                <span className="block text-xs text-pink-600 mt-2 text-center font-bold">Like</span>
+              </button>
 
-            <button
-              data-testid="like-btn"
-              onClick={() => handleAction('like')}
-              className="bg-gradient-to-r from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600 w-20 h-20 rounded-full flex items-center justify-center shadow-glow hover:shadow-elevated transform hover:scale-125 transition-all duration-300 group animate-glow"
-            >
-              <Heart className="w-10 h-10 text-white group-hover:animate-heart-beat" fill="white" />
-            </button>
+              {/* Super Like Button */}
+              <button
+                data-testid="superlike-btn"
+                onClick={() => handleAction('superlike')}
+                className="group relative"
+              >
+                <div className="absolute inset-0 bg-gradient-to-b from-blue-400 to-purple-500 rounded-full blur-md opacity-50 group-hover:opacity-80 transition-opacity"></div>
+                <div className="relative bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600 hover:from-blue-600 hover:via-indigo-600 hover:to-purple-700 w-14 h-14 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl hover:shadow-purple-500/30 transform hover:scale-110 active:scale-95 transition-all duration-200">
+                  <Sparkles className="w-7 h-7 text-white" fill="white" />
+                </div>
+                <span className="block text-xs text-purple-600 mt-2 text-center font-medium">Super</span>
+              </button>
+            </div>
           </div>
 
           {/* Swipe hint for mobile */}
           <div className="px-6 pb-4 text-center">
-            <p className="text-gray-400 text-sm animate-pulse">
-              ← Swipe or use buttons to choose →
+            <p className="text-gray-400 text-xs">
+              ← Swipe left to pass • Swipe right to like →
             </p>
           </div>
         </div>
