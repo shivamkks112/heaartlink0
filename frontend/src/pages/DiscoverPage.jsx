@@ -432,89 +432,14 @@ const DiscoverPage = ({ user }) => {
             {currentProfile.bio && (
               <p className="text-gray-600 text-sm leading-relaxed mb-4">{currentProfile.bio}</p>
             )}
-            
-            {/* Online Status */}
-            {currentProfile.is_online ? (
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-sm text-green-600 font-semibold">Online now</span>
-              </div>
-            ) : currentProfile.last_active && (
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-2.5 h-2.5 bg-gray-400 rounded-full"></div>
-                <span className="text-sm text-gray-500">
-                  Active {formatLastSeen(currentProfile.last_active)}
-                </span>
-              </div>
-            )}
-            
-            {currentProfile.location && (
-              <div className="flex items-center gap-2 text-gray-600 mb-3">
-                <MapPin className="w-4 h-4" />
-                <span>{currentProfile.location}</span>
-              </div>
-            )}
 
-            {/* Relationship Intent */}
-            {currentProfile.relationship_intent && (
-              <div className="inline-flex items-center gap-1 bg-pink-100 text-pink-700 px-3 py-1 rounded-full text-sm font-medium mb-3">
-                <Heart className="w-3 h-3" />
-                {currentProfile.relationship_intent === 'serious' && 'Serious Relationship'}
-                {currentProfile.relationship_intent === 'casual' && 'Casual Dating'}
-                {currentProfile.relationship_intent === 'friendship' && 'Friendship First'}
-                {currentProfile.relationship_intent === 'marriage' && 'Marriage'}
-              </div>
-            )}
-
-            {currentProfile.bio && (
-              <p className="text-gray-700 mb-4 leading-relaxed">{currentProfile.bio}</p>
-            )}
-
-            {/* Values */}
-            {currentProfile.values && currentProfile.values.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-3">
-                {currentProfile.values.map((value, idx) => (
-                  <span
-                    key={idx}
-                    className="bg-yellow-50 text-yellow-700 border border-yellow-200 px-3 py-1 rounded-full text-sm"
-                  >
-                    {value === 'respect' && '🤝 Respect'}
-                    {value === 'family' && '👨‍👩‍👧‍👦 Family'}
-                    {value === 'ambition' && '🚀 Ambition'}
-                    {value === 'spirituality' && '🙏 Spirituality'}
-                    {value === 'freedom' && '🦅 Freedom'}
-                  </span>
-                ))}
-              </div>
-            )}
-
-            {/* Lifestyle Tags */}
-            {currentProfile.lifestyle_tags && currentProfile.lifestyle_tags.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-3">
-                {currentProfile.lifestyle_tags.map((tag, idx) => (
-                  <span
-                    key={idx}
-                    className="bg-purple-50 text-purple-700 border border-purple-200 px-3 py-1 rounded-full text-sm"
-                  >
-                    {tag === 'non-smoker' && '🚭 Non-Smoker'}
-                    {tag === 'vegetarian' && '🥗 Vegetarian'}
-                    {tag === 'fitness' && '💪 Fitness'}
-                    {tag === 'travel' && '✈️ Travel'}
-                    {tag === 'night-owl' && '🦉 Night Owl'}
-                    {tag === 'early-bird' && '🐦 Early Bird'}
-                    {tag === 'pet-lover' && '🐶 Pet Lover'}
-                    {tag === 'foodie' && '🍕 Foodie'}
-                  </span>
-                ))}
-              </div>
-            )}
-
+            {/* Interests Tags */}
             {currentProfile.interests && currentProfile.interests.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {currentProfile.interests.map((interest, idx) => (
                   <span
                     key={idx}
-                    className="bg-gradient-to-r from-pink-100 to-orange-100 text-gray-800 px-4 py-2 rounded-full text-sm font-medium"
+                    className="bg-gradient-to-r from-pink-100 to-orange-100 text-gray-700 px-3 py-1.5 rounded-full text-xs font-medium"
                   >
                     {interest}
                   </span>
