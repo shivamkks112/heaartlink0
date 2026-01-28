@@ -52,10 +52,18 @@ const DiscoverPage = ({ user }) => {
   useEffect(() => {
     fetchProfiles();
     
-    // Initialize ads service
-    if (shouldShowAds) {
-      adsService.initialize();
-    }
+    // Initialize ads service properly
+    const initAds = async () => {
+      if (shouldShowAds) {
+        try {
+          const success = await adsService.initialize();
+          console.log('Ads initialized:', success);
+        } catch (error) {
+          console.error('Failed to initialize ads:', error);
+        }
+      }
+    };
+    initAds();
     
     // Load daily swipe count from localStorage
     const today = new Date().toDateString();
