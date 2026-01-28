@@ -2,6 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Standard Permissions -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
@@ -11,8 +12,26 @@
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     
-    <!-- AdMob AD_ID permission - REQUIRED for personalized ads -->
-    <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
+    <!-- ============================================== -->
+    <!-- GOOGLE AD_ID PERMISSION - REQUIRED FOR ADS    -->
+    <!-- This is MANDATORY for Android 13+ (API 33+)   -->
+    <!-- Without this, advertising ID will be zeroed   -->
+    <!-- ============================================== -->
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID"/>
+
+    <!-- Queries for Android 11+ (API 30+) - Required for ad network visibility -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="market" />
+        </intent>
+        <package android:name="com.google.android.gms" />
+    </queries>
 
     <application
         android:allowBackup="true"
@@ -21,7 +40,8 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
-        android:usesCleartextTraffic="true">
+        android:usesCleartextTraffic="true"
+        android:networkSecurityConfig="@xml/network_security_config">
 
         <activity
             android:name=".MainActivity"
@@ -56,10 +76,19 @@
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="heartlink_notifications" />
 
-        <!-- Google AdMob App ID - CRITICAL: Must match AdMob Console -->
+        <!-- ============================================== -->
+        <!-- GOOGLE ADMOB CONFIGURATION                    -->
+        <!-- ============================================== -->
+        
+        <!-- AdMob App ID - Must match your AdMob Console -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="ca-app-pub-3735972538807236~9004238866"/>
+        
+        <!-- Delay app measurement until ad consent (GDPR) -->
+        <meta-data
+            android:name="com.google.android.gms.ads.DELAY_APP_MEASUREMENT_INIT"
+            android:value="true"/>
             
         <!-- AdMob Optimization Flags -->
         <meta-data
