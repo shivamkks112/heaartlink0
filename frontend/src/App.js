@@ -25,6 +25,7 @@ import { AdProvider } from '@/context/AdContext';
 import { requestNotificationPermission, setupForegroundMessageListener } from '@/firebase/messaging';
 import { initGoogleAuth } from '@/utils/nativeGoogleAuth';
 import { initPushNotifications } from '@/services/pushNotifications';
+import adsService from '@/services/AdsService';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -33,6 +34,17 @@ function App() {
   useEffect(() => {
     // Initialize native Google Auth
     initGoogleAuth();
+    
+    // Initialize AdMob early for better ad loading
+    const initializeAds = async () => {
+      try {
+        await adsService.initialize();
+        console.log('AdMob initialized on app start');
+      } catch (error) {
+        console.log('AdMob init skipped:', error.message);
+      }
+    };
+    initializeAds();
     
     // Check for stored user
     const storedUser = localStorage.getItem('user');
