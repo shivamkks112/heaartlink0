@@ -2,6 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Standard Permissions -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
@@ -11,8 +12,26 @@
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     
-    <!-- AdMob AD_ID permission - REQUIRED for personalized ads -->
-    <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
+    <!-- 
+        Google Advertising ID Permission - REQUIRED for Android 13+ (API 33+)
+        This permission is MANDATORY for apps using Google AdMob.
+        tools:node="merge" ensures this permission is included in all merged manifests
+        from dependencies (Firebase, Play Services, AdMob SDK, etc.)
+    -->
+    <uses-permission 
+        android:name="com.google.android.gms.permission.AD_ID"
+        tools:node="merge" />
+    
+    <!-- 
+        Queries declaration for Android 11+ (API 30+)
+        Required for advertising ID to work properly with Google Play Services
+    -->
+    <queries>
+        <intent>
+            <action android:name="com.google.android.gms.ads.identifier.service.START" />
+        </intent>
+        <package android:name="com.google.android.gms" />
+    </queries>
 
     <application
         android:allowBackup="true"
