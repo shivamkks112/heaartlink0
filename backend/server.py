@@ -32,6 +32,29 @@ from firebase_config import (
     send_inactive_user_notification
 )
 
+# Import Security Module
+from security import (
+    hash_password_secure,
+    verify_password_secure,
+    needs_password_rehash,
+    create_access_token,
+    create_refresh_token,
+    verify_access_token,
+    verify_refresh_token,
+    sanitize_string,
+    validate_email,
+    validate_phone,
+    validate_password_strength,
+    limiter,
+    RATE_LIMITS,
+    activity_detector,
+    session_manager,
+    audit_log,
+    generate_secure_token
+)
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+
 # MongoDB connection with connection pooling for better performance
 mongo_url = os.environ.get('MONGO_URL', 'mongodb://localhost:27017')
 client = AsyncIOMotorClient(
@@ -44,8 +67,11 @@ client = AsyncIOMotorClient(
 )
 db = client[os.environ.get('DB_NAME', 'dating_app_db')]
 
-# Create the main app
-app = FastAPI()
+# Create the main app with rate limiting
+app = FastAPI(title="HeartLink API", description="Secure Dating App API")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 api_router = APIRouter(prefix="/api")
 
 # Health check endpoint for Kubernetes/deployment health checks
