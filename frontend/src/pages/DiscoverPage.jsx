@@ -59,6 +59,23 @@ const DiscoverPage = ({ user }) => {
       adsService.initialize();
     }
     
+    // Connect to WebSocket for real-time updates
+    if (user?.id) {
+      wsService.connect(user.id);
+      
+      // Listen for status updates
+      const unsubscribe = wsService.on('status_update', (data) => {
+        // Update profile status if it's currently displayed
+        setProfiles(prev => prev.map(p => 
+          p.id === data.user_id 
+            ? { ...p, is_online: data.is_online, last_active: data.last_active }
+            : p
+        ));
+      });
+      
+      return () => unsubscribe();
+    }
+    
     // Load daily swipe count from localStorage
     const today = new Date().toDateString();
     const storedDate = localStorage.getItem('heartlink_swipe_date');
