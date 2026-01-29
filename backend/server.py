@@ -83,6 +83,10 @@ import time
 user_cache = TTLCache(maxsize=1000, ttl=300)
 # Cache for discover results (1 min TTL)
 discover_cache = TTLCache(maxsize=500, ttl=60)
+# Cache for online status (30 sec TTL, very short for real-time)
+online_status_cache = TTLCache(maxsize=2000, ttl=30)
+# Cache for likes count (2 min TTL)
+likes_cache = TTLCache(maxsize=1000, ttl=120)
 
 def get_cached_user(user_id: str):
     """Get user from cache"""
@@ -95,6 +99,14 @@ def set_cached_user(user_id: str, user_data: dict):
 def invalidate_user_cache(user_id: str):
     """Invalidate user cache"""
     user_cache.pop(user_id, None)
+
+def get_cached_online_status(user_id: str):
+    """Get online status from cache"""
+    return online_status_cache.get(user_id)
+
+def set_cached_online_status(user_id: str, is_online: bool, last_active: str):
+    """Set online status in cache"""
+    online_status_cache[user_id] = {"is_online": is_online, "last_active": last_active}
 
 # Database index creation on startup
 async def create_indexes():
