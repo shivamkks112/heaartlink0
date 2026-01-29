@@ -24,9 +24,27 @@ const ProfilePage = ({ user, onUpdate }) => {
   const [hasChanges, setHasChanges] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [fetchError, setFetchError] = useState(false);
+  const [citySearch, setCitySearch] = useState('');
+  const [showCityDropdown, setShowCityDropdown] = useState(false);
   
   // Check if user is premium
   const isPremium = user?.is_premium || user?.isPremium;
+
+  // Get cities based on selected state
+  const availableCities = useMemo(() => {
+    if (formData.state && CITIES_BY_STATE[formData.state]) {
+      return CITIES_BY_STATE[formData.state];
+    }
+    return POPULAR_CITIES;
+  }, [formData.state]);
+
+  // Filter cities based on search
+  const filteredCities = useMemo(() => {
+    if (!citySearch) return availableCities.slice(0, 20);
+    return availableCities.filter(city => 
+      city.toLowerCase().includes(citySearch.toLowerCase())
+    ).slice(0, 20);
+  }, [citySearch, availableCities]);
 
   useEffect(() => {
     if (user?.id) {
