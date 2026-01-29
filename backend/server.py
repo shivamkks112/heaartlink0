@@ -1611,11 +1611,69 @@ async def track_profile_view(user_id: str, viewer_id: str = None):
 @api_router.post("/user/{user_id}/update-activity")
 async def update_last_active(user_id: str):
     """Update user's last active timestamp"""
+    now = datetime.now(timezone.utc).isoformat()
     await db.users.update_one(
         {"id": user_id},
-        {"$set": {"last_active": datetime.now(timezone.utc).isoformat()}}
+        {"$set": {"last_active": now, "is_online": True}}
     )
+    # Update cache
+    set_cached_online_status(user_id, True, now)
     return {"message": "Activity updated"}
+
+@api_router.post("/users/online-status")
+async def get_batch_online_status(user_ids: List[str]):
+    """Get online status for multiple users - OPTIMIZED for real-time"""
+    result = {}
+    uncached_ids = []
+    
+    # Check cache first
+    for uid in user_ids:
+        cached = get_cached_online_status(uid)
+        if cached:
+            result[uid] = cached
+        else:
+            uncached_ids.append(uid)
+    
+    # Fetch uncached from DB
+    if uncached_ids:
+        users = await db.users.find(
+            {"id": {"$in": uncached_ids}},
+            {"_id": 0, "id": 1, "is_online": 1, "last_active": 1}
+        ).to_list(None)
+        
+        for user in users:
+            status = {
+                "is_online": user.get("is_online", False),
+                "last_active": user.get("last_active")
+            }
+            result[user["id"]] = status
+            set_cached_online_status(user["id"], status["is_online"], status["last_active"])
+    
+    return result
+
+@api_router.get("/user/{user_id}/online-status")
+async def get_single_online_status(user_id: str):
+    """Get online status for single user"""
+    # Check cache first
+    cached = get_cached_online_status(user_id)
+    if cached:
+        return cached
+    
+    # Fetch from DB
+    user = await db.users.find_one(
+        {"id": user_id},
+        {"_id": 0, "is_online": 1, "last_active": 1}
+    )
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    status = {
+        "is_online": user.get("is_online", False),
+        "last_active": user.get("last_active")
+    }
+    set_cached_online_status(user_id, status["is_online"], status["last_active"])
+    return status
 
 # ==================== ICEBREAKERS ====================
 
