@@ -147,18 +147,58 @@ const CompleteProfilePage = ({ onLogin }) => {
                 </div>
               </div>
               <div>
-                <Label className="text-gray-700 font-semibold">Location *</Label>
+                <Label className="text-gray-700 font-semibold">State *</Label>
+                <select
+                  value={selectedState}
+                  onChange={(e) => {
+                    setSelectedState(e.target.value);
+                    setProfileData({...profileData, location: ''});
+                    setCitySearch('');
+                  }}
+                  className="w-full mt-2 p-3 rounded-xl border-2 border-gray-200 focus:border-pink-500 bg-white"
+                  required
+                >
+                  <option value="">Select State</option>
+                  {INDIAN_STATES.map(state => (
+                    <option key={state} value={state}>{state}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="relative">
+                <Label className="text-gray-700 font-semibold">City *</Label>
                 <div className="relative mt-2">
-                  <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 z-10" />
                   <Input
                     type="text"
-                    placeholder="City"
-                    value={profileData.location}
-                    onChange={(e) => setProfileData({...profileData, location: e.target.value})}
+                    placeholder={selectedState ? "Search city..." : "Select state first"}
+                    value={citySearch || profileData.location}
+                    onChange={(e) => {
+                      setCitySearch(e.target.value);
+                      setShowCityDropdown(true);
+                    }}
+                    onFocus={() => setShowCityDropdown(true)}
                     className="pl-10 py-5 rounded-xl border-2 border-gray-200 focus:border-pink-500"
                     required
                   />
                 </div>
+                {showCityDropdown && filteredCities.length > 0 && (
+                  <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    {filteredCities.map(city => (
+                      <button
+                        key={city}
+                        type="button"
+                        onClick={() => {
+                          setProfileData({...profileData, location: city});
+                          setCitySearch('');
+                          setShowCityDropdown(false);
+                        }}
+                        className="w-full px-4 py-2 text-left hover:bg-pink-50 transition-colors border-b border-gray-100 last:border-b-0"
+                      >
+                        {city}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
