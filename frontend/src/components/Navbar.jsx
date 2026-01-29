@@ -100,6 +100,31 @@ const Navbar = ({ user }) => {
             </button>
 
             <button
+              data-testid="nav-notifications"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                navigate('/notifications');
+              }}
+              className={`relative flex flex-col items-center justify-center gap-1 px-2 sm:px-4 py-2 rounded-xl font-medium transition-all duration-300 min-w-[60px] touch-manipulation ${
+                isActive('/notifications')
+                  ? 'bg-gradient-to-r from-pink-500 to-orange-500 text-white shadow-glow'
+                  : 'text-gray-600 hover:bg-gray-100 hover:text-pink-600'
+              }`}
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              <div className="relative">
+                <Bell className={`w-6 h-6 ${isActive('/notifications') ? 'animate-pulse' : ''}`} />
+                {notificationCount > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-lg animate-pulse">
+                    {notificationCount > 99 ? '99+' : notificationCount}
+                  </span>
+                )}
+              </div>
+              <span className="text-xs">Alerts</span>
+            </button>
+
+            <button
               data-testid="nav-matches"
               onClick={(e) => {
                 e.preventDefault();
