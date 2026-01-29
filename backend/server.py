@@ -1634,7 +1634,22 @@ async def get_icebreakers():
 # Like/Match Routes
 @api_router.post("/action/{user_id}")
 async def user_action(user_id: str, action: LikeAction):
+    # Check if there's an existing record where target user liked current user
+    existing_like = await db.matches.find_one({
+        "user1_id": action.target_user_id,
+        "user2_id": user_id,
+        "user1_liked": True
+    })
+    
     if action.action == "pass":
+        # If someone liked us and we pass, mark user2_liked as False
+        if existing_like:
+            await db.matches.update_one(
+                {"_id": existing_like["_id"]},
+                {"$set": {"user2_liked": False, "user2_action": "pass"}}
+            )
+            return {"action": "passed", "removed_from_likes": True}
+        
         # Just record the pass
         match_doc = {
             "user1_id": user_id,
@@ -1646,11 +1661,8 @@ async def user_action(user_id: str, action: LikeAction):
         await db.matches.insert_one(match.dict())
         return {"action": "passed"}
     
-    # Check if opposite action exists
-    existing = await db.matches.find_one({
-        "user1_id": action.target_user_id,
-        "user2_id": user_id
-    })
+    # Check if opposite action exists (they liked us first)
+    existing = existing_like
     
     if existing and existing.get("user1_liked"):
         # It's a match!
