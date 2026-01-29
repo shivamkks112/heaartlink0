@@ -267,6 +267,9 @@ class User(BaseModel):
     risk_score: int = 0  # 0-100, admin only visible
     is_verified_male: bool = False  # For women safety - verified male
     
+    # In-App Notifications (Alternative to FCM)
+    unread_notifications: int = 0  # Count of unread notifications
+    
     # Profile Enhancement
     about_me: str = ""  # Extended bio
     values: List[str] = []  # respect, family, ambition, spirituality, freedom
