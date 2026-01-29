@@ -10,7 +10,7 @@ import sys
 from datetime import datetime
 
 # Backend URL from environment
-BACKEND_URL = "https://heartlink-119.preview.emergentagent.com/api"
+BACKEND_URL = "https://datematch-debug-1.preview.emergentagent.com/api"
 
 def print_test_header(test_name):
     print(f"\n{'='*60}")
