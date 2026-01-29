@@ -971,8 +971,14 @@ async def verify_reset_code(email_or_phone: str, reset_code: str):
     return {"message": "Code verified", "valid": True}
 
 @api_router.post("/auth/reset-password")
-async def reset_password(request: ResetPasswordRequest):
-    """Reset password using verified code"""
+@limiter.limit(RATE_LIMITS["forgot_password"])
+async def reset_password(request_obj: Request, request: ResetPasswordRequest):
+    """Reset password using verified code - SECURE VERSION"""
+    # Validate new password strength
+    is_strong, message = validate_password_strength(request.new_password)
+    if not is_strong:
+        raise HTTPException(status_code=400, detail=message)
+    
     # Find user
     user = await db.users.find_one({
         "$or": [
@@ -996,8 +1002,8 @@ async def reset_password(request: ResetPasswordRequest):
     if datetime.now(timezone.utc) > expires_at:
         raise HTTPException(status_code=400, detail="Reset code expired")
     
-    # Update password
-    new_password_hash = hash_password(request.new_password)
+    # Update password with bcrypt
+    new_password_hash = hash_password_secure(request.new_password)
     await db.users.update_one(
         {"id": user["id"]},
         {"$set": {
@@ -1006,6 +1012,9 @@ async def reset_password(request: ResetPasswordRequest):
             "password_reset_expires": None
         }}
     )
+    
+    # Audit log
+    audit_log.log_event("password_reset", user_id=user["id"])
     
     return {"message": "Password reset successful"}
 
