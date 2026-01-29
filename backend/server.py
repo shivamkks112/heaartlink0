@@ -1835,10 +1835,15 @@ async def get_matches(user_id: str):
 async def get_likes(user_id: str):
     """Get users who liked the current user"""
     # Find all matches where user2_id is current user and user1 has liked
+    # Exclude profiles where user2 has already taken action (liked back or passed)
     likes = await db.matches.find({
         "user2_id": user_id,
         "user1_liked": True,
-        "matched": False  # Not matched yet
+        "matched": False,  # Not matched yet
+        "$or": [
+            {"user2_liked": {"$exists": False}},  # User2 hasn't acted yet
+            {"user2_action": {"$exists": False}}  # No action recorded
+        ]
     }).to_list(None)
     
     result = {
@@ -1848,6 +1853,10 @@ async def get_likes(user_id: str):
     }
     
     for like in likes:
+        # Skip if user2 already took action
+        if like.get("user2_liked") is not None or like.get("user2_action"):
+            continue
+            
         liker_user = await db.users.find_one({"id": like["user1_id"]})
         
         if liker_user:
@@ -1861,12 +1870,15 @@ async def get_likes(user_id: str):
                 "interests": liker_user.get("interests", []),
                 "verified": liker_user.get("verified", False),
                 "location": liker_user.get("location", ""),
-                "liked_at": like.get("created_at")
+                "liked_at": like.get("created_at"),
+                "is_superlike": like.get("is_superlike", False)
             }
             
-            # Check if it's a superlike (you can add a field in matches for this)
-            # For now, we'll use a simple heuristic or add it later
-            result["regular_likes"].append(user_data)
+            # Check if it's a superlike
+            if like.get("is_superlike"):
+                result["super_likes"].append(user_data)
+            else:
+                result["regular_likes"].append(user_data)
     
     result["total_count"] = len(result["regular_likes"]) + len(result["super_likes"])
     
