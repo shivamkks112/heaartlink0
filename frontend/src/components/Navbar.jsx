@@ -1,29 +1,44 @@
-import { Heart, Compass, MessageSquare, User, Settings, Shield, LogOut } from 'lucide-react';
+import { Heart, Compass, MessageSquare, User, Settings, Shield, LogOut, Bell } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import axios from 'axios';
 
 const Navbar = ({ user }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [likesCount, setLikesCount] = useState(0);
+  const [notificationCount, setNotificationCount] = useState(0);
 
   const isActive = (path) => location.pathname === path;
+  const API = process.env.REACT_APP_BACKEND_URL + '/api';
 
   useEffect(() => {
     fetchLikesCount();
+    fetchNotificationCount();
     // Poll every 30 seconds for updates
-    const interval = setInterval(fetchLikesCount, 30000);
+    const interval = setInterval(() => {
+      fetchLikesCount();
+      fetchNotificationCount();
+    }, 30000);
     return () => clearInterval(interval);
   }, [user.id]);
 
   const fetchLikesCount = async () => {
     try {
-      const API = process.env.REACT_APP_BACKEND_URL + '/api';
       const response = await fetch(`${API}/likes/${user.id}`);
       const data = await response.json();
       setLikesCount(data.total_count || 0);
     } catch (error) {
       console.error('Error fetching likes count:', error);
+    }
+  };
+
+  const fetchNotificationCount = async () => {
+    try {
+      const response = await axios.get(`${API}/notifications/${user.id}?limit=1`);
+      setNotificationCount(response.data.unread_count || 0);
+    } catch (error) {
+      console.error('Error fetching notification count:', error);
     }
   };
 
