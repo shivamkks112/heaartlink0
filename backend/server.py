@@ -3370,7 +3370,222 @@ async def send_test_to_specific_user(email: str):
         "result": result
     }
 
-@api_router.get("/admin/notification-templates")
+# ============================================
+# IN-APP NOTIFICATIONS (Alternative to FCM)
+# ============================================
+
+async def create_in_app_notification(user_id: str, title: str, body: str, notification_type: str = "general", data: dict = None):
+    """Helper function to create in-app notification"""
+    notification = InAppNotification(
+        user_id=user_id,
+        title=title,
+        body=body,
+        type=notification_type,
+        data=data or {}
+    )
+    
+    await db.in_app_notifications.insert_one(notification.dict())
+    
+    # Update unread count
+    await db.users.update_one(
+        {"id": user_id},
+        {"$inc": {"unread_notifications": 1}}
+    )
+    
+    return notification
+
+@api_router.get("/notifications/{user_id}")
+async def get_user_notifications(user_id: str, limit: int = 50, skip: int = 0):
+    """Get all notifications for a user"""
+    notifications = await db.in_app_notifications.find(
+        {"user_id": user_id}
+    ).sort("created_at", -1).skip(skip).limit(limit).to_list(None)
+    
+    # Clean MongoDB _id
+    for n in notifications:
+        n.pop("_id", None)
+    
+    # Get unread count
+    unread_count = await db.in_app_notifications.count_documents({
+        "user_id": user_id,
+        "is_read": False
+    })
+    
+    return {
+        "notifications": notifications,
+        "unread_count": unread_count,
+        "total": len(notifications)
+    }
+
+@api_router.post("/notifications/{notification_id}/read")
+async def mark_notification_read(notification_id: str, user_id: str):
+    """Mark a notification as read"""
+    result = await db.in_app_notifications.update_one(
+        {"id": notification_id, "user_id": user_id, "is_read": False},
+        {"$set": {"is_read": True}}
+    )
+    
+    if result.modified_count > 0:
+        # Decrease unread count
+        await db.users.update_one(
+            {"id": user_id, "unread_notifications": {"$gt": 0}},
+            {"$inc": {"unread_notifications": -1}}
+        )
+    
+    return {"success": True}
+
+@api_router.post("/notifications/{user_id}/read-all")
+async def mark_all_notifications_read(user_id: str):
+    """Mark all notifications as read for a user"""
+    result = await db.in_app_notifications.update_many(
+        {"user_id": user_id, "is_read": False},
+        {"$set": {"is_read": True}}
+    )
+    
+    # Reset unread count
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {"unread_notifications": 0}}
+    )
+    
+    return {"success": True, "marked_count": result.modified_count}
+
+@api_router.delete("/notifications/{notification_id}")
+async def delete_notification(notification_id: str, user_id: str):
+    """Delete a specific notification"""
+    notification = await db.in_app_notifications.find_one({"id": notification_id, "user_id": user_id})
+    
+    if notification and not notification.get("is_read"):
+        await db.users.update_one(
+            {"id": user_id, "unread_notifications": {"$gt": 0}},
+            {"$inc": {"unread_notifications": -1}}
+        )
+    
+    await db.in_app_notifications.delete_one({"id": notification_id, "user_id": user_id})
+    return {"success": True}
+
+class AdminNotificationWithEmail(BaseModel):
+    title: str
+    body: str
+    target: str = "all"  # all, male, female, inactive
+    send_email: bool = True
+    send_in_app: bool = True
+
+@api_router.post("/admin/send-notification-all")
+async def send_notification_all_methods(data: AdminNotificationWithEmail):
+    """
+    Send notification using ALL available methods:
+    1. FCM Push (for users with tokens)
+    2. In-App Notification (stored for all users)
+    3. Email (for users with email)
+    """
+    results = {
+        "fcm": {"sent": 0, "failed": 0},
+        "in_app": {"created": 0},
+        "email": {"sent": 0, "failed": 0}
+    }
+    
+    # Build query based on target
+    query = {}
+    if data.target == "male":
+        query["gender"] = {"$regex": "^male$", "$options": "i"}
+    elif data.target == "female":
+        query["gender"] = {"$regex": "^female$", "$options": "i"}
+    elif data.target == "inactive":
+        week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+        query["last_active"] = {"$lt": week_ago}
+    
+    # Get all users matching query
+    users = await db.users.find(query, {"id": 1, "name": 1, "email": 1, "fcm_token": 1}).to_list(None)
+    
+    if not users:
+        return {"success": False, "message": "No users found", "results": results}
+    
+    # 1. Send FCM Push (to users with tokens)
+    fcm_tokens = [u["fcm_token"] for u in users if u.get("fcm_token")]
+    if fcm_tokens:
+        for i in range(0, len(fcm_tokens), 500):
+            batch = fcm_tokens[i:i+500]
+            try:
+                result = send_notification_to_multiple(batch, data.title, data.body)
+                results["fcm"]["sent"] += result.get("success_count", 0)
+                results["fcm"]["failed"] += result.get("failure_count", 0)
+            except Exception as e:
+                logger.error(f"FCM batch error: {e}")
+    
+    # 2. Create In-App Notifications for ALL users
+    if data.send_in_app:
+        notifications = []
+        for user in users:
+            notification = InAppNotification(
+                user_id=user["id"],
+                title=data.title,
+                body=data.body,
+                type="admin"
+            )
+            notifications.append(notification.dict())
+        
+        if notifications:
+            await db.in_app_notifications.insert_many(notifications)
+            results["in_app"]["created"] = len(notifications)
+            
+            # Update unread counts
+            user_ids = [u["id"] for u in users]
+            await db.users.update_many(
+                {"id": {"$in": user_ids}},
+                {"$inc": {"unread_notifications": 1}}
+            )
+    
+    # 3. Send Email to users with email
+    if data.send_email:
+        from email_service import send_email
+        
+        for user in users:
+            if user.get("email"):
+                try:
+                    html_body = f"""
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                        <div style="background: linear-gradient(135deg, #ff6b9d, #c44569); padding: 20px; text-align: center;">
+                            <h1 style="color: white; margin: 0;">💕 HeartLink</h1>
+                        </div>
+                        <div style="padding: 30px; background: #fff;">
+                            <h2 style="color: #333;">{data.title}</h2>
+                            <p style="color: #666; font-size: 16px; line-height: 1.6;">{data.body}</p>
+                            <div style="text-align: center; margin-top: 30px;">
+                                <a href="https://heartlink.co.in" style="background: #ff6b9d; color: white; padding: 12px 30px; text-decoration: none; border-radius: 25px; font-weight: bold;">Open HeartLink</a>
+                            </div>
+                        </div>
+                        <div style="padding: 20px; background: #f5f5f5; text-align: center; color: #999; font-size: 12px;">
+                            <p>You received this because you're a HeartLink member.</p>
+                        </div>
+                    </div>
+                    """
+                    result = send_email(user["email"], data.title, html_body)
+                    if result.get("success"):
+                        results["email"]["sent"] += 1
+                    else:
+                        results["email"]["failed"] += 1
+                except Exception as e:
+                    logger.error(f"Email error for {user.get('email')}: {e}")
+                    results["email"]["failed"] += 1
+    
+    # Log notification
+    await db.notification_logs.insert_one({
+        "id": str(uuid.uuid4()),
+        "title": data.title,
+        "body": data.body,
+        "target": data.target,
+        "methods": ["fcm", "in_app", "email"],
+        "results": results,
+        "sent_at": datetime.now(timezone.utc).isoformat()
+    })
+    
+    return {
+        "success": True,
+        "total_users": len(users),
+        "results": results,
+        "message": f"Notifications sent via all methods to {len(users)} users"
+    }
 async def get_notification_templates():
     """Get pre-defined notification templates"""
     templates = [
