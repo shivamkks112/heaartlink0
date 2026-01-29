@@ -421,10 +421,6 @@ const DiscoverPage = ({ user }) => {
                 showText={true}
               />
             </div>
-                  Active {formatLastSeen(currentProfile.last_active)}
-                </span>
-              </div>
-            )}
             
             {currentProfile.location && (
               <div className="flex items-center gap-2 text-gray-600 mb-3">
