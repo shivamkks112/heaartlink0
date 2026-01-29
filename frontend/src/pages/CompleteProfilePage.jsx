@@ -1,12 +1,13 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { User, MapPin, Calendar, Heart, ArrowRight } from 'lucide-react';
+import { User, MapPin, Calendar, Heart, ArrowRight, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
+import { INDIAN_STATES, CITIES_BY_STATE, POPULAR_CITIES } from '@/data/indianCities';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || import.meta.env?.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
