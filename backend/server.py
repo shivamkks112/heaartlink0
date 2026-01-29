@@ -647,11 +647,17 @@ async def signup(user_data: UserSignup):
         raise HTTPException(status_code=500, detail=f"Signup failed: {str(e)}")
 
 @api_router.post("/auth/login")
-async def login(credentials: UserLogin):
+@limiter.limit(RATE_LIMITS["login"])
+async def login(request: Request, credentials: UserLogin):
     """
-    User login endpoint - PERMANENT FIX
-    Handles MongoDB ObjectId serialization properly
+    User login endpoint - SECURE VERSION
+    - Rate limited to prevent brute force
+    - Suspicious activity detection
+    - JWT token based authentication
+    - Password rehashing for migration
     """
+    client_ip = request.client.host if request.client else "unknown"
+    
     # Find user by email or phone
     user = await db.users.find_one({
         "$or": [
@@ -660,13 +666,64 @@ async def login(credentials: UserLogin):
         ]
     })
     
-    if not user or not verify_password(credentials.password, user["password_hash"]):
+    if not user:
+        # Record failed login attempt
+        is_suspicious = activity_detector.record_failed_login(client_ip)
+        if is_suspicious:
+            audit_log.log_event("suspicious_login_attempts", ip=client_ip)
         raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    # Verify password (supports both bcrypt and legacy SHA256)
+    if not verify_password_secure(credentials.password, user["password_hash"]):
+        is_suspicious = activity_detector.record_failed_login(client_ip)
+        if is_suspicious:
+            audit_log.log_event("suspicious_login_attempts", user_id=user["id"], ip=client_ip)
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    # Check if user is banned
+    if user.get("is_permanently_banned"):
+        raise HTTPException(status_code=403, detail="Account has been permanently banned")
+    
+    # Clear failed login records on successful login
+    activity_detector.clear_failed_logins(client_ip)
+    
+    # Rehash password if using old SHA256 (migration to bcrypt)
+    if needs_password_rehash(user["password_hash"]):
+        new_hash = hash_password_secure(credentials.password)
+        await db.users.update_one(
+            {"id": user["id"]},
+            {"$set": {"password_hash": new_hash}}
+        )
+    
+    # Create JWT tokens
+    token_data = {"user_id": user["id"], "email": user.get("email")}
+    access_token = create_access_token(token_data)
+    refresh_token = create_refresh_token(token_data)
+    
+    # Update last login
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {
+            "last_login": datetime.now(timezone.utc).isoformat(),
+            "last_login_ip": client_ip,
+            "is_online": True,
+            "last_active": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    # Audit log
+    audit_log.log_event("login_success", user_id=user["id"], ip=client_ip)
     
     # Serialize for response (removes _id, password_hash, cleans None values)
     clean_user = serialize_user_for_response(user, exclude_password=True)
     
-    return {"message": "Login successful", "user": clean_user}
+    return {
+        "message": "Login successful",
+        "user": clean_user,
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer"
+    }
 
 class PhoneLogin(BaseModel):
     phone: str
