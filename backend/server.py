@@ -664,13 +664,24 @@ async def signup(request: Request, user_data: UserSignup):
         if not created_user:
             raise HTTPException(status_code=500, detail="User created but not found")
         
+        # Create JWT tokens for immediate login
+        token_data = {"user_id": user.id, "email": user_data.email}
+        access_token = create_access_token(token_data)
+        refresh_token = create_refresh_token(token_data)
+        
+        # Audit log
+        audit_log.log_event("signup_success", user_id=user.id, ip=client_ip)
+        
         # Serialize for response (removes _id, password_hash, cleans None values)
         clean_user = serialize_user_for_response(created_user, exclude_password=True)
         
         return {
             "message": "Signup successful",
             "user_id": user.id,
-            "user": clean_user
+            "user": clean_user,
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer"
         }
         
     except HTTPException:
