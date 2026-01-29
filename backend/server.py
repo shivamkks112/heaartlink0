@@ -483,9 +483,12 @@ def serialize_user_for_response(user_dict: dict, exclude_password: bool = True) 
     # Remove MongoDB's _id field
     user_dict.pop('_id', None)
     
-    # Remove password hash if needed
+    # Remove password related fields if needed
     if exclude_password:
         user_dict.pop('password_hash', None)
+        user_dict.pop('password', None)  # Also remove plain password if exists
+        user_dict.pop('password_reset_code', None)  # Security - don't expose reset codes
+        user_dict.pop('password_reset_expires', None)
     
     # Clean None values
     cleaned = clean_user_data(user_dict)
