@@ -412,31 +412,74 @@ const ProfilePage = ({ user, onUpdate }) => {
                 Location <span className="text-red-500 text-sm">*</span>
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-gray-600">
-                    City <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.city || ''}
-                    onChange={(e) => handleFieldChange('city', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                    placeholder="City"
-                    required
-                  />
-                </div>
+                {/* State Dropdown */}
                 <div>
                   <label className="text-sm font-medium text-gray-600">
                     State <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
+                  <select
                     value={formData.state || ''}
-                    onChange={(e) => handleFieldChange('state', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                    placeholder="State"
+                    onChange={(e) => {
+                      handleFieldChange('state', e.target.value);
+                      handleFieldChange('city', ''); // Reset city when state changes
+                      setCitySearch('');
+                    }}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent bg-white"
                     required
-                  />
+                  >
+                    <option value="">Select State</option>
+                    {INDIAN_STATES.map(state => (
+                      <option key={state} value={state}>{state}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                {/* City Dropdown with Search */}
+                <div className="relative">
+                  <label className="text-sm font-medium text-gray-600">
+                    City <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={citySearch || formData.city || ''}
+                      onChange={(e) => {
+                        setCitySearch(e.target.value);
+                        setShowCityDropdown(true);
+                      }}
+                      onFocus={() => setShowCityDropdown(true)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent pr-10"
+                      placeholder={formData.state ? "Search city..." : "Select state first"}
+                      required
+                    />
+                    <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  </div>
+                  
+                  {/* City Dropdown */}
+                  {showCityDropdown && (
+                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      {filteredCities.length > 0 ? (
+                        filteredCities.map(city => (
+                          <button
+                            key={city}
+                            type="button"
+                            onClick={() => {
+                              handleFieldChange('city', city);
+                              setCitySearch('');
+                              setShowCityDropdown(false);
+                            }}
+                            className="w-full px-4 py-2 text-left hover:bg-pink-50 transition-colors border-b border-gray-100 last:border-b-0"
+                          >
+                            {city}
+                          </button>
+                        ))
+                      ) : (
+                        <div className="px-4 py-2 text-gray-500 text-sm">
+                          {formData.state ? "No cities found" : "Please select a state first"}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
