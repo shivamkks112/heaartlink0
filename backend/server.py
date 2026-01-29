@@ -597,11 +597,34 @@ async def verify_profile_with_ai(user_data: dict) -> tuple:
 
 # Authentication Routes
 @api_router.post("/auth/signup")
-async def signup(user_data: UserSignup):
+@limiter.limit(RATE_LIMITS["register"])
+async def signup(request: Request, user_data: UserSignup):
     """
-    User signup endpoint - PERMANENT FIX
-    Handles MongoDB ObjectId serialization properly
+    User signup endpoint - SECURE VERSION
+    - Rate limited to prevent spam registrations
+    - Input validation and sanitization
+    - Strong password hashing with bcrypt
+    - JWT token generation
     """
+    client_ip = request.client.host if request.client else "unknown"
+    
+    # Validate email format
+    if user_data.email and not validate_email(user_data.email):
+        raise HTTPException(status_code=400, detail="Invalid email format")
+    
+    # Validate phone format
+    if user_data.phone and not validate_phone(user_data.phone):
+        raise HTTPException(status_code=400, detail="Invalid phone format")
+    
+    # Validate password strength
+    is_strong, message = validate_password_strength(user_data.password)
+    if not is_strong:
+        raise HTTPException(status_code=400, detail=message)
+    
+    # Sanitize inputs
+    sanitized_name = sanitize_string(user_data.name, max_length=100)
+    sanitized_bio = sanitize_string(user_data.bio, max_length=500) if user_data.bio else ""
+    
     # Check if user exists
     if user_data.email:
         existing = await db.users.find_one({"email": user_data.email})
@@ -616,8 +639,18 @@ async def signup(user_data: UserSignup):
     try:
         # Create user dict from signup data
         user_dict = user_data.dict() if hasattr(user_data, 'dict') else user_data.model_dump()
-        user_dict["password_hash"] = hash_password(user_data.password)
+        
+        # Use bcrypt for password hashing (more secure than SHA256)
+        user_dict["password_hash"] = hash_password_secure(user_data.password)
         del user_dict["password"]
+        
+        # Apply sanitized values
+        user_dict["name"] = sanitized_name
+        user_dict["bio"] = sanitized_bio
+        
+        # Add security metadata
+        user_dict["registered_ip"] = client_ip
+        user_dict["registered_at"] = datetime.now(timezone.utc).isoformat()
         
         # Create User object to get all defaults (privacy_settings, etc.)
         user = User(**user_dict)
