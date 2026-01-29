@@ -393,41 +393,34 @@ const DiscoverPage = ({ user }) => {
               </>
             )}
 
+            {/* Colorful Verified Badge */}
             {currentProfile.verified && (
-              <div className="absolute top-4 right-4 bg-blue-500 text-white px-3 py-1 rounded-full flex items-center gap-1 shadow-lg">
-                <Award className="w-4 h-4" />
-                <span className="text-sm font-semibold">Verified</span>
+              <div className="absolute top-4 right-4">
+                <VerifiedBadge size="md" showText={true} />
               </div>
             )}
           </div>
 
           {/* Profile Info */}
           <div className="p-6">
-            <div className="flex items-center gap-2 mb-2">
+            <BadgeStyles />
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
               <h2 className="text-3xl font-bold text-gray-900">{currentProfile.name}, {currentProfile.age}</h2>
-              {/* Trust Badge */}
+              {/* Trust Badge - Colorful */}
               {currentProfile.trust_badge_level && currentProfile.trust_badge_level !== 'low' && (
-                <div className={`px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1 ${
-                  currentProfile.trust_badge_level === 'high' 
-                    ? 'bg-green-100 text-green-700' 
-                    : 'bg-yellow-100 text-yellow-700'
-                }`}>
-                  <Award className="w-3 h-3" />
-                  {currentProfile.trust_badge_level.toUpperCase()}
-                </div>
+                <TrustBadge level={currentProfile.trust_badge_level} size="sm" showText={true} />
               )}
             </div>
             
-            {/* Online Status */}
-            {currentProfile.is_online ? (
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-sm text-green-600 font-semibold">Online now</span>
-              </div>
-            ) : currentProfile.last_active && (
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-2.5 h-2.5 bg-gray-400 rounded-full"></div>
-                <span className="text-sm text-gray-500">
+            {/* Online Status - Enhanced */}
+            <div className="mb-3">
+              <OnlineStatus 
+                isOnline={currentProfile.is_online} 
+                lastActive={currentProfile.last_active}
+                size="md"
+                showText={true}
+              />
+            </div>
                   Active {formatLastSeen(currentProfile.last_active)}
                 </span>
               </div>
