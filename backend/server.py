@@ -358,6 +358,18 @@ class Match(BaseModel):
     ai_analysis: str = ""
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
+# In-App Notification Model
+class InAppNotification(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str  # Recipient user
+    title: str
+    body: str
+    type: str = "general"  # general, match, like, message, admin, promotion
+    is_read: bool = False
+    data: dict = {}  # Additional data like match_id, sender_id
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    expires_at: Optional[str] = None  # Optional expiration
+
 class Message(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     match_id: str
