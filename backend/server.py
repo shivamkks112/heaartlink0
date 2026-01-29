@@ -1018,6 +1018,146 @@ async def reset_password(request_obj: Request, request: ResetPasswordRequest):
     
     return {"message": "Password reset successful"}
 
+
+# ===========================================
+# SECURE TOKEN & SESSION ENDPOINTS
+# ===========================================
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+@api_router.post("/auth/refresh-token")
+async def refresh_token(request: RefreshTokenRequest):
+    """Refresh access token using refresh token"""
+    payload = verify_refresh_token(request.refresh_token)
+    
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
+    
+    # Create new access token
+    token_data = {"user_id": payload.get("user_id"), "email": payload.get("email")}
+    new_access_token = create_access_token(token_data)
+    
+    return {
+        "access_token": new_access_token,
+        "token_type": "bearer"
+    }
+
+@api_router.post("/auth/logout/{user_id}")
+async def logout(user_id: str):
+    """Logout user and update online status"""
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {
+            "is_online": False,
+            "last_active": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    # Revoke all sessions (optional - for complete logout)
+    session_manager.revoke_all_sessions(user_id)
+    
+    # Audit log
+    audit_log.log_event("logout", user_id=user_id)
+    
+    return {"message": "Logged out successfully"}
+
+@api_router.get("/auth/verify-token")
+async def verify_token(token: str):
+    """Verify if a token is valid"""
+    payload = verify_access_token(token)
+    
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    
+    return {
+        "valid": True,
+        "user_id": payload.get("user_id"),
+        "expires_at": payload.get("exp")
+    }
+
+@api_router.get("/security/sessions/{user_id}")
+async def get_user_sessions(user_id: str):
+    """Get all active sessions for a user"""
+    sessions = session_manager.get_active_sessions(user_id)
+    return {"sessions": sessions}
+
+@api_router.post("/security/revoke-session")
+async def revoke_session(user_id: str, session_id: str):
+    """Revoke a specific session"""
+    session_manager.revoke_session(user_id, session_id)
+    audit_log.log_event("session_revoked", user_id=user_id, details={"session_id": session_id})
+    return {"message": "Session revoked"}
+
+@api_router.post("/security/revoke-all-sessions/{user_id}")
+async def revoke_all_user_sessions(user_id: str, current_session: Optional[str] = None):
+    """Revoke all sessions except current one (logout from all devices)"""
+    session_manager.revoke_all_sessions(user_id, except_session=current_session)
+    audit_log.log_event("all_sessions_revoked", user_id=user_id)
+    return {"message": "All other sessions revoked"}
+
+class ChangePasswordRequest(BaseModel):
+    user_id: str
+    current_password: str
+    new_password: str
+
+@api_router.post("/security/change-password")
+async def change_password(request: ChangePasswordRequest):
+    """Change password (requires current password)"""
+    # Validate new password strength
+    is_strong, message = validate_password_strength(request.new_password)
+    if not is_strong:
+        raise HTTPException(status_code=400, detail=message)
+    
+    # Find user
+    user = await db.users.find_one({"id": request.user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Verify current password
+    if not verify_password_secure(request.current_password, user["password_hash"]):
+        raise HTTPException(status_code=401, detail="Current password is incorrect")
+    
+    # Check if new password is same as old
+    if verify_password_secure(request.new_password, user["password_hash"]):
+        raise HTTPException(status_code=400, detail="New password must be different from current password")
+    
+    # Update password
+    new_hash = hash_password_secure(request.new_password)
+    await db.users.update_one(
+        {"id": request.user_id},
+        {"$set": {
+            "password_hash": new_hash,
+            "password_changed_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    # Revoke all other sessions for security
+    session_manager.revoke_all_sessions(request.user_id)
+    
+    # Audit log
+    audit_log.log_event("password_changed", user_id=request.user_id)
+    
+    return {"message": "Password changed successfully. Please login again on all devices."}
+
+@api_router.get("/security/audit-log/{user_id}")
+async def get_security_audit_log(user_id: str):
+    """Get security audit log for user (login history, etc.)"""
+    # In production, fetch from database
+    # For now, return recent login info from user document
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "last_login": 1, "last_login_ip": 1, "registered_at": 1})
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return {
+        "last_login": user.get("last_login"),
+        "last_login_ip": user.get("last_login_ip"),
+        "account_created": user.get("registered_at")
+    }
+
+
+
 @api_router.post("/delete-account-request")
 async def delete_account_request(request: DeleteAccountRequest):
     """Handle account deletion request - stores request for admin review"""
