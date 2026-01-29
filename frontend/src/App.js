@@ -20,6 +20,7 @@ import TermsPage from '@/pages/TermsPage';
 import ProfileViewersPage from '@/pages/ProfileViewersPage';
 import ProfileEnhancementPage from '@/pages/ProfileEnhancementPage';
 import PremiumPage from '@/pages/PremiumPage';
+import NotificationsPage from '@/pages/NotificationsPage';
 import InstallPrompt from '@/components/InstallPrompt';
 import { AdProvider } from '@/context/AdContext';
 import { requestNotificationPermission, setupForegroundMessageListener } from '@/firebase/messaging';
