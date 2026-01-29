@@ -3274,15 +3274,85 @@ async def get_fcm_status():
     total = await db.users.count_documents({})
     
     # Get all users and check tokens properly
-    users = await db.users.find({}, {"fcm_token": 1}).to_list(None)
+    users = await db.users.find({}, {"fcm_token": 1, "name": 1, "email": 1}).to_list(None)
     with_token = sum(1 for u in users if u.get("fcm_token") and str(u.get("fcm_token")).strip())
+    
+    # Get details of users with tokens
+    users_with_tokens = [
+        {"name": u.get("name"), "email": u.get("email"), "has_token": True}
+        for u in users if u.get("fcm_token") and str(u.get("fcm_token")).strip()
+    ]
     
     return {
         "total_users": total,
         "users_with_fcm_token": with_token,
         "users_without_token": total - with_token,
         "can_send_notifications": with_token > 0,
-        "message": "Users need to login from Android app and allow notifications" if with_token == 0 else f"{with_token} users can receive notifications"
+        "message": "Users need to login from Android app and allow notifications" if with_token == 0 else f"{with_token} users can receive notifications",
+        "users_with_tokens_list": users_with_tokens[:10]  # Show first 10
+    }
+
+@api_router.get("/admin/fcm-debug")
+async def fcm_debug():
+    """Debug FCM configuration and Firebase status"""
+    debug_info = {
+        "firebase_initialized": False,
+        "service_account_configured": False,
+        "can_send_notifications": False,
+        "errors": []
+    }
+    
+    try:
+        import firebase_admin
+        debug_info["firebase_initialized"] = len(firebase_admin._apps) > 0
+        
+        import os
+        firebase_creds = os.environ.get('FIREBASE_SERVICE_ACCOUNT_JSON')
+        debug_info["service_account_configured"] = bool(firebase_creds)
+        
+        if firebase_creds:
+            import json
+            creds = json.loads(firebase_creds)
+            debug_info["project_id"] = creds.get("project_id", "Unknown")
+            debug_info["client_email"] = creds.get("client_email", "Unknown")[:30] + "..."
+        
+        # Check if we can import messaging
+        from firebase_admin import messaging
+        debug_info["messaging_available"] = True
+        debug_info["can_send_notifications"] = debug_info["firebase_initialized"] and debug_info["service_account_configured"]
+        
+    except Exception as e:
+        debug_info["errors"].append(str(e))
+    
+    return debug_info
+
+@api_router.post("/admin/send-test-to-user")
+async def send_test_to_specific_user(email: str):
+    """Send test notification to a specific user by email"""
+    user = await db.users.find_one({"email": email})
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if not user.get("fcm_token"):
+        return {
+            "success": False,
+            "message": f"User {user.get('name')} does not have FCM token. They need to login from Android app first.",
+            "user_name": user.get("name")
+        }
+    
+    from firebase_config import send_notification
+    result = send_notification(
+        token=user['fcm_token'],
+        title="🔔 Test from Admin",
+        body=f"Hi {user.get('name', 'User')}! This is a test notification.",
+        data={"type": "admin_test"}
+    )
+    
+    return {
+        "success": result.get("success", False),
+        "user_name": user.get("name"),
+        "result": result
     }
 
 @api_router.get("/admin/notification-templates")
