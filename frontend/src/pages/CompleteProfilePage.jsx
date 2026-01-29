@@ -17,6 +17,9 @@ const CompleteProfilePage = ({ onLogin }) => {
   const navigate = useNavigate();
   const { phone, firebase_uid } = location.state || {};
   const [loading, setLoading] = useState(false);
+  const [citySearch, setCitySearch] = useState('');
+  const [showCityDropdown, setShowCityDropdown] = useState(false);
+  const [selectedState, setSelectedState] = useState('');
   
   const [profileData, setProfileData] = useState({
     name: '',
@@ -28,6 +31,22 @@ const CompleteProfilePage = ({ onLogin }) => {
     bio: '',
     interests: ''
   });
+
+  // Get cities based on selected state
+  const availableCities = useMemo(() => {
+    if (selectedState && CITIES_BY_STATE[selectedState]) {
+      return CITIES_BY_STATE[selectedState];
+    }
+    return POPULAR_CITIES;
+  }, [selectedState]);
+
+  // Filter cities based on search
+  const filteredCities = useMemo(() => {
+    if (!citySearch) return availableCities.slice(0, 15);
+    return availableCities.filter(city => 
+      city.toLowerCase().includes(citySearch.toLowerCase())
+    ).slice(0, 15);
+  }, [citySearch, availableCities]);
 
   // Redirect if no phone data
   if (!phone || !firebase_uid) {
