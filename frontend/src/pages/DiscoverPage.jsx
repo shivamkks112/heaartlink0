@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Heart, X, Sparkles, MapPin, Award, Zap, ChevronLeft, ChevronRight, Play } from 'lucide-react';
+import { Heart, X, Sparkles, MapPin, Award, Zap, ChevronLeft, ChevronRight, Play, Shield, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
@@ -8,6 +8,8 @@ import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import TopBar from '@/components/TopBar';
 import adsService, { SWIPES_BEFORE_AD, EXTRA_SWIPES_REWARD } from '@/services/AdsService';
+import wsService from '@/services/WebSocketService';
+import { VerifiedBadge, TrustBadge, OnlineStatus, BadgeStyles } from '@/components/badges/VerifiedBadge';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || import.meta.env.REACT_APP_BACKEND_URL;
 if (!BACKEND_URL) {
