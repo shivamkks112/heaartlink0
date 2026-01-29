@@ -5,24 +5,53 @@ Build a modern, safe, trust-based dating app for Android called "HeartLink" for 
 
 ## Latest Update (January 2025)
 
+### India Cities Dropdown ✅ (Updated Jan 29, 2025)
+
+**Changes Made:**
+1. **All India Cities Added** - Complete list of cities organized by state
+2. **State Dropdown** - User first selects state, then city
+3. **Searchable City Dropdown** - Filter cities by typing
+4. **Popular Cities** - Quick selection for metro cities
+
+**Files Created/Updated:**
+- `/frontend/src/data/indianCities.js` - NEW: Complete India cities data
+- `/frontend/src/pages/ProfilePage.jsx` - City/State dropdowns
+- `/frontend/src/pages/CompleteProfilePage.jsx` - City/State dropdowns for signup
+
+### Likes Page Fix ✅ (Updated Jan 29, 2025)
+
+**Problem:** Profiles were not removing from "Likes You" tab after user liked/passed them.
+
+**Solution Applied:**
+1. **Backend action endpoint updated** - Now marks `user2_action` when user takes action
+2. **Likes API updated** - Filters out profiles where user already took action
+3. **Frontend already had correct logic** - State update was working
+
+**Files Updated:**
+- `/backend/server.py` - Fixed `/action` and `/likes` endpoints
+
 ### Google Play AD_ID Permission Fix ✅ (Updated Jan 28, 2025)
 
 **Problem:** Play Console rejected the app due to missing AD_ID permission declaration for Android 13+ (API 33+).
 
 **Solution Applied:**
-1. **Added `tools:node="merge"`** to AD_ID permission - ensures all child dependencies inherit this permission
+1. **Added `tools:node="replace"`** to AD_ID permission - forces permission across all dependencies
 2. **Added `<queries>` block** for Android 11+ (API 30+) - required for proper advertising ID service discovery
-3. **Full Google Play Services compatibility** - includes package query for `com.google.android.gms`
+3. **Added property tag** to fix AdServices config conflict between ads-lite and measurement-api
+4. **Multiple manifest files updated** - main, release, debug, and capacitor-cordova-plugins
 
 **Files Updated:**
-- `/frontend/android/app/src/main/AndroidManifest.xml` - Complete AD_ID fix with merge directive
+- `/frontend/android/app/src/main/AndroidManifest.xml` - Complete AD_ID fix
+- `/frontend/android/app/src/release/AndroidManifest.xml` - Release build manifest
+- `/frontend/android/app/src/debug/AndroidManifest.xml` - Debug build manifest
+- `/frontend/android/capacitor-cordova-android-plugins/src/main/AndroidManifest.xml` - Plugin manifest
+- `/frontend/capacitor.config.json` - Fixed appId to com.heartlink.app
 
 **Play Console Action Required:**
 1. Build new AAB file with updated manifest
 2. Upload to Play Console
-3. Update "Advertising ID Declaration" in Play Console → App Content → Advertising ID
-4. Select: "Yes, my app uses advertising ID"
-5. Check: "Advertising and Marketing"
+3. In "Advertising ID" section, select "Yes" and check "Advertising or marketing" + "Analytics"
+4. If error persists, click "Update declaration" → "No" → Save → "Yes" → Save again
 
 ### Ad Logic Refactor - Complete ✅ (Updated Jan 28, 2025)
 
