@@ -4302,6 +4302,111 @@ async def startup_event():
     asyncio.create_task(daily_notification_scheduler())
     logger.info("✅ Daily notification scheduler started")
 
+# ==================== ONESIGNAL NOTIFICATION APIS ====================
+
+class OneSignalNotificationRequest(BaseModel):
+    title: str
+    message: str
+    target: str = "all"  # all, user_ids, male, female
+    user_ids: Optional[List[str]] = None
+
+class OneSignalUserLinkRequest(BaseModel):
+    user_id: str  # Your app's user ID
+    onesignal_player_id: str  # OneSignal's player/subscription ID
+
+@api_router.post("/admin/onesignal/send")
+async def send_onesignal_notification_api(data: OneSignalNotificationRequest):
+    """
+    Send push notification via OneSignal (Admin Panel)
+    Target options: all, user_ids, male, female
+    """
+    if data.target == "all":
+        result = send_onesignal_to_all(data.title, data.message)
+    elif data.target == "user_ids" and data.user_ids:
+        result = send_onesignal_to_users(data.user_ids, data.title, data.message)
+    elif data.target in ["male", "female"]:
+        # Get users by gender
+        query = {"gender": {"$regex": f"^{data.target}$", "$options": "i"}}
+        users = await db.users.find(query, {"id": 1}).to_list(None)
+        user_ids = [u["id"] for u in users]
+        if user_ids:
+            result = send_onesignal_to_users(user_ids, data.title, data.message)
+        else:
+            result = {"success": False, "error": f"No {data.target} users found"}
+    else:
+        result = {"success": False, "error": "Invalid target"}
+    
+    # Log notification
+    await db.notification_logs.insert_one({
+        "id": str(uuid.uuid4()),
+        "title": data.title,
+        "body": data.message,
+        "target": data.target,
+        "provider": "onesignal",
+        "result": result,
+        "sent_at": datetime.now(timezone.utc).isoformat()
+    })
+    
+    return result
+
+@api_router.post("/admin/onesignal/send-to-user/{user_id}")
+async def send_onesignal_to_single_user(user_id: str, title: str, message: str):
+    """Send notification to a specific user via OneSignal"""
+    result = send_onesignal_to_user(user_id, title, message)
+    return result
+
+@api_router.post("/user/onesignal/register")
+async def register_onesignal_user(data: OneSignalUserLinkRequest):
+    """
+    Link OneSignal player ID with app user ID
+    Call this when user logs in
+    """
+    # Set external ID in OneSignal
+    result = set_user_external_id(data.onesignal_player_id, data.user_id)
+    
+    if result.get("success"):
+        # Also save OneSignal player ID in user profile
+        await db.users.update_one(
+            {"id": data.user_id},
+            {"$set": {"onesignal_player_id": data.onesignal_player_id}}
+        )
+        invalidate_user_cache(data.user_id)
+    
+    return result
+
+@api_router.get("/admin/onesignal/status")
+async def get_onesignal_status():
+    """Check OneSignal configuration status"""
+    import os
+    app_id = os.environ.get('ONESIGNAL_APP_ID', '')
+    api_key = os.environ.get('ONESIGNAL_API_KEY', '')
+    
+    # Count users with OneSignal IDs
+    total = await db.users.count_documents({})
+    with_onesignal = await db.users.count_documents({
+        "onesignal_player_id": {"$exists": True, "$ne": None, "$ne": ""}
+    })
+    
+    return {
+        "configured": bool(app_id and api_key),
+        "app_id_set": bool(app_id),
+        "api_key_set": bool(api_key),
+        "total_users": total,
+        "users_with_onesignal": with_onesignal,
+        "users_without_onesignal": total - with_onesignal,
+        "can_send_notifications": bool(app_id and api_key),
+        "message": "OneSignal configured and ready!" if (app_id and api_key) else "Please set ONESIGNAL_APP_ID and ONESIGNAL_API_KEY in .env"
+    }
+
+@api_router.post("/admin/onesignal/test")
+async def test_onesignal():
+    """Send a test notification to all users via OneSignal"""
+    result = send_onesignal_to_all(
+        "🎉 Test Notification", 
+        "OneSignal integration is working! - HeartLink Team"
+    )
+    return result
+
 # Include router - MUST be at the very end after all route definitions
 app.include_router(api_router)
 
