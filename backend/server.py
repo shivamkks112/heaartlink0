@@ -32,6 +32,20 @@ from firebase_config import (
     send_inactive_user_notification
 )
 
+# Import OneSignal for push notifications (more reliable than FCM)
+from onesignal_config import (
+    send_onesignal_notification,
+    send_notification_to_user as send_onesignal_to_user,
+    send_notification_to_users as send_onesignal_to_users,
+    send_notification_to_all as send_onesignal_to_all,
+    send_match_notification_onesignal,
+    send_message_notification_onesignal,
+    send_like_notification_onesignal,
+    send_admin_notification,
+    set_user_external_id,
+    add_user_tags
+)
+
 # Import Security Module
 from security import (
     hash_password_secure,
