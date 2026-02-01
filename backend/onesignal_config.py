@@ -56,14 +56,14 @@ def send_onesignal_notification(
     
     # Targeting options
     if target_all:
-        payload["included_segments"] = ["Subscribed Users"]
+        payload["included_segments"] = ["All"]  # Changed from "Subscribed Users" to "All"
     elif target_user_ids:
         payload["include_aliases"] = {"external_id": target_user_ids}
         payload["target_channel"] = "push"
     elif segment:
         payload["included_segments"] = [segment]
     else:
-        payload["included_segments"] = ["Subscribed Users"]
+        payload["included_segments"] = ["All"]  # Changed from "Subscribed Users" to "All"
     
     try:
         response = requests.post(
