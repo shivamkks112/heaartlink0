@@ -51,7 +51,7 @@ const Navbar = ({ user }) => {
 
   return (
     <>
-      <nav className="fixed bottom-0 left-0 right-0 bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.15)] z-50 border-t border-gray-200 pb-safe">
+      <nav className="fixed bottom-0 left-0 right-0 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 shadow-[0_-4px_20px_rgba(0,0,0,0.3)] z-50 border-t border-gray-700 pb-safe">
         <div className="max-w-7xl mx-auto px-2 sm:px-4">
           <div className="flex items-center justify-around h-16 sm:h-18 md:h-20">
           {/* Navigation */}
@@ -66,7 +66,7 @@ const Navbar = ({ user }) => {
               className={`flex flex-col items-center justify-center gap-1 px-2 sm:px-4 py-2 rounded-xl font-medium transition-all duration-300 min-w-[60px] touch-manipulation ${
                 isActive('/discover')
                   ? 'bg-gradient-to-r from-pink-500 to-orange-500 text-white shadow-glow'
-                  : 'text-gray-600 hover:bg-gray-100 hover:text-pink-600'
+                  : 'text-gray-300 hover:bg-gray-700 hover:text-white'
               }`}
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
@@ -84,7 +84,7 @@ const Navbar = ({ user }) => {
               className={`relative flex flex-col items-center justify-center gap-1 px-2 sm:px-4 py-2 rounded-xl font-medium transition-all duration-300 min-w-[60px] touch-manipulation ${
                 isActive('/likes')
                   ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-glow'
-                  : 'text-gray-600 hover:bg-gray-100 hover:text-pink-600'
+                  : 'text-gray-300 hover:bg-gray-700 hover:text-white'
               }`}
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
@@ -109,7 +109,7 @@ const Navbar = ({ user }) => {
               className={`relative flex flex-col items-center justify-center gap-1 px-2 sm:px-4 py-2 rounded-xl font-medium transition-all duration-300 min-w-[60px] touch-manipulation ${
                 isActive('/notifications')
                   ? 'bg-gradient-to-r from-pink-500 to-orange-500 text-white shadow-glow'
-                  : 'text-gray-600 hover:bg-gray-100 hover:text-pink-600'
+                  : 'text-gray-300 hover:bg-gray-700 hover:text-white'
               }`}
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
@@ -134,7 +134,7 @@ const Navbar = ({ user }) => {
               className={`flex flex-col items-center justify-center gap-1 px-2 sm:px-4 py-2 rounded-xl font-medium transition-all duration-300 min-w-[60px] touch-manipulation ${
                 isActive('/matches') || location.pathname.startsWith('/chat')
                   ? 'bg-gradient-to-r from-pink-500 to-orange-500 text-white shadow-glow'
-                  : 'text-gray-600 hover:bg-gray-100 hover:text-pink-600'
+                  : 'text-gray-300 hover:bg-gray-700 hover:text-white'
               }`}
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
@@ -152,7 +152,7 @@ const Navbar = ({ user }) => {
               className={`flex flex-col items-center justify-center gap-1 px-2 sm:px-4 py-2 rounded-xl font-medium transition-all duration-300 min-w-[60px] touch-manipulation ${
                 isActive('/profile')
                   ? 'bg-gradient-to-r from-pink-500 to-orange-500 text-white shadow-glow'
-                  : 'text-gray-600 hover:bg-gray-100 hover:text-pink-600'
+                  : 'text-gray-300 hover:bg-gray-700 hover:text-white'
               }`}
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
@@ -171,7 +171,7 @@ const Navbar = ({ user }) => {
                 className={`flex flex-col items-center justify-center gap-1 px-2 sm:px-4 py-2 rounded-xl font-medium transition-all duration-300 min-w-[60px] touch-manipulation ${
                   isActive('/admin')
                     ? 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-glow'
-                    : 'text-purple-600 hover:bg-purple-50 hover:text-purple-700'
+                    : 'text-purple-400 hover:bg-purple-900/50 hover:text-purple-300'
                 }`}
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
@@ -187,7 +187,7 @@ const Navbar = ({ user }) => {
                 e.stopPropagation();
                 handleLogout();
               }}
-              className="flex flex-col items-center justify-center gap-1 px-2 sm:px-4 py-2 rounded-xl font-medium text-red-600 hover:bg-red-50 hover:text-red-700 transition-all duration-300 min-w-[60px] touch-manipulation"
+              className="flex flex-col items-center justify-center gap-1 px-2 sm:px-4 py-2 rounded-xl font-medium text-red-400 hover:bg-red-900/30 hover:text-red-300 transition-all duration-300 min-w-[60px] touch-manipulation"
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
               <LogOut className="w-6 h-6" />
