@@ -2108,19 +2108,31 @@ async def user_action(user_id: str, action: LikeAction):
                 "user_id": user_id
             })
             
-            # Send push notification
+            # Send push notification via FCM (legacy)
             if user2 and user2.get('fcm_token'):
                 send_like_notification(
                     token=user2['fcm_token'],
                     user_name=user1['name']
                 )
+            
+            # Send push notification via OneSignal (primary)
+            send_like_notification_onesignal(
+                user_id=action.target_user_id,
+                liker_name=user1['name']
+            )
         elif action.action == "like":
-            # Send like notification for regular likes too
+            # Send like notification for regular likes too via FCM (legacy)
             if user2 and user2.get('fcm_token'):
                 send_like_notification(
                     token=user2['fcm_token'],
                     user_name=user1['name']
                 )
+            
+            # Send push notification via OneSignal (primary)
+            send_like_notification_onesignal(
+                user_id=action.target_user_id,
+                liker_name=user1['name']
+            )
         
         return {"action": "liked"}
 
