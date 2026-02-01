@@ -3,7 +3,7 @@ import axios from 'axios';
 import { 
   Bell, Send, Clock, Users, Calendar, 
   Trash2, RefreshCw, CheckCircle, AlertTriangle,
-  ChevronDown, Smartphone, AlertCircle
+  ChevronDown, Smartphone, AlertCircle, Zap
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,52 +23,118 @@ const NotificationManager = () => {
   const [activeTab, setActiveTab] = useState('send');
   const [scheduleDate, setScheduleDate] = useState('');
   const [scheduleTime, setScheduleTime] = useState('');
-  const [fcmStatus, setFcmStatus] = useState(null);
+  const [onesignalStatus, setOnesignalStatus] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchTemplates();
     fetchHistory();
     fetchScheduled();
-    fetchFcmStatus();
+    fetchOnesignalStatus();
   }, []);
 
-  const fetchFcmStatus = async () => {
+  const fetchOnesignalStatus = async () => {
     try {
-      const res = await axios.get(`${API}/admin/fcm-status`);
-      setFcmStatus(res.data);
+      const res = await axios.get(`${API}/admin/onesignal/status`);
+      setOnesignalStatus(res.data);
     } catch (e) {
-      console.error('Failed to fetch FCM status', e);
+      console.error('Failed to fetch OneSignal status', e);
+      // Fallback to FCM status
+      try {
+        const fcmRes = await axios.get(`${API}/admin/fcm-status`);
+        setOnesignalStatus({
+          configured: false,
+          total_users: fcmRes.data?.total_users || 0,
+          users_with_onesignal: fcmRes.data?.users_with_fcm_token || 0,
+          can_send_notifications: fcmRes.data?.can_send_notifications || false,
+          message: 'OneSignal not configured, using Firebase FCM'
+        });
+      } catch (e2) {
+        console.error('FCM status also failed', e2);
+      }
     }
   };
 
   const fetchTemplates = async () => {
     try {
       const res = await axios.get(`${API}/admin/notification-templates`);
-      setTemplates(res.data);
+      setTemplates(res.data || []);
     } catch (e) {
       console.error('Failed to fetch templates', e);
+      // Default templates
+      setTemplates([
+        { id: 'welcome', title: '💕 Welcome!', body: 'Find your perfect match today!' },
+        { id: 'new_feature', title: '🎉 New Feature!', body: 'Check out the new features in Heartlink!' },
+        { id: 'reminder', title: '💝 Miss you!', body: 'Your matches are waiting for you!' },
+      ]);
     }
   };
 
   const fetchHistory = async () => {
     try {
       const res = await axios.get(`${API}/admin/notification-history`);
-      setHistory(res.data);
+      setHistory(res.data || []);
     } catch (e) {
       console.error('Failed to fetch history', e);
+      setHistory([]);
     }
   };
 
   const fetchScheduled = async () => {
     try {
       const res = await axios.get(`${API}/admin/scheduled-notifications`);
-      setScheduled(res.data);
+      setScheduled(res.data || []);
     } catch (e) {
       console.error('Failed to fetch scheduled', e);
+      setScheduled([]);
     }
   };
 
-  const handleSendNow = async () => {
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([
+      fetchOnesignalStatus(),
+      fetchHistory(),
+      fetchScheduled()
+    ]);
+    setRefreshing(false);
+    toast.success('Refreshed!');
+  };
+
+  // Send via OneSignal
+  const handleSendViaOneSignal = async () => {
+    if (!title || !body) {
+      toast.error('Title aur Message dono required hai');
+      return;
+    }
+
+    setSending(true);
+    try {
+      const res = await axios.post(`${API}/admin/onesignal/send`, {
+        title,
+        message: body,
+        target
+      });
+      
+      if (res.data.success) {
+        toast.success(`✅ Notification sent to ${res.data.recipients || 'all'} users!`);
+        setTitle('');
+        setBody('');
+        fetchHistory();
+        fetchOnesignalStatus();
+      } else {
+        toast.error(res.data.error || 'Failed to send');
+      }
+    } catch (e) {
+      console.error('OneSignal send error:', e);
+      toast.error(e.response?.data?.detail || 'Notification send failed');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  // Send via Firebase (fallback)
+  const handleSendViaFirebase = async () => {
     if (!title || !body) {
       toast.error('Title aur Body dono required hai');
       return;
@@ -90,6 +156,23 @@ const NotificationManager = () => {
       }
     } catch (e) {
       toast.error('Notification send failed');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  // Test OneSignal
+  const handleTestOneSignal = async () => {
+    setSending(true);
+    try {
+      const res = await axios.post(`${API}/admin/onesignal/test`);
+      if (res.data.success) {
+        toast.success('✅ Test notification sent!');
+      } else {
+        toast.error(res.data.error || 'Test failed');
+      }
+    } catch (e) {
+      toast.error('Test notification failed');
     } finally {
       setSending(false);
     }
@@ -142,57 +225,71 @@ const NotificationManager = () => {
 
   return (
     <div className="bg-white rounded-xl shadow-lg p-6">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="p-3 bg-pink-100 rounded-full">
-          <Bell className="w-6 h-6 text-pink-500" />
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <div className="p-3 bg-pink-100 rounded-full">
+            <Bell className="w-6 h-6 text-pink-500" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Push Notifications</h2>
+            <p className="text-sm text-gray-500">OneSignal + Firebase</p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-xl font-bold text-gray-900">Push Notifications</h2>
-          <p className="text-sm text-gray-500">Send notifications to users</p>
-        </div>
+        <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>
+          <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
       </div>
 
-      {/* FCM Status Banner */}
-      {fcmStatus && (
-        <div className={`mb-6 p-4 rounded-lg flex items-start gap-3 ${
-          fcmStatus.can_send_notifications 
+      {/* OneSignal Status Banner */}
+      {onesignalStatus && (
+        <div className={`mb-6 p-4 rounded-lg ${
+          onesignalStatus.configured 
             ? 'bg-green-50 border border-green-200' 
             : 'bg-yellow-50 border border-yellow-200'
         }`}>
-          {fcmStatus.can_send_notifications ? (
-            <>
-              <CheckCircle className="w-5 h-5 text-green-500 mt-0.5" />
-              <div>
-                <p className="font-medium text-green-800">
-                  {fcmStatus.users_with_fcm_token} users can receive notifications
-                </p>
-                <p className="text-sm text-green-600">
-                  {fcmStatus.users_without_token} users haven't enabled notifications yet
-                </p>
-              </div>
-            </>
-          ) : (
-            <>
-              <AlertCircle className="w-5 h-5 text-yellow-500 mt-0.5" />
-              <div>
-                <p className="font-medium text-yellow-800">
-                  No users can receive notifications yet
-                </p>
-                <p className="text-sm text-yellow-600">
-                  Users need to login from Android app and allow notifications first.
-                  Total users: {fcmStatus.total_users}
-                </p>
-              </div>
-            </>
-          )}
+          <div className="flex items-start gap-3">
+            {onesignalStatus.configured ? (
+              <>
+                <CheckCircle className="w-5 h-5 text-green-500 mt-0.5" />
+                <div className="flex-1">
+                  <p className="font-medium text-green-800">
+                    OneSignal Ready! ✅
+                  </p>
+                  <p className="text-sm text-green-600">
+                    {onesignalStatus.users_with_onesignal || 0} users can receive notifications
+                  </p>
+                  <p className="text-xs text-green-500 mt-1">
+                    Total users: {onesignalStatus.total_users || 0}
+                  </p>
+                </div>
+                <Button size="sm" variant="outline" onClick={handleTestOneSignal} disabled={loading}>
+                  <Zap className="w-4 h-4 mr-1" />
+                  Test
+                </Button>
+              </>
+            ) : (
+              <>
+                <AlertCircle className="w-5 h-5 text-yellow-500 mt-0.5" />
+                <div>
+                  <p className="font-medium text-yellow-800">
+                    OneSignal Not Configured
+                  </p>
+                  <p className="text-sm text-yellow-600">
+                    {onesignalStatus.message || 'Please set ONESIGNAL_APP_ID and ONESIGNAL_API_KEY'}
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       )}
 
       {/* Tabs */}
-      <div className="flex gap-2 mb-6 border-b border-gray-200">
+      <div className="flex gap-2 mb-6 border-b border-gray-200 overflow-x-auto">
         <button
           onClick={() => setActiveTab('send')}
-          className={`px-4 py-2 font-medium ${activeTab === 'send' 
+          className={`px-4 py-2 font-medium whitespace-nowrap ${activeTab === 'send' 
             ? 'text-pink-500 border-b-2 border-pink-500' 
             : 'text-gray-500'}`}
         >
@@ -201,7 +298,7 @@ const NotificationManager = () => {
         </button>
         <button
           onClick={() => setActiveTab('schedule')}
-          className={`px-4 py-2 font-medium ${activeTab === 'schedule' 
+          className={`px-4 py-2 font-medium whitespace-nowrap ${activeTab === 'schedule' 
             ? 'text-pink-500 border-b-2 border-pink-500' 
             : 'text-gray-500'}`}
         >
@@ -210,7 +307,7 @@ const NotificationManager = () => {
         </button>
         <button
           onClick={() => setActiveTab('history')}
-          className={`px-4 py-2 font-medium ${activeTab === 'history' 
+          className={`px-4 py-2 font-medium whitespace-nowrap ${activeTab === 'history' 
             ? 'text-pink-500 border-b-2 border-pink-500' 
             : 'text-gray-500'}`}
         >
@@ -230,9 +327,9 @@ const NotificationManager = () => {
                 <button
                   key={t.id}
                   onClick={() => applyTemplate(t)}
-                  className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-full"
+                  className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-full transition"
                 >
-                  {t.title.split(' ')[0]} {t.id.replace('_', ' ')}
+                  {t.title}
                 </button>
               ))}
             </div>
@@ -240,7 +337,7 @@ const NotificationManager = () => {
 
           {/* Title */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
             <Input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -251,12 +348,12 @@ const NotificationManager = () => {
 
           {/* Body */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Message *</label>
             <textarea
               value={body}
               onChange={(e) => setBody(e.target.value)}
               placeholder="Notification message..."
-              className="w-full p-3 border border-gray-300 rounded-lg resize-none"
+              className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
               rows={3}
               maxLength={200}
             />
@@ -269,7 +366,7 @@ const NotificationManager = () => {
             <select
               value={target}
               onChange={(e) => setTarget(e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500"
             >
               <option value="all">📢 All Users</option>
               <option value="male">👨 Male Users Only</option>
@@ -278,19 +375,30 @@ const NotificationManager = () => {
             </select>
           </div>
 
-          {/* Send Button */}
-          <Button
-            onClick={handleSendNow}
-            disabled={loading || !title || !body}
-            className="w-full bg-pink-500 hover:bg-pink-600"
-          >
-            {loading ? (
-              <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <Send className="w-4 h-4 mr-2" />
-            )}
-            {loading ? 'Sending...' : 'Send Notification'}
-          </Button>
+          {/* Send Buttons */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Button
+              onClick={handleSendViaOneSignal}
+              disabled={loading || !title || !body}
+              className="bg-gradient-to-r from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600"
+            >
+              {loading ? (
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Send className="w-4 h-4 mr-2" />
+              )}
+              {loading ? 'Sending...' : 'Send via OneSignal'}
+            </Button>
+            
+            <Button
+              onClick={handleSendViaFirebase}
+              disabled={loading || !title || !body}
+              variant="outline"
+            >
+              <Smartphone className="w-4 h-4 mr-2" />
+              Send via Firebase
+            </Button>
+          </div>
         </div>
       )}
 
@@ -396,20 +504,23 @@ const NotificationManager = () => {
         <div className="space-y-3">
           <Button variant="outline" onClick={fetchHistory} className="mb-4">
             <RefreshCw className="w-4 h-4 mr-2" />
-            Refresh
+            Refresh History
           </Button>
 
           {history.length === 0 ? (
-            <p className="text-center text-gray-500 py-8">No notifications sent yet</p>
+            <div className="text-center py-8">
+              <Bell className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-500">No notifications sent yet</p>
+            </div>
           ) : (
             history.map(h => (
-              <div key={h.id} className="p-4 border border-gray-200 rounded-lg">
+              <div key={h.id} className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
                 <div className="flex items-start justify-between">
                   <div>
                     <h4 className="font-medium text-gray-900">{h.title}</h4>
                     <p className="text-sm text-gray-600">{h.body}</p>
                   </div>
-                  <span className="text-xs text-gray-400">
+                  <span className="text-xs text-gray-400 whitespace-nowrap ml-2">
                     {new Date(h.sent_at).toLocaleDateString()}
                   </span>
                 </div>
@@ -420,7 +531,10 @@ const NotificationManager = () => {
                   </span>
                   <span className="flex items-center gap-1">
                     <CheckCircle className="w-3 h-3 text-green-500" />
-                    {h.success_count} sent
+                    {h.success_count || h.result?.recipients || 0} sent
+                  </span>
+                  <span className="px-2 py-0.5 bg-gray-100 rounded text-xs">
+                    {h.provider || 'firebase'}
                   </span>
                 </div>
               </div>
