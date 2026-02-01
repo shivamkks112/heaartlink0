@@ -2880,8 +2880,15 @@ async def get_high_risk_users():
 
 # === ADMIN: ALL USERS LIST ===
 @api_router.get("/admin/all-users")
-async def get_all_users(search: str = "", page: int = 1, limit: int = 20):
-    """Get all users with search and pagination for admin"""
+async def get_all_users(
+    search: str = "", 
+    page: int = 1, 
+    limit: int = 20,
+    gender: str = None,
+    status: str = None,
+    sort: str = "newest"
+):
+    """Get all users with search, filters, sorting and pagination for admin"""
     skip = (page - 1) * limit
     
     # Build search query
@@ -2893,11 +2900,43 @@ async def get_all_users(search: str = "", page: int = 1, limit: int = 20):
             {"phone": {"$regex": search, "$options": "i"}}
         ]
     
+    # Gender filter
+    if gender and gender.lower() in ["male", "female"]:
+        query["gender"] = {"$regex": f"^{gender}$", "$options": "i"}
+    
+    # Status filter
+    if status:
+        now = datetime.now(timezone.utc)
+        week_ago = (now - timedelta(days=7)).isoformat()
+        
+        if status == "active":
+            query["last_active"] = {"$gte": week_ago}
+        elif status == "inactive":
+            query["last_active"] = {"$lt": week_ago}
+        elif status == "premium":
+            query["is_premium"] = True
+        elif status == "verified":
+            query["verified"] = True
+        elif status == "banned":
+            query["$or"] = [
+                {"is_shadow_banned": True},
+                {"is_permanently_banned": True}
+            ]
+    
+    # Sorting
+    sort_options = {
+        "newest": [("created_at", -1)],
+        "oldest": [("created_at", 1)],
+        "last_active": [("last_active", -1)],
+        "name": [("name", 1)]
+    }
+    sort_order = sort_options.get(sort, [("created_at", -1)])
+    
     # Get total count
     total = await db.users.count_documents(query)
     
-    # Get users with pagination
-    users = await db.users.find(query).skip(skip).limit(limit).to_list(None)
+    # Get users with pagination and sorting
+    users = await db.users.find(query).sort(sort_order).skip(skip).limit(limit).to_list(None)
     
     return {
         "users": [{
