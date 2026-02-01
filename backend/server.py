@@ -4357,7 +4357,7 @@ class OneSignalUserLinkRequest(BaseModel):
 async def send_onesignal_notification_api(data: OneSignalNotificationRequest):
     """
     Send push notification via OneSignal (Admin Panel)
-    Target options: all, user_ids, male, female
+    Target options: all, user_ids, male, female, inactive
     """
     if data.target == "all":
         result = send_onesignal_to_all(data.title, data.message)
@@ -4372,6 +4372,16 @@ async def send_onesignal_notification_api(data: OneSignalNotificationRequest):
             result = send_onesignal_to_users(user_ids, data.title, data.message)
         else:
             result = {"success": False, "error": f"No {data.target} users found"}
+    elif data.target == "inactive":
+        # Get users inactive for 7+ days
+        week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+        query = {"last_active": {"$lt": week_ago}}
+        users = await db.users.find(query, {"id": 1}).to_list(None)
+        user_ids = [u["id"] for u in users]
+        if user_ids:
+            result = send_onesignal_to_users(user_ids, data.title, data.message)
+        else:
+            result = {"success": False, "error": "No inactive users found"}
     else:
         result = {"success": False, "error": "Invalid target"}
     
