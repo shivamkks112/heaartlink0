@@ -34,6 +34,50 @@ Build a modern, safe, trust-based dating app for Android called "HeartLink" for 
 **Files Updated:**
 - `/app/backend/server.py` - Enhanced admin endpoints with filters
 
+### Scheduled Notifications & Templates ✅ (Updated Feb 1, 2025)
+
+**New Features Added:**
+1. **12 Pre-defined Notification Templates** with categories:
+   - Daily: Good Morning, Evening Check-in
+   - Engagement: New matches, Profile incomplete
+   - Re-engagement: We miss you
+   - Promotion: Weekend Special, Profile Boost
+   - Safety: Safety Reminder
+   - Urgency: Match Expiring
+   - Monetization: Premium Offer
+
+2. **Custom Template CRUD:**
+   - Create custom templates
+   - Edit existing templates
+   - Delete templates
+   - Filter by category
+
+3. **Scheduled Notification Processor:**
+   - Background task runs every minute
+   - Automatically sends scheduled notifications via OneSignal
+   - Logs all sent notifications
+   - Supports all target options (all, male, female, inactive)
+
+**New Backend Endpoints:**
+- `GET /api/admin/notification-templates` - Get all templates
+- `POST /api/admin/notification-templates` - Create custom template
+- `PUT /api/admin/notification-templates/{id}` - Update template
+- `DELETE /api/admin/notification-templates/{id}` - Delete template
+- `POST /api/admin/schedule-notification` - Schedule a notification
+- `GET /api/admin/scheduled-notifications` - Get pending scheduled
+- `DELETE /api/admin/scheduled-notification/{id}` - Cancel scheduled
+
+**Frontend Updates:**
+- New Templates tab in NotificationManager
+- Template categories with color coding
+- New Template modal for create/edit
+- Schedule tab shows pending notifications
+- Quick Templates section in Send Now tab
+
+**Files Updated:**
+- `/app/backend/server.py` - Added template CRUD and scheduler processor
+- `/app/frontend/src/components/admin/NotificationManager.jsx` - Complete rewrite with new features
+
 ---
 
 ## Previous Updates (January 2025)
