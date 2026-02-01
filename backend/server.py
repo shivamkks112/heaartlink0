@@ -2420,16 +2420,25 @@ async def send_message_http(message_data: Message):
     await manager.send_message(message_data.receiver_id, message_payload)
     await manager.send_message(message_data.sender_id, message_payload)
     
-    # Send push notification to receiver
-    if receiver.get('fcm_token') and sender:
-        # Check if sender is muted by receiver
-        muted_users = receiver.get('muted_users', [])
-        if message_data.sender_id not in muted_users:
-            send_message_notification(
-                token=receiver['fcm_token'],
-                sender_name=sender['name'],
-                message_preview=message_data.content
-            )
+    # Check if sender is muted by receiver
+    muted_users = receiver.get('muted_users', [])
+    sender_not_muted = message_data.sender_id not in muted_users
+    
+    # Send push notification to receiver via FCM (legacy)
+    if receiver.get('fcm_token') and sender and sender_not_muted:
+        send_message_notification(
+            token=receiver['fcm_token'],
+            sender_name=sender['name'],
+            message_preview=message_data.content
+        )
+    
+    # Send push notification via OneSignal (primary)
+    if sender and sender_not_muted:
+        send_message_notification_onesignal(
+            user_id=message_data.receiver_id,
+            sender_name=sender['name'],
+            message_preview=message_data.content
+        )
     
     return clean_message
 
