@@ -21,4 +21,10 @@ public class MainActivity extends BridgeActivity {
             }
         });
     }
+    
+    @Override
+    public void onBackPressed() {
+        // Close app when back button is pressed
+        finishAffinity();
+    }
 }
