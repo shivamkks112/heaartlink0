@@ -116,7 +116,7 @@ export const OnlineStatus = ({ isOnline, lastActive, size = 'md', showText = tru
   const { dot, text } = sizes[size];
 
   const formatLastSeen = (lastActive) => {
-    if (!lastActive) return 'recently';
+    if (!lastActive) return { text: 'recently', isRecent: false };
     
     const now = new Date();
     const lastSeenDate = new Date(lastActive);
@@ -125,11 +125,12 @@ export const OnlineStatus = ({ isOnline, lastActive, size = 'md', showText = tru
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
     
-    if (diffMins < 1) return 'just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return 'recently';
+    if (diffMins < 1) return { text: 'just now', isRecent: true };
+    if (diffMins < 5) return { text: `${diffMins}m ago`, isRecent: true };
+    if (diffMins < 60) return { text: `${diffMins}m ago`, isRecent: false };
+    if (diffHours < 24) return { text: `${diffHours}h ago`, isRecent: false };
+    if (diffDays < 7) return { text: `${diffDays}d ago`, isRecent: false };
+    return { text: 'recently', isRecent: false };
   };
 
   if (isOnline) {
@@ -144,12 +145,18 @@ export const OnlineStatus = ({ isOnline, lastActive, size = 'md', showText = tru
     );
   }
 
+  const lastSeenInfo = formatLastSeen(lastActive);
+  
+  // Green color for recent activity (just now or within 5 mins)
+  const dotColor = lastSeenInfo.isRecent ? 'bg-green-500' : 'bg-gray-400';
+  const textColor = lastSeenInfo.isRecent ? 'text-green-600 font-medium' : 'text-gray-500';
+
   return (
     <div className="flex items-center gap-2">
-      <div className={`${dot} bg-gray-400 rounded-full`}></div>
+      <div className={`${dot} ${dotColor} rounded-full`}></div>
       {showText && (
-        <span className={`${text} text-gray-500`}>
-          Active {formatLastSeen(lastActive)}
+        <span className={`${text} ${textColor}`}>
+          Active {lastSeenInfo.text}
         </span>
       )}
     </div>
