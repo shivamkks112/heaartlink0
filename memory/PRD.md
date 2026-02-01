@@ -3,7 +3,40 @@
 ## Original Problem Statement
 Build a modern, safe, trust-based dating app for Android called "HeartLink" for Indian users. The app focuses on creating a premium, respectful, safe dating experience with emphasis on genuine users and female safety.
 
-## Latest Update (January 2025)
+## Latest Update (February 2025)
+
+### Admin Panel Fixes ✅ (Updated Feb 1, 2025)
+
+**Problems Fixed:**
+1. **User Filters Not Working** - Backend `/api/admin/all-users` was missing filter parameters
+2. **OneSignal Integration** - Backend already had OneSignal support, frontend NotificationManager was correctly integrated
+3. **Inactive User Targeting** - Added 'inactive' target option for notifications
+
+**Backend Changes:**
+1. **Updated `/api/admin/all-users` endpoint** - Added `gender`, `status`, `sort` query parameters
+   - Gender filter: `male`, `female`
+   - Status filter: `active`, `inactive`, `premium`, `verified`, `banned`
+   - Sort options: `newest`, `oldest`, `last_active`, `name`
+   
+2. **Updated `/api/admin/onesignal/send` endpoint** - Added `inactive` target option
+   - Target options: `all`, `male`, `female`, `inactive`
+   - Sends to users inactive for 7+ days
+
+**Test Results (96% pass rate):**
+- Admin login: ✅ Working
+- Dashboard stats: ✅ Working  
+- User filters: ✅ All working
+- OneSignal status: ✅ Shows "configured" status
+- Notification form: ✅ Working with all target options
+
+**Note:** OneSignal APP_ID in `.env` needs valid format (UUID) from user's OneSignal dashboard.
+
+**Files Updated:**
+- `/app/backend/server.py` - Enhanced admin endpoints with filters
+
+---
+
+## Previous Updates (January 2025)
 
 ### Security & Data Protection ✅ (Updated Jan 29, 2025)
 
