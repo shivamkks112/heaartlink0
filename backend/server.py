@@ -2066,13 +2066,19 @@ async def user_action(user_id: str, action: LikeAction):
             "user": {"id": user_id, "name": user1["name"]}
         })
         
-        # Send push notification to matched user
+        # Send push notification to matched user via FCM (legacy)
         if user2.get('fcm_token'):
             send_match_notification(
                 token=user2['fcm_token'],
                 user_name=user1['name'],
                 compatibility_score=int(score)
             )
+        
+        # Send push notification via OneSignal (primary)
+        send_match_notification_onesignal(
+            user_id=action.target_user_id,
+            matched_user_name=user1['name']
+        )
         
         return {
             "action": "matched",
