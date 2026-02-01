@@ -3753,6 +3753,12 @@ class NotificationTemplateCreate(BaseModel):
     category: str = "custom"
 
 
+@api_router.get("/admin/notification-templates")
+async def get_all_notification_templates():
+    """Get all notification templates (pre-defined + custom)"""
+    return await get_notification_templates()
+
+
 @api_router.post("/admin/notification-templates")
 async def create_notification_template(template: NotificationTemplateCreate):
     """Create a custom notification template"""
