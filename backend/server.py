@@ -4340,6 +4340,96 @@ async def startup_event():
     # Start daily notification scheduler
     asyncio.create_task(daily_notification_scheduler())
     logger.info("✅ Daily notification scheduler started")
+    
+    # Start scheduled notification processor
+    asyncio.create_task(scheduled_notification_processor())
+    logger.info("✅ Scheduled notification processor started")
+
+
+# ==================== SCHEDULED NOTIFICATION PROCESSOR ====================
+
+async def scheduled_notification_processor():
+    """
+    Background task that checks and sends scheduled notifications
+    Runs every minute to check for due notifications
+    """
+    while True:
+        try:
+            now = datetime.now(timezone.utc).isoformat()
+            
+            # Find notifications that are due
+            due_notifications = await db.scheduled_notifications.find({
+                "status": "pending",
+                "schedule_time": {"$lte": now}
+            }).to_list(None)
+            
+            for notif in due_notifications:
+                try:
+                    # Send via OneSignal
+                    target = notif.get("target", "all")
+                    title = notif.get("title", "HeartLink")
+                    message = notif.get("body", "")
+                    
+                    if target == "all":
+                        result = send_onesignal_to_all(title, message)
+                    elif target in ["male", "female"]:
+                        query = {"gender": {"$regex": f"^{target}$", "$options": "i"}}
+                        users = await db.users.find(query, {"id": 1}).to_list(None)
+                        user_ids = [u["id"] for u in users]
+                        if user_ids:
+                            result = send_onesignal_to_users(user_ids, title, message)
+                        else:
+                            result = {"success": False, "error": f"No {target} users found"}
+                    elif target == "inactive":
+                        week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+                        query = {"last_active": {"$lt": week_ago}}
+                        users = await db.users.find(query, {"id": 1}).to_list(None)
+                        user_ids = [u["id"] for u in users]
+                        if user_ids:
+                            result = send_onesignal_to_users(user_ids, title, message)
+                        else:
+                            result = {"success": False, "error": "No inactive users found"}
+                    else:
+                        result = {"success": False, "error": "Invalid target"}
+                    
+                    # Update notification status
+                    await db.scheduled_notifications.update_one(
+                        {"id": notif["id"]},
+                        {"$set": {
+                            "status": "sent" if result.get("success") else "failed",
+                            "sent_at": datetime.now(timezone.utc).isoformat(),
+                            "result": result
+                        }}
+                    )
+                    
+                    # Log the notification
+                    await db.notification_logs.insert_one({
+                        "id": str(uuid.uuid4()),
+                        "title": title,
+                        "body": message,
+                        "target": target,
+                        "provider": "onesignal",
+                        "type": "scheduled",
+                        "scheduled_id": notif["id"],
+                        "result": result,
+                        "sent_at": datetime.now(timezone.utc).isoformat()
+                    })
+                    
+                    logger.info(f"Scheduled notification sent: {notif['id']} - {result.get('success')}")
+                    
+                except Exception as e:
+                    logger.error(f"Error sending scheduled notification {notif.get('id')}: {e}")
+                    await db.scheduled_notifications.update_one(
+                        {"id": notif["id"]},
+                        {"$set": {"status": "failed", "error": str(e)}}
+                    )
+            
+            # Sleep for 1 minute before next check
+            await asyncio.sleep(60)
+            
+        except Exception as e:
+            logger.error(f"Scheduled notification processor error: {e}")
+            await asyncio.sleep(60)
 
 # ==================== ONESIGNAL NOTIFICATION APIS ====================
 
