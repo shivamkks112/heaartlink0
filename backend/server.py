@@ -3643,40 +3643,170 @@ async def send_notification_all_methods(data: AdminNotificationWithEmail):
         "message": f"Notifications sent via all methods to {len(users)} users"
     }
 async def get_notification_templates():
-    """Get pre-defined notification templates"""
-    templates = [
+    """Get pre-defined and custom notification templates"""
+    # Pre-defined templates
+    default_templates = [
+        {
+            "id": "good_morning",
+            "title": "🌅 Good Morning!",
+            "body": "Start your day with new matches. Who knows, today might be special!",
+            "category": "daily",
+            "is_custom": False
+        },
         {
             "id": "new_matches",
             "title": "💕 New matches waiting!",
-            "body": "Someone special liked your profile. Open HeartLink now!"
+            "body": "Someone special liked your profile. Open HeartLink now!",
+            "category": "engagement",
+            "is_custom": False
         },
         {
             "id": "daily_reminder",
             "title": "❤️ Don't miss out!",
-            "body": "New profiles are waiting for you. Start swiping!"
+            "body": "New profiles are waiting for you. Start swiping!",
+            "category": "daily",
+            "is_custom": False
         },
         {
             "id": "inactive_reminder",
             "title": "😢 We miss you!",
-            "body": "It's been a while! Come back and find your match."
+            "body": "It's been a while! Come back and find your match.",
+            "category": "re-engagement",
+            "is_custom": False
         },
         {
             "id": "weekend_special",
             "title": "🎉 Weekend Special!",
-            "body": "More users are online on weekends. Find your match now!"
+            "body": "More users are online on weekends. Find your match now!",
+            "category": "promotion",
+            "is_custom": False
         },
         {
             "id": "profile_boost",
             "title": "🚀 Boost your profile!",
-            "body": "Get more visibility with a free profile boost. Limited time!"
+            "body": "Get more visibility with a free profile boost. Limited time!",
+            "category": "promotion",
+            "is_custom": False
         },
         {
             "id": "new_feature",
             "title": "✨ New Feature Alert!",
-            "body": "Check out our latest features. Update your app now!"
+            "body": "Check out our latest features. Update your app now!",
+            "category": "announcement",
+            "is_custom": False
+        },
+        {
+            "id": "evening_reminder",
+            "title": "🌙 Evening Check-in",
+            "body": "Wind down with some swiping. Your match might be online now!",
+            "category": "daily",
+            "is_custom": False
+        },
+        {
+            "id": "profile_incomplete",
+            "title": "📝 Complete Your Profile",
+            "body": "Profiles with photos get 10x more matches. Add yours now!",
+            "category": "engagement",
+            "is_custom": False
+        },
+        {
+            "id": "safety_tip",
+            "title": "🛡️ Safety Reminder",
+            "body": "Your safety matters! Always video call before meeting. Stay safe!",
+            "category": "safety",
+            "is_custom": False
+        },
+        {
+            "id": "match_expiring",
+            "title": "⏰ Match Expiring Soon!",
+            "body": "You have unread messages. Reply before they expire!",
+            "category": "urgency",
+            "is_custom": False
+        },
+        {
+            "id": "premium_offer",
+            "title": "👑 Premium Offer!",
+            "body": "Unlock unlimited swipes and see who liked you. 50% off today!",
+            "category": "monetization",
+            "is_custom": False
         }
     ]
-    return templates
+    
+    # Fetch custom templates from database
+    custom_templates = await db.notification_templates.find({}).to_list(None)
+    custom_list = [{
+        "id": t.get("id"),
+        "title": t.get("title"),
+        "body": t.get("body"),
+        "category": t.get("category", "custom"),
+        "is_custom": True,
+        "created_at": t.get("created_at")
+    } for t in custom_templates]
+    
+    return default_templates + custom_list
+
+
+# Custom Template CRUD
+class NotificationTemplateCreate(BaseModel):
+    title: str
+    body: str
+    category: str = "custom"
+
+
+@api_router.post("/admin/notification-templates")
+async def create_notification_template(template: NotificationTemplateCreate):
+    """Create a custom notification template"""
+    template_doc = {
+        "id": str(uuid.uuid4()),
+        "title": template.title,
+        "body": template.body,
+        "category": template.category,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.notification_templates.insert_one(template_doc)
+    
+    return {
+        "success": True,
+        "message": "Template created",
+        "template": {
+            "id": template_doc["id"],
+            "title": template_doc["title"],
+            "body": template_doc["body"],
+            "category": template_doc["category"],
+            "is_custom": True
+        }
+    }
+
+
+@api_router.put("/admin/notification-templates/{template_id}")
+async def update_notification_template(template_id: str, template: NotificationTemplateCreate):
+    """Update a custom notification template"""
+    result = await db.notification_templates.update_one(
+        {"id": template_id},
+        {"$set": {
+            "title": template.title,
+            "body": template.body,
+            "category": template.category,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Template not found")
+    
+    return {"success": True, "message": "Template updated"}
+
+
+@api_router.delete("/admin/notification-templates/{template_id}")
+async def delete_notification_template(template_id: str):
+    """Delete a custom notification template"""
+    result = await db.notification_templates.delete_one({"id": template_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Template not found")
+    
+    return {"success": True, "message": "Template deleted"}
 
 @api_router.get("/admin/notification-history")
 async def get_notification_history(limit: int = 20):
