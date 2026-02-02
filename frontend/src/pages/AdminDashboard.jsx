@@ -742,6 +742,9 @@ const AdminDashboard = ({ user }) => {
 
         {/* Notifications Tab */}
         {activeTab === 'notifications' && <NotificationManager />}
+
+        {/* Profile Approvals Tab */}
+        {activeTab === 'approvals' && <ProfileApprovals />}
       </div>
 
       {/* User Detail Modal */}
