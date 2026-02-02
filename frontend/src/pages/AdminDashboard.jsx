@@ -467,6 +467,12 @@ const AdminDashboard = ({ user }) => {
             )}
           </Button>
           <Button
+            onClick={() => setActiveTab('approvals')}
+            className={activeTab === 'approvals' ? 'bg-pink-500' : 'bg-gray-200 text-gray-700'}
+          >
+            <ClipboardCheck className="w-4 h-4 mr-2" /> Approvals
+          </Button>
+          <Button
             onClick={() => setActiveTab('notifications')}
             className={activeTab === 'notifications' ? 'bg-pink-500' : 'bg-gray-200 text-gray-700'}
           >
