@@ -66,6 +66,9 @@ dependencies {
     // Google AdMob - REQUIRED for ads
     implementation 'com.google.android.gms:play-services-ads:23.0.0'
     
+    // OneSignal Push Notifications
+    implementation 'com.onesignal:OneSignal:[5.0.0, 5.99.99]'
+    
     // Multi-dex support
     implementation 'androidx.multidex:multidex:2.0.1'
     
