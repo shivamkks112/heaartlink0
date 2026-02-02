@@ -263,6 +263,7 @@ class User(BaseModel):
     interests: List[str] = []
     verified: bool = False
     verification_status: str = "pending"  # pending, verified, rejected
+    profile_status: str = "pending"  # pending, approved, rejected - Admin approval for new profiles
     is_admin: bool = False  # Admin flag
     fcm_token: Optional[str] = None  # Firebase Cloud Messaging token for push notifications
     
