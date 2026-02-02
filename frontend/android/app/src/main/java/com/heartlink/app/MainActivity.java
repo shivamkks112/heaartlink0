@@ -2,16 +2,8 @@ package com.heartlink.app;
 
 import android.content.Intent;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.View;
-import android.view.WindowManager;
-
-import androidx.activity.EdgeToEdge;
-import androidx.core.graphics.Insets;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
 
 import com.getcapacitor.BridgeActivity;
 import com.google.android.gms.ads.MobileAds;
@@ -33,28 +25,7 @@ public class MainActivity extends BridgeActivity {
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        // Enable edge-to-edge display for Android 15+ compatibility
-        try {
-            EdgeToEdge.enable(this);
-        } catch (Exception e) {
-            Log.e(TAG, "EdgeToEdge enable failed: " + e.getMessage());
-        }
-        
         super.onCreate(savedInstanceState);
-        
-        // Handle window insets for edge-to-edge
-        try {
-            View mainView = findViewById(android.R.id.content);
-            if (mainView != null) {
-                ViewCompat.setOnApplyWindowInsetsListener(mainView, (v, windowInsets) -> {
-                    Insets insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
-                    v.setPadding(insets.left, insets.top, insets.right, insets.bottom);
-                    return WindowInsetsCompat.CONSUMED;
-                });
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "Window insets setup failed: " + e.getMessage());
-        }
         
         // Initialize Google Mobile Ads SDK
         try {
