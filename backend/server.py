@@ -3262,7 +3262,131 @@ async def admin_verify_selfie(data: VerifySelfieRequest):
     
     raise HTTPException(status_code=400, detail="Invalid action")
 
-# === WOMEN SAFETY: MESSAGE CHECKS ===
+
+# ==================== PROFILE APPROVAL (Admin) ====================
+
+@api_router.get("/admin/pending-profiles")
+async def get_pending_profiles():
+    """Get all profiles pending admin approval"""
+    users = await db.users.find({
+        "profile_status": {"$in": ["pending", None]}
+    }).sort("created_at", -1).to_list(100)
+    
+    return [{
+        "id": u["id"],
+        "name": u["name"],
+        "email": u.get("email"),
+        "phone": u.get("phone"),
+        "age": u.get("age"),
+        "gender": u.get("gender"),
+        "location": u.get("location"),
+        "bio": u.get("bio"),
+        "profile_picture": u.get("profile_picture"),
+        "photos": u.get("photos", []),
+        "interests": u.get("interests", []),
+        "created_at": u.get("created_at"),
+        "profile_status": u.get("profile_status", "pending")
+    } for u in users]
+
+
+@api_router.get("/admin/profile-approval-stats")
+async def get_profile_approval_stats():
+    """Get profile approval statistics"""
+    pending = await db.users.count_documents({"profile_status": {"$in": ["pending", None]}})
+    approved = await db.users.count_documents({"profile_status": "approved"})
+    rejected = await db.users.count_documents({"profile_status": "rejected"})
+    
+    return {
+        "pending": pending,
+        "approved": approved,
+        "rejected": rejected,
+        "total": pending + approved + rejected
+    }
+
+
+class ProfileApprovalRequest(BaseModel):
+    user_id: str
+    action: str  # approve or reject
+    reason: str = ""
+
+
+@api_router.post("/admin/approve-profile")
+async def admin_approve_profile(data: ProfileApprovalRequest):
+    """Admin approves or rejects a user profile"""
+    user = await db.users.find_one({"id": data.user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if data.action == "approve":
+        await db.users.update_one(
+            {"id": data.user_id},
+            {"$set": {
+                "profile_status": "approved",
+                "profile_approved_at": datetime.now(timezone.utc).isoformat(),
+                "profile_approved_by": "admin"
+            }}
+        )
+        
+        # Send notification to user
+        send_notification_to_user(
+            user_id=data.user_id,
+            title="🎉 Profile Approved!",
+            message="Your profile has been approved. Start finding your match now!",
+            data={"type": "profile_approved", "action": "open_discover"}
+        )
+        
+        invalidate_user_cache(data.user_id)
+        return {"success": True, "message": "Profile approved successfully"}
+    
+    elif data.action == "reject":
+        await db.users.update_one(
+            {"id": data.user_id},
+            {"$set": {
+                "profile_status": "rejected",
+                "profile_rejected_at": datetime.now(timezone.utc).isoformat(),
+                "profile_rejection_reason": data.reason
+            }}
+        )
+        
+        # Send notification to user
+        send_notification_to_user(
+            user_id=data.user_id,
+            title="❌ Profile Not Approved",
+            message=f"Your profile needs changes: {data.reason}" if data.reason else "Please update your profile and try again.",
+            data={"type": "profile_rejected", "action": "open_profile"}
+        )
+        
+        invalidate_user_cache(data.user_id)
+        return {"success": True, "message": "Profile rejected", "reason": data.reason}
+    
+    raise HTTPException(status_code=400, detail="Invalid action. Use 'approve' or 'reject'")
+
+
+@api_router.post("/admin/bulk-approve-profiles")
+async def bulk_approve_profiles(user_ids: List[str]):
+    """Bulk approve multiple profiles"""
+    result = await db.users.update_many(
+        {"id": {"$in": user_ids}},
+        {"$set": {
+            "profile_status": "approved",
+            "profile_approved_at": datetime.now(timezone.utc).isoformat(),
+            "profile_approved_by": "admin"
+        }}
+    )
+    
+    # Send notifications to all approved users
+    for user_id in user_ids:
+        send_notification_to_user(
+            user_id=user_id,
+            title="🎉 Profile Approved!",
+            message="Your profile has been approved. Start finding your match now!",
+            data={"type": "profile_approved", "action": "open_discover"}
+        )
+    
+    return {"success": True, "approved_count": result.modified_count}
+
+
+# ==================== WOMEN SAFETY: MESSAGE CHECKS ====================
 def check_women_safety_restrictions(sender: dict, receiver: dict) -> tuple:
     """
     Check if message can be sent based on women safety mode
