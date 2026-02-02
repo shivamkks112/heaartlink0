@@ -6,7 +6,7 @@ import {
   ChevronRight, RefreshCw, UserCheck, Bell,
   TrendingUp, UserPlus, Clock, Calendar, Filter,
   Eye, MessageCircle, Heart, Shield, Crown,
-  Activity, BarChart3, PieChart
+  Activity, BarChart3, PieChart, ClipboardCheck
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,7 @@ import { Toaster } from '@/components/ui/sonner';
 import Navbar from '@/components/Navbar';
 import TopBar from '@/components/TopBar';
 import NotificationManager from '@/components/admin/NotificationManager';
+import ProfileApprovals from '@/components/admin/ProfileApprovals';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || '';
 const API = `${BACKEND_URL}/api`;
