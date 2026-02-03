@@ -2234,15 +2234,11 @@ async def get_matches(user_id: str):
 async def get_likes(user_id: str):
     """Get users who liked the current user"""
     # Find all matches where user2_id is current user and user1 has liked
-    # Exclude profiles where user2 has already taken action (liked back or passed)
+    # Exclude profiles where already matched or user2 has passed
     likes = await db.matches.find({
         "user2_id": user_id,
         "user1_liked": True,
-        "matched": False,  # Not matched yet
-        "$or": [
-            {"user2_liked": {"$exists": False}},  # User2 hasn't acted yet
-            {"user2_action": {"$exists": False}}  # No action recorded
-        ]
+        "matched": False
     }).to_list(None)
     
     result = {
@@ -2252,8 +2248,8 @@ async def get_likes(user_id: str):
     }
     
     for like in likes:
-        # Skip if user2 already took action
-        if like.get("user2_liked") is not None or like.get("user2_action"):
+        # Skip if user2 already passed
+        if like.get("user2_action") == "pass":
             continue
             
         liker_user = await db.users.find_one({"id": like["user1_id"]})
