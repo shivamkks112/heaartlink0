@@ -3450,14 +3450,16 @@ async def bulk_approve_profiles(user_ids: List[str]):
         }}
     )
     
-    # Send notifications to all approved users
+    # Send notifications to all approved users via OneSignal
     for user_id in user_ids:
-        send_notification_to_user(
-            user_id=user_id,
-            title="🎉 Profile Approved!",
-            message="Your profile has been approved. Start finding your match now!",
-            data={"type": "profile_approved", "action": "open_discover"}
-        )
+        try:
+            send_onesignal_to_user(
+                user_id=user_id,
+                title="🎉 Profile Approved!",
+                message="Your profile has been approved. Start finding your match now!"
+            )
+        except Exception as e:
+            logger.error(f"Failed to send bulk approval notification to {user_id}: {e}")
     
     return {"success": True, "approved_count": result.modified_count}
 
