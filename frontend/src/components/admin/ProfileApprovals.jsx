@@ -21,17 +21,29 @@ const ProfileApprovals = () => {
   const [selectedProfiles, setSelectedProfiles] = useState([]);
   const [processingId, setProcessingId] = useState(null);
 
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const ITEMS_PER_PAGE = 20;
+
   useEffect(() => {
     fetchData();
   }, []);
 
-  const fetchData = async () => {
+  const fetchData = async (pageNum = 1, append = false) => {
     try {
       const [profilesRes, statsRes] = await Promise.all([
-        axios.get(`${API}/admin/pending-profiles`),
+        axios.get(`${API}/admin/pending-profiles?page=${pageNum}&limit=${ITEMS_PER_PAGE}`),
         axios.get(`${API}/admin/profile-approval-stats`)
       ]);
-      setPendingProfiles(profilesRes.data || []);
+      
+      const newProfiles = profilesRes.data || [];
+      if (append) {
+        setPendingProfiles(prev => [...prev, ...newProfiles]);
+      } else {
+        setPendingProfiles(newProfiles);
+      }
+      
+      setHasMore(newProfiles.length === ITEMS_PER_PAGE);
       setStats(statsRes.data || { pending: 0, approved: 0, rejected: 0 });
     } catch (e) {
       console.error('Failed to fetch data', e);
@@ -41,9 +53,16 @@ const ProfileApprovals = () => {
     }
   };
 
+  const loadMore = async () => {
+    const nextPage = page + 1;
+    setPage(nextPage);
+    await fetchData(nextPage, true);
+  };
+
   const handleRefresh = async () => {
     setRefreshing(true);
-    await fetchData();
+    setPage(1);
+    await fetchData(1, false);
     setRefreshing(false);
     toast.success('Refreshed!');
   };
