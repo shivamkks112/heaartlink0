@@ -335,6 +335,16 @@ const DiscoverPage = ({ user }) => {
       <Toaster position="top-center" />
       <Navbar user={user} />
       
+      {/* Match Animation Overlay */}
+      <MatchAnimation
+        isOpen={showMatchAnimation}
+        onClose={handleMatchAnimationClose}
+        currentUser={user}
+        matchedUser={matchedUserData}
+        compatibilityScore={matchCompatibilityScore?.toFixed(0)}
+        onStartChat={handleStartChatFromMatch}
+      />
+      
       <div className="max-w-2xl mx-auto px-4 py-8 pb-32">
         <div 
           className={`bg-white rounded-3xl shadow-elevated overflow-hidden relative hover-lift transition-all duration-300 ${swipeDirection === 'left' ? 'translate-x-[-20px] opacity-80' : swipeDirection === 'right' ? 'translate-x-[20px] opacity-80' : ''}`}
