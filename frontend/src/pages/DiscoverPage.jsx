@@ -167,10 +167,10 @@ const DiscoverPage = ({ user }) => {
       });
 
       if (response.data.action === 'matched') {
-        toast.success(
-          `It's a Match! ❤️ Compatibility: ${response.data.compatibility_score.toFixed(0)}%`,
-          { duration: 5000 }
-        );
+        // Show match animation instead of just toast
+        setMatchedUserData(profiles[currentIndex]);
+        setMatchCompatibilityScore(response.data.compatibility_score);
+        setShowMatchAnimation(true);
       } else if (action === 'superlike') {
         toast.success('⭐ Super Like sent!');
       }
@@ -187,6 +187,21 @@ const DiscoverPage = ({ user }) => {
       }
     } catch (error) {
       toast.error('Action failed');
+    }
+  };
+  
+  // Handle match animation close
+  const handleMatchAnimationClose = () => {
+    setShowMatchAnimation(false);
+    setMatchedUserData(null);
+    setMatchCompatibilityScore(null);
+  };
+  
+  // Handle start chat from match animation
+  const handleStartChatFromMatch = () => {
+    setShowMatchAnimation(false);
+    if (matchedUserData) {
+      navigate('/matches');
     }
   };
   
