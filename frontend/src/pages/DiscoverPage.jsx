@@ -10,6 +10,7 @@ import TopBar from '@/components/TopBar';
 import adsService, { SWIPES_BEFORE_AD, EXTRA_SWIPES_REWARD } from '@/services/AdsService';
 import wsService from '@/services/WebSocketService';
 import { VerifiedBadge, TrustBadge, OnlineStatus, BadgeStyles } from '@/components/badges/VerifiedBadge';
+import MatchAnimation from '@/components/MatchAnimation';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || import.meta.env.REACT_APP_BACKEND_URL;
 if (!BACKEND_URL) {
