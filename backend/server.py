@@ -69,6 +69,75 @@ from security import (
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
+# ==================== INDIAN LOCATIONS FILTER ====================
+# List of Indian states and major cities for location filtering
+INDIAN_STATES = [
+    "andhra pradesh", "arunachal pradesh", "assam", "bihar", "chhattisgarh",
+    "goa", "gujarat", "haryana", "himachal pradesh", "jharkhand", "karnataka",
+    "kerala", "madhya pradesh", "maharashtra", "manipur", "meghalaya", "mizoram",
+    "nagaland", "odisha", "punjab", "rajasthan", "sikkim", "tamil nadu",
+    "telangana", "tripura", "uttar pradesh", "uttarakhand", "west bengal",
+    "delhi", "jammu and kashmir", "ladakh", "chandigarh", "puducherry",
+    "andaman and nicobar", "dadra and nagar haveli", "daman and diu", "lakshadweep"
+]
+
+INDIAN_CITIES = [
+    "mumbai", "delhi", "bangalore", "bengaluru", "hyderabad", "chennai", "kolkata",
+    "pune", "ahmedabad", "surat", "jaipur", "lucknow", "kanpur", "nagpur", "indore",
+    "thane", "bhopal", "visakhapatnam", "patna", "vadodara", "ghaziabad", "ludhiana",
+    "agra", "nashik", "faridabad", "meerut", "rajkot", "varanasi", "srinagar",
+    "aurangabad", "dhanbad", "amritsar", "navi mumbai", "allahabad", "prayagraj",
+    "ranchi", "howrah", "coimbatore", "jabalpur", "gwalior", "vijayawada", "jodhpur",
+    "madurai", "raipur", "kota", "chandigarh", "guwahati", "solapur", "hubli",
+    "mysore", "mysuru", "tiruchirappalli", "bareilly", "aligarh", "tiruppur",
+    "moradabad", "jalandhar", "bhubaneswar", "salem", "warangal", "guntur",
+    "bhiwandi", "saharanpur", "gorakhpur", "bikaner", "amravati", "noida",
+    "jamshedpur", "bhilai", "cuttack", "firozabad", "kochi", "cochin", "nellore",
+    "bhavnagar", "dehradun", "durgapur", "asansol", "rourkela", "nanded", "kolhapur",
+    "ajmer", "akola", "gulbarga", "jamnagar", "ujjain", "loni", "siliguri", "jhansi",
+    "ulhasnagar", "jammu", "sangli", "mangalore", "erode", "belgaum", "ambattur",
+    "tirunelveli", "malegaon", "gaya", "jalgaon", "udaipur", "maheshtala", "davanagere",
+    "kozhikode", "calicut", "kurnool", "bokaro", "rajahmundry", "ballari", "bellary",
+    "patiala", "gopalpur", "agartala", "bhagalpur", "muzaffarnagar", "bhatpara",
+    "panihati", "latur", "dhule", "rohtak", "korba", "bhilwara", "berhampur",
+    "muzaffarpur", "ahmednagar", "mathura", "kollam", "avadi", "kadapa", "anantapur",
+    "kamarhati", "bilaspur", "sambalpur", "shahjahanpur", "satara", "bijapur",
+    "rampur", "shimoga", "chandrapur", "junagadh", "thrissur", "alwar", "bardhaman",
+    "kulti", "nizamabad", "parbhani", "tumkur", "khammam", "ozhukarai", "bihar sharif",
+    "panipat", "darbhanga", "bally", "aizawl", "dewas", "ichalkaranji", "karnal",
+    "bathinda", "jalna", "eluru", "kirari suleman nagar", "barasat", "purnia",
+    "satna", "mau", "sonipat", "farrukhabad", "sagar", "rourkela", "durg", "imphal",
+    "ratlam", "hapur", "arrah", "karimnagar", "anantapur", "etawah", "ambernath",
+    "north dumdum", "bharatpur", "begusarai", "new delhi", "gandhidham", "baranagar",
+    "tiruvottiyur", "pondicherry", "sikar", "thoothukudi", "rewa", "mirzapur",
+    "raichur", "pali", "kharagpur", "vizianagaram", "katihar", "hardwar", "haridwar",
+    "sonepat", "vellore", "lalitpur", "ballia", "unnao", "kangra", "malda", "shimla",
+    "bharuch", "naihati", "hosur", "amroha", "bhind", "porbandar", "fatehpur"
+]
+
+def is_indian_location(location: str) -> bool:
+    """Check if a location is in India"""
+    if not location:
+        return False
+    
+    location_lower = location.lower().strip()
+    
+    # Check if it contains "india"
+    if "india" in location_lower:
+        return True
+    
+    # Check against states
+    for state in INDIAN_STATES:
+        if state in location_lower or location_lower in state:
+            return True
+    
+    # Check against cities
+    for city in INDIAN_CITIES:
+        if city in location_lower or location_lower in city:
+            return True
+    
+    return False
+
 # MongoDB connection with connection pooling for better performance
 mongo_url = os.environ.get('MONGO_URL', 'mongodb://localhost:27017')
 client = AsyncIOMotorClient(
