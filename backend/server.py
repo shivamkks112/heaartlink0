@@ -3399,13 +3399,15 @@ async def admin_approve_profile(data: ProfileApprovalRequest):
             }}
         )
         
-        # Send notification to user
-        send_notification_to_user(
-            user_id=data.user_id,
-            title="🎉 Profile Approved!",
-            message="Your profile has been approved. Start finding your match now!",
-            data={"type": "profile_approved", "action": "open_discover"}
-        )
+        # Send notification to user via OneSignal
+        try:
+            send_onesignal_to_user(
+                user_id=data.user_id,
+                title="🎉 Profile Approved!",
+                message="Your profile has been approved. Start finding your match now!"
+            )
+        except Exception as e:
+            logger.error(f"Failed to send approval notification: {e}")
         
         invalidate_user_cache(data.user_id)
         return {"success": True, "message": "Profile approved successfully"}
@@ -3420,13 +3422,15 @@ async def admin_approve_profile(data: ProfileApprovalRequest):
             }}
         )
         
-        # Send notification to user
-        send_notification_to_user(
-            user_id=data.user_id,
-            title="❌ Profile Not Approved",
-            message=f"Your profile needs changes: {data.reason}" if data.reason else "Please update your profile and try again.",
-            data={"type": "profile_rejected", "action": "open_profile"}
-        )
+        # Send notification to user via OneSignal
+        try:
+            send_onesignal_to_user(
+                user_id=data.user_id,
+                title="❌ Profile Not Approved",
+                message=f"Your profile needs changes: {data.reason}" if data.reason else "Please update your profile and try again."
+            )
+        except Exception as e:
+            logger.error(f"Failed to send rejection notification: {e}")
         
         invalidate_user_cache(data.user_id)
         return {"success": True, "message": "Profile rejected", "reason": data.reason}
