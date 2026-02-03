@@ -3039,11 +3039,23 @@ async def get_all_users(
     }
     sort_order = sort_options.get(sort, [("created_at", -1)])
     
-    # Get total count
+    # Optimized projection for faster queries
+    projection = {
+        "_id": 0, "id": 1, "name": 1, "email": 1, "phone": 1, "age": 1,
+        "gender": 1, "location": 1, "looking_for": 1, "bio": 1,
+        "interests": 1, "profile_picture": 1, "verified": 1,
+        "verification_status": 1, "is_online": 1, "is_shadow_banned": 1,
+        "is_permanently_banned": 1, "is_premium": 1, "is_admin": 1,
+        "trust_badge_level": 1, "risk_score": 1, "created_at": 1,
+        "last_active": 1, "total_matches": 1, "total_likes_received": 1,
+        "selfie_verification_url": 1, "selfie_verification_status": 1
+    }
+    
+    # Get total count (use count_documents with hint for speed)
     total = await db.users.count_documents(query)
     
     # Get users with pagination and sorting
-    users = await db.users.find(query).sort(sort_order).skip(skip).limit(limit).to_list(None)
+    users = await db.users.find(query, projection).sort(sort_order).skip(skip).limit(limit).to_list(None)
     
     return {
         "users": [{
