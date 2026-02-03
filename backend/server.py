@@ -1810,11 +1810,16 @@ async def discover_users(user_id: str, limit: int = 10, relationship_intent: str
         "gender_lock_enabled": 1, "show_to_gender": 1, "hide_profile_from_gender": 1
     }
     
-    users = await db.users.find(query, discover_projection).limit(limit * 2).to_list(None)
+    users = await db.users.find(query, discover_projection).limit(limit * 3).to_list(None)
     
-    # Post-process: Check gender lock from other user's perspective
+    # Post-process: Check gender lock from other user's perspective and Indian location
     filtered_users = []
     for u in users:
+        # INDIAN LOCATION FILTER - Only show users from India
+        user_location = u.get("location", "")
+        if not is_indian_location(user_location):
+            continue
+        
         # Check if other user hides from our gender
         hide_from = u.get("hide_profile_from_gender", "none")
         if hide_from != "none" and current_gender and hide_from == current_gender:
