@@ -3338,15 +3338,26 @@ async def admin_verify_selfie(data: VerifySelfieRequest):
 # ==================== PROFILE APPROVAL (Admin) ====================
 
 @api_router.get("/admin/pending-profiles")
-async def get_pending_profiles():
-    """Get all profiles pending admin approval"""
-    users = await db.users.find({
-        "profile_status": {"$in": ["pending", None]}
-    }).sort("created_at", -1).to_list(100)
+async def get_pending_profiles(page: int = 1, limit: int = 20):
+    """Get profiles pending admin approval with pagination"""
+    skip = (page - 1) * limit
+    
+    # Optimized projection - only fetch needed fields
+    projection = {
+        "_id": 0, "id": 1, "name": 1, "email": 1, "phone": 1,
+        "age": 1, "gender": 1, "location": 1, "bio": 1,
+        "profile_picture": 1, "photos": 1, "interests": 1,
+        "created_at": 1, "profile_status": 1
+    }
+    
+    users = await db.users.find(
+        {"profile_status": {"$in": ["pending", None]}},
+        projection
+    ).sort("created_at", -1).skip(skip).limit(limit).to_list(None)
     
     return [{
         "id": u["id"],
-        "name": u["name"],
+        "name": u.get("name", ""),
         "email": u.get("email"),
         "phone": u.get("phone"),
         "age": u.get("age"),
@@ -3354,8 +3365,8 @@ async def get_pending_profiles():
         "location": u.get("location"),
         "bio": u.get("bio"),
         "profile_picture": u.get("profile_picture"),
-        "photos": u.get("photos", []),
-        "interests": u.get("interests", []),
+        "photos": u.get("photos", [])[:3],  # Limit photos for faster load
+        "interests": u.get("interests", [])[:5],  # Limit interests
         "created_at": u.get("created_at"),
         "profile_status": u.get("profile_status", "pending")
     } for u in users]
@@ -3363,10 +3374,15 @@ async def get_pending_profiles():
 
 @api_router.get("/admin/profile-approval-stats")
 async def get_profile_approval_stats():
-    """Get profile approval statistics"""
-    pending = await db.users.count_documents({"profile_status": {"$in": ["pending", None]}})
-    approved = await db.users.count_documents({"profile_status": "approved"})
-    rejected = await db.users.count_documents({"profile_status": "rejected"})
+    """Get profile approval statistics - optimized with parallel queries"""
+    # Run all count queries in parallel
+    pending_task = db.users.count_documents({"profile_status": {"$in": ["pending", None]}})
+    approved_task = db.users.count_documents({"profile_status": "approved"})
+    rejected_task = db.users.count_documents({"profile_status": "rejected"})
+    
+    pending, approved, rejected = await asyncio.gather(
+        pending_task, approved_task, rejected_task
+    )
     
     return {
         "pending": pending,
