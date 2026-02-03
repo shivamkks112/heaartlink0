@@ -433,6 +433,19 @@ const ProfileApprovals = () => {
               )}
             </div>
           ))}
+          
+          {/* Load More Button */}
+          {hasMore && pendingProfiles.length > 0 && (
+            <div className="text-center py-4">
+              <Button
+                variant="outline"
+                onClick={loadMore}
+                className="px-8"
+              >
+                Load More
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>
