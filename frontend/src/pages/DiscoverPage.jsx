@@ -33,6 +33,11 @@ const DiscoverPage = ({ user }) => {
   const [swipesUntilAd, setSwipesUntilAd] = useState(SWIPES_BEFORE_AD);
   const [showingAd, setShowingAd] = useState(false);
   
+  // Match Animation State
+  const [showMatchAnimation, setShowMatchAnimation] = useState(false);
+  const [matchedUserData, setMatchedUserData] = useState(null);
+  const [matchCompatibilityScore, setMatchCompatibilityScore] = useState(null);
+  
   // Daily swipe limit (50 for free users)
   const DAILY_SWIPE_LIMIT = 50;
   
