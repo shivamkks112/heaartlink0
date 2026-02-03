@@ -2093,7 +2093,8 @@ async def user_action(user_id: str, action: LikeAction):
             "user1_id": user_id,
             "user2_id": action.target_user_id,
             "user1_liked": True,
-            "matched": False
+            "matched": False,
+            "is_superlike": action.action == "superlike"
         }
         match = Match(**match_doc)
         await db.matches.insert_one(match.dict())
