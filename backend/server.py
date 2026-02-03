@@ -235,12 +235,19 @@ async def create_indexes():
         await db.users.create_index("is_permanently_banned", background=True)
         await db.users.create_index("trust_badge_level", background=True)
         await db.users.create_index("relationship_intent", background=True)
+        await db.users.create_index("profile_status", background=True)  # For admin approvals
+        await db.users.create_index("created_at", background=True)  # For sorting
         # Compound index for discover queries
         await db.users.create_index([
             ("gender", 1), 
             ("looking_for", 1), 
             ("is_shadow_banned", 1),
             ("is_permanently_banned", 1)
+        ], background=True)
+        # Compound index for admin pending profiles
+        await db.users.create_index([
+            ("profile_status", 1),
+            ("created_at", -1)
         ], background=True)
         
         # Matches collection indexes
