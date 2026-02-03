@@ -369,6 +369,7 @@ class Match(BaseModel):
     user1_liked: bool = False
     user2_liked: bool = False
     matched: bool = False
+    is_superlike: bool = False
     compatibility_score: Optional[float] = None
     ai_analysis: str = ""
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
