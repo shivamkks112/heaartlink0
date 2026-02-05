@@ -3330,9 +3330,15 @@ async def admin_verify_selfie(data: VerifySelfieRequest):
             }}
         )
         
-        # Send notification
-        if user.get('fcm_token'):
-            send_verification_notification(user['fcm_token'], "approved")
+        # Send notification via OneSignal
+        try:
+            send_onesignal_to_user(
+                user_id=data.user_id,
+                title="✅ Verification Approved!",
+                message="Your profile is now verified. You'll get a blue badge!"
+            )
+        except Exception as e:
+            logger.error(f"Verification notification failed: {e}")
         
         invalidate_user_cache(data.user_id)
         return {"message": "Selfie verification approved"}
