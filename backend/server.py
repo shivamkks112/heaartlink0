@@ -3363,6 +3363,69 @@ async def admin_verify_selfie(data: VerifySelfieRequest):
     raise HTTPException(status_code=400, detail="Invalid action")
 
 
+@api_router.get("/admin/verified-users")
+async def get_verified_users(page: int = 1, limit: int = 20):
+    """Get all verified users for potential re-verification"""
+    skip = (page - 1) * limit
+    
+    users = await db.users.find({
+        "verified": True
+    }, {
+        "_id": 0, "id": 1, "name": 1, "profile_picture": 1,
+        "selfie_verification_url": 1, "selfie_verified_at": 1,
+        "email": 1, "phone": 1, "photos": 1
+    }).sort("selfie_verified_at", -1).skip(skip).limit(limit).to_list(None)
+    
+    return [{
+        "id": u["id"],
+        "name": u.get("name"),
+        "email": u.get("email"),
+        "phone": u.get("phone"),
+        "profile_picture": u.get("profile_picture"),
+        "selfie_verification_url": u.get("selfie_verification_url"),
+        "selfie_verified_at": u.get("selfie_verified_at"),
+        "photos": u.get("photos", [])[:2]
+    } for u in users]
+
+
+class ReVerifyRequest(BaseModel):
+    user_id: str
+    reason: str = ""
+
+
+@api_router.post("/admin/request-reverify")
+async def admin_request_reverify(data: ReVerifyRequest):
+    """Admin requests user to re-verify (removes verified status)"""
+    user = await db.users.find_one({"id": data.user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    await db.users.update_one(
+        {"id": data.user_id},
+        {"$set": {
+            "verified": False,
+            "verification_status": "reverify_requested",
+            "selfie_verification_status": "reverify_requested",
+            "trust_badge_level": "low",
+            "reverify_requested_at": datetime.now(timezone.utc).isoformat(),
+            "reverify_reason": data.reason
+        }}
+    )
+    
+    # Send notification to user
+    try:
+        send_onesignal_to_user(
+            user_id=data.user_id,
+            title="🔄 Re-verification Required",
+            message=f"Please verify your profile again. {data.reason}" if data.reason else "Please upload a new selfie for verification."
+        )
+    except Exception as e:
+        logger.error(f"Re-verify notification failed: {e}")
+    
+    invalidate_user_cache(data.user_id)
+    return {"success": True, "message": "Re-verification requested"}
+
+
 # ==================== PROFILE APPROVAL (Admin) ====================
 
 @api_router.get("/admin/pending-profiles")
