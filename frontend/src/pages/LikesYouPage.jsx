@@ -233,25 +233,7 @@ const LikesYouPage = ({ user }) => {
             
             <div className="grid gap-4">
               {displayedLikes.map((likedUser, index) => {
-                const revealed = isProfileRevealed(likedUser.id);
-                
-                // For non-premium users, show blurred cards (except first 2)
-                if (!isPremium && !revealed && index >= 2) {
-                  return (
-                    <div
-                      key={likedUser.id}
-                      style={{ animation: `slideIn 0.3s ease-out ${index * 0.1}s both` }}
-                    >
-                      <SeeWhoLikedYouCard
-                        likedUser={likedUser}
-                        onReveal={handleProfileReveal}
-                        isRevealed={false}
-                      />
-                    </div>
-                  );
-                }
-                
-                // Show normal card for premium users or revealed profiles
+                // Show normal card for all users - no premium restriction
                 return (
                   <div
                     key={likedUser.id}
