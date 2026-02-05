@@ -2339,15 +2339,18 @@ async def get_likes(user_id: str):
             user_data = {
                 "id": liker_user["id"],
                 "name": liker_user["name"],
-                "age": liker_user["age"],
+                "age": liker_user.get("age"),
                 "bio": liker_user.get("bio", ""),
                 "photos": liker_user.get("photos", []),
                 "profile_picture": liker_user.get("profile_picture"),
                 "interests": liker_user.get("interests", []),
                 "verified": liker_user.get("verified", False),
                 "location": liker_user.get("location", ""),
+                "is_online": liker_user.get("is_online", False),
+                "last_active": liker_user.get("last_active"),
                 "liked_at": like.get("created_at"),
                 "is_superlike": like.get("is_superlike", False)
+                # Note: phone and email are intentionally NOT included for privacy
             }
             
             # Check if it's a superlike
