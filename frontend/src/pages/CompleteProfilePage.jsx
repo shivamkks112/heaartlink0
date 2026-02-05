@@ -180,6 +180,57 @@ const CompleteProfilePage = ({ onLogin }) => {
 
         <div className="bg-white rounded-3xl shadow-2xl p-8">
           <form onSubmit={handleSubmit} className="space-y-4">
+            
+            {/* Profile Photo Upload - MANDATORY */}
+            <div className="text-center mb-6">
+              <Label className="text-gray-700 font-semibold block mb-3">Profile Photo * (Required)</Label>
+              <div className="flex justify-center">
+                <div 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="relative cursor-pointer group"
+                >
+                  {profilePicturePreview ? (
+                    <div className="relative">
+                      <img 
+                        src={profilePicturePreview} 
+                        alt="Profile Preview"
+                        className="w-32 h-32 rounded-full object-cover border-4 border-pink-500 shadow-lg"
+                      />
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setProfilePicture(null);
+                          setProfilePicturePreview('');
+                        }}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-lg hover:bg-red-600"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                      <div className="absolute bottom-0 right-0 bg-green-500 text-white rounded-full p-1.5 shadow-lg">
+                        <Camera className="w-4 h-4" />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="w-32 h-32 rounded-full bg-gradient-to-br from-pink-100 to-orange-100 border-4 border-dashed border-pink-300 flex flex-col items-center justify-center group-hover:border-pink-500 transition-colors">
+                      <Camera className="w-8 h-8 text-pink-400 mb-1" />
+                      <span className="text-xs text-pink-500 font-medium">Add Photo</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoSelect}
+                className="hidden"
+              />
+              <p className="text-xs text-gray-500 mt-2">
+                {profilePicture ? '✅ Photo selected' : 'Tap to upload your photo'}
+              </p>
+            </div>
+
             <div>
               <Label className="text-gray-700 font-semibold">Name *</Label>
               <div className="relative mt-2">
