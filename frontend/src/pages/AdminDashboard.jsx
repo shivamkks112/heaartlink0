@@ -751,22 +751,107 @@ const AdminDashboard = ({ user }) => {
         {/* Verifications Tab */}
         {activeTab === 'verifications' && (
           <>
-            {loading ? (
-              <div className="flex justify-center py-12">
-                <div className="w-12 h-12 border-4 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
-              </div>
-            ) : (!pendingVerifications || pendingVerifications.length === 0) ? (
-              <div className="text-center py-12">
-                <Camera className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-gray-600">No pending verifications</h3>
-                <p className="text-gray-400">All caught up!</p>
-              </div>
+            {/* Toggle between pending and verified */}
+            <div className="flex gap-2 mb-6">
+              <Button
+                onClick={() => setShowVerifiedTab(false)}
+                className={!showVerifiedTab ? 'bg-pink-500' : 'bg-gray-200 text-gray-700'}
+              >
+                Pending ({pendingVerifications?.length || 0})
+              </Button>
+              <Button
+                onClick={() => setShowVerifiedTab(true)}
+                className={showVerifiedTab ? 'bg-green-500' : 'bg-gray-200 text-gray-700'}
+              >
+                ✓ Verified ({verifiedUsers?.length || 0})
+              </Button>
+            </div>
+
+            {!showVerifiedTab ? (
+              // Pending Verifications
+              loading ? (
+                <div className="flex justify-center py-12">
+                  <div className="w-12 h-12 border-4 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              ) : (!pendingVerifications || pendingVerifications.length === 0) ? (
+                <div className="text-center py-12">
+                  <Camera className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold text-gray-600">No pending verifications</h3>
+                  <p className="text-gray-400">All caught up!</p>
+                </div>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {pendingVerifications.map(v => (
+                    v?.id ? <VerificationCard key={v.id} v={v} onVerify={handleVerifySelfie} /> : null
+                  ))}
+                </div>
+              )
             ) : (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {pendingVerifications.map(v => (
-                  v?.id ? <VerificationCard key={v.id} v={v} onVerify={handleVerifySelfie} /> : null
-                ))}
-              </div>
+              // Verified Users - Re-verify option
+              verifiedUsers.length === 0 ? (
+                <div className="text-center py-12">
+                  <CheckCircle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold text-gray-600">No verified users</h3>
+                </div>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {verifiedUsers.map(v => (
+                    <div key={v.id} className="bg-white rounded-xl shadow-lg p-4 border border-green-200">
+                      <div className="flex items-center gap-3 mb-3">
+                        <img
+                          src={v.profile_picture || '/default-avatar.png'}
+                          alt={v.name}
+                          className="w-14 h-14 rounded-full object-cover border-2 border-green-500"
+                          onError={(e) => { e.target.src = '/default-avatar.png'; }}
+                        />
+                        <div>
+                          <h4 className="font-semibold text-gray-900 flex items-center gap-1">
+                            {v.name}
+                            <CheckCircle className="w-4 h-4 text-green-500" />
+                          </h4>
+                          <p className="text-xs text-gray-500">
+                            Verified: {v.selfie_verified_at ? new Date(v.selfie_verified_at).toLocaleDateString() : 'N/A'}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      {/* Selfie comparison */}
+                      {v.selfie_verification_url && (
+                        <div className="flex gap-2 mb-3">
+                          <img
+                            src={v.profile_picture}
+                            alt="Profile"
+                            className="w-16 h-16 rounded object-cover"
+                          />
+                          <img
+                            src={v.selfie_verification_url}
+                            alt="Selfie"
+                            className="w-16 h-16 rounded object-cover"
+                          />
+                        </div>
+                      )}
+                      
+                      {/* Re-verify button */}
+                      <div className="space-y-2">
+                        <input
+                          type="text"
+                          placeholder="Reason (optional)"
+                          value={reverifyReason}
+                          onChange={(e) => setReverifyReason(e.target.value)}
+                          className="w-full px-3 py-2 border rounded-lg text-sm"
+                        />
+                        <Button
+                          onClick={() => handleRequestReverify(v.id)}
+                          className="w-full bg-yellow-500 hover:bg-yellow-600 text-white"
+                          size="sm"
+                        >
+                          🔄 Request Re-verification
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )
             )}
           </>
         )}
