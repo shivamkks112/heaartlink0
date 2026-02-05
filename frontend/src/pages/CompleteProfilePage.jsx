@@ -1,13 +1,14 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { User, MapPin, Calendar, Heart, ArrowRight, Search } from 'lucide-react';
+import { User, MapPin, Calendar, Heart, ArrowRight, Search, Camera, Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
 import { INDIAN_STATES, CITIES_BY_STATE, POPULAR_CITIES } from '@/data/indianCities';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || import.meta.env?.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -20,6 +21,10 @@ const CompleteProfilePage = ({ onLogin }) => {
   const [citySearch, setCitySearch] = useState('');
   const [showCityDropdown, setShowCityDropdown] = useState(false);
   const [selectedState, setSelectedState] = useState('');
+  const [profilePicture, setProfilePicture] = useState(null);
+  const [profilePicturePreview, setProfilePicturePreview] = useState('');
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const fileInputRef = useRef(null);
   
   const [profileData, setProfileData] = useState({
     name: '',
@@ -31,6 +36,46 @@ const CompleteProfilePage = ({ onLogin }) => {
     bio: '',
     interests: ''
   });
+
+  // Handle profile picture selection
+  const handlePhotoSelect = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+    
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image size should be less than 5MB');
+      return;
+    }
+    
+    setProfilePicture(file);
+    setProfilePicturePreview(URL.createObjectURL(file));
+  };
+
+  // Upload photo to Firebase
+  const uploadProfilePicture = async (userId) => {
+    if (!profilePicture) return null;
+    
+    try {
+      setUploadingPhoto(true);
+      const storage = getStorage();
+      const storageRef = ref(storage, `profile_pictures/${userId}/${Date.now()}_${profilePicture.name}`);
+      await uploadBytes(storageRef, profilePicture);
+      const downloadURL = await getDownloadURL(storageRef);
+      return downloadURL;
+    } catch (error) {
+      console.error('Photo upload error:', error);
+      throw error;
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
 
   // Get cities based on selected state
   const availableCities = useMemo(() => {
