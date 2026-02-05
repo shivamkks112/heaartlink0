@@ -107,6 +107,12 @@ const CompleteProfilePage = ({ onLogin }) => {
       return;
     }
 
+    // Profile picture is mandatory
+    if (!profilePicture) {
+      toast.error('Profile photo is required! Please upload your photo.');
+      return;
+    }
+
     if (parseInt(profileData.age) < 18) {
       toast.error('You must be 18 or older to use HeartLink');
       return;
@@ -114,6 +120,7 @@ const CompleteProfilePage = ({ onLogin }) => {
 
     setLoading(true);
     try {
+      // First create the user
       const submitData = {
         phone,
         firebase_uid,
@@ -130,14 +137,28 @@ const CompleteProfilePage = ({ onLogin }) => {
       const response = await axios.post(`${API}/auth/phone-signup`, submitData);
       const userData = response.data.user;
       
+      // Upload profile picture
+      toast.loading('Uploading photo...');
+      const photoURL = await uploadProfilePicture(userData.id);
+      
+      if (photoURL) {
+        // Update user with profile picture
+        await axios.patch(`${API}/user/${userData.id}`, {
+          profile_picture: photoURL
+        });
+        userData.profile_picture = photoURL;
+      }
+      
       localStorage.setItem('user', JSON.stringify(userData));
       await onLogin(userData);
       
+      toast.dismiss();
       toast.success(`Welcome to HeartLink, ${userData.name}!`);
       navigate('/discover');
     } catch (error) {
       console.error('Profile completion error:', error);
       const errorMessage = error.response?.data?.detail || 'Failed to complete profile';
+      toast.dismiss();
       toast.error(errorMessage);
     } finally {
       setLoading(false);
