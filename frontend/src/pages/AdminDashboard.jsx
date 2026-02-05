@@ -354,6 +354,33 @@ const AdminDashboard = ({ user }) => {
     }
   }, []);
 
+  const fetchVerifiedUsers = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API}/admin/verified-users`);
+      setVerifiedUsers(Array.isArray(response.data) ? response.data : []);
+    } catch (err) {
+      console.error('Failed to load verified users:', err);
+      setVerifiedUsers([]);
+    }
+  }, []);
+
+  const handleRequestReverify = async (userId) => {
+    try {
+      const res = await axios.post(`${API}/admin/request-reverify`, {
+        user_id: userId,
+        reason: reverifyReason
+      });
+      if (res.data.success) {
+        toast.success('Re-verification requested');
+        setReverifyReason('');
+        fetchVerifiedUsers();
+        fetchPendingVerifications();
+      }
+    } catch (err) {
+      toast.error('Failed to request re-verification');
+    }
+  };
+
   useEffect(() => {
     fetchStats();
   }, [fetchStats]);
@@ -363,8 +390,9 @@ const AdminDashboard = ({ user }) => {
       fetchUsers();
     } else if (activeTab === 'verifications') {
       fetchPendingVerifications();
+      fetchVerifiedUsers();
     }
-  }, [activeTab, fetchUsers, fetchPendingVerifications]);
+  }, [activeTab, fetchUsers, fetchPendingVerifications, fetchVerifiedUsers]);
 
   const handleDeleteUser = async () => {
     if (!selectedUser) return;
