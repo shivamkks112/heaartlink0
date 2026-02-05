@@ -283,6 +283,8 @@ const AdminDashboard = ({ user }) => {
   const [users, setUsers] = useState([]);
   const [stats, setStats] = useState(null);
   const [pendingVerifications, setPendingVerifications] = useState([]);
+  const [verifiedUsers, setVerifiedUsers] = useState([]);
+  const [showVerifiedTab, setShowVerifiedTab] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -296,6 +298,7 @@ const AdminDashboard = ({ user }) => {
   const [genderFilter, setGenderFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
+  const [reverifyReason, setReverifyReason] = useState('');
 
   // Fetch dashboard stats
   const fetchStats = useCallback(async () => {
