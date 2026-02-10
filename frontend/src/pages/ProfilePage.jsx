@@ -343,6 +343,53 @@ const ProfilePage = ({ user, onUpdate }) => {
             </div>
           </div>
 
+          {/* Activity Stats Section */}
+          {userStats && (
+            <div className="px-8 py-6 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100">
+              <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-pink-500" />
+                Your Activity Stats
+              </h3>
+              <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+                {/* Likes Sent */}
+                <div className="bg-gradient-to-br from-pink-500 to-rose-500 rounded-xl p-3 text-center text-white shadow-lg">
+                  <div className="text-2xl font-bold">{userStats.likes_sent || 0}</div>
+                  <div className="text-xs opacity-90">Likes Sent</div>
+                </div>
+                
+                {/* Likes Received */}
+                <div className="bg-gradient-to-br from-red-500 to-orange-500 rounded-xl p-3 text-center text-white shadow-lg">
+                  <div className="text-2xl font-bold">{userStats.likes_received || 0}</div>
+                  <div className="text-xs opacity-90">Likes Got</div>
+                </div>
+                
+                {/* Mutual Matches */}
+                <div className="bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl p-3 text-center text-white shadow-lg">
+                  <div className="text-2xl font-bold">{userStats.mutual_matches || 0}</div>
+                  <div className="text-xs opacity-90">Matches</div>
+                </div>
+                
+                {/* Superlikes Sent */}
+                <div className="bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl p-3 text-center text-white shadow-lg">
+                  <div className="text-2xl font-bold">{userStats.superlikes_sent || 0}</div>
+                  <div className="text-xs opacity-90">Super ⭐</div>
+                </div>
+                
+                {/* Superlikes Received */}
+                <div className="bg-gradient-to-br from-purple-500 to-violet-500 rounded-xl p-3 text-center text-white shadow-lg">
+                  <div className="text-2xl font-bold">{userStats.superlikes_received || 0}</div>
+                  <div className="text-xs opacity-90">Got Super</div>
+                </div>
+                
+                {/* Profile Views */}
+                <div className="bg-gradient-to-br from-amber-500 to-yellow-500 rounded-xl p-3 text-center text-white shadow-lg">
+                  <div className="text-2xl font-bold">{userStats.profile_views || 0}</div>
+                  <div className="text-xs opacity-90">Views</div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Profile Information */}
           <div className="px-8 py-8 space-y-6">
             {/* Basic Info */}
