@@ -121,7 +121,7 @@ Output: `android/app/build/outputs/bundle/release/app-release.aab`
 
 2. **Contact Details:**
    - Email: help@heartlink.co.in
-   - Privacy Policy: https://dating-admin-1.preview.emergentagent.com/privacy-policy
+   - Privacy Policy: https://heartlink-dating-2.preview.emergentagent.com/privacy-policy
    - Website: heartlink.co.in
 
 3. **Content Rating:**
@@ -185,7 +185,7 @@ For support: help@heartlink.co.in
 
 ## 🔗 IMPORTANT URLS
 
-**Privacy Policy:** https://dating-admin-1.preview.emergentagent.com/privacy-policy
+**Privacy Policy:** https://heartlink-dating-2.preview.emergentagent.com/privacy-policy
 **Support Email:** help@heartlink.co.in
 **Website:** heartlink.co.in
 
