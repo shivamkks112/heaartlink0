@@ -4991,6 +4991,7 @@ class OneSignalNotificationRequest(BaseModel):
     message: str
     target: str = "all"  # all, user_ids, male, female
     user_ids: Optional[List[str]] = None
+    notification_data: Optional[Dict[str, Any]] = None  # Additional data for click handling
 
 class OneSignalUserLinkRequest(BaseModel):
     user_id: str  # Your app's user ID
