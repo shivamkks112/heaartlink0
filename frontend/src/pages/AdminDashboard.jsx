@@ -542,22 +542,29 @@ const AdminDashboard = ({ user }) => {
               />
               <StatCard 
                 icon={Activity} 
+                label="🟢 Online Now" 
+                value={stats?.online_now || 0}
+                subValue="Last 5 min"
+                color="bg-emerald-500" 
+                bgColor="bg-emerald-50" 
+              />
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <StatCard 
+                icon={Activity} 
                 label="Active Today" 
                 value={stats?.active_today || 0}
                 color="bg-green-500" 
                 bgColor="bg-green-50" 
               />
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <StatCard 
                 icon={UserPlus} 
                 label="New This Week" 
                 value={stats?.new_this_week || 0}
                 color="bg-purple-500" 
                 bgColor="bg-purple-50" 
-              />
-              <StatCard 
+              /> 
                 icon={Heart} 
                 label="Total Matches" 
                 value={stats?.total_matches || 0}
