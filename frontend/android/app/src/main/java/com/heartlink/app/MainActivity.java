@@ -1,8 +1,6 @@
 package com.heartlink.app;
 
 import android.content.SharedPreferences;
-import android.content.Intent;
-import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -26,7 +24,9 @@ public class MainActivity extends BridgeActivity {
     private static final String TAG = "HeartLink";
     private static final String PREFS_NAME = "HeartLinkPrefs";
     private static final String PENDING_NAV_KEY = "pending_navigation";
+    private static final String BASE_URL = "https://heartlink.co.in";
     private String pendingPath = null;
+    private boolean hasNavigated = false;
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,7 +37,7 @@ public class MainActivity extends BridgeActivity {
         pendingPath = prefs.getString(PENDING_NAV_KEY, null);
         if (pendingPath != null) {
             prefs.edit().remove(PENDING_NAV_KEY).apply();
-            Log.d(TAG, "Found pending path on create: " + pendingPath);
+            Log.d(TAG, "Found pending path: " + pendingPath);
         }
         
         // Initialize AdMob
@@ -73,67 +73,60 @@ public class MainActivity extends BridgeActivity {
     public void onWebViewReady(WebView webView) {
         super.onWebViewReady(webView);
         
-        Log.d(TAG, "WebView is ready, pending path: " + pendingPath);
+        Log.d(TAG, "WebView ready, pendingPath: " + pendingPath);
         
-        // Set custom WebViewClient to handle page load
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
-                Log.d(TAG, "Page finished loading: " + url);
+                Log.d(TAG, "Page loaded: " + url);
                 
-                // Check SharedPreferences for pending navigation
-                SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
-                String navPath = prefs.getString(PENDING_NAV_KEY, null);
+                // Check for pending navigation
+                String navPath = getPendingNavigation();
                 
-                if (navPath != null && !navPath.isEmpty()) {
-                    Log.d(TAG, "Navigating after page load: " + navPath);
-                    prefs.edit().remove(PENDING_NAV_KEY).apply();
-                    navigateWithRetry(view, navPath);
-                } else if (pendingPath != null && !pendingPath.isEmpty()) {
-                    Log.d(TAG, "Navigating from pendingPath: " + pendingPath);
-                    navigateWithRetry(view, pendingPath);
-                    pendingPath = null;
+                if (navPath != null && !hasNavigated) {
+                    hasNavigated = true;
+                    Log.d(TAG, "Will redirect to: " + navPath);
+                    
+                    // Wait for page to fully load, then redirect
+                    new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                        redirectToPath(view, navPath);
+                    }, 2000);
                 }
             }
         });
     }
     
-    private void navigateWithRetry(WebView webView, String path) {
-        // Try navigation multiple times
-        for (int delay : new int[]{500, 1000, 2000, 3000, 5000}) {
-            new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                doNavigate(webView, path);
-            }, delay);
+    private String getPendingNavigation() {
+        // Check SharedPreferences first
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        String path = prefs.getString(PENDING_NAV_KEY, null);
+        if (path != null) {
+            prefs.edit().remove(PENDING_NAV_KEY).apply();
+            return path;
         }
+        // Then check pendingPath variable
+        if (pendingPath != null) {
+            String p = pendingPath;
+            pendingPath = null;
+            return p;
+        }
+        return null;
     }
     
-    private void doNavigate(WebView webView, String path) {
-        if (webView == null) return;
+    private void redirectToPath(WebView webView, String path) {
+        if (webView == null || path == null) return;
         
-        String js = "(function() {" +
-            "console.log('HeartLink: Attempting navigation to " + path + "');" +
-            "console.log('Current path:', window.location.pathname);" +
-            "if (window.location.pathname === '" + path + "') {" +
-            "  console.log('Already on correct page');" +
-            "  return;" +
-            "}" +
-            "if (typeof window.__HEARTLINK_NAVIGATE__ === 'function') {" +
-            "  console.log('Using __HEARTLINK_NAVIGATE__');" +
-            "  window.__HEARTLINK_NAVIGATE__('" + path + "');" +
-            "} else {" +
-            "  console.log('Using direct navigation');" +
-            "  window.location.href = '" + path + "';" +
-            "}" +
-            "})();";
+        String fullUrl = BASE_URL + path;
+        Log.d(TAG, "Redirecting to: " + fullUrl);
         
         runOnUiThread(() -> {
             try {
-                webView.evaluateJavascript(js, result -> {
-                    Log.d(TAG, "Navigation JS result: " + result);
-                });
+                // Direct URL load - no frontend code dependency
+                webView.loadUrl(fullUrl);
+                Log.d(TAG, "Redirect initiated to: " + fullUrl);
             } catch (Exception e) {
-                Log.e(TAG, "Navigation error: " + e.getMessage());
+                Log.e(TAG, "Redirect error: " + e.getMessage());
             }
         });
     }
@@ -167,22 +160,25 @@ public class MainActivity extends BridgeActivity {
                 }
             }
             
-            Log.d(TAG, "Saving navigation path: " + path);
+            Log.d(TAG, "Saving path: " + path);
             
             // Save to SharedPreferences
             SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
             prefs.edit().putString(PENDING_NAV_KEY, path).apply();
             
-            // Also set pendingPath
+            // Reset flag for new navigation
+            hasNavigated = false;
             pendingPath = path;
             
-            // Try to navigate if WebView is ready
+            // If WebView is ready, redirect immediately
             if (getBridge() != null && getBridge().getWebView() != null) {
-                navigateWithRetry(getBridge().getWebView(), path);
+                new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                    redirectToPath(getBridge().getWebView(), path);
+                }, 1500);
             }
             
         } catch (Exception e) {
-            Log.e(TAG, "Notification click error: " + e.getMessage());
+            Log.e(TAG, "Error: " + e.getMessage());
         }
     }
     
