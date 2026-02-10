@@ -5,6 +5,35 @@ Build a modern, safe, trust-based dating app for Android called "HeartLink" for 
 
 ## Latest Update (February 2025)
 
+### Three UI/UX Issues Fixed ✅ (Feb 10, 2025)
+
+**Issues Resolved:**
+
+1. **Online Count Mismatch Fixed** 
+   - Added `online_now` field to `/api/admin/dashboard-stats` - counts users active in last 5 minutes
+   - Admin Dashboard now shows "🟢 Online Now" card separately from "Active Today"
+   - This matches the app's real-time online indicator logic
+
+2. **Modern Location Pin UI**
+   - Updated location pin from plain text to modern gradient pill design
+   - Blue gradient background with animated pulse dot
+   - More visually appealing and consistent with app's design language
+
+3. **Likes Sent Count Display**
+   - New endpoint: `GET /api/profile/{user_id}/stats`
+   - Returns: likes_sent, likes_received, mutual_matches, superlikes_sent, superlikes_received, profile_views
+   - Added "Activity Stats" section on ProfilePage with colorful gradient cards
+
+**Files Updated:**
+- `/app/backend/server.py` - Added online_now calculation and /profile/{user_id}/stats endpoint
+- `/app/frontend/src/pages/AdminDashboard.jsx` - Added Online Now stat card
+- `/app/frontend/src/pages/DiscoverPage.jsx` - Modern location pin styling
+- `/app/frontend/src/pages/ProfilePage.jsx` - Activity stats section with likes sent display
+
+---
+
+### Previous Updates
+
 ### Admin Panel Fixes ✅ (Updated Feb 1, 2025)
 
 **Problems Fixed:**
