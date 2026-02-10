@@ -564,7 +564,8 @@ const AdminDashboard = ({ user }) => {
                 value={stats?.new_this_week || 0}
                 color="bg-purple-500" 
                 bgColor="bg-purple-50" 
-              /> 
+              />
+              <StatCard 
                 icon={Heart} 
                 label="Total Matches" 
                 value={stats?.total_matches || 0}
