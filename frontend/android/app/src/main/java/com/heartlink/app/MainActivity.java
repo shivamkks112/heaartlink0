@@ -71,7 +71,7 @@ public class MainActivity extends BridgeActivity {
                 String action = data.optString("action", "");
                 String matchId = data.optString("match_id", "");
                 
-                Log.d(TAG, "Notification clicked - type: " + type + ", action: " + action);
+                Log.d(TAG, "Notification clicked - type: " + type + ", action: " + action + ", matchId: " + matchId);
                 
                 // Determine navigation path
                 if ("match".equals(type)) {
@@ -89,42 +89,63 @@ public class MainActivity extends BridgeActivity {
                 } else if ("open_likes".equals(action)) {
                     path = "/likes";
                 } else if ("open_chat".equals(action)) {
-                    path = "/matches";
+                    if (matchId != null && !matchId.isEmpty()) {
+                        path = "/chat/" + matchId;
+                    } else {
+                        path = "/matches";
+                    }
                 }
             }
             
             Log.d(TAG, "Will navigate to: " + path);
             pendingNavigation = path;
             
-            // Try to navigate after a delay (WebView needs to be ready)
-            final String finalPath = path;
-            new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                navigateInWebView(finalPath);
-            }, 1500);
+            // Store in localStorage and navigate multiple times to ensure it works
+            storeAndNavigate(path);
             
         } catch (Exception e) {
             Log.e(TAG, "Error handling notification: " + e.getMessage());
         }
     }
     
+    private void storeAndNavigate(String path) {
+        // Store path in localStorage first, then navigate
+        String storeJs = "localStorage.setItem('heartlink_pending_nav', '" + path + "');";
+        
+        try {
+            if (getBridge() != null && getBridge().getWebView() != null) {
+                WebView webView = getBridge().getWebView();
+                runOnUiThread(() -> {
+                    webView.evaluateJavascript(storeJs, null);
+                    Log.d(TAG, "Stored pending nav: " + path);
+                });
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Store error: " + e.getMessage());
+        }
+        
+        // Navigate after delays to ensure WebView is ready
+        new Handler(Looper.getMainLooper()).postDelayed(() -> navigateInWebView(path), 1000);
+        new Handler(Looper.getMainLooper()).postDelayed(() -> navigateInWebView(path), 2000);
+        new Handler(Looper.getMainLooper()).postDelayed(() -> navigateInWebView(path), 3000);
+    }
+    
     private void navigateInWebView(String path) {
         try {
-            if (getBridge() == null) {
-                Log.d(TAG, "Bridge is null, cannot navigate");
+            if (getBridge() == null || getBridge().getWebView() == null) {
+                Log.d(TAG, "Bridge/WebView is null");
                 return;
             }
             
             WebView webView = getBridge().getWebView();
-            if (webView == null) {
-                Log.d(TAG, "WebView is null, cannot navigate");
-                return;
-            }
             
             String js = "javascript:(function() {" +
                 "try {" +
+                "  console.log('HeartLink: Navigating to " + path + "');" +
                 "  if (window.__HEARTLINK_NAVIGATE__) {" +
                 "    window.__HEARTLINK_NAVIGATE__('" + path + "');" +
-                "  } else {" +
+                "    localStorage.removeItem('heartlink_pending_nav');" +
+                "  } else if (window.location.pathname !== '" + path + "') {" +
                 "    window.location.href = '" + path + "';" +
                 "  }" +
                 "} catch(e) { console.log('Nav error:', e); }" +
@@ -132,7 +153,7 @@ public class MainActivity extends BridgeActivity {
             
             runOnUiThread(() -> {
                 webView.evaluateJavascript(js, null);
-                Log.d(TAG, "Navigated to: " + path);
+                Log.d(TAG, "Navigate executed: " + path);
             });
             
         } catch (Exception e) {
@@ -144,14 +165,9 @@ public class MainActivity extends BridgeActivity {
     public void onStart() {
         super.onStart();
         
-        // Check for pending navigation when app starts/resumes
         if (pendingNavigation != null) {
             final String path = pendingNavigation;
-            pendingNavigation = null;
-            
-            new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                navigateInWebView(path);
-            }, 2000);
+            storeAndNavigate(path);
         }
     }
     
