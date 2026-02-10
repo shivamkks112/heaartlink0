@@ -38,8 +38,28 @@ function NavigationHelper() {
       if (path && path !== location.pathname) {
         console.log('[HeartLink] Navigating to:', path);
         navigate(path);
+        // Clear pending nav after successful navigation
+        localStorage.removeItem('heartlink_pending_nav');
       }
     };
+    
+    // Check for pending navigation from notification click
+    const checkPendingNavigation = () => {
+      const pendingNav = localStorage.getItem('heartlink_pending_nav');
+      if (pendingNav && pendingNav !== location.pathname) {
+        console.log('[HeartLink] Found pending navigation:', pendingNav);
+        localStorage.removeItem('heartlink_pending_nav');
+        navigate(pendingNav);
+      }
+    };
+    
+    // Check immediately
+    checkPendingNavigation();
+    
+    // Also check after a delay (in case app is still loading)
+    const timer1 = setTimeout(checkPendingNavigation, 500);
+    const timer2 = setTimeout(checkPendingNavigation, 1500);
+    const timer3 = setTimeout(checkPendingNavigation, 3000);
     
     // Listen for popstate events (back button, history changes)
     const handlePopState = () => {
@@ -53,6 +73,9 @@ function NavigationHelper() {
     
     return () => {
       window.removeEventListener('popstate', handlePopState);
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+      clearTimeout(timer3);
       delete window.__HEARTLINK_NAVIGATE__;
     };
   }, [navigate, location.pathname]);
