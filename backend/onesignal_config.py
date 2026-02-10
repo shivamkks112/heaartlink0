@@ -134,13 +134,17 @@ def send_match_notification_onesignal(user_id: str, matched_user_name: str) -> D
     )
 
 
-def send_message_notification_onesignal(user_id: str, sender_name: str, message_preview: str) -> Dict:
+def send_message_notification_onesignal(user_id: str, sender_name: str, message_preview: str, match_id: str = None) -> Dict:
     """Send new message notification"""
+    data = {"type": "message", "action": "open_chat"}
+    if match_id:
+        data["match_id"] = match_id
+    
     return send_notification_to_user(
         user_id=user_id,
         title=f"💬 New message from {sender_name}",
         message=message_preview[:100] + "..." if len(message_preview) > 100 else message_preview,
-        data={"type": "message", "action": "open_chat"}
+        data=data
     )
 
 
