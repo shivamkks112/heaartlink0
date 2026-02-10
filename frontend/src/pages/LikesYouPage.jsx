@@ -70,18 +70,18 @@ const LikesYouPage = ({ user }) => {
       
       const result = await response.json();
       
+      // Always remove from list after action (like or pass)
+      setLikes(prev => ({
+        ...prev,
+        regular_likes: prev.regular_likes.filter(u => u.id !== targetUserId),
+        super_likes: prev.super_likes.filter(u => u.id !== targetUserId),
+        total_count: prev.total_count - 1
+      }));
+      
       if (result.action === 'matched') {
         // Show match celebration
         alert(`🎉 It's a Match! Compatibility: ${result.compatibility_score}%`);
         navigate('/matches');
-      } else {
-        // Remove from list
-        setLikes(prev => ({
-          ...prev,
-          regular_likes: prev.regular_likes.filter(u => u.id !== targetUserId),
-          super_likes: prev.super_likes.filter(u => u.id !== targetUserId),
-          total_count: prev.total_count - 1
-        }));
       }
     } catch (error) {
       console.error('Error handling action:', error);
