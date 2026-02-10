@@ -2,7 +2,6 @@ package com.heartlink.app;
 
 import android.os.Bundle;
 import android.util.Log;
-import android.webkit.WebView;
 
 import com.getcapacitor.BridgeActivity;
 import com.google.android.gms.ads.MobileAds;
@@ -32,7 +31,7 @@ public class MainActivity extends BridgeActivity {
             // Initialize OneSignal
             OneSignal.getDebug().setLogLevel(LogLevel.VERBOSE);
             OneSignal.initWithContext(this, ONESIGNAL_APP_ID);
-            OneSignal.getNotifications().requestPermission(true, null);
+            // Permission will be requested automatically by OneSignal
             Log.d(TAG, "OneSignal initialized");
         } catch (Exception e) {
             Log.e(TAG, "OneSignal init error: " + e.getMessage());
