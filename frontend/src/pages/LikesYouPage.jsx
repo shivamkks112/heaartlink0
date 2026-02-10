@@ -289,7 +289,10 @@ const LikesYouPage = ({ user }) => {
                         )}
                         
                         {likedUser.location && (
-                          <p className="text-sm text-white/90 mb-2">📍 {likedUser.location}</p>
+                          <div className="flex items-center gap-1.5 mb-2">
+                            <span className="text-orange-400">📍</span>
+                            <span className="text-sm text-white/90 font-medium">{likedUser.location}</span>
+                          </div>
                         )}
                         {likedUser.bio && (
                           <p className="text-sm text-white/80 line-clamp-2">{likedUser.bio}</p>
