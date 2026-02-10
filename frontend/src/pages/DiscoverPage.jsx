@@ -454,12 +454,11 @@ const DiscoverPage = ({ user }) => {
             </div>
             
             {currentProfile.location && (
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200/50 rounded-full mb-3 shadow-sm">
-                <div className="relative">
-                  <MapPin className="w-4 h-4 text-blue-600" />
-                  <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                </div>
-                <span className="text-blue-700 font-medium text-sm">{currentProfile.location}</span>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/80 backdrop-blur-sm border border-gray-200 rounded-full mb-3 shadow-sm">
+                <svg className="w-4 h-4 text-rose-500" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                </svg>
+                <span className="text-gray-700 font-medium text-sm">{currentProfile.location}</span>
               </div>
             )}
 
