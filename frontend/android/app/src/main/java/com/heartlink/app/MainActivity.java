@@ -1,5 +1,6 @@
 package com.heartlink.app;
 
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -20,7 +21,8 @@ public class MainActivity extends BridgeActivity {
     
     private static final String ONESIGNAL_APP_ID = "ad0b57dc-908b-4d84-8654-d6b5dd50684e";
     private static final String TAG = "HeartLink";
-    private String pendingNavigation = null;
+    private static final String PREFS_NAME = "HeartLinkPrefs";
+    private static final String PENDING_NAV_KEY = "pending_navigation";
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -52,6 +54,9 @@ public class MainActivity extends BridgeActivity {
         } catch (Exception e) {
             Log.e(TAG, "OneSignal error: " + e.getMessage());
         }
+        
+        // Check for pending navigation from SharedPreferences
+        checkPendingNavigation();
         
         Log.d(TAG, "HeartLink started");
     }
@@ -98,9 +103,11 @@ public class MainActivity extends BridgeActivity {
             }
             
             Log.d(TAG, "Will navigate to: " + path);
-            pendingNavigation = path;
             
-            // Store in localStorage and navigate multiple times to ensure it works
+            // Save to SharedPreferences (persists even if app restarts)
+            savePendingNavigation(path);
+            
+            // Also try to navigate immediately
             storeAndNavigate(path);
             
         } catch (Exception e) {
@@ -108,26 +115,57 @@ public class MainActivity extends BridgeActivity {
         }
     }
     
+    private void savePendingNavigation(String path) {
+        try {
+            SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+            prefs.edit().putString(PENDING_NAV_KEY, path).apply();
+            Log.d(TAG, "Saved pending nav to prefs: " + path);
+        } catch (Exception e) {
+            Log.e(TAG, "Error saving to prefs: " + e.getMessage());
+        }
+    }
+    
+    private void checkPendingNavigation() {
+        try {
+            SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+            String pendingPath = prefs.getString(PENDING_NAV_KEY, null);
+            
+            if (pendingPath != null && !pendingPath.isEmpty()) {
+                Log.d(TAG, "Found pending nav in prefs: " + pendingPath);
+                // Clear it immediately
+                prefs.edit().remove(PENDING_NAV_KEY).apply();
+                // Navigate after delay
+                storeAndNavigate(pendingPath);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error checking prefs: " + e.getMessage());
+        }
+    }
+    
     private void storeAndNavigate(String path) {
-        // Store path in localStorage first, then navigate
-        String storeJs = "localStorage.setItem('heartlink_pending_nav', '" + path + "');";
+        // Store path in localStorage
+        String storeJs = "localStorage.setItem('heartlink_pending_nav', '" + path + "'); console.log('Stored pending nav: " + path + "');";
         
+        // Execute multiple times with delays
+        new Handler(Looper.getMainLooper()).postDelayed(() -> executeJs(storeJs), 500);
+        new Handler(Looper.getMainLooper()).postDelayed(() -> executeJs(storeJs), 1500);
+        new Handler(Looper.getMainLooper()).postDelayed(() -> navigateInWebView(path), 2000);
+        new Handler(Looper.getMainLooper()).postDelayed(() -> navigateInWebView(path), 3000);
+        new Handler(Looper.getMainLooper()).postDelayed(() -> navigateInWebView(path), 4000);
+        new Handler(Looper.getMainLooper()).postDelayed(() -> navigateInWebView(path), 5000);
+    }
+    
+    private void executeJs(String js) {
         try {
             if (getBridge() != null && getBridge().getWebView() != null) {
                 WebView webView = getBridge().getWebView();
                 runOnUiThread(() -> {
-                    webView.evaluateJavascript(storeJs, null);
-                    Log.d(TAG, "Stored pending nav: " + path);
+                    webView.evaluateJavascript(js, null);
                 });
             }
         } catch (Exception e) {
-            Log.e(TAG, "Store error: " + e.getMessage());
+            Log.e(TAG, "JS execute error: " + e.getMessage());
         }
-        
-        // Navigate after delays to ensure WebView is ready
-        new Handler(Looper.getMainLooper()).postDelayed(() -> navigateInWebView(path), 1000);
-        new Handler(Looper.getMainLooper()).postDelayed(() -> navigateInWebView(path), 2000);
-        new Handler(Looper.getMainLooper()).postDelayed(() -> navigateInWebView(path), 3000);
     }
     
     private void navigateInWebView(String path) {
@@ -139,14 +177,16 @@ public class MainActivity extends BridgeActivity {
             
             WebView webView = getBridge().getWebView();
             
-            String js = "javascript:(function() {" +
+            String js = "(function() {" +
                 "try {" +
-                "  console.log('HeartLink: Navigating to " + path + "');" +
-                "  if (window.__HEARTLINK_NAVIGATE__) {" +
+                "  console.log('HeartLink Native: Navigating to " + path + "');" +
+                "  if (window.__HEARTLINK_NAVIGATE__ && window.location.pathname !== '" + path + "') {" +
                 "    window.__HEARTLINK_NAVIGATE__('" + path + "');" +
                 "    localStorage.removeItem('heartlink_pending_nav');" +
+                "    console.log('Navigation successful');" +
                 "  } else if (window.location.pathname !== '" + path + "') {" +
-                "    window.location.href = '" + path + "';" +
+                "    localStorage.setItem('heartlink_pending_nav', '" + path + "');" +
+                "    console.log('Stored for later navigation');" +
                 "  }" +
                 "} catch(e) { console.log('Nav error:', e); }" +
                 "})()";
@@ -164,11 +204,8 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onStart() {
         super.onStart();
-        
-        if (pendingNavigation != null) {
-            final String path = pendingNavigation;
-            storeAndNavigate(path);
-        }
+        // Check again when app starts
+        checkPendingNavigation();
     }
     
     @Override
