@@ -66,46 +66,55 @@ public class MainActivity extends BridgeActivity {
             Log.e(TAG, "OneSignal error: " + e.getMessage());
         }
         
+        // Setup WebView after delay
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            setupWebView();
+        }, 1000);
+        
         Log.d(TAG, "HeartLink started");
     }
     
-    @Override
-    public void onWebViewReady(WebView webView) {
-        super.onWebViewReady(webView);
-        
-        Log.d(TAG, "WebView ready, pendingPath: " + pendingPath);
-        
-        webView.setWebViewClient(new WebViewClient() {
-            @Override
-            public void onPageFinished(WebView view, String url) {
-                super.onPageFinished(view, url);
-                Log.d(TAG, "Page loaded: " + url);
-                
-                // Check for pending navigation
-                String navPath = getPendingNavigation();
-                
-                if (navPath != null && !hasNavigated) {
-                    hasNavigated = true;
-                    Log.d(TAG, "Will redirect to: " + navPath);
-                    
-                    // Wait for page to fully load, then redirect
-                    new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                        redirectToPath(view, navPath);
-                    }, 2000);
-                }
+    private void setupWebView() {
+        try {
+            if (getBridge() == null || getBridge().getWebView() == null) {
+                // Retry after delay
+                new Handler(Looper.getMainLooper()).postDelayed(() -> setupWebView(), 500);
+                return;
             }
-        });
+            
+            WebView webView = getBridge().getWebView();
+            Log.d(TAG, "WebView ready, pendingPath: " + pendingPath);
+            
+            webView.setWebViewClient(new WebViewClient() {
+                @Override
+                public void onPageFinished(WebView view, String url) {
+                    super.onPageFinished(view, url);
+                    Log.d(TAG, "Page loaded: " + url);
+                    
+                    String navPath = getPendingNavigation();
+                    
+                    if (navPath != null && !hasNavigated) {
+                        hasNavigated = true;
+                        Log.d(TAG, "Will redirect to: " + navPath);
+                        
+                        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                            redirectToPath(view, navPath);
+                        }, 2000);
+                    }
+                }
+            });
+        } catch (Exception e) {
+            Log.e(TAG, "Setup error: " + e.getMessage());
+        }
     }
     
     private String getPendingNavigation() {
-        // Check SharedPreferences first
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
         String path = prefs.getString(PENDING_NAV_KEY, null);
         if (path != null) {
             prefs.edit().remove(PENDING_NAV_KEY).apply();
             return path;
         }
-        // Then check pendingPath variable
         if (pendingPath != null) {
             String p = pendingPath;
             pendingPath = null;
@@ -122,9 +131,7 @@ public class MainActivity extends BridgeActivity {
         
         runOnUiThread(() -> {
             try {
-                // Direct URL load - no frontend code dependency
                 webView.loadUrl(fullUrl);
-                Log.d(TAG, "Redirect initiated to: " + fullUrl);
             } catch (Exception e) {
                 Log.e(TAG, "Redirect error: " + e.getMessage());
             }
@@ -143,7 +150,7 @@ public class MainActivity extends BridgeActivity {
                 String action = data.optString("action", "");
                 String matchId = data.optString("match_id", "");
                 
-                Log.d(TAG, "Notification: type=" + type + ", action=" + action + ", matchId=" + matchId);
+                Log.d(TAG, "Notification: type=" + type + ", action=" + action);
                 
                 if ("match".equals(type)) {
                     path = "/matches";
@@ -162,15 +169,12 @@ public class MainActivity extends BridgeActivity {
             
             Log.d(TAG, "Saving path: " + path);
             
-            // Save to SharedPreferences
             SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
             prefs.edit().putString(PENDING_NAV_KEY, path).apply();
             
-            // Reset flag for new navigation
             hasNavigated = false;
             pendingPath = path;
             
-            // If WebView is ready, redirect immediately
             if (getBridge() != null && getBridge().getWebView() != null) {
                 new Handler(Looper.getMainLooper()).postDelayed(() -> {
                     redirectToPath(getBridge().getWebView(), path);
