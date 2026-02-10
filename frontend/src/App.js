@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import '@/App.css';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import LandingPage from '@/pages/LandingPage';
 import AuthPage from '@/pages/AuthPage';
 import ForgotPasswordPage from '@/pages/ForgotPasswordPage';
@@ -26,6 +26,39 @@ import { AdProvider } from '@/context/AdContext';
 import { requestNotificationPermission, setupForegroundMessageListener } from '@/firebase/messaging';
 import { initGoogleAuth } from '@/utils/nativeGoogleAuth';
 import { initPushNotifications } from '@/services/pushNotifications';
+
+// Navigation helper component for native app communication
+function NavigationHelper() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  useEffect(() => {
+    // Expose navigation function to window for native app
+    window.__HEARTLINK_NAVIGATE__ = (path) => {
+      if (path && path !== location.pathname) {
+        console.log('[HeartLink] Navigating to:', path);
+        navigate(path);
+      }
+    };
+    
+    // Listen for popstate events (back button, history changes)
+    const handlePopState = () => {
+      const path = window.location.pathname;
+      if (path !== location.pathname) {
+        navigate(path);
+      }
+    };
+    
+    window.addEventListener('popstate', handlePopState);
+    
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      delete window.__HEARTLINK_NAVIGATE__;
+    };
+  }, [navigate, location.pathname]);
+  
+  return null;
+}
 
 function App() {
   const [user, setUser] = useState(null);
