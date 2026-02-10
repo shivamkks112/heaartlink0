@@ -3124,6 +3124,12 @@ async def get_dashboard_stats():
         "last_active": {"$gte": today_start.isoformat()}
     })
     
+    # Online NOW (last 5 minutes) - Real-time online count
+    five_min_ago = (now - timedelta(minutes=5)).isoformat()
+    online_now = await db.users.count_documents({
+        "last_active": {"$gte": five_min_ago}
+    })
+    
     # Inactive users (7+ days)
     inactive_users = await db.users.count_documents({
         "$or": [
