@@ -189,6 +189,7 @@ function App() {
       <AdProvider user={user}>
         <BrowserRouter>
           <NavigationHelper />
+          <PendingNavigationHandler user={user} />
           <Routes>
             <Route path="/" element={!user ? <LandingPage /> : <Navigate to="/discover" />} />
             <Route path="/auth" element={!user ? <AuthPage onLogin={handleLogin} /> : <Navigate to="/discover" />} />
