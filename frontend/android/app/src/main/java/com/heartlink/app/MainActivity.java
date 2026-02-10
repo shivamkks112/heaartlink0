@@ -32,7 +32,6 @@ public class MainActivity extends BridgeActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         
-        // Check for pending navigation FIRST
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
         pendingPath = prefs.getString(PENDING_NAV_KEY, null);
         if (pendingPath != null) {
@@ -40,7 +39,6 @@ public class MainActivity extends BridgeActivity {
             Log.d(TAG, "Found pending path: " + pendingPath);
         }
         
-        // Initialize AdMob
         try {
             MobileAds.initialize(this, initializationStatus -> {
                 Log.d(TAG, "AdMob initialized");
@@ -49,7 +47,6 @@ public class MainActivity extends BridgeActivity {
             Log.e(TAG, "AdMob error: " + e.getMessage());
         }
         
-        // Initialize OneSignal
         try {
             OneSignal.getDebug().setLogLevel(LogLevel.VERBOSE);
             OneSignal.initWithContext(this, ONESIGNAL_APP_ID);
@@ -66,7 +63,6 @@ public class MainActivity extends BridgeActivity {
             Log.e(TAG, "OneSignal error: " + e.getMessage());
         }
         
-        // Setup WebView after delay
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
             setupWebView();
         }, 1000);
@@ -77,7 +73,6 @@ public class MainActivity extends BridgeActivity {
     private void setupWebView() {
         try {
             if (getBridge() == null || getBridge().getWebView() == null) {
-                // Retry after delay
                 new Handler(Looper.getMainLooper()).postDelayed(() -> setupWebView(), 500);
                 return;
             }
@@ -95,10 +90,11 @@ public class MainActivity extends BridgeActivity {
                     
                     if (navPath != null && !hasNavigated) {
                         hasNavigated = true;
-                        Log.d(TAG, "Will redirect to: " + navPath);
+                        final String finalPath = navPath;
+                        Log.d(TAG, "Will redirect to: " + finalPath);
                         
                         new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                            redirectToPath(view, navPath);
+                            redirectToPath(view, finalPath);
                         }, 2000);
                     }
                 }
@@ -175,9 +171,10 @@ public class MainActivity extends BridgeActivity {
             hasNavigated = false;
             pendingPath = path;
             
+            final String finalPath = path;
             if (getBridge() != null && getBridge().getWebView() != null) {
                 new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                    redirectToPath(getBridge().getWebView(), path);
+                    redirectToPath(getBridge().getWebView(), finalPath);
                 }, 1500);
             }
             
