@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Heart, MessageCircle, Sparkles, Users, Zap } from 'lucide-react';
+import { Heart, MessageCircle, Sparkles, Users, Zap, Mail } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
@@ -18,9 +18,11 @@ const API = `${BACKEND_URL}/api`;
 const MatchesPage = ({ user }) => {
   const navigate = useNavigate();
   const [matches, setMatches] = useState([]);
+  const [conversations, setConversations] = useState([]);
   const [activeUsers, setActiveUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('matches'); // 'matches' or 'active'
+  const [activeTab, setActiveTab] = useState('matches'); // 'matches', 'messages', or 'active'
+  const [unreadCounts, setUnreadCounts] = useState({});
 
   const formatLastSeen = (lastActive) => {
     if (!lastActive) return 'recently';
@@ -39,29 +41,95 @@ const MatchesPage = ({ user }) => {
     return 'recently';
   };
 
+  const formatMessageTime = (timestamp) => {
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffMins < 1) return 'Now';
+    if (diffMins < 60) return `${diffMins}m`;
+    if (diffHours < 24) return `${diffHours}h`;
+    if (diffDays < 7) return `${diffDays}d`;
+    return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+  };
+
   const fetchMatches = async () => {
     setLoading(true);
     try {
       console.log('🔍 Fetching matches for user:', user.id);
-      console.log('🔗 API URL:', `${API}/matches/${user.id}`);
-      
       const response = await axios.get(`${API}/matches/${user.id}`);
-      
       console.log('✅ Matches API Response:', response.data);
-      console.log('📊 Total matches received:', response.data.length);
-      
       setMatches(response.data);
       setLoading(false);
-      
-      if (response.data.length === 0) {
-        console.log('⚠️ No matches found for this user');
-      } else {
-        console.log('🎉 Matches loaded successfully:', response.data);
-      }
     } catch (error) {
       console.error('❌ Error fetching matches:', error);
-      console.error('Error details:', error.response?.data);
       toast.error('Failed to load matches');
+      setLoading(false);
+    }
+  };
+
+  const fetchConversations = async () => {
+    setLoading(true);
+    try {
+      // Get all matches first
+      const matchesResponse = await axios.get(`${API}/matches/${user.id}`);
+      const allMatches = matchesResponse.data;
+      
+      // For each match, get the last message
+      const conversationsWithMessages = await Promise.all(
+        allMatches.map(async (match) => {
+          try {
+            const messagesResponse = await axios.get(`${API}/messages/${match.match_id}?limit=1`);
+            const messages = messagesResponse.data;
+            const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+            
+            // Count unread messages
+            const unreadResponse = await axios.get(`${API}/messages/${match.match_id}/unread-count/${user.id}`);
+            const unreadCount = unreadResponse.data?.count || 0;
+            
+            return {
+              ...match,
+              lastMessage,
+              unreadCount,
+              hasMessages: messages.length > 0
+            };
+          } catch (error) {
+            return {
+              ...match,
+              lastMessage: null,
+              unreadCount: 0,
+              hasMessages: false
+            };
+          }
+        })
+      );
+      
+      // Filter to only show conversations with messages and sort by last message time
+      const activeConversations = conversationsWithMessages
+        .filter(conv => conv.hasMessages)
+        .sort((a, b) => {
+          const timeA = a.lastMessage?.created_at ? new Date(a.lastMessage.created_at) : new Date(0);
+          const timeB = b.lastMessage?.created_at ? new Date(b.lastMessage.created_at) : new Date(0);
+          return timeB - timeA;
+        });
+      
+      setConversations(activeConversations);
+      
+      // Store unread counts
+      const counts = {};
+      activeConversations.forEach(conv => {
+        counts[conv.match_id] = conv.unreadCount;
+      });
+      setUnreadCounts(counts);
+      
+      setLoading(false);
+    } catch (error) {
+      console.error('❌ Error fetching conversations:', error);
+      toast.error('Failed to load messages');
       setLoading(false);
     }
   };
@@ -81,11 +149,16 @@ const MatchesPage = ({ user }) => {
   useEffect(() => {
     if (activeTab === 'matches') {
       fetchMatches();
+    } else if (activeTab === 'messages') {
+      fetchConversations();
     } else {
       fetchActiveUsers();
     }
     // eslint-disable-next-line
   }, [activeTab]);
+
+  // Calculate total unread messages
+  const totalUnread = Object.values(unreadCounts).reduce((sum, count) => sum + count, 0);
 
   if (loading) {
     return (
