@@ -2569,7 +2569,8 @@ async def send_message_http(message_data: Message):
         send_message_notification_onesignal(
             user_id=message_data.receiver_id,
             sender_name=sender['name'],
-            message_preview=message_data.content
+            message_preview=message_data.content,
+            match_id=message_data.match_id
         )
     
     return clean_message
