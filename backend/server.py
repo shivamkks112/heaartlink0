@@ -1416,6 +1416,55 @@ async def update_profile(user_id: str, updates: dict):
     set_cached_user(user_id, clean_user)
     return clean_user
 
+@api_router.get("/profile/{user_id}/stats")
+async def get_user_stats(user_id: str):
+    """Get user activity statistics - likes sent, likes received, matches count"""
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Count likes sent by this user (where they initiated the like)
+    likes_sent = await db.matches.count_documents({
+        "user1_id": user_id,
+        "user1_liked": True
+    })
+    
+    # Count likes received (where they were liked by others)
+    likes_received = await db.matches.count_documents({
+        "user2_id": user_id,
+        "user1_liked": True
+    })
+    
+    # Count mutual matches
+    mutual_matches = await db.matches.count_documents({
+        "$or": [{"user1_id": user_id}, {"user2_id": user_id}],
+        "matched": True
+    })
+    
+    # Count superlikes sent
+    superlikes_sent = await db.matches.count_documents({
+        "user1_id": user_id,
+        "is_superlike": True
+    })
+    
+    # Count superlikes received
+    superlikes_received = await db.matches.count_documents({
+        "user2_id": user_id,
+        "is_superlike": True
+    })
+    
+    # Profile views count
+    profile_views = user.get("profile_views", 0)
+    
+    return {
+        "likes_sent": likes_sent,
+        "likes_received": likes_received,
+        "mutual_matches": mutual_matches,
+        "superlikes_sent": superlikes_sent,
+        "superlikes_received": superlikes_received,
+        "profile_views": profile_views
+    }
+
 @api_router.post("/profile/{user_id}/verify")
 async def request_verification(user_id: str):
     user = await db.users.find_one({"id": user_id})
