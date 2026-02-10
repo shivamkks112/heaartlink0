@@ -3174,6 +3174,7 @@ async def get_dashboard_stats():
         "new_today": new_today,
         "new_this_week": new_this_week,
         "active_today": active_today,
+        "online_now": online_now,
         "inactive_users": inactive_users,
         "premium_users": premium_users,
         "verified_users": verified_users,
