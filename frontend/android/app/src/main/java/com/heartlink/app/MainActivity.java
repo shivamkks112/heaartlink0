@@ -141,10 +141,10 @@ public class MainActivity extends BridgeActivity {
     }
     
     @Override
-    protected void onResume() {
-        super.onResume();
+    public void onStart() {
+        super.onStart();
         
-        // Check for pending navigation when app resumes
+        // Check for pending navigation when app starts/resumes
         if (pendingNavigation != null) {
             final String path = pendingNavigation;
             pendingNavigation = null;
