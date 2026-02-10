@@ -128,6 +128,7 @@ function App() {
     <div className="App">
       <AdProvider user={user}>
         <BrowserRouter>
+          <NavigationHelper />
           <Routes>
             <Route path="/" element={!user ? <LandingPage /> : <Navigate to="/discover" />} />
             <Route path="/auth" element={!user ? <AuthPage onLogin={handleLogin} /> : <Navigate to="/discover" />} />
