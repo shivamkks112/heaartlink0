@@ -83,6 +83,43 @@ function NavigationHelper() {
   return null;
 }
 
+// Component to handle pending navigation after user loads
+function PendingNavigationHandler({ user }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  useEffect(() => {
+    if (!user) return; // Wait for user to be loaded
+    
+    const checkAndNavigate = () => {
+      const pendingNav = localStorage.getItem('heartlink_pending_nav');
+      console.log('[HeartLink] Checking pending nav:', pendingNav, 'Current:', location.pathname);
+      
+      if (pendingNav && pendingNav !== '/' && pendingNav !== location.pathname) {
+        console.log('[HeartLink] Navigating to pending:', pendingNav);
+        localStorage.removeItem('heartlink_pending_nav');
+        navigate(pendingNav, { replace: true });
+      }
+    };
+    
+    // Check multiple times with delays
+    checkAndNavigate();
+    const t1 = setTimeout(checkAndNavigate, 100);
+    const t2 = setTimeout(checkAndNavigate, 500);
+    const t3 = setTimeout(checkAndNavigate, 1000);
+    const t4 = setTimeout(checkAndNavigate, 2000);
+    
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      clearTimeout(t4);
+    };
+  }, [user, navigate, location.pathname]);
+  
+  return null;
+}
+
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
