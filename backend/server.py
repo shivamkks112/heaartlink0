@@ -2465,6 +2465,29 @@ async def get_messages(match_id: str):
     messages = await db.messages.find({"match_id": match_id}).sort("created_at", 1).to_list(None)
     return [Message(**m).dict() for m in messages]
 
+@api_router.get("/messages/{match_id}/unread-count/{user_id}")
+async def get_unread_message_count(match_id: str, user_id: str):
+    """Get count of unread messages in a conversation for a specific user"""
+    count = await db.messages.count_documents({
+        "match_id": match_id,
+        "receiver_id": user_id,
+        "read": {"$ne": True}
+    })
+    return {"count": count}
+
+@api_router.post("/messages/{match_id}/mark-read/{user_id}")
+async def mark_messages_as_read(match_id: str, user_id: str):
+    """Mark all messages in a conversation as read for a specific user"""
+    result = await db.messages.update_many(
+        {
+            "match_id": match_id,
+            "receiver_id": user_id,
+            "read": {"$ne": True}
+        },
+        {"$set": {"read": True, "read_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    return {"marked_read": result.modified_count}
+
 @api_router.post("/messages")
 async def send_message_http(message_data: Message):
     """Send message with women safety checks"""
