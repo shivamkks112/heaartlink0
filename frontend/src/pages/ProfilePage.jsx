@@ -46,12 +46,26 @@ const ProfilePage = ({ user, onUpdate }) => {
     ).slice(0, 20);
   }, [citySearch, availableCities]);
 
+  // User Stats State
+  const [userStats, setUserStats] = useState(null);
+
   useEffect(() => {
     if (user?.id) {
       fetchProfile();
+      fetchUserStats();
     }
     // eslint-disable-next-line
   }, [user?.id]);
+
+  const fetchUserStats = async () => {
+    if (!user?.id) return;
+    try {
+      const response = await axios.get(`${API}/profile/${user.id}/stats`);
+      setUserStats(response.data);
+    } catch (error) {
+      console.error('Failed to fetch user stats:', error);
+    }
+  };
 
   const formatLastSeen = (lastActive) => {
     if (!lastActive) return 'recently';
