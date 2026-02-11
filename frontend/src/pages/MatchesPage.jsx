@@ -157,6 +157,30 @@ const MatchesPage = ({ user }) => {
     // eslint-disable-next-line
   }, [activeTab]);
 
+  // Refresh conversations when page becomes visible (e.g., coming back from chat)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && activeTab === 'messages') {
+        fetchConversations();
+      }
+    };
+    
+    const handleFocus = () => {
+      if (activeTab === 'messages') {
+        fetchConversations();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+    // eslint-disable-next-line
+  }, [activeTab]);
+
   // Calculate total unread messages
   const totalUnread = Object.values(unreadCounts).reduce((sum, count) => sum + count, 0);
 
