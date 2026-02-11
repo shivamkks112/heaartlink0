@@ -84,6 +84,14 @@ const ChatPage = ({ user }) => {
       const response = await axios.get(`${API}/messages/${matchId}`);
       setMessages(response.data);
       setLoading(false);
+      
+      // Mark messages as read
+      try {
+        await axios.post(`${API}/messages/${matchId}/mark-read/${user.id}`);
+        console.log('Messages marked as read');
+      } catch (err) {
+        console.error('Failed to mark messages as read:', err);
+      }
     } catch (error) {
       toast.error('Failed to load messages');
       setLoading(false);
