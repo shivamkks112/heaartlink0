@@ -1,6 +1,8 @@
 package com.heartlink.app;
 
 import android.content.SharedPreferences;
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -29,7 +31,7 @@ public class MainActivity extends BridgeActivity {
     private static final String BASE_URL = "https://heartlink.co.in";
     
     private Handler mainHandler;
-    private String targetPath = null;
+    private boolean isNavigating = false;
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,48 +39,29 @@ public class MainActivity extends BridgeActivity {
         
         mainHandler = new Handler(Looper.getMainLooper());
         
-        // Check pending navigation from SharedPreferences FIRST
-        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
-        targetPath = prefs.getString(PENDING_NAV_KEY, null);
-        if (targetPath != null) {
-            prefs.edit().remove(PENDING_NAV_KEY).apply();
-            Log.d(TAG, "Found pending navigation: " + targetPath);
-        }
-        
-        // Initialize AdMob with proper configuration
+        // Initialize AdMob
         initializeAdMob();
         
         // Initialize OneSignal
         initializeOneSignal();
         
-        // Schedule navigation if we have a pending path
-        if (targetPath != null) {
-            scheduleNavigation(targetPath);
-        }
+        // Check for pending navigation
+        checkPendingNavigation();
         
-        Log.d(TAG, "HeartLink MainActivity started");
+        Log.d(TAG, "HeartLink started");
     }
     
     private void initializeAdMob() {
         try {
-            // Set test device IDs if needed (remove in production)
             RequestConfiguration configuration = new RequestConfiguration.Builder()
-                .setTestDeviceIds(Arrays.asList("TEST_DEVICE_ID"))
                 .build();
             MobileAds.setRequestConfiguration(configuration);
             
-            // Initialize the Mobile Ads SDK
             MobileAds.initialize(this, initializationStatus -> {
-                Log.d(TAG, "AdMob SDK initialized successfully");
-                // Log adapter status
-                initializationStatus.getAdapterStatusMap().forEach((adapter, status) -> {
-                    Log.d(TAG, "Adapter: " + adapter + " Status: " + status.getInitializationState());
-                });
+                Log.d(TAG, "AdMob initialized");
             });
-            
-            Log.d(TAG, "AdMob initialization started");
         } catch (Exception e) {
-            Log.e(TAG, "AdMob initialization error: " + e.getMessage());
+            Log.e(TAG, "AdMob error: " + e.getMessage());
         }
     }
     
@@ -87,148 +70,154 @@ public class MainActivity extends BridgeActivity {
             OneSignal.getDebug().setLogLevel(LogLevel.VERBOSE);
             OneSignal.initWithContext(this, ONESIGNAL_APP_ID);
             
-            // Set notification click listener
             OneSignal.getNotifications().addClickListener(new INotificationClickListener() {
                 @Override
                 public void onClick(INotificationClickEvent event) {
+                    Log.d(TAG, "*** NOTIFICATION CLICKED ***");
                     handleNotificationClick(event);
                 }
             });
             
-            Log.d(TAG, "OneSignal initialized successfully");
+            Log.d(TAG, "OneSignal initialized");
         } catch (Exception e) {
-            Log.e(TAG, "OneSignal initialization error: " + e.getMessage());
+            Log.e(TAG, "OneSignal error: " + e.getMessage());
         }
     }
     
     private void handleNotificationClick(INotificationClickEvent event) {
-        Log.d(TAG, "=== NOTIFICATION CLICKED ===");
-        
         try {
             if (event == null || event.getNotification() == null) {
-                Log.d(TAG, "Event or notification is null");
+                Log.d(TAG, "Notification event is null");
                 return;
             }
             
             JSONObject data = event.getNotification().getAdditionalData();
-            String path = "/notifications"; // Default
+            String path = null;
+            
+            Log.d(TAG, "Notification data: " + (data != null ? data.toString() : "null"));
             
             if (data != null) {
                 String type = data.optString("type", "");
                 String action = data.optString("action", "");
                 String matchId = data.optString("match_id", "");
                 
-                Log.d(TAG, "Notification data - type: " + type + ", action: " + action + ", matchId: " + matchId);
+                Log.d(TAG, "type=" + type + ", action=" + action + ", matchId=" + matchId);
                 
-                // Determine path based on notification type
                 if ("match".equals(type)) {
                     path = "/matches";
                 } else if ("like".equals(type)) {
                     path = "/likes";
                 } else if ("message".equals(type)) {
-                    if (matchId != null && !matchId.isEmpty()) {
-                        path = "/chat/" + matchId;
-                    } else {
-                        path = "/matches";
-                    }
+                    path = (matchId != null && !matchId.isEmpty()) ? "/chat/" + matchId : "/matches";
                 } else if ("open_matches".equals(action)) {
                     path = "/matches";
                 } else if ("open_likes".equals(action)) {
                     path = "/likes";
                 } else if ("open_chat".equals(action)) {
-                    if (matchId != null && !matchId.isEmpty()) {
-                        path = "/chat/" + matchId;
-                    } else {
-                        path = "/matches";
-                    }
+                    path = (matchId != null && !matchId.isEmpty()) ? "/chat/" + matchId : "/matches";
+                } else if ("open_app".equals(action)) {
+                    path = "/notifications";
                 }
-            } else {
-                Log.d(TAG, "No additional data in notification");
             }
             
-            Log.d(TAG, "Target path: " + path);
-            
-            // Save to SharedPreferences for persistence
-            SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
-            prefs.edit().putString(PENDING_NAV_KEY, path).apply();
-            
-            // Set target path
-            targetPath = path;
-            
-            // Schedule navigation
-            scheduleNavigation(path);
+            if (path != null) {
+                Log.d(TAG, "Target path: " + path);
+                savePendingNavigation(path);
+                navigateToPath(path);
+            } else {
+                Log.d(TAG, "No path determined from notification");
+            }
             
         } catch (Exception e) {
-            Log.e(TAG, "Error handling notification click: " + e.getMessage());
+            Log.e(TAG, "Error: " + e.getMessage());
             e.printStackTrace();
         }
     }
     
-    private void scheduleNavigation(String path) {
-        if (path == null || path.isEmpty()) return;
-        
-        final String fullUrl = BASE_URL + path;
-        Log.d(TAG, "Scheduling navigation to: " + fullUrl);
-        
-        // Cancel any previous scheduled navigations
-        mainHandler.removeCallbacksAndMessages(null);
-        
-        // Schedule multiple attempts
-        mainHandler.postDelayed(() -> attemptNavigation(fullUrl), 2000);
-        mainHandler.postDelayed(() -> attemptNavigation(fullUrl), 4000);
-        mainHandler.postDelayed(() -> attemptNavigation(fullUrl), 6000);
-        mainHandler.postDelayed(() -> attemptNavigation(fullUrl), 8000);
+    private void savePendingNavigation(String path) {
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        prefs.edit().putString(PENDING_NAV_KEY, path).apply();
+        Log.d(TAG, "Saved pending navigation: " + path);
     }
     
-    private void attemptNavigation(String url) {
+    private void checkPendingNavigation() {
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        String path = prefs.getString(PENDING_NAV_KEY, null);
+        
+        if (path != null && !path.isEmpty()) {
+            Log.d(TAG, "Found pending navigation: " + path);
+            prefs.edit().remove(PENDING_NAV_KEY).apply();
+            navigateToPath(path);
+        }
+    }
+    
+    private void navigateToPath(String path) {
+        if (isNavigating) {
+            Log.d(TAG, "Already navigating, skipping");
+            return;
+        }
+        
+        isNavigating = true;
+        final String fullUrl = BASE_URL + path;
+        Log.d(TAG, "Will navigate to: " + fullUrl);
+        
+        // Try navigation at multiple intervals
+        int[] delays = {2000, 4000, 6000, 8000, 10000};
+        
+        for (int delay : delays) {
+            mainHandler.postDelayed(() -> {
+                loadUrlInWebView(fullUrl);
+            }, delay);
+        }
+        
+        // Reset flag after last attempt
+        mainHandler.postDelayed(() -> {
+            isNavigating = false;
+        }, 12000);
+    }
+    
+    private void loadUrlInWebView(String url) {
         try {
-            if (getBridge() == null) {
-                Log.d(TAG, "Bridge is null");
+            if (getBridge() == null || getBridge().getWebView() == null) {
+                Log.d(TAG, "WebView not ready");
                 return;
             }
             
             WebView webView = getBridge().getWebView();
-            if (webView == null) {
-                Log.d(TAG, "WebView is null");
+            String currentUrl = webView.getUrl();
+            
+            Log.d(TAG, "Current: " + currentUrl);
+            Log.d(TAG, "Target: " + url);
+            
+            // Check if already on target page
+            String targetPath = url.replace(BASE_URL, "");
+            if (currentUrl != null && currentUrl.endsWith(targetPath)) {
+                Log.d(TAG, "Already on target page");
+                isNavigating = false;
                 return;
             }
             
-            String currentUrl = webView.getUrl();
-            Log.d(TAG, "Current URL: " + currentUrl + ", Target: " + url);
-            
-            // Extract path from URLs for comparison
-            String targetPath = url.replace(BASE_URL, "");
-            boolean alreadyOnPage = currentUrl != null && currentUrl.contains(targetPath);
-            
-            if (!alreadyOnPage) {
-                Log.d(TAG, ">>> NAVIGATING TO: " + url);
-                runOnUiThread(() -> {
-                    webView.loadUrl(url);
-                });
-            } else {
-                Log.d(TAG, "Already on target page, skipping");
-                // Clear the target
-                this.targetPath = null;
-            }
+            Log.d(TAG, ">>> LOADING URL: " + url);
+            runOnUiThread(() -> {
+                webView.loadUrl(url);
+            });
             
         } catch (Exception e) {
-            Log.e(TAG, "Navigation error: " + e.getMessage());
+            Log.e(TAG, "Load error: " + e.getMessage());
         }
     }
     
     @Override
     public void onStart() {
         super.onStart();
-        
-        // Check again for pending navigation
-        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
-        String pendingPath = prefs.getString(PENDING_NAV_KEY, null);
-        
-        if (pendingPath != null && !pendingPath.isEmpty()) {
-            Log.d(TAG, "onStart: Found pending path: " + pendingPath);
-            prefs.edit().remove(PENDING_NAV_KEY).apply();
-            scheduleNavigation(pendingPath);
-        }
+        checkPendingNavigation();
+    }
+    
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        checkPendingNavigation();
     }
     
     @Override
