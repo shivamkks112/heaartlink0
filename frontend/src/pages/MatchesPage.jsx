@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Heart, MessageCircle, Sparkles, Users, Zap, Mail } from 'lucide-react';
+import { Heart, MessageCircle, Sparkles, Users, Zap, Mail, Shield, AlertTriangle, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
@@ -15,6 +15,101 @@ if (!BACKEND_URL) {
 }
 const API = `${BACKEND_URL}/api`;
 
+// Safety Message Modal Component
+const SafetyMessageModal = ({ isOpen, onClose, onProceed }) => {
+  if (!isOpen) return null;
+  
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl animate-bounce-in">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
+              <Shield className="w-6 h-6 text-white" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-900">Safety First! 🛡️</h2>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        
+        {/* Content */}
+        <div className="space-y-4 mb-6">
+          <p className="text-gray-700">
+            Welcome to HeartLink messaging! Before you start chatting, please keep these safety tips in mind:
+          </p>
+          
+          <div className="space-y-3">
+            <div className="flex items-start gap-3 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+              <AlertTriangle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-yellow-800">
+                <strong>Never share</strong> personal info like phone number, address, or financial details until you trust someone.
+              </p>
+            </div>
+            
+            <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <Shield className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-blue-800">
+                <strong>Meet in public places</strong> for first dates and inform a friend or family member about your plans.
+              </p>
+            </div>
+            
+            <div className="flex items-start gap-3 p-3 bg-red-50 rounded-lg border border-red-200">
+              <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-red-800">
+                <strong>Report suspicious behavior</strong> immediately. If someone asks for money or seems fake, block and report them.
+              </p>
+            </div>
+          </div>
+        </div>
+        
+        {/* Actions */}
+        <div className="flex gap-3">
+          <button
+            onClick={onProceed}
+            className="flex-1 bg-gradient-to-r from-pink-500 to-orange-500 text-white py-3 rounded-xl font-semibold hover:opacity-90 transition-all"
+          >
+            I Understand, Continue
+          </button>
+        </div>
+        
+        <p className="text-xs text-gray-500 text-center mt-4">
+          Your safety is our priority. Chat responsibly! 💕
+        </p>
+      </div>
+    </div>
+  );
+};
+
+// Online Status Helper Function
+const getOnlineStatusInfo = (isOnline, lastActive) => {
+  if (!lastActive && !isOnline) {
+    return { color: 'bg-gray-400', label: 'Offline', textColor: 'text-gray-500' };
+  }
+  
+  const now = new Date();
+  const lastSeenDate = new Date(lastActive);
+  const diffMs = now - lastSeenDate;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  
+  // Online now (within 5 minutes) - Dark Green
+  if (isOnline || diffMins < 5) {
+    return { color: 'bg-green-600', label: 'Online', textColor: 'text-green-600', pulse: true };
+  }
+  
+  // Active same day (within 24 hours) - Light Green
+  if (diffHours < 24) {
+    return { color: 'bg-green-400', label: `${diffHours}h ago`, textColor: 'text-green-500', pulse: false };
+  }
+  
+  // Older - Grey
+  const diffDays = Math.floor(diffMs / 86400000);
+  return { color: 'bg-gray-400', label: `${diffDays}d ago`, textColor: 'text-gray-500', pulse: false };
+};
+
 const MatchesPage = ({ user }) => {
   const navigate = useNavigate();
   const [matches, setMatches] = useState([]);
@@ -23,6 +118,33 @@ const MatchesPage = ({ user }) => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('matches'); // 'matches', 'messages', or 'active'
   const [unreadCounts, setUnreadCounts] = useState({});
+  const [showSafetyModal, setShowSafetyModal] = useState(false);
+  const [pendingChatId, setPendingChatId] = useState(null);
+
+  // Check if user has seen safety message
+  const hasSeenSafetyMessage = () => {
+    return localStorage.getItem('heartlink_safety_message_seen') === 'true';
+  };
+
+  // Handle chat navigation with safety check
+  const handleChatClick = (matchId) => {
+    if (!hasSeenSafetyMessage()) {
+      setPendingChatId(matchId);
+      setShowSafetyModal(true);
+    } else {
+      navigate(`/chat/${matchId}`);
+    }
+  };
+
+  // Handle safety modal proceed
+  const handleSafetyProceed = () => {
+    localStorage.setItem('heartlink_safety_message_seen', 'true');
+    setShowSafetyModal(false);
+    if (pendingChatId) {
+      navigate(`/chat/${pendingChatId}`);
+      setPendingChatId(null);
+    }
+  };
 
   const formatLastSeen = (lastActive) => {
     if (!lastActive) return 'recently';
