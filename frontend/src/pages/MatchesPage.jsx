@@ -517,81 +517,88 @@ const MatchesPage = ({ user }) => {
               </div>
             ) : (
               <div className="space-y-3">
-                {conversations.map((conv, index) => (
-                  <div
-                    key={conv.match_id}
-                    data-testid="message-card"
-                    onClick={() => navigate(`/chat/${conv.match_id}`)}
-                    className={`bg-white rounded-xl sm:rounded-2xl shadow-soft overflow-hidden hover:shadow-elevated transition-all duration-300 cursor-pointer animate-bounce-in ${
-                      conv.unreadCount > 0 ? 'ring-2 ring-blue-500 ring-offset-2' : ''
-                    }`}
-                    style={{animationDelay: `${index * 0.05}s`}}
-                  >
-                    <div className="flex items-center p-3 sm:p-4">
-                      {/* Profile Picture */}
-                      <div className="relative flex-shrink-0">
-                        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full overflow-hidden bg-gradient-to-br from-blue-200 to-indigo-200">
-                          {conv.user.profile_picture ? (
-                            <img
-                              src={conv.user.profile_picture}
-                              alt={conv.user.name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : conv.user.photos && conv.user.photos.length > 0 ? (
-                            <img
-                              src={conv.user.photos[0]}
-                              alt={conv.user.name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <Heart className="w-8 h-8 text-white" />
-                            </div>
-                          )}
-                        </div>
-                        {/* Online indicator */}
-                        {conv.user.is_online && (
-                          <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
-                        )}
-                      </div>
-
-                      {/* Message Content */}
-                      <div className="flex-1 min-w-0 ml-3 sm:ml-4">
-                        <div className="flex items-center justify-between mb-1">
-                          <h3 className="font-bold text-gray-900 truncate">
-                            {conv.user.name}, {conv.user.age}
-                          </h3>
-                          <span className="text-xs text-gray-500 flex-shrink-0 ml-2">
-                            {formatMessageTime(conv.lastMessage?.created_at)}
-                          </span>
-                        </div>
-                        
-                        <div className="flex items-center justify-between">
-                          <p className={`text-sm truncate ${
-                            conv.unreadCount > 0 ? 'text-gray-900 font-semibold' : 'text-gray-600'
-                          }`}>
-                            {conv.lastMessage?.sender_id === user.id && (
-                              <span className="text-blue-500">You: </span>
+                {conversations.map((conv, index) => {
+                  const statusInfo = getOnlineStatusInfo(conv.user.is_online, conv.user.last_active);
+                  
+                  return (
+                    <div
+                      key={conv.match_id}
+                      data-testid="message-card"
+                      onClick={() => handleChatClick(conv.match_id)}
+                      className={`bg-white rounded-xl sm:rounded-2xl shadow-soft overflow-hidden hover:shadow-elevated transition-all duration-300 cursor-pointer animate-bounce-in ${
+                        conv.unreadCount > 0 ? 'ring-2 ring-blue-500 ring-offset-2' : ''
+                      }`}
+                      style={{animationDelay: `${index * 0.05}s`}}
+                    >
+                      <div className="flex items-center p-3 sm:p-4">
+                        {/* Profile Picture */}
+                        <div className="relative flex-shrink-0">
+                          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full overflow-hidden bg-gradient-to-br from-blue-200 to-indigo-200">
+                            {conv.user.profile_picture ? (
+                              <img
+                                src={conv.user.profile_picture}
+                                alt={conv.user.name}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : conv.user.photos && conv.user.photos.length > 0 ? (
+                              <img
+                                src={conv.user.photos[0]}
+                                alt={conv.user.name}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <Heart className="w-8 h-8 text-white" />
+                              </div>
                             )}
-                            {conv.lastMessage?.content || 'Start chatting...'}
-                          </p>
-                          
-                          {/* Unread badge */}
-                          {conv.unreadCount > 0 && (
-                            <span className="ml-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0">
-                              {conv.unreadCount > 9 ? '9+' : conv.unreadCount}
-                            </span>
-                          )}
+                          </div>
+                          {/* Online indicator with color differentiation */}
+                          <div className={`absolute -bottom-0.5 -right-0.5 w-4 h-4 ${statusInfo.color} rounded-full border-2 border-white ${statusInfo.pulse ? 'animate-pulse' : ''}`}></div>
                         </div>
-                      </div>
 
-                      {/* Arrow */}
-                      <div className="ml-2 text-gray-400">
-                        <MessageCircle className="w-5 h-5" />
+                        {/* Message Content */}
+                        <div className="flex-1 min-w-0 ml-3 sm:ml-4">
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-bold text-gray-900 truncate">
+                                {conv.user.name}, {conv.user.age}
+                              </h3>
+                              <span className={`text-xs ${statusInfo.textColor}`}>
+                                • {statusInfo.label}
+                              </span>
+                            </div>
+                            <span className="text-xs text-gray-500 flex-shrink-0 ml-2">
+                              {formatMessageTime(conv.lastMessage?.created_at)}
+                            </span>
+                          </div>
+                          
+                          <div className="flex items-center justify-between">
+                            <p className={`text-sm truncate ${
+                              conv.unreadCount > 0 ? 'text-gray-900 font-semibold' : 'text-gray-600'
+                            }`}>
+                              {conv.lastMessage?.sender_id === user.id && (
+                                <span className="text-blue-500">You: </span>
+                              )}
+                              {conv.lastMessage?.content || 'Start chatting...'}
+                            </p>
+                            
+                            {/* Unread badge */}
+                            {conv.unreadCount > 0 && (
+                              <span className="ml-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0">
+                                {conv.unreadCount > 9 ? '9+' : conv.unreadCount}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Arrow */}
+                        <div className="ml-2 text-gray-400">
+                          <MessageCircle className="w-5 h-5" />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </>
