@@ -14,7 +14,7 @@
 
 ## Method 3: Browser में Test करें (सबसे आसान)
 1. Mobile browser खोलें (Chrome/Firefox)
-2. https://heartlink-dating-2.preview.emergentagent.com खोलें
+2. https://verified-matches-1.preview.emergentagent.com खोलें
 3. Browser cache clear करें:
    - Chrome: ⋮ → History → Clear browsing data
    - Firefox: ⋮ → Settings → Clear private data

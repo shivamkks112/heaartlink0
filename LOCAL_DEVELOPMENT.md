@@ -9,7 +9,7 @@
 ✅ All services UP
 
 ### Access Your Local App:
-1. Frontend: https://heartlink-dating-2.preview.emergentagent.com
+1. Frontend: https://verified-matches-1.preview.emergentagent.com
 2. This is YOUR development environment
 3. Fully functional for testing
 

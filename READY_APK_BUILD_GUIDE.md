@@ -16,7 +16,7 @@
 
 ### Step 1: PWABuilder Setup
 1. **Visit:** https://www.pwabuilder.com
-2. **Enter URL:** `https://heartlink-dating-2.preview.emergentagent.com`
+2. **Enter URL:** `https://verified-matches-1.preview.emergentagent.com`
 3. **Click "Start"**
 
 ### Step 2: Analysis 
@@ -87,7 +87,7 @@ zipalign -v 4 app/build/outputs/apk/release/app-release-unsigned.apk HeartLink-v
 
 ### Option A: App Maker
 1. **Visit:** https://appmaker.xyz/pwa-to-apk
-2. **Enter PWA URL:** `https://heartlink-dating-2.preview.emergentagent.com`
+2. **Enter PWA URL:** `https://verified-matches-1.preview.emergentagent.com`
 3. **Fill Details:**
    - App Name: HeartLink  
    - Package: com.heartlink.dating
@@ -101,7 +101,7 @@ zipalign -v 4 app/build/outputs/apk/release/app-release-unsigned.apk HeartLink-v
 npm install -g @bubblewrap/cli
 
 # Generate APK
-bubblewrap init --manifest https://heartlink-dating-2.preview.emergentagent.com/manifest.json
+bubblewrap init --manifest https://verified-matches-1.preview.emergentagent.com/manifest.json
 
 # Build
 bubblewrap build
@@ -112,11 +112,11 @@ bubblewrap build
 ## 📋 Verification URLs (All Working)
 
 Before building, verify these URLs work:
-- ✅ **Manifest:** https://heartlink-dating-2.preview.emergentagent.com/manifest.json
-- ✅ **Icon 192:** https://heartlink-dating-2.preview.emergentagent.com/icon-192.png  
-- ✅ **Icon 512:** https://heartlink-dating-2.preview.emergentagent.com/icon-512.png
-- ✅ **AssetLinks:** https://heartlink-dating-2.preview.emergentagent.com/.well-known/assetlinks.json
-- ✅ **App URL:** https://heartlink-dating-2.preview.emergentagent.com
+- ✅ **Manifest:** https://verified-matches-1.preview.emergentagent.com/manifest.json
+- ✅ **Icon 192:** https://verified-matches-1.preview.emergentagent.com/icon-192.png  
+- ✅ **Icon 512:** https://verified-matches-1.preview.emergentagent.com/icon-512.png
+- ✅ **AssetLinks:** https://verified-matches-1.preview.emergentagent.com/.well-known/assetlinks.json
+- ✅ **App URL:** https://verified-matches-1.preview.emergentagent.com
 
 ---
 
@@ -229,7 +229,7 @@ adb install HeartLink-v1.0.0.apk
 ### Fastest Method (PWABuilder):
 ```
 1. Visit: https://www.pwabuilder.com
-2. Enter: https://heartlink-dating-2.preview.emergentagent.com  
+2. Enter: https://verified-matches-1.preview.emergentagent.com  
 3. Click: Package For Stores → Android
 4. Download: Ready APK in 5 minutes!
 ```

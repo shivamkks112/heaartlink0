@@ -21,7 +21,7 @@ import pymongo
 from pymongo import MongoClient
 
 # Backend URL from environment
-BACKEND_URL = "https://heartlink-dating-2.preview.emergentagent.com/api"
+BACKEND_URL = "https://verified-matches-1.preview.emergentagent.com/api"
 WEBSOCKET_URL = "wss://dating-native-app.preview.emergentagent.com/api/ws"
 
 def print_test_header(test_name):
