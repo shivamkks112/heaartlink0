@@ -83,10 +83,13 @@ const SafetyMessageModal = ({ isOpen, onClose, onProceed }) => {
   );
 };
 
-// Online Status Helper Function
+// Online Status Helper Function with 3 distinct colors
+// 🟢 Dark Green = Online Now (within 5 minutes)
+// 🟡 Yellow/Amber = Recently Active (5 mins to 24 hours)  
+// ⚪ Gray = Offline (more than 24 hours or no data)
 const getOnlineStatusInfo = (isOnline, lastActive) => {
   if (!lastActive && !isOnline) {
-    return { color: 'bg-gray-400', label: 'Offline', textColor: 'text-gray-500' };
+    return { color: 'bg-gray-400', label: 'Offline', textColor: 'text-gray-500', pulse: false };
   }
   
   const now = new Date();
@@ -95,17 +98,20 @@ const getOnlineStatusInfo = (isOnline, lastActive) => {
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMs / 3600000);
   
-  // Online now (within 5 minutes) - Dark Green
+  // Online now (within 5 minutes) - Dark Green with pulse
   if (isOnline || diffMins < 5) {
     return { color: 'bg-green-600', label: 'Online', textColor: 'text-green-600', pulse: true };
   }
   
-  // Active same day (within 24 hours) - Light Green
+  // Recently Active (5 mins to 24 hours) - Yellow/Amber
   if (diffHours < 24) {
-    return { color: 'bg-green-400', label: `${diffHours}h ago`, textColor: 'text-green-500', pulse: false };
+    if (diffMins < 60) {
+      return { color: 'bg-yellow-500', label: `${diffMins}m ago`, textColor: 'text-yellow-600', pulse: false };
+    }
+    return { color: 'bg-yellow-500', label: `${diffHours}h ago`, textColor: 'text-yellow-600', pulse: false };
   }
   
-  // Older - Grey
+  // Offline (more than 24 hours) - Grey
   const diffDays = Math.floor(diffMs / 86400000);
   return { color: 'bg-gray-400', label: `${diffDays}d ago`, textColor: 'text-gray-500', pulse: false };
 };
@@ -452,20 +458,18 @@ const MatchesPage = ({ user }) => {
                         {match.user.name}, {match.user.age}
                       </h3>
                       
-                      {/* Online Status */}
-                      {match.user.is_online ? (
-                        <div className="flex items-center gap-1 mb-2">
-                          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                          <span className="text-xs text-green-600 font-medium">Online now</span>
-                        </div>
-                      ) : match.user.last_active && (
-                        <div className="flex items-center gap-1 mb-2">
-                          <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                          <span className="text-xs text-gray-500">
-                            {formatLastSeen(match.user.last_active)}
-                          </span>
-                        </div>
-                      )}
+                      {/* Online Status with Color Differentiation */}
+                      {(() => {
+                        const statusInfo = getOnlineStatusInfo(match.user.is_online, match.user.last_active);
+                        return (
+                          <div className="flex items-center gap-1 mb-2">
+                            <div className={`w-2 h-2 ${statusInfo.color} rounded-full ${statusInfo.pulse ? 'animate-pulse' : ''}`}></div>
+                            <span className={`text-xs ${statusInfo.textColor} font-medium`}>
+                              {statusInfo.label}
+                            </span>
+                          </div>
+                        );
+                      })()}
                       
                       {match.compatibility_score && (
                         <div className="flex items-center gap-1 sm:gap-2 mb-2 sm:mb-3">
@@ -623,17 +627,17 @@ const MatchesPage = ({ user }) => {
                     data-testid="active-user-card"
                     className="bg-white rounded-xl sm:rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition-all transform hover:-translate-y-2 relative"
                   >
-                    {/* Online/Active Indicator */}
-                    <div className={`absolute top-2 sm:top-3 md:top-4 left-2 sm:left-3 md:left-4 z-10 ${
-                      activeUser.is_online 
-                        ? 'bg-green-500' 
-                        : 'bg-yellow-500'
-                    } text-white px-2 sm:px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 shadow-lg`}>
-                      <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 bg-white rounded-full ${
-                        activeUser.is_online ? 'animate-pulse' : ''
-                      }`}></span>
-                      {activeUser.is_online ? 'Online Now' : 'Recently Active'}
-                    </div>
+                    {/* Online/Active Indicator with Color Differentiation */}
+                    {(() => {
+                      const statusInfo = getOnlineStatusInfo(activeUser.is_online, activeUser.last_active);
+                      const bgColor = statusInfo.color.replace('bg-', '');
+                      return (
+                        <div className={`absolute top-2 sm:top-3 md:top-4 left-2 sm:left-3 md:left-4 z-10 ${statusInfo.color} text-white px-2 sm:px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 shadow-lg`}>
+                          <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 bg-white rounded-full ${statusInfo.pulse ? 'animate-pulse' : ''}`}></span>
+                          {statusInfo.label}
+                        </div>
+                      );
+                    })()}
 
                     <div className="relative h-48 sm:h-56 md:h-64 bg-gradient-to-br from-green-200 to-emerald-200">
                       {activeUser.profile_picture ? (
@@ -668,10 +672,16 @@ const MatchesPage = ({ user }) => {
                       
                       <p className="text-xs sm:text-sm text-gray-600 mb-2 sm:mb-3 truncate">{activeUser.location}</p>
 
-                      {/* Last Active Time */}
-                      <p className="text-xs text-gray-500 mb-2">
-                        {activeUser.is_online ? '🟢 Online now' : `Active ${formatLastSeen(activeUser.last_active)}`}
-                      </p>
+                      {/* Last Active Time with color indicator */}
+                      {(() => {
+                        const statusInfo = getOnlineStatusInfo(activeUser.is_online, activeUser.last_active);
+                        const emoji = statusInfo.color.includes('green') ? '🟢' : statusInfo.color.includes('yellow') ? '🟡' : '⚪';
+                        return (
+                          <p className={`text-xs ${statusInfo.textColor} mb-2 font-medium`}>
+                            {emoji} {statusInfo.label}
+                          </p>
+                        );
+                      })()}
 
                       {activeUser.bio && (
                         <p className="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4 line-clamp-2">
