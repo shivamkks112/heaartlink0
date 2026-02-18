@@ -484,7 +484,7 @@ const MatchesPage = ({ user }) => {
 
                       <button
                         data-testid="chat-btn"
-                        onClick={() => navigate(`/chat/${match.match_id}`)}
+                        onClick={() => handleChatClick(match.match_id)}
                         className="w-full bg-gradient-to-r from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600 text-white py-2 sm:py-2.5 md:py-3 rounded-lg sm:rounded-xl font-semibold text-sm sm:text-base flex items-center justify-center gap-1 sm:gap-2 transition-all"
                       >
                         <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5" />
