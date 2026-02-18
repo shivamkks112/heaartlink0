@@ -50,6 +50,36 @@ const ChatPage = ({ user }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // Online Status Helper Function for Chat Header
+  const getOnlineStatusInfo = (isOnline, lastActive) => {
+    if (!lastActive && !isOnline) {
+      return { color: 'bg-gray-400', label: 'Offline', textColor: 'text-white/60', pulse: false };
+    }
+    
+    const now = new Date();
+    const lastSeenDate = new Date(lastActive);
+    const diffMs = now - lastSeenDate;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    
+    // Online now (within 5 minutes) - Green with pulse
+    if (isOnline || diffMins < 5) {
+      return { color: 'bg-green-400', label: 'Online', textColor: 'text-green-300', pulse: true };
+    }
+    
+    // Recently Active (5 mins to 24 hours) - Yellow
+    if (diffHours < 24) {
+      if (diffMins < 60) {
+        return { color: 'bg-yellow-400', label: `${diffMins}m ago`, textColor: 'text-yellow-300', pulse: false };
+      }
+      return { color: 'bg-yellow-400', label: `${diffHours}h ago`, textColor: 'text-yellow-300', pulse: false };
+    }
+    
+    // Offline (more than 24 hours) - Grey
+    const diffDays = Math.floor(diffMs / 86400000);
+    return { color: 'bg-gray-400', label: `${diffDays}d ago`, textColor: 'text-white/60', pulse: false };
+  };
+
   const formatLastSeen = (lastActive) => {
     if (!lastActive) return 'recently';
     
@@ -314,24 +344,28 @@ const ChatPage = ({ user }) => {
                       <span className="text-sm">{otherUser.name.charAt(0)}</span>
                     )}
                   </div>
-                  {/* Online Status Indicator */}
-                  <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-400 border-2 border-white rounded-full"></div>
+                  {/* Online Status Indicator with Color */}
+                  {(() => {
+                    const statusInfo = getOnlineStatusInfo(otherUser.is_online, otherUser.last_active);
+                    return (
+                      <div className={`absolute bottom-0 right-0 w-2.5 h-2.5 ${statusInfo.color} border-2 border-white rounded-full ${statusInfo.pulse ? 'animate-pulse' : ''}`}></div>
+                    );
+                  })()}
                 </div>
                 <div className="text-left min-w-0 flex-1">
                   <h1 className="text-sm font-bold text-white truncate">
                     {otherUser.name}
                   </h1>
                   <div className="flex items-center gap-1.5">
-                    {otherUser.is_online ? (
-                      <span className="text-xs text-green-300 flex items-center gap-1">
-                        <div className="w-1.5 h-1.5 bg-green-300 rounded-full animate-pulse"></div>
-                        <span className="truncate">Online</span>
-                      </span>
-                    ) : otherUser.last_active ? (
-                      <span className="text-xs text-white/70 truncate">
-                        {formatLastSeen(otherUser.last_active)}
-                      </span>
-                    ) : null}
+                    {(() => {
+                      const statusInfo = getOnlineStatusInfo(otherUser.is_online, otherUser.last_active);
+                      return (
+                        <span className={`text-xs ${statusInfo.textColor} flex items-center gap-1`}>
+                          <div className={`w-1.5 h-1.5 ${statusInfo.color} rounded-full ${statusInfo.pulse ? 'animate-pulse' : ''}`}></div>
+                          <span className="truncate">{statusInfo.label}</span>
+                        </span>
+                      );
+                    })()}
                     {otherUser.verified && (
                       <svg className="w-3 h-3 text-white/80 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
