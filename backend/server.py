@@ -2436,16 +2436,22 @@ async def get_active_users(user_id: str, limit: int = 20):
         matched_ids.add(m["user1_id"])
         matched_ids.add(m["user2_id"])
     
-    # Find active users (users created/updated recently)
-    # You can add last_active field in future
+    # Calculate time threshold for "active" (last 24 hours)
+    active_threshold = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+    
+    # Find active users (users active in last 24 hours)
     query = {
         "id": {"$ne": user_id, "$nin": blocked_users + blocker_ids + list(matched_ids)},
         "gender": current_user["looking_for"],
         "looking_for": current_user["gender"],
-        "privacy_settings.show_profile": True
+        "privacy_settings.show_profile": True,
+        "last_active": {"$gte": active_threshold}
     }
     
-    users = await db.users.find(query).sort("created_at", -1).limit(limit).to_list(None)
+    users = await db.users.find(query).sort("last_active", -1).limit(limit).to_list(None)
+    
+    # Calculate if user is online (active in last 5 minutes)
+    five_min_ago = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
     
     return [{
         "id": u["id"],
@@ -2456,7 +2462,9 @@ async def get_active_users(user_id: str, limit: int = 20):
         "profile_picture": u.get("profile_picture"),
         "interests": u.get("interests", []),
         "verified": u.get("verified", False),
-        "location": u.get("location", "")
+        "location": u.get("location", ""),
+        "last_active": u.get("last_active"),
+        "is_online": u.get("last_active", "") >= five_min_ago if u.get("last_active") else False
     } for u in users]
 
 # Chat Routes
