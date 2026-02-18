@@ -483,7 +483,7 @@ const MatchesPage = ({ user }) => {
                 <div className="bg-white rounded-3xl p-12 shadow-xl inline-block">
                   <Users className="w-20 h-20 text-gray-300 mx-auto mb-4" />
                   <h2 className="text-2xl font-bold text-gray-800 mb-2">No Active Users</h2>
-                  <p className="text-gray-600 mb-6">Check back later for active users!</p>
+                  <p className="text-gray-600 mb-6">No users active in the last 24 hours. Check back later!</p>
                 </div>
               </div>
             ) : (
@@ -494,10 +494,16 @@ const MatchesPage = ({ user }) => {
                     data-testid="active-user-card"
                     className="bg-white rounded-xl sm:rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition-all transform hover:-translate-y-2 relative"
                   >
-                    {/* Online Indicator */}
-                    <div className="absolute top-2 sm:top-3 md:top-4 left-2 sm:left-3 md:left-4 z-10 bg-green-500 text-white px-2 sm:px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 shadow-lg">
-                      <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-white rounded-full animate-pulse"></span>
-                      Online
+                    {/* Online/Active Indicator */}
+                    <div className={`absolute top-2 sm:top-3 md:top-4 left-2 sm:left-3 md:left-4 z-10 ${
+                      activeUser.is_online 
+                        ? 'bg-green-500' 
+                        : 'bg-yellow-500'
+                    } text-white px-2 sm:px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 shadow-lg`}>
+                      <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 bg-white rounded-full ${
+                        activeUser.is_online ? 'animate-pulse' : ''
+                      }`}></span>
+                      {activeUser.is_online ? 'Online Now' : 'Recently Active'}
                     </div>
 
                     <div className="relative h-48 sm:h-56 md:h-64 bg-gradient-to-br from-green-200 to-emerald-200">
@@ -532,6 +538,11 @@ const MatchesPage = ({ user }) => {
                       </h3>
                       
                       <p className="text-xs sm:text-sm text-gray-600 mb-2 sm:mb-3 truncate">{activeUser.location}</p>
+
+                      {/* Last Active Time */}
+                      <p className="text-xs text-gray-500 mb-2">
+                        {activeUser.is_online ? '🟢 Online now' : `Active ${formatLastSeen(activeUser.last_active)}`}
+                      </p>
 
                       {activeUser.bio && (
                         <p className="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4 line-clamp-2">
