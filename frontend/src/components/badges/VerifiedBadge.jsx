@@ -133,7 +133,22 @@ export const OnlineStatus = ({ isOnline, lastActive, size = 'md', showText = tru
     return { text: 'recently', isRecent: false };
   };
 
-  if (isOnline) {
+  // Calculate if truly online based on lastActive (within 5 minutes)
+  const isActuallyOnline = () => {
+    if (isOnline === true) return true;
+    if (!lastActive) return false;
+    
+    const now = new Date();
+    const lastSeenDate = new Date(lastActive);
+    const diffMs = now - lastSeenDate;
+    const diffMins = Math.floor(diffMs / 60000);
+    
+    return diffMins < 5; // Online if active within 5 minutes
+  };
+
+  const actuallyOnline = isActuallyOnline();
+
+  if (actuallyOnline) {
     return (
       <div className="flex items-center gap-2">
         <div className="relative">
@@ -147,15 +162,11 @@ export const OnlineStatus = ({ isOnline, lastActive, size = 'md', showText = tru
 
   const lastSeenInfo = formatLastSeen(lastActive);
   
-  // Green color for recent activity (just now or within 5 mins)
-  const dotColor = lastSeenInfo.isRecent ? 'bg-green-500' : 'bg-gray-400';
-  const textColor = lastSeenInfo.isRecent ? 'text-green-600 font-medium' : 'text-gray-500';
-
   return (
     <div className="flex items-center gap-2">
-      <div className={`${dot} ${dotColor} rounded-full`}></div>
+      <div className={`${dot} bg-gray-400 rounded-full`}></div>
       {showText && (
-        <span className={`${text} ${textColor}`}>
+        <span className={`${text} text-gray-500`}>
           Active {lastSeenInfo.text}
         </span>
       )}
