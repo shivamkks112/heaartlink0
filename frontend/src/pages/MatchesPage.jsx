@@ -704,6 +704,13 @@ const MatchesPage = ({ user }) => {
           </>
         )}
       </div>
+      
+      {/* Safety Message Modal */}
+      <SafetyMessageModal 
+        isOpen={showSafetyModal} 
+        onClose={() => setShowSafetyModal(false)} 
+        onProceed={handleSafetyProceed} 
+      />
     </div>
   );
 };
