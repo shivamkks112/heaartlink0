@@ -5,6 +5,33 @@ Build a modern, safe, trust-based dating app for Android called "HeartLink" for 
 
 ## Latest Update (February 2025)
 
+### Online Status Color Differentiation & Safety Popup ✅ (Feb 24, 2025)
+
+**Features Implemented:**
+
+1. **Online Status Color Differentiation** 
+   - 🟢 **Dark Green (bg-green-600)** = Online Now (within 5 minutes) with pulse animation
+   - 🟡 **Yellow (bg-yellow-500)** = Recently Active (5 minutes to 24 hours)
+   - ⚪ **Gray (bg-gray-400)** = Offline (more than 24 hours or no data)
+   - Applied across all pages: Matches tab, Messages tab, Active tab, Chat header
+
+2. **Safety Message Popup**
+   - Modal appears when user clicks "Chat" button for first time
+   - Shows 3 safety tips:
+     - Never share personal info (phone, address, financial details)
+     - Meet in public places for first dates
+     - Report suspicious behavior immediately
+   - Uses localStorage `heartlink_safety_message_seen` to show only once
+   - "I Understand, Continue" button proceeds to chat
+
+**Files Updated:**
+- `/app/frontend/src/pages/MatchesPage.jsx` - Added `SafetyMessageModal` component, `getOnlineStatusInfo()` function, color-coded indicators in all tabs
+- `/app/frontend/src/pages/ChatPage.jsx` - Added online status color differentiation in chat header
+
+**Testing Status:** ✅ Verified with testing agent and screenshots
+
+---
+
 ### Three UI/UX Issues Fixed ✅ (Feb 10, 2025)
 
 **Issues Resolved:**
