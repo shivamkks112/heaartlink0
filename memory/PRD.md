@@ -397,24 +397,34 @@ Build a modern, safe, trust-based dating app for Android called "HeartLink" for 
 
 ## Upcoming Tasks
 
+### P0 - Critical (Blocked)
+- [ ] **Android Notification Click Navigation** - Notification clicks redirect to discover page instead of correct destination
+  - **Root Cause:** Production frontend at heartlink.co.in has outdated code
+  - **Solution:** Deploy updated frontend code from /app/frontend to heartlink.co.in
+
 ### P0 - High Priority
+- [ ] AI girl chatbot to interact with users
+- [ ] Referral system ("Invite a friend, get rewards")
 - [ ] Razorpay/Stripe payment integration for subscriptions
-- [ ] Screenshot detection native implementation
-- [ ] AI Trust Score algorithm
 
 ### P1 - Medium Priority
+- [ ] Message read count not decreasing after reading (needs debugging)
+- [ ] AI-based photo verification
+- [ ] Screenshot detection and alert feature
 - [ ] Chat without match functionality
 - [ ] Typing indicators and read receipts
-- [ ] Native Android app build with AdMob
 
 ### P2 - Lower Priority
+- [ ] AI Trust Score algorithm
 - [ ] Advanced reporting system
-- [ ] AI-based photo verification
 - [ ] Redis caching for scalability
+- [ ] Refactor server.py into smaller modules
 
 ## Test Credentials
 - Admin Email: shivamkks112@gmail.com
 - Admin Password: Test@123
+- Test User 1: femaletest@heartlink.com / Test@123
+- Test User 2: demotest@heartlink.com / Test@123 (may not exist)
 
 ## Files Modified/Created (This Session)
 - `/app/frontend/src/services/adMobService.js` - NEW
