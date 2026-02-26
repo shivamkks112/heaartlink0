@@ -206,6 +206,12 @@ discover_cache = TTLCache(maxsize=500, ttl=60)
 online_status_cache = TTLCache(maxsize=2000, ttl=30)
 # Cache for likes count (2 min TTL)
 likes_cache = TTLCache(maxsize=1000, ttl=120)
+# Cache for matches (2 min TTL) - NEW
+matches_cache = TTLCache(maxsize=500, ttl=120)
+# Cache for conversations (1 min TTL) - NEW
+conversations_cache = TTLCache(maxsize=500, ttl=60)
+# Cache for admin stats (5 min TTL) - NEW
+admin_stats_cache = TTLCache(maxsize=10, ttl=300)
 
 def get_cached_user(user_id: str):
     """Get user from cache"""
