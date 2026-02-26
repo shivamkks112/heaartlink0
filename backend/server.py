@@ -1,5 +1,6 @@
 from fastapi import FastAPI, APIRouter, WebSocket, WebSocketDisconnect, HTTPException, UploadFile, File, Form, Request, Depends
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, ORJSONResponse
+from fastapi.middleware.gzip import GZipMiddleware
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -15,6 +16,7 @@ import hashlib
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 import json
 import asyncio
+import orjson  # Fast JSON serialization
 
 # Load environment variables FIRST before importing firebase_config
 ROOT_DIR = Path(__file__).parent
