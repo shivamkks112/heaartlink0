@@ -1,0 +1,47 @@
+# HeartLink Dating App - Robots.txt
+# https://heartlink.co.in
+
+User-agent: *
+Allow: /
+Allow: /privacy
+Allow: /terms
+Allow: /about
+Allow: /contact
+Allow: /download
+
+# Disallow private/auth pages
+Disallow: /chat/
+Disallow: /profile/
+Disallow: /matches
+Disallow: /likes
+Disallow: /discover
+Disallow: /settings
+Disallow: /admin/
+Disallow: /api/
+
+# Allow crawling of public assets
+Allow: /icon-*.png
+Allow: /screenshot-*.png
+Allow: /og-image.png
+
+# Sitemap
+Sitemap: https://heartlink.co.in/sitemap.xml
+
+# Crawl-delay for polite crawling
+Crawl-delay: 1
+
+# Specific bot rules
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: Twitterbot
+Allow: /
+
+User-agent: LinkedInBot
+Allow: /
