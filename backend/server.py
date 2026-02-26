@@ -152,8 +152,16 @@ client = AsyncIOMotorClient(
 )
 db = client[os.environ.get('DB_NAME', 'dating_app_db')]
 
-# Create the main app with rate limiting
-app = FastAPI(title="HeartLink API", description="Secure Dating App API")
+# Create the main app with rate limiting and performance optimizations
+app = FastAPI(
+    title="HeartLink API", 
+    description="Secure Dating App API",
+    default_response_class=ORJSONResponse  # Faster JSON serialization
+)
+
+# Add GZip compression for all responses > 500 bytes
+app.add_middleware(GZipMiddleware, minimum_size=500)
+
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
