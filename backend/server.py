@@ -2288,7 +2288,13 @@ async def user_action(user_id: str, action: LikeAction):
 # Matches Routes
 @api_router.get("/matches/{user_id}")
 async def get_matches(user_id: str):
-    """Get user matches - OPTIMIZED with batch queries"""
+    """Get user matches - OPTIMIZED with caching and batch queries"""
+    # Check cache first
+    cache_key = f"matches_{user_id}"
+    cached = matches_cache.get(cache_key)
+    if cached:
+        return cached
+    
     # Get current user blocked list only
     current_user = await db.users.find_one(
         {"id": user_id},
@@ -2374,6 +2380,8 @@ async def get_matches(user_id: str):
             "created_at": match.get("created_at")
         })
     
+    # Cache result
+    matches_cache[cache_key] = result
     return result
 
 @api_router.get("/likes/{user_id}")
