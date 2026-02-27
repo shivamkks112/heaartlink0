@@ -240,19 +240,39 @@ async def create_indexes():
         # Users collection indexes
         await db.users.create_index("id", unique=True, background=True)
         # UNIQUE indexes for email and phone to prevent duplicates at DB level
-        await db.users.create_index(
-            "email", 
-            unique=True, 
-            sparse=True,  # Allow multiple null values
-            background=True,
-            collation={"locale": "en", "strength": 2}  # Case-insensitive
-        )
-        await db.users.create_index(
-            "phone", 
-            unique=True, 
-            sparse=True,  # Allow multiple null values
-            background=True
-        )
+        # Use try-except to handle existing indexes
+        try:
+            await db.users.drop_index("email_1")
+        except:
+            pass
+        try:
+            await db.users.create_index(
+                "email", 
+                unique=True, 
+                sparse=True,  # Allow multiple null values
+                background=True,
+                name="email_unique"
+            )
+        except Exception as e:
+            if "already exists" not in str(e):
+                logging.warning(f"Email index: {e}")
+        
+        try:
+            await db.users.drop_index("phone_1")
+        except:
+            pass
+        try:
+            await db.users.create_index(
+                "phone", 
+                unique=True, 
+                sparse=True,  # Allow multiple null values
+                background=True,
+                name="phone_unique"
+            )
+        except Exception as e:
+            if "already exists" not in str(e):
+                logging.warning(f"Phone index: {e}")
+        
         await db.users.create_index("gender", background=True)
         await db.users.create_index("looking_for", background=True)
         await db.users.create_index("location", background=True)
