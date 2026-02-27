@@ -974,15 +974,25 @@ async def phone_signup(data: PhoneSignup):
     """
     Phone signup - for users who verified via OTP
     """
-    # Normalize phone
-    phone = data.phone
+    # Normalize phone - comprehensive normalization
+    phone = data.phone.strip().replace(" ", "").replace("-", "")
     if not phone.startswith('+'):
-        phone = '+' + phone
+        if phone.startswith('91'):
+            phone = '+' + phone
+        else:
+            phone = '+91' + phone.lstrip('0')
     
-    # Check if user already exists
+    # Extract just the digits for matching
+    phone_digits = phone.replace('+', '').replace('91', '', 1) if phone.startswith('+91') else phone.replace('+', '')
+    
+    # Check if user already exists - check all phone variations
     existing = await db.users.find_one({
         "$or": [
             {"phone": phone},
+            {"phone": phone_digits},
+            {"phone": "+91" + phone_digits},
+            {"phone": "91" + phone_digits},
+            {"phone": {"$regex": phone_digits + "$"}},
             {"firebase_uid": data.firebase_uid}
         ]
     })
