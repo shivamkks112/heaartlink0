@@ -751,16 +751,37 @@ async def signup(request: Request, user_data: UserSignup):
     sanitized_name = sanitize_string(user_data.name, max_length=100)
     sanitized_bio = sanitize_string(user_data.bio, max_length=500) if user_data.bio else ""
     
-    # Check if user exists
+    # Check if user exists - CASE INSENSITIVE for email, NORMALIZED for phone
     if user_data.email:
-        existing = await db.users.find_one({"email": user_data.email})
+        email_lower = user_data.email.lower().strip()
+        existing = await db.users.find_one({
+            "$or": [
+                {"email": email_lower},
+                {"email": {"$regex": f"^{email_lower}$", "$options": "i"}}
+            ]
+        })
         if existing:
             raise HTTPException(status_code=400, detail="Email already registered")
     
     if user_data.phone:
-        existing = await db.users.find_one({"phone": user_data.phone})
+        # Normalize phone - remove spaces, dashes, and ensure +91 format
+        phone_normalized = user_data.phone.strip().replace(" ", "").replace("-", "")
+        if not phone_normalized.startswith('+'):
+            phone_normalized = '+91' + phone_normalized.lstrip('0')
+        
+        # Check all variations of this phone
+        phone_digits = phone_normalized.replace('+', '').replace('91', '', 1) if phone_normalized.startswith('+91') else phone_normalized
+        existing = await db.users.find_one({
+            "$or": [
+                {"phone": phone_normalized},
+                {"phone": phone_digits},
+                {"phone": "+91" + phone_digits},
+                {"phone": "91" + phone_digits},
+                {"phone": {"$regex": phone_digits + "$"}}
+            ]
+        })
         if existing:
-            raise HTTPException(status_code=400, detail="Phone already registered")
+            raise HTTPException(status_code=400, detail="Phone number already registered")
     
     try:
         # Create user dict from signup data
