@@ -239,8 +239,20 @@ async def create_indexes():
     try:
         # Users collection indexes
         await db.users.create_index("id", unique=True, background=True)
-        await db.users.create_index("email", sparse=True, background=True)
-        await db.users.create_index("phone", sparse=True, background=True)
+        # UNIQUE indexes for email and phone to prevent duplicates at DB level
+        await db.users.create_index(
+            "email", 
+            unique=True, 
+            sparse=True,  # Allow multiple null values
+            background=True,
+            collation={"locale": "en", "strength": 2}  # Case-insensitive
+        )
+        await db.users.create_index(
+            "phone", 
+            unique=True, 
+            sparse=True,  # Allow multiple null values
+            background=True
+        )
         await db.users.create_index("gender", background=True)
         await db.users.create_index("looking_for", background=True)
         await db.users.create_index("location", background=True)
