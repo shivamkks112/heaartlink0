@@ -843,6 +843,17 @@ async def signup(request: Request, user_data: UserSignup):
         if not created_user:
             raise HTTPException(status_code=500, detail="User created but not found")
         
+        # Send notification - Profile pending approval
+        try:
+            await send_user_notification(
+                user_id=user.id,
+                title="Welcome to HeartLink! 🎉",
+                message="Your profile is being reviewed by our team. You'll be notified once approved. This usually takes 24-48 hours.",
+                notification_type="profile_pending"
+            )
+        except Exception as notif_error:
+            logger.warning(f"Failed to send signup notification: {notif_error}")
+        
         # Create JWT tokens for immediate login
         token_data = {"user_id": user.id, "email": user_data.email}
         access_token = create_access_token(token_data)
