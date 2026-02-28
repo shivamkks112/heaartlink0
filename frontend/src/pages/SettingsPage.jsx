@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { ArrowLeft, UserX, BellOff } from 'lucide-react';
+import { ArrowLeft, UserX, BellOff, Mail, Phone, Link2, CheckCircle, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -15,11 +15,20 @@ import {
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || import.meta.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
-const SettingsPage = ({ user }) => {
+const SettingsPage = ({ user, setUser }) => {
   const navigate = useNavigate();
   const [blockedUsers, setBlockedUsers] = useState([]);
   const [mutedUsers, setMutedUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [userData, setUserData] = useState(null);
+  
+  // Linking states
+  const [showLinkEmail, setShowLinkEmail] = useState(false);
+  const [showLinkPhone, setShowLinkPhone] = useState(false);
+  const [linkEmail, setLinkEmail] = useState('');
+  const [linkPassword, setLinkPassword] = useState('');
+  const [linkPhone, setLinkPhone] = useState('');
+  const [linkingLoading, setLinkingLoading] = useState(false);
 
   useEffect(() => {
     fetchUserSettings();
