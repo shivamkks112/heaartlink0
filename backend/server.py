@@ -1464,7 +1464,8 @@ async def get_profile(user_id: str):
 @api_router.put("/profile/{user_id}")
 async def update_profile(user_id: str, updates: dict):
     """Update user profile - OPTIMIZED"""
-    # Remove sensitive/locked fields that should NEVER be changed
+    # Remove sensitive/locked fields that should NEVER be changed directly
+    # Email and phone can only be updated via dedicated link endpoints
     locked_fields = ["password_hash", "id", "_id", "name", "gender", "email", "phone", "firebase_uid", "created_at"]
     for field in locked_fields:
         updates.pop(field, None)
@@ -1494,6 +1495,245 @@ async def update_profile(user_id: str, updates: dict):
     clean_user = clean_user_data(user)
     set_cached_user(user_id, clean_user)
     return clean_user
+
+
+# ==================== EMAIL/PHONE LINKING ====================
+
+class LinkEmailRequest(BaseModel):
+    email: str
+    password: str  # Required to verify ownership
+
+class LinkPhoneRequest(BaseModel):
+    phone: str
+    otp_verified: bool = False  # Should be verified via Firebase OTP
+
+@api_router.post("/profile/{user_id}/link-email")
+async def link_email_to_profile(user_id: str, data: LinkEmailRequest):
+    """
+    Link email to existing account (for phone-signup users)
+    - Validates email format
+    - Checks if email already used by another account
+    - If email exists with different account, offers to merge
+    """
+    # Validate email
+    if not validate_email(data.email):
+        raise HTTPException(status_code=400, detail="Invalid email format")
+    
+    email_lower = data.email.lower().strip()
+    
+    # Get current user
+    current_user = await db.users.find_one({"id": user_id})
+    if not current_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Check if user already has email
+    if current_user.get("email"):
+        raise HTTPException(status_code=400, detail="Account already has an email linked")
+    
+    # Check if email exists with another account
+    existing_email_user = await db.users.find_one({
+        "email": {"$regex": f"^{email_lower}$", "$options": "i"},
+        "id": {"$ne": user_id}
+    })
+    
+    if existing_email_user:
+        # Email exists - check if that account has no phone (can merge)
+        if not existing_email_user.get("phone") and current_user.get("phone"):
+            # Merge: Transfer email account data to phone account
+            return {
+                "status": "merge_available",
+                "message": "This email is linked to another account. Would you like to merge accounts?",
+                "existing_user_id": existing_email_user.get("id"),
+                "action": "call /profile/{user_id}/merge-accounts to merge"
+            }
+        else:
+            raise HTTPException(status_code=400, detail="Email already registered with another account")
+    
+    # Validate password strength
+    is_strong, message = validate_password_strength(data.password)
+    if not is_strong:
+        raise HTTPException(status_code=400, detail=message)
+    
+    # Link email to account
+    password_hash = hash_password_secure(data.password)
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {
+            "email": email_lower,
+            "password_hash": password_hash,
+            "email_linked_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    # Invalidate cache
+    invalidate_user_cache(user_id)
+    
+    return {
+        "status": "success",
+        "message": "Email linked successfully! You can now login with email and password."
+    }
+
+
+@api_router.post("/profile/{user_id}/link-phone")
+async def link_phone_to_profile(user_id: str, data: LinkPhoneRequest):
+    """
+    Link phone to existing account (for email-signup users)
+    - Normalizes phone number
+    - Checks if phone already used by another account
+    - If phone exists with different account, offers to merge
+    """
+    # Normalize phone
+    phone = data.phone.strip().replace(" ", "").replace("-", "")
+    if not phone.startswith('+'):
+        if phone.startswith('91'):
+            phone = '+' + phone
+        else:
+            phone = '+91' + phone.lstrip('0')
+    
+    # Validate phone
+    if not validate_phone(phone):
+        raise HTTPException(status_code=400, detail="Invalid phone format")
+    
+    # Get current user
+    current_user = await db.users.find_one({"id": user_id})
+    if not current_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Check if user already has phone
+    if current_user.get("phone"):
+        raise HTTPException(status_code=400, detail="Account already has a phone linked")
+    
+    # Check all phone variations
+    phone_digits = phone.replace('+', '').replace('91', '', 1) if phone.startswith('+91') else phone
+    existing_phone_user = await db.users.find_one({
+        "$or": [
+            {"phone": phone},
+            {"phone": phone_digits},
+            {"phone": "+91" + phone_digits},
+            {"phone": {"$regex": phone_digits + "$"}}
+        ],
+        "id": {"$ne": user_id}
+    })
+    
+    if existing_phone_user:
+        # Phone exists - check if that account has no email (can merge)
+        if not existing_phone_user.get("email") and current_user.get("email"):
+            return {
+                "status": "merge_available",
+                "message": "This phone is linked to another account. Would you like to merge accounts?",
+                "existing_user_id": existing_phone_user.get("id"),
+                "action": "call /profile/{user_id}/merge-accounts to merge"
+            }
+        else:
+            raise HTTPException(status_code=400, detail="Phone already registered with another account")
+    
+    # Link phone to account
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {
+            "phone": phone,
+            "phone_linked_at": datetime.now(timezone.utc).isoformat(),
+            "phone_verified": data.otp_verified
+        }}
+    )
+    
+    # Invalidate cache
+    invalidate_user_cache(user_id)
+    
+    return {
+        "status": "success",
+        "message": "Phone linked successfully!"
+    }
+
+
+class MergeAccountsRequest(BaseModel):
+    source_user_id: str  # Account to merge FROM (will be deleted)
+    password: Optional[str] = None  # Password of source account if email-based
+
+@api_router.post("/profile/{user_id}/merge-accounts")
+async def merge_accounts(user_id: str, data: MergeAccountsRequest):
+    """
+    Merge two accounts into one
+    - Keeps the current user (user_id) as primary
+    - Transfers email/phone from source account
+    - Transfers matches, messages, likes to primary account
+    - Deletes source account
+    """
+    # Get both users
+    primary_user = await db.users.find_one({"id": user_id})
+    source_user = await db.users.find_one({"id": data.source_user_id})
+    
+    if not primary_user:
+        raise HTTPException(status_code=404, detail="Primary account not found")
+    if not source_user:
+        raise HTTPException(status_code=404, detail="Source account not found")
+    
+    # Verify ownership - if source has password, verify it
+    if source_user.get("password_hash") and source_user.get("email"):
+        if not data.password:
+            raise HTTPException(status_code=400, detail="Password required to merge email account")
+        if not verify_password_secure(data.password, source_user["password_hash"]):
+            raise HTTPException(status_code=401, detail="Invalid password for source account")
+    
+    # Determine what to merge
+    merge_updates = {}
+    
+    # Transfer email if primary doesn't have one
+    if not primary_user.get("email") and source_user.get("email"):
+        merge_updates["email"] = source_user["email"]
+        merge_updates["password_hash"] = source_user.get("password_hash")
+    
+    # Transfer phone if primary doesn't have one
+    if not primary_user.get("phone") and source_user.get("phone"):
+        merge_updates["phone"] = source_user["phone"]
+        merge_updates["phone_verified"] = source_user.get("phone_verified", False)
+    
+    # Transfer firebase_uid if needed
+    if not primary_user.get("firebase_uid") and source_user.get("firebase_uid"):
+        merge_updates["firebase_uid"] = source_user["firebase_uid"]
+    
+    if not merge_updates:
+        raise HTTPException(status_code=400, detail="Nothing to merge - both accounts have same credentials")
+    
+    merge_updates["merged_from"] = data.source_user_id
+    merge_updates["merged_at"] = datetime.now(timezone.utc).isoformat()
+    
+    # Update primary account
+    await db.users.update_one({"id": user_id}, {"$set": merge_updates})
+    
+    # Transfer matches
+    await db.matches.update_many(
+        {"user1_id": data.source_user_id},
+        {"$set": {"user1_id": user_id}}
+    )
+    await db.matches.update_many(
+        {"user2_id": data.source_user_id},
+        {"$set": {"user2_id": user_id}}
+    )
+    
+    # Transfer messages
+    await db.messages.update_many(
+        {"sender_id": data.source_user_id},
+        {"$set": {"sender_id": user_id}}
+    )
+    await db.messages.update_many(
+        {"receiver_id": data.source_user_id},
+        {"$set": {"receiver_id": user_id}}
+    )
+    
+    # Delete source account
+    await db.users.delete_one({"id": data.source_user_id})
+    
+    # Invalidate caches
+    invalidate_user_cache(user_id)
+    invalidate_user_cache(data.source_user_id)
+    
+    return {
+        "status": "success",
+        "message": "Accounts merged successfully!",
+        "merged_fields": list(merge_updates.keys())
+    }
+
 
 @api_router.get("/profile/{user_id}/stats")
 async def get_user_stats(user_id: str):
