@@ -198,6 +198,149 @@ const SettingsPage = ({ user, setUser }) => {
 
       {/* Content */}
       <div className="p-4 space-y-4">
+        {/* Account Linking Section */}
+        <div className="bg-white rounded-xl p-4 shadow-sm">
+          <h2 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+            <Link2 className="w-5 h-5 text-pink-600" />
+            Account Linking
+          </h2>
+          <p className="text-sm text-gray-500 mb-4">
+            Link your email and phone to secure your account and enable multiple login methods.
+          </p>
+          
+          {/* Email Status */}
+          <div className="p-3 bg-gradient-to-r from-pink-50 to-orange-50 rounded-lg mb-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Mail className="w-5 h-5 text-pink-600" />
+                <div>
+                  <p className="font-semibold text-gray-900">Email</p>
+                  {userData?.email ? (
+                    <p className="text-sm text-green-600 flex items-center gap-1">
+                      <CheckCircle className="w-3 h-3" /> {userData.email}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-orange-600 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" /> Not linked
+                    </p>
+                  )}
+                </div>
+              </div>
+              {!userData?.email && (
+                <Button
+                  onClick={() => setShowLinkEmail(!showLinkEmail)}
+                  size="sm"
+                  className="bg-pink-500 hover:bg-pink-600 text-white"
+                >
+                  Link Email
+                </Button>
+              )}
+            </div>
+            
+            {/* Link Email Form */}
+            {showLinkEmail && !userData?.email && (
+              <div className="mt-4 space-y-3 border-t border-pink-200 pt-4">
+                <input
+                  type="email"
+                  placeholder="Enter your email"
+                  value={linkEmail}
+                  onChange={(e) => setLinkEmail(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                />
+                <input
+                  type="password"
+                  placeholder="Create a password"
+                  value={linkPassword}
+                  onChange={(e) => setLinkPassword(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                />
+                <p className="text-xs text-gray-500">
+                  Password: min 8 chars, 1 uppercase, 1 number, 1 special char
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleLinkEmail}
+                    disabled={linkingLoading}
+                    className="flex-1 bg-green-500 hover:bg-green-600 text-white"
+                  >
+                    {linkingLoading ? 'Linking...' : 'Confirm Link'}
+                  </Button>
+                  <Button
+                    onClick={() => {setShowLinkEmail(false); setLinkEmail(''); setLinkPassword('');}}
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {/* Phone Status */}
+          <div className="p-3 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Phone className="w-5 h-5 text-blue-600" />
+                <div>
+                  <p className="font-semibold text-gray-900">Phone</p>
+                  {userData?.phone ? (
+                    <p className="text-sm text-green-600 flex items-center gap-1">
+                      <CheckCircle className="w-3 h-3" /> {userData.phone}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-orange-600 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" /> Not linked
+                    </p>
+                  )}
+                </div>
+              </div>
+              {!userData?.phone && (
+                <Button
+                  onClick={() => setShowLinkPhone(!showLinkPhone)}
+                  size="sm"
+                  className="bg-blue-500 hover:bg-blue-600 text-white"
+                >
+                  Link Phone
+                </Button>
+              )}
+            </div>
+            
+            {/* Link Phone Form */}
+            {showLinkPhone && !userData?.phone && (
+              <div className="mt-4 space-y-3 border-t border-blue-200 pt-4">
+                <div className="flex gap-2">
+                  <span className="px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg text-gray-600">+91</span>
+                  <input
+                    type="tel"
+                    placeholder="Enter phone number"
+                    value={linkPhone}
+                    onChange={(e) => setLinkPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    maxLength={10}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleLinkPhone}
+                    disabled={linkingLoading || linkPhone.length !== 10}
+                    className="flex-1 bg-green-500 hover:bg-green-600 text-white"
+                  >
+                    {linkingLoading ? 'Linking...' : 'Confirm Link'}
+                  </Button>
+                  <Button
+                    onClick={() => {setShowLinkPhone(false); setLinkPhone('');}}
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Privacy Options */}
         <div className="bg-white rounded-xl p-4 shadow-sm">
           <h2 className="text-lg font-bold text-gray-900 mb-3">Privacy Options</h2>
