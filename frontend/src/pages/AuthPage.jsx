@@ -43,6 +43,50 @@ const AuthPage = ({ onLogin }) => {
     ageVerified: false
   });
 
+  // Profile picture state for signup
+  const [profilePicture, setProfilePicture] = useState(null);
+  const [profilePicturePreview, setProfilePicturePreview] = useState('');
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const fileInputRef = useRef(null);
+
+  // Handle profile picture selection
+  const handlePhotoSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+    
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image size should be less than 5MB');
+      return;
+    }
+    
+    setProfilePicture(file);
+    setProfilePicturePreview(URL.createObjectURL(file));
+  };
+
+  // Upload photo to Firebase
+  const uploadProfilePicture = async (userId) => {
+    if (!profilePicture) return null;
+    
+    try {
+      setUploadingPhoto(true);
+      const storage = getStorage();
+      const storageRef = ref(storage, `profile_pictures/${userId}/${Date.now()}_${profilePicture.name}`);
+      await uploadBytes(storageRef, profilePicture);
+      const downloadURL = await getDownloadURL(storageRef);
+      return downloadURL;
+    } catch (error) {
+      console.error('Photo upload error:', error);
+      throw error;
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
   // Countdown timer for OTP resend
   useEffect(() => {
     if (countdown > 0) {
