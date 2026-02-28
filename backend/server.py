@@ -1070,6 +1070,17 @@ async def phone_signup(data: PhoneSignup):
     created_user = await db.users.find_one({"id": user_id})
     clean_user = serialize_user_for_response(created_user, exclude_password=True)
     
+    # Send notification - Profile pending approval
+    try:
+        await send_user_notification(
+            user_id=user_id,
+            title="Welcome to HeartLink! 🎉",
+            message="Your profile is being reviewed by our team. You'll be notified once approved. This usually takes 24-48 hours.",
+            notification_type="profile_pending"
+        )
+    except Exception as notif_error:
+        logger.warning(f"Failed to send phone signup notification: {notif_error}")
+    
     return {"message": "Signup successful", "user": clean_user}
 
 
