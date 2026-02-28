@@ -37,10 +37,11 @@ const SettingsPage = ({ user, setUser }) => {
   const fetchUserSettings = async () => {
     try {
       const response = await axios.get(`${API}/profile/${user.id}`);
-      const userData = response.data;
+      const fetchedUserData = response.data;
+      setUserData(fetchedUserData);
       
       // Fetch blocked users details
-      const blockedIds = userData.blocked_users || [];
+      const blockedIds = fetchedUserData.blocked_users || [];
       const blockedUsersData = await Promise.all(
         blockedIds.map(async (userId) => {
           try {
@@ -54,7 +55,7 @@ const SettingsPage = ({ user, setUser }) => {
       setBlockedUsers(blockedUsersData.filter(u => u !== null));
 
       // Fetch muted users details
-      const mutedIds = userData.muted_users || [];
+      const mutedIds = fetchedUserData.muted_users || [];
       const mutedUsersData = await Promise.all(
         mutedIds.map(async (userId) => {
           try {
@@ -72,6 +73,75 @@ const SettingsPage = ({ user, setUser }) => {
       toast.error('Failed to load settings');
       setLoading(false);
       console.error('Settings error:', error);
+    }
+  };
+
+  // Handle linking email
+  const handleLinkEmail = async () => {
+    if (!linkEmail || !linkPassword) {
+      toast.error('Email and password required');
+      return;
+    }
+    
+    setLinkingLoading(true);
+    try {
+      const response = await axios.post(`${API}/profile/${user.id}/link-email`, {
+        email: linkEmail,
+        password: linkPassword
+      });
+      
+      if (response.data.status === 'success') {
+        toast.success('Email linked successfully!');
+        setShowLinkEmail(false);
+        setLinkEmail('');
+        setLinkPassword('');
+        // Refresh user data
+        fetchUserSettings();
+        // Update parent user state if available
+        if (setUser) {
+          const updatedUser = await axios.get(`${API}/profile/${user.id}`);
+          setUser(updatedUser.data);
+        }
+      } else if (response.data.status === 'merge_available') {
+        toast.info(response.data.message);
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to link email');
+    } finally {
+      setLinkingLoading(false);
+    }
+  };
+
+  // Handle linking phone
+  const handleLinkPhone = async () => {
+    if (!linkPhone) {
+      toast.error('Phone number required');
+      return;
+    }
+    
+    setLinkingLoading(true);
+    try {
+      const response = await axios.post(`${API}/profile/${user.id}/link-phone`, {
+        phone: linkPhone,
+        otp_verified: false // For now, can add OTP verification later
+      });
+      
+      if (response.data.status === 'success') {
+        toast.success('Phone linked successfully!');
+        setShowLinkPhone(false);
+        setLinkPhone('');
+        fetchUserSettings();
+        if (setUser) {
+          const updatedUser = await axios.get(`${API}/profile/${user.id}`);
+          setUser(updatedUser.data);
+        }
+      } else if (response.data.status === 'merge_available') {
+        toast.info(response.data.message);
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to link phone');
+    } finally {
+      setLinkingLoading(false);
     }
   };
 
