@@ -1,13 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Heart, Mail, Phone, Lock, User, MapPin, Calendar, Hash, ArrowRight, Shield } from 'lucide-react';
+import { Heart, Mail, Phone, Lock, User, MapPin, Calendar, Hash, ArrowRight, Shield, Camera, Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
-import { setupRecaptcha, sendOTP, verifyOTP, clearRecaptcha } from '@/firebase/config';
+import { setupRecaptcha, sendOTP, verifyOTP, clearRecaptcha, getStorage, ref, uploadBytes, getDownloadURL } from '@/firebase/config';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || import.meta.env?.REACT_APP_BACKEND_URL;
 if (!BACKEND_URL) console.error('⚠️ REACT_APP_BACKEND_URL is not set!');
