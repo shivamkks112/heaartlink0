@@ -175,4 +175,7 @@ if (typeof window !== 'undefined') {
 }
 export { analytics };
 
+// Re-export storage functions for convenience
+export { getStorage, ref, uploadBytes, getDownloadURL };
+
 export default app;
