@@ -607,6 +607,59 @@ const AuthPage = ({ onLogin }) => {
           ) : (
             /* Signup Form */
             <form onSubmit={handleSignup} className="space-y-4">
+              {/* Profile Photo Upload - MANDATORY */}
+              <div className="mb-6">
+                <Label className="text-gray-700 font-semibold">Profile Photo <span className="text-red-500">* (Required)</span></Label>
+                <div className="mt-2 flex flex-col items-center">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handlePhotoSelect}
+                    accept="image/*"
+                    className="hidden"
+                    data-testid="signup-photo-input"
+                  />
+                  
+                  {profilePicturePreview ? (
+                    <div className="relative">
+                      <img 
+                        src={profilePicturePreview} 
+                        alt="Profile Preview" 
+                        className="w-28 h-28 rounded-full object-cover border-4 border-pink-500 shadow-lg"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProfilePicture(null);
+                          setProfilePicturePreview('');
+                        }}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-lg hover:bg-red-600"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                      <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 bg-green-500 text-white text-xs px-2 py-0.5 rounded-full">
+                        ✓ Ready
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-28 h-28 rounded-full bg-gradient-to-br from-pink-100 to-orange-100 border-3 border-dashed border-pink-400 flex flex-col items-center justify-center hover:border-pink-600 hover:from-pink-200 hover:to-orange-200 transition-all cursor-pointer"
+                    >
+                      <Camera className="w-8 h-8 text-pink-500 mb-1" />
+                      <span className="text-xs text-pink-600 font-medium">Add Photo</span>
+                    </button>
+                  )}
+                  
+                  {!profilePicturePreview && (
+                    <p className="text-xs text-orange-600 mt-2 flex items-center gap-1">
+                      <span className="text-red-500">⚠</span> Photo is required for registration
+                    </p>
+                  )}
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-gray-700 font-semibold">Name *</Label>
