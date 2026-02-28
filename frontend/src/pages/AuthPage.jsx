@@ -299,6 +299,12 @@ const AuthPage = ({ onLogin }) => {
   const handleSignup = async (e) => {
     e.preventDefault();
     
+    // Profile picture is MANDATORY
+    if (!profilePicture) {
+      toast.error('Profile photo is required! Please upload your photo.');
+      return;
+    }
+    
     // Email is compulsory
     if (!signupData.email || !signupData.email.includes('@')) {
       toast.error('Please enter a valid email address');
@@ -350,15 +356,29 @@ const AuthPage = ({ onLogin }) => {
       const response = await axios.post(`${API}/auth/signup`, submitData);
       const userData = response.data.user;
       
+      // Upload profile picture (mandatory)
+      toast.loading('Uploading photo...');
+      const photoURL = await uploadProfilePicture(userData.id);
+      
+      if (photoURL) {
+        // Update user with profile picture
+        await axios.patch(`${API}/user/${userData.id}`, {
+          profile_picture: photoURL
+        });
+        userData.profile_picture = photoURL;
+      }
+      
       localStorage.setItem('user', JSON.stringify(userData));
       await onLogin(userData);
-      toast.success(`Welcome to HeartLink, ${userData.name}!`);
+      toast.dismiss();
+      toast.success(`Welcome to HeartLink, ${userData.name}! Your profile is pending approval.`);
       
       setTimeout(() => {
         navigate('/discover');
       }, 100);
     } catch (error) {
       console.error('Signup error:', error);
+      toast.dismiss();
       const errorMessage = error.response?.data?.detail || 'Signup failed. Please try again.';
       toast.error(errorMessage);
     } finally {
