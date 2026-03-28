@@ -45,7 +45,12 @@ from onesignal_config import (
     send_like_notification_onesignal,
     send_admin_notification,
     set_user_external_id,
-    add_user_tags
+    add_user_tags,
+    send_engagement_notification,
+    send_bulk_engagement_notification,
+    send_custom_engagement_notification,
+    get_engagement_templates,
+    ENGAGEMENT_TEMPLATES
 )
 
 # Import Security Module
@@ -333,6 +338,61 @@ async def startup_event():
     """Run on app startup"""
     await create_indexes()
     logging.info("🚀 HeartLink server started with optimized indexes")
+    
+    # Start background notification scheduler
+    asyncio.create_task(notification_scheduler())
+    logging.info("📬 Notification scheduler started")
+
+
+async def notification_scheduler():
+    """Background task to send automated engagement notifications"""
+    while True:
+        try:
+            # Run every 6 hours
+            await asyncio.sleep(6 * 60 * 60)  # 6 hours
+            
+            now = datetime.now(timezone.utc)
+            current_hour = now.hour
+            
+            # Only send during active hours (9 AM to 9 PM IST = 3:30 AM to 3:30 PM UTC)
+            if 3 <= current_hour <= 15:
+                logging.info("📬 Running scheduled notification check...")
+                
+                # Send to users inactive for 1 day
+                cutoff_1day = now - timedelta(days=1)
+                inactive_1day = await db.users.find({
+                    "last_active": {"$lt": cutoff_1day.isoformat(), "$gt": (cutoff_1day - timedelta(hours=6)).isoformat()},
+                    "profile_status": "approved"
+                }, {"_id": 0, "id": 1}).to_list(100)
+                
+                if inactive_1day:
+                    user_ids = [u["id"] for u in inactive_1day]
+                    send_bulk_engagement_notification(user_ids, "inactive_1day")
+                    logging.info(f"📬 Sent 1-day inactive notification to {len(user_ids)} users")
+                
+                # Send to users inactive for 3 days
+                cutoff_3day = now - timedelta(days=3)
+                inactive_3day = await db.users.find({
+                    "last_active": {"$lt": cutoff_3day.isoformat(), "$gt": (cutoff_3day - timedelta(hours=6)).isoformat()},
+                    "profile_status": "approved"
+                }, {"_id": 0, "id": 1}).to_list(100)
+                
+                if inactive_3day:
+                    user_ids = [u["id"] for u in inactive_3day]
+                    send_bulk_engagement_notification(user_ids, "inactive_3days")
+                    logging.info(f"📬 Sent 3-day inactive notification to {len(user_ids)} users")
+                
+                # Weekend special (Saturday/Sunday)
+                if now.weekday() in [5, 6] and current_hour == 10:  # 10 UTC = 3:30 PM IST
+                    send_onesignal_to_all(
+                        "🎉 Weekend Special!",
+                        "More people are online on weekends. Perfect time to find your match!"
+                    )
+                    logging.info("📬 Sent weekend special notification")
+        
+        except Exception as e:
+            logging.error(f"Notification scheduler error: {e}")
+            await asyncio.sleep(60)  # Wait 1 minute on error before retrying
 
 # WebSocket connection manager
 class ConnectionManager:
@@ -5456,6 +5516,176 @@ async def test_onesignal():
         "OneSignal integration is working! - HeartLink Team"
     )
     return result
+
+
+# ==================== ENGAGEMENT NOTIFICATION ENDPOINTS ====================
+
+@api_router.get("/admin/notifications/templates")
+async def get_notification_templates():
+    """Get all available engagement notification templates"""
+    return {
+        "templates": ENGAGEMENT_TEMPLATES,
+        "template_keys": list(ENGAGEMENT_TEMPLATES.keys())
+    }
+
+
+@api_router.post("/admin/notifications/send-engagement")
+async def send_engagement_to_users(
+    template_key: str,
+    user_ids: Optional[List[str]] = None,
+    send_to_all: bool = False
+):
+    """
+    Send engagement notification using pre-defined templates
+    """
+    if template_key not in ENGAGEMENT_TEMPLATES:
+        raise HTTPException(status_code=400, detail=f"Unknown template: {template_key}")
+    
+    if send_to_all:
+        template = ENGAGEMENT_TEMPLATES[template_key]
+        result = send_onesignal_to_all(template["title"], template["message"])
+    elif user_ids:
+        result = send_bulk_engagement_notification(user_ids, template_key)
+    else:
+        raise HTTPException(status_code=400, detail="Provide user_ids or set send_to_all=true")
+    
+    # Log the notification
+    await db.admin_notifications.insert_one({
+        "type": "engagement",
+        "template": template_key,
+        "target": "all" if send_to_all else user_ids,
+        "result": result,
+        "sent_at": datetime.now(timezone.utc).isoformat()
+    })
+    
+    return result
+
+
+@api_router.get("/admin/notifications/inactive-users")
+async def get_inactive_users(days: int = 3):
+    """Get list of inactive users (haven't been active in X days)"""
+    cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
+    
+    inactive_users = await db.users.find({
+        "$or": [
+            {"last_active": {"$lt": cutoff_date.isoformat()}},
+            {"last_active": {"$exists": False}}
+        ],
+        "profile_status": "approved"
+    }, {
+        "_id": 0, "id": 1, "name": 1, "email": 1, "last_active": 1
+    }).to_list(None)
+    
+    return {
+        "count": len(inactive_users),
+        "days_inactive": days,
+        "users": inactive_users
+    }
+
+
+@api_router.post("/admin/notifications/send-to-inactive")
+async def send_notification_to_inactive_users(days: int = 3):
+    """Send re-engagement notification to inactive users"""
+    cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
+    
+    # Get inactive user IDs
+    inactive_users = await db.users.find({
+        "$or": [
+            {"last_active": {"$lt": cutoff_date.isoformat()}},
+            {"last_active": {"$exists": False}}
+        ],
+        "profile_status": "approved"
+    }, {"_id": 0, "id": 1}).to_list(None)
+    
+    if not inactive_users:
+        return {"success": True, "message": "No inactive users found", "sent_to": 0}
+    
+    user_ids = [u["id"] for u in inactive_users]
+    
+    # Select template based on inactivity period
+    if days <= 1:
+        template_key = "inactive_1day"
+    elif days <= 3:
+        template_key = "inactive_3days"
+    else:
+        template_key = "inactive_7days"
+    
+    result = send_bulk_engagement_notification(user_ids, template_key)
+    
+    # Log
+    await db.admin_notifications.insert_one({
+        "type": "re-engagement",
+        "template": template_key,
+        "days_inactive": days,
+        "target_count": len(user_ids),
+        "result": result,
+        "sent_at": datetime.now(timezone.utc).isoformat()
+    })
+    
+    return {
+        "success": result.get("success", False),
+        "sent_to": len(user_ids),
+        "template_used": template_key,
+        "result": result
+    }
+
+
+@api_router.post("/admin/notifications/send-custom")
+async def send_custom_notification(
+    title: str,
+    message: str,
+    user_ids: Optional[List[str]] = None,
+    send_to_all: bool = False,
+    action: str = "open_app"
+):
+    """Send custom notification with custom title and message"""
+    result = send_custom_engagement_notification(
+        user_ids=user_ids,
+        target_all=send_to_all,
+        title=title,
+        message=message,
+        action=action
+    )
+    
+    # Log
+    await db.admin_notifications.insert_one({
+        "type": "custom",
+        "title": title,
+        "message": message,
+        "target": "all" if send_to_all else user_ids,
+        "result": result,
+        "sent_at": datetime.now(timezone.utc).isoformat()
+    })
+    
+    return result
+
+
+@api_router.get("/admin/notifications/stats")
+async def get_notification_stats():
+    """Get notification sending statistics"""
+    # Get counts by type
+    pipeline = [
+        {"$group": {"_id": "$type", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}}
+    ]
+    
+    stats_by_type = await db.admin_notifications.aggregate(pipeline).to_list(None)
+    
+    # Get recent notifications
+    recent = await db.admin_notifications.find(
+        {},
+        {"_id": 0}
+    ).sort("sent_at", -1).limit(10).to_list(None)
+    
+    # Get total sent
+    total = await db.admin_notifications.count_documents({})
+    
+    return {
+        "total_sent": total,
+        "by_type": {s["_id"]: s["count"] for s in stats_by_type},
+        "recent": recent
+    }
+
 
 # Include router - MUST be at the very end after all route definitions
 app.include_router(api_router)

@@ -237,3 +237,133 @@ def add_user_tags(external_user_id: str, tags: Dict[str, str]) -> Dict:
     except Exception as e:
         logger.error(f"OneSignal tags request failed: {str(e)}")
         return {"success": False, "error": str(e)}
+
+
+# ==================== RE-ENGAGEMENT NOTIFICATIONS ====================
+
+# Pre-defined engagement notification templates
+ENGAGEMENT_TEMPLATES = {
+    "inactive_1day": {
+        "title": "💕 Someone's waiting for you!",
+        "message": "You have new activity on HeartLink. Don't miss out on potential matches!",
+        "data": {"type": "engagement", "action": "open_discover"}
+    },
+    "inactive_3days": {
+        "title": "😢 We miss you!",
+        "message": "5+ people viewed your profile while you were away. Come back and see who!",
+        "data": {"type": "engagement", "action": "open_likes"}
+    },
+    "inactive_7days": {
+        "title": "🔥 Your profile is getting cold!",
+        "message": "Active users get 10x more matches. Come back and boost your profile!",
+        "data": {"type": "engagement", "action": "open_discover"}
+    },
+    "new_likes": {
+        "title": "❤️ {count} new likes!",
+        "message": "People are interested in you! See who liked your profile.",
+        "data": {"type": "like", "action": "open_likes"}
+    },
+    "unread_messages": {
+        "title": "💬 {count} unread messages",
+        "message": "Your matches are waiting for your reply!",
+        "data": {"type": "message", "action": "open_matches"}
+    },
+    "new_matches_nearby": {
+        "title": "📍 New singles near you!",
+        "message": "{count} new people joined from your area. Discover them now!",
+        "data": {"type": "discovery", "action": "open_discover"}
+    },
+    "profile_boost": {
+        "title": "⚡ Free Profile Boost!",
+        "message": "Get 3x more visibility for 30 minutes. Activate now!",
+        "data": {"type": "boost", "action": "open_profile"}
+    },
+    "weekend_special": {
+        "title": "🎉 Weekend Special!",
+        "message": "More people are online on weekends. Perfect time to find your match!",
+        "data": {"type": "promo", "action": "open_discover"}
+    },
+    "daily_pick": {
+        "title": "⭐ Your Daily Pick is ready!",
+        "message": "We found someone special for you. Don't miss this match!",
+        "data": {"type": "daily_pick", "action": "open_discover"}
+    },
+    "profile_incomplete": {
+        "title": "📝 Complete your profile!",
+        "message": "Profiles with more details get 5x more matches. Add more about yourself!",
+        "data": {"type": "profile", "action": "open_profile"}
+    },
+    "first_match_tip": {
+        "title": "💡 Pro Tip!",
+        "message": "Users who send the first message have 70% higher success rate. Say hi!",
+        "data": {"type": "tip", "action": "open_matches"}
+    },
+    "mutual_interest": {
+        "title": "🎯 You have something in common!",
+        "message": "Someone with similar interests liked your profile. Check them out!",
+        "data": {"type": "like", "action": "open_likes"}
+    }
+}
+
+
+def send_engagement_notification(user_id: str, template_key: str, **kwargs) -> Dict:
+    """
+    Send pre-defined engagement notification to a user
+    
+    Args:
+        user_id: Target user ID
+        template_key: Key from ENGAGEMENT_TEMPLATES
+        **kwargs: Variables to format in message (e.g., count=5)
+    """
+    if template_key not in ENGAGEMENT_TEMPLATES:
+        return {"success": False, "error": f"Unknown template: {template_key}"}
+    
+    template = ENGAGEMENT_TEMPLATES[template_key]
+    title = template["title"].format(**kwargs) if kwargs else template["title"]
+    message = template["message"].format(**kwargs) if kwargs else template["message"]
+    
+    return send_notification_to_user(
+        user_id=user_id,
+        title=title,
+        message=message,
+        data=template["data"]
+    )
+
+
+def send_bulk_engagement_notification(user_ids: List[str], template_key: str, **kwargs) -> Dict:
+    """Send engagement notification to multiple users"""
+    if template_key not in ENGAGEMENT_TEMPLATES:
+        return {"success": False, "error": f"Unknown template: {template_key}"}
+    
+    template = ENGAGEMENT_TEMPLATES[template_key]
+    title = template["title"].format(**kwargs) if kwargs else template["title"]
+    message = template["message"].format(**kwargs) if kwargs else template["message"]
+    
+    return send_notification_to_users(
+        user_ids=user_ids,
+        title=title,
+        message=message,
+        data=template["data"]
+    )
+
+
+def send_custom_engagement_notification(
+    user_ids: Optional[List[str]] = None,
+    target_all: bool = False,
+    title: str = "",
+    message: str = "",
+    action: str = "open_app"
+) -> Dict:
+    """Send custom engagement notification"""
+    return send_onesignal_notification(
+        title=title,
+        message=message,
+        target_user_ids=user_ids,
+        target_all=target_all,
+        data={"type": "custom", "action": action}
+    )
+
+
+def get_engagement_templates() -> Dict:
+    """Return all available engagement templates for admin panel"""
+    return ENGAGEMENT_TEMPLATES
