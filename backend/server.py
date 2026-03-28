@@ -4589,8 +4589,39 @@ class NotificationTemplateCreate(BaseModel):
 
 @api_router.get("/admin/notification-templates")
 async def get_all_notification_templates():
-    """Get all notification templates (pre-defined + custom)"""
-    return await get_notification_templates()
+    """Get all notification templates (pre-defined + custom) in array format"""
+    # Convert engagement templates to array format
+    engagement_templates = []
+    for key, value in ENGAGEMENT_TEMPLATES.items():
+        engagement_templates.append({
+            "id": key,
+            "title": value["title"],
+            "body": value["message"],
+            "category": value["data"].get("type", "engagement"),
+            "is_engagement": True
+        })
+    
+    # Get custom templates from database
+    custom_templates = await db.notification_templates.find(
+        {},
+        {"_id": 0}
+    ).to_list(None)
+    
+    for t in custom_templates:
+        t["is_custom"] = True
+    
+    # Combine and return
+    return engagement_templates + custom_templates
+
+
+@api_router.get("/admin/custom-templates")
+async def get_custom_templates():
+    """Get only custom templates from database"""
+    templates = await db.notification_templates.find(
+        {},
+        {"_id": 0}
+    ).to_list(None)
+    return templates
 
 
 @api_router.post("/admin/notification-templates")

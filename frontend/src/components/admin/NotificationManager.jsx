@@ -71,7 +71,30 @@ const NotificationManager = () => {
   const fetchTemplates = async () => {
     try {
       const res = await axios.get(`${API}/admin/notification-templates`);
-      setTemplates(res.data || []);
+      // Handle both array format (from DB) and engagement templates format
+      if (Array.isArray(res.data)) {
+        setTemplates(res.data || []);
+      } else if (res.data && res.data.templates) {
+        // Convert engagement templates object to array format
+        const engagementTemplates = Object.entries(res.data.templates).map(([key, value]) => ({
+          id: key,
+          title: value.title,
+          body: value.message,
+          category: value.data?.type || 'engagement',
+          isEngagement: true
+        }));
+        
+        // Also fetch custom templates from DB
+        try {
+          const dbRes = await axios.get(`${API}/admin/custom-templates`);
+          const dbTemplates = Array.isArray(dbRes.data) ? dbRes.data : [];
+          setTemplates([...engagementTemplates, ...dbTemplates]);
+        } catch {
+          setTemplates(engagementTemplates);
+        }
+      } else {
+        setTemplates([]);
+      }
     } catch (e) {
       console.error('Failed to fetch templates', e);
       setTemplates([]);
