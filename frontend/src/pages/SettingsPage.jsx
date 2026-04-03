@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { ArrowLeft, UserX, BellOff, Mail, Phone, Link2, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, UserX, BellOff, Mail, Phone, Link2, CheckCircle, AlertCircle, Shield, Eye, EyeOff, MessageSquare, Clock, Camera } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -22,6 +22,19 @@ const SettingsPage = ({ user, setUser }) => {
   const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState(null);
   
+  // Privacy settings state
+  const [privacySettings, setPrivacySettings] = useState({
+    hide_online_status: false,
+    hide_read_receipts: false,
+    hide_typing_indicator: false,
+    hide_phone_number: true,
+    blur_photos_for_non_matches: true,
+    disappearing_messages: false,
+    disappearing_messages_duration: 86400,
+    screenshot_alert: true
+  });
+  const [savingPrivacy, setSavingPrivacy] = useState(false);
+  
   // Linking states
   const [showLinkEmail, setShowLinkEmail] = useState(false);
   const [showLinkPhone, setShowLinkPhone] = useState(false);
@@ -32,7 +45,32 @@ const SettingsPage = ({ user, setUser }) => {
 
   useEffect(() => {
     fetchUserSettings();
+    fetchPrivacySettings();
   }, []);
+
+  const fetchPrivacySettings = async () => {
+    try {
+      const response = await axios.get(`${API}/privacy/${user.id}`);
+      setPrivacySettings(response.data);
+    } catch (error) {
+      console.error('Failed to fetch privacy settings', error);
+    }
+  };
+
+  const updatePrivacySetting = async (key, value) => {
+    setSavingPrivacy(true);
+    try {
+      const response = await axios.put(`${API}/privacy/${user.id}`, {
+        [key]: value
+      });
+      setPrivacySettings(prev => ({ ...prev, [key]: value }));
+      toast.success('Privacy setting updated');
+    } catch (error) {
+      toast.error('Failed to update privacy setting');
+    } finally {
+      setSavingPrivacy(false);
+    }
+  };
 
   const fetchUserSettings = async () => {
     try {
@@ -341,9 +379,187 @@ const SettingsPage = ({ user, setUser }) => {
           </div>
         </div>
 
+        {/* Chat Privacy Settings */}
+        <div className="bg-white rounded-xl p-4 shadow-sm">
+          <h2 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+            <Shield className="w-5 h-5 text-purple-600" />
+            Chat Privacy
+          </h2>
+          <p className="text-sm text-gray-500 mb-4">
+            Control what others can see about you in chat
+          </p>
+          
+          <div className="space-y-4">
+            {/* Hide Phone Number */}
+            <div className="flex items-center justify-between p-3 bg-gradient-to-r from-red-50 to-orange-50 rounded-lg">
+              <div className="flex items-center gap-3">
+                <Phone className="w-5 h-5 text-red-500" />
+                <div>
+                  <p className="font-medium text-gray-900">Hide Phone Number</p>
+                  <p className="text-xs text-gray-500">Matches won't see your number</p>
+                </div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={privacySettings.hide_phone_number}
+                  onChange={(e) => updatePrivacySetting('hide_phone_number', e.target.checked)}
+                  className="sr-only peer"
+                  disabled={savingPrivacy}
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-pink-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-500"></div>
+              </label>
+            </div>
+
+            {/* Hide Online Status */}
+            <div className="flex items-center justify-between p-3 bg-gradient-to-r from-green-50 to-teal-50 rounded-lg">
+              <div className="flex items-center gap-3">
+                <Eye className="w-5 h-5 text-green-500" />
+                <div>
+                  <p className="font-medium text-gray-900">Hide Online Status</p>
+                  <p className="text-xs text-gray-500">Others won't see when you're online</p>
+                </div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={privacySettings.hide_online_status}
+                  onChange={(e) => updatePrivacySetting('hide_online_status', e.target.checked)}
+                  className="sr-only peer"
+                  disabled={savingPrivacy}
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+              </label>
+            </div>
+
+            {/* Hide Read Receipts */}
+            <div className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg">
+              <div className="flex items-center gap-3">
+                <CheckCircle className="w-5 h-5 text-blue-500" />
+                <div>
+                  <p className="font-medium text-gray-900">Hide Read Receipts</p>
+                  <p className="text-xs text-gray-500">Others won't see blue ticks</p>
+                </div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={privacySettings.hide_read_receipts}
+                  onChange={(e) => updatePrivacySetting('hide_read_receipts', e.target.checked)}
+                  className="sr-only peer"
+                  disabled={savingPrivacy}
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
+              </label>
+            </div>
+
+            {/* Hide Typing Indicator */}
+            <div className="flex items-center justify-between p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg">
+              <div className="flex items-center gap-3">
+                <MessageSquare className="w-5 h-5 text-purple-500" />
+                <div>
+                  <p className="font-medium text-gray-900">Hide Typing Indicator</p>
+                  <p className="text-xs text-gray-500">"Typing..." won't show to others</p>
+                </div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={privacySettings.hide_typing_indicator}
+                  onChange={(e) => updatePrivacySetting('hide_typing_indicator', e.target.checked)}
+                  className="sr-only peer"
+                  disabled={savingPrivacy}
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-500"></div>
+              </label>
+            </div>
+
+            {/* Screenshot Alert */}
+            <div className="flex items-center justify-between p-3 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg">
+              <div className="flex items-center gap-3">
+                <Camera className="w-5 h-5 text-yellow-600" />
+                <div>
+                  <p className="font-medium text-gray-900">Screenshot Alerts</p>
+                  <p className="text-xs text-gray-500">Get notified when someone screenshots</p>
+                </div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={privacySettings.screenshot_alert}
+                  onChange={(e) => updatePrivacySetting('screenshot_alert', e.target.checked)}
+                  className="sr-only peer"
+                  disabled={savingPrivacy}
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-yellow-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-yellow-500"></div>
+              </label>
+            </div>
+
+            {/* Disappearing Messages */}
+            <div className="p-3 bg-gradient-to-r from-gray-50 to-slate-50 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Clock className="w-5 h-5 text-gray-600" />
+                  <div>
+                    <p className="font-medium text-gray-900">Disappearing Messages</p>
+                    <p className="text-xs text-gray-500">Messages auto-delete after set time</p>
+                  </div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={privacySettings.disappearing_messages}
+                    onChange={(e) => updatePrivacySetting('disappearing_messages', e.target.checked)}
+                    className="sr-only peer"
+                    disabled={savingPrivacy}
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-gray-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-600"></div>
+                </label>
+              </div>
+              {privacySettings.disappearing_messages && (
+                <div className="mt-3 flex gap-2">
+                  <button
+                    onClick={() => updatePrivacySetting('disappearing_messages_duration', 86400)}
+                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${privacySettings.disappearing_messages_duration === 86400 ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-700'}`}
+                  >
+                    24 Hours
+                  </button>
+                  <button
+                    onClick={() => updatePrivacySetting('disappearing_messages_duration', 604800)}
+                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${privacySettings.disappearing_messages_duration === 604800 ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-700'}`}
+                  >
+                    7 Days
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Blur Photos */}
+            <div className="flex items-center justify-between p-3 bg-gradient-to-r from-pink-50 to-rose-50 rounded-lg">
+              <div className="flex items-center gap-3">
+                <EyeOff className="w-5 h-5 text-pink-500" />
+                <div>
+                  <p className="font-medium text-gray-900">Blur Photos for Non-Matches</p>
+                  <p className="text-xs text-gray-500">Only matches see clear photos</p>
+                </div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={privacySettings.blur_photos_for_non_matches}
+                  onChange={(e) => updatePrivacySetting('blur_photos_for_non_matches', e.target.checked)}
+                  className="sr-only peer"
+                  disabled={savingPrivacy}
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-pink-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-500"></div>
+              </label>
+            </div>
+          </div>
+        </div>
+
         {/* Privacy Options */}
         <div className="bg-white rounded-xl p-4 shadow-sm">
-          <h2 className="text-lg font-bold text-gray-900 mb-3">Privacy Options</h2>
+          <h2 className="text-lg font-bold text-gray-900 mb-3">More Privacy Options</h2>
           <button
             onClick={() => navigate('/privacy')}
             className="w-full flex items-center justify-between p-3 bg-gradient-to-r from-pink-50 to-orange-50 rounded-lg hover:from-pink-100 hover:to-orange-100 transition-all"

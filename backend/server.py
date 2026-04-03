@@ -497,7 +497,16 @@ class User(BaseModel):
     privacy_settings: Dict = Field(default_factory=lambda: {
         "show_profile": True,
         "show_photos": True,
-        "incognito_mode": False
+        "incognito_mode": False,
+        # Chat Privacy Settings
+        "hide_online_status": False,
+        "hide_read_receipts": False,
+        "hide_typing_indicator": False,
+        "hide_phone_number": True,  # Default hide phone
+        "blur_photos_for_non_matches": True,
+        "disappearing_messages": False,
+        "disappearing_messages_duration": 86400,  # 24 hours in seconds
+        "screenshot_alert": True
     })
     blocked_users: List[str] = []
     muted_users: List[str] = []
@@ -578,6 +587,20 @@ class Message(BaseModel):
     content: str
     read: bool = False
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    # Privacy features
+    is_deleted_for_sender: bool = False
+    is_deleted_for_receiver: bool = False
+    is_deleted_for_all: bool = False
+    expires_at: Optional[str] = None  # For disappearing messages
+    message_type: str = "text"  # text, image, voice
+
+class ScreenshotAlert(BaseModel):
+    match_id: str
+    screenshot_by: str  # user_id who took screenshot
+
+class DeleteMessageRequest(BaseModel):
+    message_id: str
+    delete_for_all: bool = False
 
 class LikeAction(BaseModel):
     target_user_id: str
@@ -602,6 +625,15 @@ class PrivacyUpdate(BaseModel):
     show_profile: Optional[bool] = None
     show_photos: Optional[bool] = None
     incognito_mode: Optional[bool] = None
+    # Chat Privacy Settings
+    hide_online_status: Optional[bool] = None
+    hide_read_receipts: Optional[bool] = None
+    hide_typing_indicator: Optional[bool] = None
+    hide_phone_number: Optional[bool] = None
+    blur_photos_for_non_matches: Optional[bool] = None
+    disappearing_messages: Optional[bool] = None
+    disappearing_messages_duration: Optional[int] = None  # seconds: 86400 (24h), 604800 (7d)
+    screenshot_alert: Optional[bool] = None
 
 # === NEW MODELS FOR SAFETY FEATURES ===
 
@@ -1928,11 +1960,14 @@ async def delete_profile_picture(user_id: str):
 # Privacy Routes
 @api_router.put("/privacy/{user_id}")
 async def update_privacy(user_id: str, privacy: PrivacyUpdate):
+    """Update all privacy settings including chat privacy"""
     user = await db.users.find_one({"id": user_id})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
     settings = user.get("privacy_settings", {})
+    
+    # Profile privacy
     if privacy.show_profile is not None:
         settings["show_profile"] = privacy.show_profile
     if privacy.show_photos is not None:
@@ -1940,8 +1975,216 @@ async def update_privacy(user_id: str, privacy: PrivacyUpdate):
     if privacy.incognito_mode is not None:
         settings["incognito_mode"] = privacy.incognito_mode
     
+    # Chat privacy settings
+    if privacy.hide_online_status is not None:
+        settings["hide_online_status"] = privacy.hide_online_status
+    if privacy.hide_read_receipts is not None:
+        settings["hide_read_receipts"] = privacy.hide_read_receipts
+    if privacy.hide_typing_indicator is not None:
+        settings["hide_typing_indicator"] = privacy.hide_typing_indicator
+    if privacy.hide_phone_number is not None:
+        settings["hide_phone_number"] = privacy.hide_phone_number
+    if privacy.blur_photos_for_non_matches is not None:
+        settings["blur_photos_for_non_matches"] = privacy.blur_photos_for_non_matches
+    if privacy.disappearing_messages is not None:
+        settings["disappearing_messages"] = privacy.disappearing_messages
+    if privacy.disappearing_messages_duration is not None:
+        settings["disappearing_messages_duration"] = privacy.disappearing_messages_duration
+    if privacy.screenshot_alert is not None:
+        settings["screenshot_alert"] = privacy.screenshot_alert
+    
     await db.users.update_one({"id": user_id}, {"$set": {"privacy_settings": settings}})
+    
+    # Invalidate cache
+    invalidate_user_cache(user_id)
+    
     return {"message": "Privacy settings updated", "settings": settings}
+
+
+@api_router.get("/privacy/{user_id}")
+async def get_privacy_settings(user_id: str):
+    """Get user's privacy settings"""
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "privacy_settings": 1})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Return with defaults for any missing settings
+    default_settings = {
+        "show_profile": True,
+        "show_photos": True,
+        "incognito_mode": False,
+        "hide_online_status": False,
+        "hide_read_receipts": False,
+        "hide_typing_indicator": False,
+        "hide_phone_number": True,
+        "blur_photos_for_non_matches": True,
+        "disappearing_messages": False,
+        "disappearing_messages_duration": 86400,
+        "screenshot_alert": True
+    }
+    
+    settings = user.get("privacy_settings", {})
+    return {**default_settings, **settings}
+
+
+# ==================== CHAT PRIVACY ENDPOINTS ====================
+
+@api_router.post("/messages/{message_id}/delete")
+async def delete_message(message_id: str, request: DeleteMessageRequest, user_id: str):
+    """Delete a message (for self or for everyone)"""
+    message = await db.messages.find_one({"id": message_id})
+    if not message:
+        raise HTTPException(status_code=404, detail="Message not found")
+    
+    # Verify user is sender or receiver
+    if user_id not in [message.get("sender_id"), message.get("receiver_id")]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    if request.delete_for_all:
+        # Only sender can delete for everyone, within 1 hour
+        if message.get("sender_id") != user_id:
+            raise HTTPException(status_code=403, detail="Only sender can delete for everyone")
+        
+        created_at = datetime.fromisoformat(message.get("created_at", ""))
+        if datetime.now(timezone.utc) - created_at > timedelta(hours=1):
+            raise HTTPException(status_code=400, detail="Can only delete for everyone within 1 hour")
+        
+        await db.messages.update_one(
+            {"id": message_id},
+            {"$set": {"is_deleted_for_all": True, "content": "This message was deleted"}}
+        )
+        
+        # Notify other user via websocket
+        other_user_id = message.get("receiver_id") if user_id == message.get("sender_id") else message.get("sender_id")
+        await manager.send_message(other_user_id, {
+            "type": "message_deleted",
+            "message_id": message_id,
+            "deleted_for_all": True
+        })
+    else:
+        # Delete only for current user
+        if user_id == message.get("sender_id"):
+            await db.messages.update_one({"id": message_id}, {"$set": {"is_deleted_for_sender": True}})
+        else:
+            await db.messages.update_one({"id": message_id}, {"$set": {"is_deleted_for_receiver": True}})
+    
+    return {"message": "Message deleted", "deleted_for_all": request.delete_for_all}
+
+
+@api_router.post("/chat/{match_id}/screenshot-alert")
+async def send_screenshot_alert(match_id: str, alert: ScreenshotAlert):
+    """Send alert when user takes screenshot"""
+    match = await db.matches.find_one({"id": match_id})
+    if not match:
+        raise HTTPException(status_code=404, detail="Match not found")
+    
+    # Get other user
+    other_user_id = match.get("user2_id") if alert.screenshot_by == match.get("user1_id") else match.get("user1_id")
+    
+    # Check if other user has screenshot alerts enabled
+    other_user = await db.users.find_one({"id": other_user_id}, {"_id": 0, "privacy_settings": 1, "name": 1})
+    if other_user and other_user.get("privacy_settings", {}).get("screenshot_alert", True):
+        # Send notification
+        screenshot_user = await db.users.find_one({"id": alert.screenshot_by}, {"_id": 0, "name": 1})
+        
+        await manager.send_message(other_user_id, {
+            "type": "screenshot_alert",
+            "match_id": match_id,
+            "screenshot_by": alert.screenshot_by,
+            "screenshot_by_name": screenshot_user.get("name", "Someone")
+        })
+        
+        # Also send push notification
+        send_onesignal_to_user(
+            other_user_id,
+            "📸 Screenshot Detected!",
+            f"{screenshot_user.get('name', 'Someone')} took a screenshot of your chat",
+            {"type": "screenshot_alert", "match_id": match_id}
+        )
+        
+        # Log the screenshot
+        await db.screenshot_logs.insert_one({
+            "match_id": match_id,
+            "screenshot_by": alert.screenshot_by,
+            "alerted_user": other_user_id,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        })
+    
+    return {"message": "Screenshot alert sent"}
+
+
+@api_router.post("/chat/{match_id}/typing")
+async def send_typing_indicator(match_id: str, user_id: str, is_typing: bool = True):
+    """Send typing indicator to match"""
+    match = await db.matches.find_one({"id": match_id})
+    if not match:
+        raise HTTPException(status_code=404, detail="Match not found")
+    
+    # Get other user
+    other_user_id = match.get("user2_id") if user_id == match.get("user1_id") else match.get("user1_id")
+    
+    # Check if sender has typing indicator hidden
+    sender = await db.users.find_one({"id": user_id}, {"_id": 0, "privacy_settings": 1})
+    if sender and sender.get("privacy_settings", {}).get("hide_typing_indicator", False):
+        return {"message": "Typing indicator hidden by privacy settings"}
+    
+    # Send typing indicator via websocket
+    await manager.send_message(other_user_id, {
+        "type": "typing_indicator",
+        "match_id": match_id,
+        "user_id": user_id,
+        "is_typing": is_typing
+    })
+    
+    return {"message": "Typing indicator sent"}
+
+
+@api_router.get("/chat/{match_id}/messages")
+async def get_chat_messages(match_id: str, user_id: str, limit: int = 50, skip: int = 0):
+    """Get chat messages with privacy filters applied"""
+    match = await db.matches.find_one({"id": match_id})
+    if not match:
+        raise HTTPException(status_code=404, detail="Match not found")
+    
+    # Verify user is part of match
+    if user_id not in [match.get("user1_id"), match.get("user2_id")]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    # Build query - exclude deleted messages
+    query = {
+        "match_id": match_id,
+        "is_deleted_for_all": {"$ne": True}
+    }
+    
+    # Exclude messages deleted for this user
+    is_user1 = user_id == match.get("user1_id")
+    if is_user1:
+        query["is_deleted_for_sender"] = {"$ne": True}
+    else:
+        query["is_deleted_for_receiver"] = {"$ne": True}
+    
+    # Get messages
+    messages = await db.messages.find(
+        query,
+        {"_id": 0}
+    ).sort("created_at", -1).skip(skip).limit(limit).to_list(None)
+    
+    # Check for expired disappearing messages
+    now = datetime.now(timezone.utc)
+    valid_messages = []
+    for msg in messages:
+        if msg.get("expires_at"):
+            expires = datetime.fromisoformat(msg["expires_at"])
+            if now > expires:
+                # Mark as expired
+                await db.messages.update_one(
+                    {"id": msg["id"]},
+                    {"$set": {"is_deleted_for_all": True, "content": "Message expired"}}
+                )
+                continue
+        valid_messages.append(msg)
+    
+    return valid_messages[::-1]  # Return in chronological order
 
 # Old block and report endpoints removed - using new endpoints at /user/{user_id}/block and /user/{user_id}/report
 
@@ -2978,6 +3221,14 @@ async def send_message_http(message_data: Message):
     
     # Proceed with message
     message_dict = message_data.dict()
+    
+    # Check if sender has disappearing messages enabled
+    sender_privacy = sender.get("privacy_settings", {})
+    if sender_privacy.get("disappearing_messages", False):
+        duration = sender_privacy.get("disappearing_messages_duration", 86400)  # Default 24 hours
+        expires_at = (datetime.now(timezone.utc) + timedelta(seconds=duration)).isoformat()
+        message_dict["expires_at"] = expires_at
+    
     await db.messages.insert_one(message_dict)
     
     # Clean message dict for response (remove MongoDB ObjectId)
