@@ -207,9 +207,15 @@ const ChatPage = ({ user }) => {
 
   const fetchMessages = async () => {
     try {
-      const response = await axios.get(`${API}/messages/${matchId}`);
-      setMessages(response.data);
+      // Pass user_id to get properly filtered messages (excluding deleted ones)
+      const response = await axios.get(`${API}/messages/${matchId}?user_id=${user.id}&limit=100`);
+      setMessages(response.data || []);
       setLoading(false);
+      
+      // Scroll to bottom after loading messages
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
       
       // Mark messages as read
       try {
@@ -219,6 +225,7 @@ const ChatPage = ({ user }) => {
         console.error('Failed to mark messages as read:', err);
       }
     } catch (error) {
+      console.error('Failed to load messages:', error);
       toast.error('Failed to load messages');
       setLoading(false);
     }

@@ -3121,9 +3121,63 @@ async def get_active_users(user_id: str, limit: int = 20):
 
 # Chat Routes
 @api_router.get("/messages/{match_id}")
-async def get_messages(match_id: str):
-    messages = await db.messages.find({"match_id": match_id}).sort("created_at", 1).to_list(None)
-    return [Message(**m).dict() for m in messages]
+async def get_messages(match_id: str, user_id: Optional[str] = None, limit: int = 100, skip: int = 0):
+    """Get chat messages with pagination and privacy filters"""
+    query = {
+        "match_id": match_id,
+        "is_deleted_for_all": {"$ne": True}
+    }
+    
+    # If user_id provided, filter out messages deleted for this user
+    if user_id:
+        # Get match to determine if user is user1 or user2
+        match = await db.matches.find_one({"id": match_id})
+        if match:
+            is_user1 = user_id == match.get("user1_id")
+            if is_user1:
+                query["is_deleted_for_sender"] = {"$ne": True}
+            else:
+                query["is_deleted_for_receiver"] = {"$ne": True}
+    
+    # Check for expired disappearing messages
+    now = datetime.now(timezone.utc)
+    
+    messages = await db.messages.find(
+        query,
+        {"_id": 0}
+    ).sort("created_at", 1).skip(skip).limit(limit).to_list(None)
+    
+    # Filter expired messages and clean response
+    valid_messages = []
+    for msg in messages:
+        # Check if message expired
+        if msg.get("expires_at"):
+            expires = datetime.fromisoformat(msg["expires_at"].replace('Z', '+00:00'))
+            if now > expires:
+                # Mark as expired in DB
+                await db.messages.update_one(
+                    {"id": msg["id"]},
+                    {"$set": {"is_deleted_for_all": True, "content": "Message expired"}}
+                )
+                continue
+        
+        # Clean the message for response
+        clean_msg = {
+            "id": msg.get("id"),
+            "match_id": msg.get("match_id"),
+            "sender_id": msg.get("sender_id"),
+            "receiver_id": msg.get("receiver_id"),
+            "content": msg.get("content"),
+            "read": msg.get("read", False),
+            "created_at": msg.get("created_at"),
+            "message_type": msg.get("message_type", "text"),
+            "personal_info_detected": msg.get("personal_info_detected", False),
+            "expires_at": msg.get("expires_at"),
+            "is_deleted_for_all": msg.get("is_deleted_for_all", False)
+        }
+        valid_messages.append(clean_msg)
+    
+    return valid_messages
 
 @api_router.get("/messages/{match_id}/unread-count/{user_id}")
 async def get_unread_message_count(match_id: str, user_id: str):
