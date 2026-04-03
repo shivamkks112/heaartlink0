@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Send, ArrowLeft, Shield, Flag, BellOff, Bell, MoreVertical } from 'lucide-react';
+import { Send, ArrowLeft, Shield, Flag, BellOff, Bell, MoreVertical, Trash2, AlertTriangle, Camera, Clock } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,21 +26,117 @@ const ChatPage = ({ user }) => {
   const [otherUser, setOtherUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isMuted, setIsMuted] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
+  const [otherUserTyping, setOtherUserTyping] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(null);
+  const [privacySettings, setPrivacySettings] = useState({});
   const messagesEndRef = useRef(null);
   const wsRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
 
   useEffect(() => {
     fetchMatch();
     fetchMessages();
     connectWebSocket();
     checkMuteStatus();
+    fetchPrivacySettings();
+    
+    // Screenshot detection for web
+    const handleVisibilityChange = () => {
+      if (document.hidden && privacySettings.screenshot_alert) {
+        // User might be taking screenshot
+        sendScreenshotAlert();
+      }
+    };
+    
+    // Keyboard shortcut detection (PrintScreen)
+    const handleKeyDown = (e) => {
+      if (e.key === 'PrintScreen' && privacySettings.screenshot_alert) {
+        sendScreenshotAlert();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener('keydown', handleKeyDown);
 
     return () => {
       if (wsRef.current) {
         wsRef.current.close();
       }
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener('keydown', handleKeyDown);
     };
   }, [matchId]);
+
+  const fetchPrivacySettings = async () => {
+    try {
+      const response = await axios.get(`${API}/privacy/${user.id}`);
+      setPrivacySettings(response.data);
+    } catch (error) {
+      console.error('Failed to fetch privacy settings');
+    }
+  };
+
+  const sendScreenshotAlert = async () => {
+    try {
+      await axios.post(`${API}/chat/${matchId}/screenshot-alert`, {
+        match_id: matchId,
+        screenshot_by: user.id
+      });
+    } catch (error) {
+      console.error('Failed to send screenshot alert');
+    }
+  };
+
+  const sendTypingIndicator = async (typing) => {
+    if (privacySettings.hide_typing_indicator) return;
+    
+    try {
+      await axios.post(`${API}/chat/${matchId}/typing?user_id=${user.id}&is_typing=${typing}`);
+    } catch (error) {
+      console.error('Failed to send typing indicator');
+    }
+  };
+
+  const handleTyping = () => {
+    if (!isTyping) {
+      setIsTyping(true);
+      sendTypingIndicator(true);
+    }
+    
+    // Clear existing timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    
+    // Stop typing after 2 seconds of no input
+    typingTimeoutRef.current = setTimeout(() => {
+      setIsTyping(false);
+      sendTypingIndicator(false);
+    }, 2000);
+  };
+
+  const deleteMessage = async (messageId, deleteForAll = false) => {
+    try {
+      await axios.post(`${API}/messages/${messageId}/delete?user_id=${user.id}`, {
+        message_id: messageId,
+        delete_for_all: deleteForAll
+      });
+      
+      if (deleteForAll) {
+        setMessages(prev => prev.map(msg => 
+          msg.id === messageId ? {...msg, content: 'This message was deleted', is_deleted_for_all: true} : msg
+        ));
+        toast.success('Message deleted for everyone');
+      } else {
+        setMessages(prev => prev.filter(msg => msg.id !== messageId));
+        toast.success('Message deleted');
+      }
+      setShowDeleteModal(null);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to delete message');
+    }
+  };
 
   useEffect(() => {
     scrollToBottom();
@@ -161,6 +257,28 @@ const ChatPage = ({ user }) => {
               last_active: data.last_active
             }));
           }
+        } else if (data.type === 'typing_indicator' && data.match_id === matchId) {
+          // Show typing indicator
+          if (data.user_id !== user.id) {
+            setOtherUserTyping(data.is_typing);
+          }
+        } else if (data.type === 'screenshot_alert' && data.match_id === matchId) {
+          // Show screenshot alert
+          toast.warning(`📸 ${data.screenshot_by_name} took a screenshot!`, {
+            duration: 5000,
+            icon: '📸'
+          });
+        } else if (data.type === 'system_warning') {
+          // Show system warning
+          toast.warning(data.message, {
+            duration: 5000,
+            icon: '⚠️'
+          });
+        } else if (data.type === 'message_deleted' && data.deleted_for_all) {
+          // Update deleted message
+          setMessages(prev => prev.map(msg => 
+            msg.id === data.message_id ? {...msg, content: 'This message was deleted', is_deleted_for_all: true} : msg
+          ));
         }
       };
 
@@ -423,32 +541,118 @@ const ChatPage = ({ user }) => {
           messages.map((msg) => (
             <div
               key={msg.id}
-              className={`flex ${msg.sender_id === user.id ? 'justify-end' : 'justify-start'}`}
+              className={`flex ${msg.sender_id === 'system' ? 'justify-center' : msg.sender_id === user.id ? 'justify-end' : 'justify-start'}`}
             >
-              <div
-                className={`max-w-[70%] px-5 py-3 rounded-3xl ${
-                  msg.sender_id === user.id
-                    ? 'bg-gradient-to-r from-pink-500 to-orange-500 text-white'
-                    : 'bg-white text-gray-800 shadow-md'
-                }`}
-              >
-                <p className="break-words">{msg.content}</p>
-                <p
-                  className={`text-xs mt-1 ${
-                    msg.sender_id === user.id ? 'text-white/80' : 'text-gray-500'
-                  }`}
-                >
-                  {new Date(msg.created_at).toLocaleTimeString('en-IN', {
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
-                </p>
-              </div>
+              {/* System/Warning Messages */}
+              {msg.sender_id === 'system' || msg.message_type === 'system_warning' ? (
+                <div className="max-w-[85%] px-4 py-2 bg-yellow-100 border border-yellow-300 rounded-xl text-center">
+                  <p className="text-sm text-yellow-800 flex items-center justify-center gap-2">
+                    <AlertTriangle className="w-4 h-4" />
+                    {msg.content}
+                  </p>
+                </div>
+              ) : (
+                /* Regular Messages */
+                <div className="relative group">
+                  <div
+                    className={`max-w-[70%] px-5 py-3 rounded-3xl ${
+                      msg.is_deleted_for_all
+                        ? 'bg-gray-200 text-gray-500 italic'
+                        : msg.sender_id === user.id
+                        ? 'bg-gradient-to-r from-pink-500 to-orange-500 text-white'
+                        : 'bg-white text-gray-800 shadow-md'
+                    }`}
+                  >
+                    {/* Personal info detected badge */}
+                    {msg.personal_info_detected && (
+                      <div className="flex items-center gap-1 text-xs mb-1 opacity-80">
+                        <Shield className="w-3 h-3" />
+                        <span>Protected</span>
+                      </div>
+                    )}
+                    
+                    <p className="break-words">{msg.content}</p>
+                    
+                    <div className={`flex items-center justify-between gap-2 mt-1`}>
+                      <p
+                        className={`text-xs ${
+                          msg.sender_id === user.id ? 'text-white/80' : 'text-gray-500'
+                        }`}
+                      >
+                        {new Date(msg.created_at).toLocaleTimeString('en-IN', {
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                      
+                      {/* Disappearing message indicator */}
+                      {msg.expires_at && (
+                        <Clock className={`w-3 h-3 ${msg.sender_id === user.id ? 'text-white/60' : 'text-gray-400'}`} />
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Delete button - show on hover for own messages */}
+                  {msg.sender_id === user.id && !msg.is_deleted_for_all && (
+                    <button
+                      onClick={() => setShowDeleteModal(msg.id)}
+                      className="absolute -left-8 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1 bg-white rounded-full shadow-md hover:bg-red-50"
+                    >
+                      <Trash2 className="w-4 h-4 text-red-500" />
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           ))
         )}
+        
+        {/* Typing indicator */}
+        {otherUserTyping && (
+          <div className="flex justify-start">
+            <div className="bg-white px-4 py-3 rounded-3xl shadow-md">
+              <div className="flex space-x-1">
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
+              </div>
+            </div>
+          </div>
+        )}
+        
         <div ref={messagesEndRef} />
       </div>
+
+      {/* Delete Message Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Delete Message</h3>
+            <div className="space-y-3">
+              <button
+                onClick={() => deleteMessage(showDeleteModal, false)}
+                className="w-full py-3 px-4 bg-gray-100 hover:bg-gray-200 rounded-xl text-left transition-colors"
+              >
+                <p className="font-medium text-gray-900">Delete for me</p>
+                <p className="text-sm text-gray-500">This message will be removed from your chat</p>
+              </button>
+              <button
+                onClick={() => deleteMessage(showDeleteModal, true)}
+                className="w-full py-3 px-4 bg-red-50 hover:bg-red-100 rounded-xl text-left transition-colors"
+              >
+                <p className="font-medium text-red-600">Delete for everyone</p>
+                <p className="text-sm text-red-400">This message will be removed for both of you</p>
+              </button>
+              <button
+                onClick={() => setShowDeleteModal(null)}
+                className="w-full py-3 px-4 border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Input - Fixed at bottom */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 sm:p-4 pb-safe z-50">
@@ -457,7 +661,10 @@ const ChatPage = ({ user }) => {
             data-testid="message-input"
             type="text"
             value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
+            onChange={(e) => {
+              setNewMessage(e.target.value);
+              handleTyping();
+            }}
             placeholder="Type a message..."
             className="flex-1 py-6 px-5 rounded-full border-2 border-gray-200 focus:border-pink-500"
           />
