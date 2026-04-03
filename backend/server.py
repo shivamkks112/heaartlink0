@@ -3221,6 +3221,103 @@ async def send_message_http(message_data: Message):
     
     # Proceed with message
     message_dict = message_data.dict()
+    original_content = message_dict["content"]
+    
+    # === PERSONAL INFO DETECTION & MASKING ===
+    # Detect phone numbers and mask them
+    import re
+    
+    # Indian phone number patterns
+    phone_patterns = [
+        r'\b(?:\+91[\-\s]?)?[6-9]\d{9}\b',  # +91 9876543210 or 9876543210
+        r'\b(?:\+91[\-\s]?)?\d{5}[\-\s]?\d{5}\b',  # 98765 43210
+        r'\b(?:0\d{2,4}[\-\s]?)?\d{6,8}\b',  # Landline: 011-12345678
+    ]
+    
+    # Email pattern
+    email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+    
+    # Social media patterns
+    social_patterns = [
+        r'(?:instagram|insta|ig)[\s:@]*[A-Za-z0-9._]+',  # Instagram handles
+        r'(?:snapchat|snap)[\s:@]*[A-Za-z0-9._]+',  # Snapchat
+        r'(?:telegram|tg)[\s:@]*[A-Za-z0-9._]+',  # Telegram
+        r'(?:whatsapp|wa|wp)[\s:]*[\+]?\d+',  # WhatsApp numbers
+    ]
+    
+    detected_personal_info = []
+    masked_content = original_content
+    
+    # Check for phone numbers
+    for pattern in phone_patterns:
+        matches = re.findall(pattern, original_content, re.IGNORECASE)
+        for match in matches:
+            if len(re.sub(r'\D', '', match)) >= 10:  # At least 10 digits
+                detected_personal_info.append({"type": "phone", "value": match})
+                # Mask: show first 2 and last 2 digits
+                digits = re.sub(r'\D', '', match)
+                masked = digits[:2] + '*' * (len(digits) - 4) + digits[-2:]
+                masked_content = masked_content.replace(match, f"[📱 {masked}]")
+    
+    # Check for emails
+    email_matches = re.findall(email_pattern, original_content, re.IGNORECASE)
+    for email in email_matches:
+        detected_personal_info.append({"type": "email", "value": email})
+        # Mask email: show first 2 chars and domain
+        parts = email.split('@')
+        masked_email = parts[0][:2] + '****@' + parts[1]
+        masked_content = masked_content.replace(email, f"[📧 {masked_email}]")
+    
+    # Check for social media handles
+    for pattern in social_patterns:
+        matches = re.findall(pattern, original_content, re.IGNORECASE)
+        for match in matches:
+            detected_personal_info.append({"type": "social", "value": match})
+            masked_content = masked_content.replace(match, "[🔗 Social handle hidden]")
+    
+    # If personal info detected, handle it
+    if detected_personal_info:
+        # Store original but show masked
+        message_dict["content"] = masked_content
+        message_dict["original_content_encrypted"] = original_content  # Store original (could encrypt)
+        message_dict["personal_info_detected"] = True
+        message_dict["detected_info_types"] = list(set([i["type"] for i in detected_personal_info]))
+        
+        # Send warning notification to BOTH users
+        warning_message = {
+            "id": str(uuid.uuid4()),
+            "match_id": message_data.match_id,
+            "sender_id": "system",
+            "receiver_id": message_data.sender_id,
+            "content": "⚠️ Personal information detected and masked for your safety. Sharing phone numbers, emails, or social media handles is not recommended until you've built trust.",
+            "read": False,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "message_type": "system_warning"
+        }
+        await db.messages.insert_one(warning_message)
+        
+        # Send warning via WebSocket
+        await manager.send_message(message_data.sender_id, {
+            "type": "system_warning",
+            "message": "⚠️ Your message contained personal information which has been masked for safety. Please be careful about sharing personal details."
+        })
+        
+        # Also warn receiver
+        await manager.send_message(message_data.receiver_id, {
+            "type": "system_warning", 
+            "message": "⚠️ A message with personal information was received. The details have been masked for your safety."
+        })
+        
+        # Log for admin review
+        await db.safety_logs.insert_one({
+            "type": "personal_info_shared",
+            "sender_id": message_data.sender_id,
+            "receiver_id": message_data.receiver_id,
+            "match_id": message_data.match_id,
+            "detected_info": detected_personal_info,
+            "original_content": original_content,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        })
     
     # Check if sender has disappearing messages enabled
     sender_privacy = sender.get("privacy_settings", {})
