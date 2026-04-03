@@ -553,15 +553,16 @@ const ChatPage = ({ user }) => {
                 </div>
               ) : (
                 /* Regular Messages */
-                <div className="relative group">
+                <div className="relative group max-w-[85%] sm:max-w-[75%] md:max-w-[70%]">
                   <div
-                    className={`max-w-[70%] px-5 py-3 rounded-3xl ${
+                    className={`min-w-[60px] px-4 py-2.5 rounded-2xl ${
                       msg.is_deleted_for_all
                         ? 'bg-gray-200 text-gray-500 italic'
                         : msg.sender_id === user.id
                         ? 'bg-gradient-to-r from-pink-500 to-orange-500 text-white'
                         : 'bg-white text-gray-800 shadow-md'
                     }`}
+                    style={{ wordBreak: 'break-word', overflowWrap: 'break-word', hyphens: 'auto' }}
                   >
                     {/* Personal info detected badge */}
                     {msg.personal_info_detected && (
@@ -571,12 +572,12 @@ const ChatPage = ({ user }) => {
                       </div>
                     )}
                     
-                    <p className="break-words">{msg.content}</p>
+                    <p className="text-sm sm:text-base whitespace-pre-wrap" style={{ wordBreak: 'break-word' }}>{msg.content}</p>
                     
-                    <div className={`flex items-center justify-between gap-2 mt-1`}>
+                    <div className={`flex items-center justify-end gap-2 mt-1`}>
                       <p
-                        className={`text-xs ${
-                          msg.sender_id === user.id ? 'text-white/80' : 'text-gray-500'
+                        className={`text-[10px] sm:text-xs ${
+                          msg.sender_id === user.id ? 'text-white/70' : 'text-gray-400'
                         }`}
                       >
                         {new Date(msg.created_at).toLocaleTimeString('en-IN', {
