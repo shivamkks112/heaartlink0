@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Heart, MessageCircle, Sparkles, Users, Zap, Mail, Shield, AlertTriangle, X } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
 import Navbar from '@/components/Navbar';
@@ -118,11 +118,13 @@ const getOnlineStatusInfo = (isOnline, lastActive) => {
 
 const MatchesPage = ({ user }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [matches, setMatches] = useState([]);
   const [conversations, setConversations] = useState([]);
   const [activeUsers, setActiveUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('matches'); // 'matches', 'messages', or 'active'
+  // Auto-switch to messages tab if navigated back from chat
+  const [activeTab, setActiveTab] = useState(location.state?.tab || 'matches');
   const [unreadCounts, setUnreadCounts] = useState({});
   const [showSafetyModal, setShowSafetyModal] = useState(false);
   const [pendingChatId, setPendingChatId] = useState(null);
@@ -138,7 +140,7 @@ const MatchesPage = ({ user }) => {
       setPendingChatId(matchId);
       setShowSafetyModal(true);
     } else {
-      navigate(`/chat/${matchId}`);
+      navigate(`/chat/${matchId}`, { state: { fromTab: activeTab } });
     }
   };
 
@@ -147,7 +149,7 @@ const MatchesPage = ({ user }) => {
     localStorage.setItem('heartlink_safety_message_seen', 'true');
     setShowSafetyModal(false);
     if (pendingChatId) {
-      navigate(`/chat/${pendingChatId}`);
+      navigate(`/chat/${pendingChatId}`, { state: { fromTab: activeTab } });
       setPendingChatId(null);
     }
   };

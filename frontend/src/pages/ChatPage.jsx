@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { Send, ArrowLeft, Shield, Flag, BellOff, Bell, MoreVertical, Trash2, AlertTriangle, Camera, Clock } from 'lucide-react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
@@ -21,6 +21,8 @@ const WS_URL = BACKEND_URL.replace('https://', 'wss://').replace('http://', 'ws:
 const ChatPage = ({ user }) => {
   const { matchId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const fromTab = location.state?.fromTab || 'messages';
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [otherUser, setOtherUser] = useState(null);
@@ -359,7 +361,7 @@ const ChatPage = ({ user }) => {
           blocked_user_id: otherUser.id
         });
         toast.success('User blocked successfully');
-        navigate('/matches');
+        navigate('/matches', { state: { tab: fromTab } });
       } catch (error) {
         toast.error('Failed to block user');
         console.error('Block error:', error);
@@ -441,7 +443,7 @@ const ChatPage = ({ user }) => {
               data-testid="back-btn"
               onClick={(e) => {
                 e.stopPropagation();
-                navigate('/matches');
+                navigate('/matches', { state: { tab: fromTab } });
               }}
               className="p-3 hover:bg-white/20 rounded-full transition-all backdrop-blur-sm relative z-10 active:scale-95"
               style={{ minWidth: '44px', minHeight: '44px' }}
