@@ -207,13 +207,13 @@ const MatchesPage = ({ user }) => {
       const matchesResponse = await axios.get(`${API}/matches/${user.id}`);
       const allMatches = matchesResponse.data;
       
-      // For each match, get the last message
+      // For each match, get the last message using dedicated endpoint
       const conversationsWithMessages = await Promise.all(
         allMatches.map(async (match) => {
           try {
-            const messagesResponse = await axios.get(`${API}/messages/${match.match_id}?limit=1`);
-            const messages = messagesResponse.data;
-            const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+            // Use the new /last endpoint to get the most recent message
+            const lastMsgResponse = await axios.get(`${API}/messages/${match.match_id}/last`);
+            const lastMessage = lastMsgResponse.data;
             
             // Count unread messages
             const unreadResponse = await axios.get(`${API}/messages/${match.match_id}/unread-count/${user.id}`);
@@ -223,7 +223,7 @@ const MatchesPage = ({ user }) => {
               ...match,
               lastMessage,
               unreadCount,
-              hasMessages: messages.length > 0
+              hasMessages: lastMessage !== null
             };
           } catch (error) {
             return {
@@ -236,13 +236,13 @@ const MatchesPage = ({ user }) => {
         })
       );
       
-      // Filter to only show conversations with messages and sort by last message time
+      // Filter to only show conversations with messages and sort by last message time (NEWEST FIRST)
       const activeConversations = conversationsWithMessages
-        .filter(conv => conv.hasMessages)
+        .filter(conv => conv.hasMessages && conv.lastMessage)
         .sort((a, b) => {
           const timeA = a.lastMessage?.created_at ? new Date(a.lastMessage.created_at) : new Date(0);
           const timeB = b.lastMessage?.created_at ? new Date(b.lastMessage.created_at) : new Date(0);
-          return timeB - timeA;
+          return timeB - timeA; // Newest first
         });
       
       setConversations(activeConversations);

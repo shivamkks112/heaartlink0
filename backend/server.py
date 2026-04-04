@@ -3121,8 +3121,12 @@ async def get_active_users(user_id: str, limit: int = 20):
 
 # Chat Routes
 @api_router.get("/messages/{match_id}")
-async def get_messages(match_id: str, user_id: Optional[str] = None, limit: int = 100, skip: int = 0):
-    """Get chat messages with pagination and privacy filters"""
+async def get_messages(match_id: str, user_id: Optional[str] = None, limit: int = 100, skip: int = 0, order: str = "asc"):
+    """Get chat messages with pagination and privacy filters
+    
+    Args:
+        order: 'asc' for oldest first (default for chat display), 'desc' for newest first (for getting last message)
+    """
     query = {
         "match_id": match_id,
         "is_deleted_for_all": {"$ne": True}
@@ -3142,24 +3146,30 @@ async def get_messages(match_id: str, user_id: Optional[str] = None, limit: int 
     # Check for expired disappearing messages
     now = datetime.now(timezone.utc)
     
+    # Sort order: ascending for chat history, descending for getting latest
+    sort_order = 1 if order == "asc" else -1
+    
     messages = await db.messages.find(
         query,
         {"_id": 0}
-    ).sort("created_at", 1).skip(skip).limit(limit).to_list(None)
+    ).sort("created_at", sort_order).skip(skip).limit(limit).to_list(None)
     
     # Filter expired messages and clean response
     valid_messages = []
     for msg in messages:
         # Check if message expired
         if msg.get("expires_at"):
-            expires = datetime.fromisoformat(msg["expires_at"].replace('Z', '+00:00'))
-            if now > expires:
-                # Mark as expired in DB
-                await db.messages.update_one(
-                    {"id": msg["id"]},
-                    {"$set": {"is_deleted_for_all": True, "content": "Message expired"}}
-                )
-                continue
+            try:
+                expires = datetime.fromisoformat(msg["expires_at"].replace('Z', '+00:00'))
+                if now > expires:
+                    # Mark as expired in DB
+                    await db.messages.update_one(
+                        {"id": msg["id"]},
+                        {"$set": {"is_deleted_for_all": True, "content": "Message expired"}}
+                    )
+                    continue
+            except:
+                pass
         
         # Clean the message for response
         clean_msg = {
@@ -3177,7 +3187,25 @@ async def get_messages(match_id: str, user_id: Optional[str] = None, limit: int 
         }
         valid_messages.append(clean_msg)
     
+    # If descending order was used, reverse for display
+    if order == "desc" and limit > 1:
+        valid_messages.reverse()
+    
     return valid_messages
+
+
+@api_router.get("/messages/{match_id}/last")
+async def get_last_message(match_id: str):
+    """Get the last message in a conversation - for message list preview"""
+    message = await db.messages.find_one(
+        {
+            "match_id": match_id,
+            "is_deleted_for_all": {"$ne": True}
+        },
+        {"_id": 0},
+        sort=[("created_at", -1)]
+    )
+    return message
 
 @api_router.get("/messages/{match_id}/unread-count/{user_id}")
 async def get_unread_message_count(match_id: str, user_id: str):
