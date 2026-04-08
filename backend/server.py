@@ -3401,6 +3401,64 @@ async def send_message_http(message_data: Message):
             "created_at": datetime.now(timezone.utc).isoformat()
         })
     
+    # === MONEY / FINANCIAL SCAM DETECTION ===
+    money_keywords = [
+        # Hindi/Hinglish
+        r'\bpaisa\b', r'\bpaise\b', r'\brupaiye\b', r'\brupaye\b', r'\brupay\b',
+        r'\bbhej\s*(?:do|de|dena|dijiye)\b', r'\btransfer\s*(?:kar|karo|kardo|kijiye)\b',
+        r'\bpayment\s*(?:kar|karo|bhej)\b', r'\bkhata\b', r'\budhar\b', r'\bkarz\b',
+        r'\bpaytm\b', r'\bgpay\b', r'\bphonepe\b', r'\bbhim\b',
+        # English
+        r'\bsend\s*(?:me\s*)?money\b', r'\btransfer\s*(?:money|amount|funds)\b',
+        r'\bbank\s*(?:account|details|number)\b', r'\baccount\s*(?:number|details)\b',
+        r'\bupi\s*(?:id|number)?\b', r'\bpay\s*(?:me|now)\b',
+        r'\bcash\b', r'\bloan\b', r'\binvest(?:ment)?\b',
+        r'\bcrypto(?:currency)?\b', r'\bbitcoin\b',
+        r'\b(?:gift\s*card|voucher)\b', r'\bemi\b',
+        # Financial amounts with rupee symbol
+        r'(?:rs\.?|₹)\s*\d+', r'\d+\s*(?:rs\.?|₹|rupees?)',
+    ]
+    
+    money_detected = False
+    for pattern in money_keywords:
+        if re.search(pattern, original_content, re.IGNORECASE):
+            money_detected = True
+            break
+    
+    if money_detected:
+        # Insert system warning about money
+        money_warning = {
+            "id": str(uuid.uuid4()),
+            "match_id": message_data.match_id,
+            "sender_id": "system",
+            "receiver_id": message_data.receiver_id,
+            "content": "⚠️ Financial topic detected! Never send money, share bank details, or make payments to someone you met online. Scammers often build trust before asking for money. Stay safe!",
+            "read": False,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "message_type": "system_warning"
+        }
+        await db.messages.insert_one(money_warning)
+        
+        # WebSocket warnings
+        await manager.send_message(message_data.receiver_id, {
+            "type": "system_warning",
+            "message": "⚠️ A message about money/payments was received. Never send money to someone you met online!"
+        })
+        await manager.send_message(message_data.sender_id, {
+            "type": "system_warning",
+            "message": "⚠️ Discussing money or payments on a dating app is risky. Be careful and protect yourself!"
+        })
+        
+        # Log for admin
+        await db.safety_logs.insert_one({
+            "type": "money_discussion",
+            "sender_id": message_data.sender_id,
+            "receiver_id": message_data.receiver_id,
+            "match_id": message_data.match_id,
+            "original_content": original_content,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        })
+    
     # Check if sender has disappearing messages enabled
     sender_privacy = sender.get("privacy_settings", {})
     if sender_privacy.get("disappearing_messages", False):

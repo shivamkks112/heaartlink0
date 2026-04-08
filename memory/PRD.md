@@ -3,7 +3,29 @@
 ## Original Problem Statement
 Build a modern, safe, trust-based dating app for Android called "HeartLink" for Indian users. The app focuses on creating a premium, respectful, safe dating experience with emphasis on genuine users and female safety.
 
-## Latest Update (February 2025)
+## Latest Update (April 2026)
+
+### Money/Financial Scam Warning in Chat (Apr 4, 2026)
+**Features Implemented:**
+1. **Financial keyword detection** - Detects Hindi/Hinglish/English money-related words (paisa, rupaye, send money, GPay, UPI, bank account, loan, crypto, etc.)
+2. **System warning message** - Yellow warning banner appears in chat: "Financial topic detected! Never send money..."
+3. **WebSocket real-time alerts** - Both sender and receiver get warned
+4. **Admin safety logging** - All money discussions logged in `safety_logs` collection for review
+
+### Message Tab Sorting & Read Count Fix (Apr 4, 2026)
+**Fixes:**
+1. **Message sorting** - `/api/messages/{match_id}/last` endpoint returns most recent message for correct conversation ordering
+2. **Tab state preservation** - When user navigates back from ChatPage, Messages tab stays selected (via React Router location state)
+3. **Unread count refresh** - Fresh unread counts fetched on tab re-mount after reading messages
+
+**Files Updated:**
+- `/app/backend/server.py` - Money keyword detection + warning system
+- `/app/frontend/src/pages/MatchesPage.jsx` - Tab state preservation via useLocation
+- `/app/frontend/src/pages/ChatPage.jsx` - Pass fromTab state back to MatchesPage
+
+---
+
+## Previous Update (February 2025)
 
 ### Online Status Color Differentiation & Safety Popup ✅ (Feb 24, 2025)
 
