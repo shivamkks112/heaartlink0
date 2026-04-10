@@ -25,6 +25,39 @@ Build a modern, safe, trust-based dating app for Android called "HeartLink" for 
 
 ---
 
+### Referral System (P1) (Apr 10, 2026)
+**Features Implemented:**
+1. **Unique referral code** per user (auto-generated, format: HLXXX + 6 chars)
+2. **Share referral link** - Native share + clipboard copy
+3. **Reward: 3 referrals = 10 FREE Superlikes** - Auto-applied when milestone hit
+4. **New user bonus** - 2 FREE Superlikes for using a referral code
+5. **Referral leaderboard** - Top 10 referrers
+6. **Signup integration** - Referral code input + URL pre-fill (?ref=CODE)
+
+**New Endpoints:**
+- `GET /api/referral/{user_id}` - Get code, stats, link
+- `POST /api/referral/apply` - Apply code during signup
+- `GET /api/referral/{user_id}/leaderboard` - Top referrers
+
+### Daily Login Rewards (P2) (Apr 10, 2026)
+**Features Implemented:**
+1. **7-day reward cycle** (Day1: 1 Superlike, Day2: 2, Day3: 30min Boost, Day4: 3, Day5: 5, Day6: 1hr Boost, Day7: 10 Superlikes + Badge)
+2. **Streak tracking** - Resets if user misses a day
+3. **Auto-popup on login** - Modal appears once per day showing claim option
+4. **IST timezone** aware for date calculations
+
+**New Endpoints:**
+- `GET /api/daily-reward/{user_id}` - Streak status
+- `POST /api/daily-reward/{user_id}/claim` - Claim reward
+
+**New Files:**
+- `/app/frontend/src/pages/ReferralPage.jsx`
+- `/app/frontend/src/components/DailyRewardModal.jsx`
+
+**Testing:** 100% pass rate (15/15 backend, all frontend verified)
+
+---
+
 ## Previous Update (February 2025)
 
 ### Online Status Color Differentiation & Safety Popup ✅ (Feb 24, 2025)
