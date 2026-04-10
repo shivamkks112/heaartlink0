@@ -21,6 +21,8 @@ import ProfileViewersPage from '@/pages/ProfileViewersPage';
 import ProfileEnhancementPage from '@/pages/ProfileEnhancementPage';
 import PremiumPage from '@/pages/PremiumPage';
 import NotificationsPage from '@/pages/NotificationsPage';
+import ReferralPage from '@/pages/ReferralPage';
+import DailyRewardModal from '@/components/DailyRewardModal';
 import InstallPrompt from '@/components/InstallPrompt';
 import { AdProvider } from '@/context/AdContext';
 import { requestNotificationPermission, setupForegroundMessageListener } from '@/firebase/messaging';
@@ -123,6 +125,7 @@ function PendingNavigationHandler({ user }) {
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showDailyReward, setShowDailyReward] = useState(false);
 
   useEffect(() => {
     // Initialize native Google Auth
@@ -134,6 +137,16 @@ function App() {
       try {
         const userData = JSON.parse(storedUser);
         setUser(userData);
+        
+        // Show daily reward if not shown today
+        const lastShown = localStorage.getItem('heartlink_daily_reward_date');
+        const today = new Date().toISOString().split('T')[0];
+        if (lastShown !== today) {
+          setTimeout(() => {
+            setShowDailyReward(true);
+            localStorage.setItem('heartlink_daily_reward_date', today);
+          }, 2000);
+        }
         
         // Request native push notification permission when user logs in
         setTimeout(() => {
@@ -165,6 +178,15 @@ function App() {
   const handleLogin = (userData) => {
     setUser(userData);
     localStorage.setItem('user', JSON.stringify(userData));
+    // Show daily reward after login (check if not claimed today)
+    const lastShown = localStorage.getItem('heartlink_daily_reward_date');
+    const today = new Date().toISOString().split('T')[0];
+    if (lastShown !== today) {
+      setTimeout(() => {
+        setShowDailyReward(true);
+        localStorage.setItem('heartlink_daily_reward_date', today);
+      }, 1500);
+    }
   };
 
   const handleLogout = () => {
@@ -210,10 +232,15 @@ function App() {
             <Route path="/profile-viewers" element={user ? <ProfileViewersPage user={user} /> : <Navigate to="/" />} />
             <Route path="/enhance-profile" element={user ? <ProfileEnhancementPage user={user} onUpdate={handleLogin} /> : <Navigate to="/" />} />
             <Route path="/notifications" element={user ? <NotificationsPage user={user} /> : <Navigate to="/" />} />
+            <Route path="/referral" element={user ? <ReferralPage user={user} /> : <Navigate to="/" />} />
             {/* Premium Route - HIDDEN FOR NOW */}
             {/* <Route path="/premium" element={user ? <PremiumPage user={user} /> : <Navigate to="/" />} /> */}
             <Route path="/premium" element={<Navigate to="/discover" />} />
           </Routes>
+          {/* Daily Reward Modal */}
+          {showDailyReward && user && (
+            <DailyRewardModal user={user} onClose={() => setShowDailyReward(false)} />
+          )}
         </BrowserRouter>
       </AdProvider>
       

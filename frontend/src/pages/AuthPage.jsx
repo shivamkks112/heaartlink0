@@ -23,6 +23,10 @@ const AuthPage = ({ onLogin }) => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [countdown, setCountdown] = useState(0);
   
+  // Pre-fill referral code from URL params
+  const urlParams = new URLSearchParams(window.location.search);
+  const refCode = urlParams.get('ref') || '';
+  
   const [loginData, setLoginData] = useState({
     email_or_phone: '',
     password: ''
@@ -40,7 +44,8 @@ const AuthPage = ({ onLogin }) => {
     bio: '',
     location: '',
     interests: '',
-    ageVerified: false
+    ageVerified: false,
+    referral_code: refCode
   });
 
   // Profile picture state for signup
@@ -372,6 +377,19 @@ const AuthPage = ({ onLogin }) => {
       await onLogin(userData);
       toast.dismiss();
       toast.success(`Welcome to HeartLink, ${userData.name}! Your profile is pending approval.`);
+      
+      // Apply referral code if provided
+      if (signupData.referral_code && signupData.referral_code.trim()) {
+        try {
+          await axios.post(`${API}/referral/apply`, {
+            referral_code: signupData.referral_code.trim().toUpperCase(),
+            user_id: userData.id
+          });
+          toast.success('Referral applied! You got 2 FREE Superlikes!');
+        } catch (refErr) {
+          console.error('Referral apply error:', refErr);
+        }
+      }
       
       setTimeout(() => {
         navigate('/discover');
@@ -832,6 +850,21 @@ const AuthPage = ({ onLogin }) => {
                   <option value="Separated">Separated</option>
                   <option value="Complicated">Its Complicated</option>
                 </select>
+              </div>
+
+              {/* Referral Code */}
+              <div>
+                <Label className="text-gray-700 font-semibold">Referral Code (Optional)</Label>
+                <Input
+                  data-testid="signup-referral-input"
+                  placeholder="Enter friend's referral code"
+                  value={signupData.referral_code}
+                  onChange={(e) => setSignupData({...signupData, referral_code: e.target.value.toUpperCase()})}
+                  className="mt-2 p-3 rounded-xl border-2 border-gray-200 focus:border-pink-500 uppercase tracking-wider"
+                />
+                {signupData.referral_code && (
+                  <p className="text-xs text-green-600 mt-1">You'll get 2 FREE Superlikes for using a referral code!</p>
+                )}
               </div>
 
               <Button

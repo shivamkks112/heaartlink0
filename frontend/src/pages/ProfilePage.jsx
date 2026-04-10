@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-import { Camera, User, Heart, MapPin, Calendar, Briefcase, GraduationCap, Ruler, Dumbbell, Wine, Cigarette, CheckCircle, Shield, Sparkles, ChevronRight, Search } from 'lucide-react';
+import { Camera, User, Heart, MapPin, Calendar, Briefcase, GraduationCap, Ruler, Dumbbell, Wine, Cigarette, CheckCircle, Shield, Sparkles, ChevronRight, Search, Share2, Gift } from 'lucide-react';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
 import { useNavigate } from 'react-router-dom';
@@ -606,6 +606,24 @@ const ProfilePage = ({ user, onUpdate }) => {
                 </div>
               </div>
               <ChevronRight className="w-5 h-5 text-purple-500 group-hover:translate-x-1 transition-transform" />
+            </button>
+
+            {/* Invite Friends */}
+            <button
+              onClick={() => navigate('/referral')}
+              className="w-full bg-gradient-to-r from-orange-50 to-pink-50 border-2 border-orange-200 rounded-xl p-4 flex items-center justify-between hover:shadow-md transition-all group"
+              data-testid="invite-friends-btn"
+            >
+              <div className="flex items-center gap-3">
+                <div className="bg-gradient-to-r from-orange-500 to-pink-500 p-2.5 rounded-xl">
+                  <Share2 className="w-5 h-5 text-white" />
+                </div>
+                <div className="text-left">
+                  <h4 className="font-bold text-gray-900">Invite Friends</h4>
+                  <p className="text-sm text-gray-600">Refer 3 friends & earn 10 FREE Superlikes</p>
+                </div>
+              </div>
+              <ChevronRight className="w-5 h-5 text-orange-500 group-hover:translate-x-1 transition-transform" />
             </button>
 
             {/* Display Trust Badge */}

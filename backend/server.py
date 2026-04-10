@@ -329,6 +329,15 @@ async def create_indexes():
         await db.profile_views.create_index("viewer_id", background=True)
         await db.profile_views.create_index([("profile_id", 1), ("viewed_at", -1)], background=True)
         
+        # Referrals collection indexes
+        await db.referrals.create_index("referrer_id", background=True)
+        await db.referrals.create_index("referred_user_id", unique=True, sparse=True, background=True)
+        await db.referrals.create_index("referral_code", background=True)
+        await db.users.create_index("referral_code", unique=True, sparse=True, background=True)
+        
+        # Daily rewards collection indexes
+        await db.daily_rewards.create_index("user_id", unique=True, background=True)
+        
         logging.info("✅ MongoDB indexes created successfully")
     except Exception as e:
         logging.error(f"❌ Error creating indexes: {e}")
@@ -6203,6 +6212,303 @@ async def get_notification_stats():
         "total_sent": total,
         "by_type": {s["_id"]: s["count"] for s in stats_by_type},
         "recent": recent
+    }
+
+
+# ==========================================
+# REFERRAL SYSTEM (P1)
+# ==========================================
+
+@api_router.get("/referral/{user_id}")
+async def get_referral_info(user_id: str):
+    """Get user's referral code and stats"""
+    user = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Generate referral code if not exists
+    referral_code = user.get("referral_code")
+    if not referral_code:
+        referral_code = f"HL{user.get('name', 'U')[:3].upper()}{str(uuid.uuid4())[:6].upper()}"
+        await db.users.update_one({"id": user_id}, {"$set": {"referral_code": referral_code}})
+    
+    # Count successful referrals
+    referral_count = await db.referrals.count_documents({"referrer_id": user_id, "status": "completed"})
+    pending_count = await db.referrals.count_documents({"referrer_id": user_id, "status": "pending"})
+    
+    # Calculate rewards earned
+    rewards_earned = (referral_count // 3) * 10  # 10 superlikes per 3 referrals
+    next_milestone = 3 - (referral_count % 3)  # Referrals needed for next reward
+    
+    # Get referral history
+    referrals = await db.referrals.find(
+        {"referrer_id": user_id}, {"_id": 0}
+    ).sort("created_at", -1).limit(20).to_list(20)
+    
+    return {
+        "referral_code": referral_code,
+        "referral_link": f"https://heartlink.co.in/auth?ref={referral_code}",
+        "total_referrals": referral_count,
+        "pending_referrals": pending_count,
+        "rewards_earned": rewards_earned,
+        "next_milestone": next_milestone,
+        "referrals_for_next_reward": next_milestone,
+        "referrals": referrals
+    }
+
+@api_router.post("/referral/apply")
+async def apply_referral_code(data: dict):
+    """Apply a referral code during signup"""
+    referral_code = data.get("referral_code", "").strip().upper()
+    new_user_id = data.get("user_id")
+    
+    if not referral_code or not new_user_id:
+        raise HTTPException(status_code=400, detail="Referral code and user_id required")
+    
+    # Find the referrer
+    referrer = await db.users.find_one({"referral_code": referral_code}, {"_id": 0})
+    if not referrer:
+        raise HTTPException(status_code=404, detail="Invalid referral code")
+    
+    if referrer["id"] == new_user_id:
+        raise HTTPException(status_code=400, detail="Cannot refer yourself")
+    
+    # Check if already referred
+    existing = await db.referrals.find_one({
+        "referred_user_id": new_user_id
+    })
+    if existing:
+        raise HTTPException(status_code=400, detail="Already used a referral code")
+    
+    # Create referral record
+    referral = {
+        "id": str(uuid.uuid4()),
+        "referrer_id": referrer["id"],
+        "referrer_name": referrer.get("name", "Unknown"),
+        "referred_user_id": new_user_id,
+        "referral_code": referral_code,
+        "status": "completed",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.referrals.insert_one(referral)
+    
+    # Check if referrer hit a milestone (every 3 referrals = 10 superlikes)
+    total_referrals = await db.referrals.count_documents({
+        "referrer_id": referrer["id"], "status": "completed"
+    })
+    
+    reward_given = False
+    if total_referrals % 3 == 0:
+        # Grant 10 superlikes to referrer
+        await db.users.update_one(
+            {"id": referrer["id"]},
+            {"$inc": {"bonus_superlikes": 10}}
+        )
+        # Log reward
+        await db.rewards.insert_one({
+            "id": str(uuid.uuid4()),
+            "user_id": referrer["id"],
+            "type": "referral_milestone",
+            "reward": "10_superlikes",
+            "description": f"Referred {total_referrals} friends! +10 Superlikes",
+            "created_at": datetime.now(timezone.utc).isoformat()
+        })
+        reward_given = True
+    
+    # Give new user a welcome bonus (2 superlikes for using referral)
+    await db.users.update_one(
+        {"id": new_user_id},
+        {"$inc": {"bonus_superlikes": 2}, "$set": {"referred_by": referrer["id"]}}
+    )
+    
+    return {
+        "success": True,
+        "message": "Referral applied successfully!",
+        "referrer_rewarded": reward_given,
+        "referrer_total": total_referrals,
+        "new_user_bonus": 2
+    }
+
+@api_router.get("/referral/{user_id}/leaderboard")
+async def get_referral_leaderboard(user_id: str):
+    """Get top referrers"""
+    pipeline = [
+        {"$match": {"status": "completed"}},
+        {"$group": {"_id": "$referrer_id", "count": {"$sum": 1}, "name": {"$first": "$referrer_name"}}},
+        {"$sort": {"count": -1}},
+        {"$limit": 10}
+    ]
+    leaders = await db.referrals.aggregate(pipeline).to_list(10)
+    
+    leaderboard = []
+    for i, leader in enumerate(leaders):
+        leaderboard.append({
+            "rank": i + 1,
+            "name": leader.get("name", "Anonymous"),
+            "referrals": leader["count"],
+            "is_you": leader["_id"] == user_id
+        })
+    
+    return {"leaderboard": leaderboard}
+
+
+# ==========================================
+# DAILY LOGIN REWARDS (P2)
+# ==========================================
+
+DAILY_REWARDS = [
+    {"day": 1, "type": "superlikes", "amount": 1, "label": "1 Superlike"},
+    {"day": 2, "type": "superlikes", "amount": 2, "label": "2 Superlikes"},
+    {"day": 3, "type": "profile_boost", "amount": 30, "label": "30 Min Profile Boost"},
+    {"day": 4, "type": "superlikes", "amount": 3, "label": "3 Superlikes"},
+    {"day": 5, "type": "superlikes", "amount": 5, "label": "5 Superlikes"},
+    {"day": 6, "type": "profile_boost", "amount": 60, "label": "1 Hr Profile Boost"},
+    {"day": 7, "type": "superlikes_badge", "amount": 10, "label": "10 Superlikes + Badge"},
+]
+
+@api_router.get("/daily-reward/{user_id}")
+async def get_daily_reward_status(user_id: str):
+    """Get user's daily login reward status and streak"""
+    user = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Get today's date (IST)
+    now_utc = datetime.now(timezone.utc)
+    ist_offset = timedelta(hours=5, minutes=30)
+    now_ist = now_utc + ist_offset
+    today_str = now_ist.strftime("%Y-%m-%d")
+    
+    # Get streak info
+    streak_data = await db.daily_rewards.find_one(
+        {"user_id": user_id}, {"_id": 0}
+    )
+    
+    if not streak_data:
+        streak_data = {
+            "user_id": user_id,
+            "current_streak": 0,
+            "last_claim_date": None,
+            "total_claims": 0,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.daily_rewards.insert_one(streak_data)
+    
+    last_claim = streak_data.get("last_claim_date")
+    current_streak = streak_data.get("current_streak", 0)
+    
+    # Check if already claimed today
+    already_claimed = last_claim == today_str
+    
+    # Check if streak should reset (missed more than 1 day)
+    if last_claim and not already_claimed:
+        last_claim_date = datetime.strptime(last_claim, "%Y-%m-%d")
+        today_date = datetime.strptime(today_str, "%Y-%m-%d")
+        diff_days = (today_date - last_claim_date).days
+        
+        if diff_days > 1:
+            # Streak broken - reset
+            current_streak = 0
+            await db.daily_rewards.update_one(
+                {"user_id": user_id},
+                {"$set": {"current_streak": 0}}
+            )
+    
+    # Current day in cycle (1-7)
+    next_day = (current_streak % 7) + 1
+    
+    return {
+        "current_streak": current_streak,
+        "next_day": next_day,
+        "already_claimed_today": already_claimed,
+        "today_reward": DAILY_REWARDS[next_day - 1] if not already_claimed else None,
+        "all_rewards": DAILY_REWARDS,
+        "total_claims": streak_data.get("total_claims", 0),
+        "last_claim_date": last_claim
+    }
+
+@api_router.post("/daily-reward/{user_id}/claim")
+async def claim_daily_reward(user_id: str):
+    """Claim today's daily login reward"""
+    user = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    now_utc = datetime.now(timezone.utc)
+    ist_offset = timedelta(hours=5, minutes=30)
+    now_ist = now_utc + ist_offset
+    today_str = now_ist.strftime("%Y-%m-%d")
+    
+    streak_data = await db.daily_rewards.find_one({"user_id": user_id}, {"_id": 0})
+    
+    if not streak_data:
+        streak_data = {
+            "user_id": user_id,
+            "current_streak": 0,
+            "last_claim_date": None,
+            "total_claims": 0
+        }
+        await db.daily_rewards.insert_one(streak_data)
+    
+    # Check if already claimed
+    if streak_data.get("last_claim_date") == today_str:
+        raise HTTPException(status_code=400, detail="Already claimed today's reward")
+    
+    current_streak = streak_data.get("current_streak", 0)
+    last_claim = streak_data.get("last_claim_date")
+    
+    # Check streak continuity
+    if last_claim:
+        last_claim_date = datetime.strptime(last_claim, "%Y-%m-%d")
+        today_date = datetime.strptime(today_str, "%Y-%m-%d")
+        diff_days = (today_date - last_claim_date).days
+        if diff_days > 1:
+            current_streak = 0  # Reset streak
+    
+    # Next day in cycle
+    reward_day = (current_streak % 7)  # 0-6
+    reward = DAILY_REWARDS[reward_day]
+    new_streak = current_streak + 1
+    
+    # Apply reward
+    update_fields = {}
+    if reward["type"] == "superlikes" or reward["type"] == "superlikes_badge":
+        update_fields["$inc"] = {"bonus_superlikes": reward["amount"]}
+        if reward["type"] == "superlikes_badge" and new_streak >= 7:
+            # Add streak badge
+            update_fields["$addToSet"] = {"badges": "streak_champion"}
+    elif reward["type"] == "profile_boost":
+        boost_until = (now_utc + timedelta(minutes=reward["amount"])).isoformat()
+        update_fields["$set"] = {"profile_boost_until": boost_until}
+    
+    if update_fields:
+        await db.users.update_one({"id": user_id}, update_fields)
+    
+    # Update streak
+    await db.daily_rewards.update_one(
+        {"user_id": user_id},
+        {"$set": {
+            "current_streak": new_streak,
+            "last_claim_date": today_str
+        }, "$inc": {"total_claims": 1}}
+    )
+    
+    # Log reward
+    await db.rewards.insert_one({
+        "id": str(uuid.uuid4()),
+        "user_id": user_id,
+        "type": "daily_login",
+        "reward": reward["label"],
+        "day": reward_day + 1,
+        "streak": new_streak,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    })
+    
+    return {
+        "success": True,
+        "reward": reward,
+        "new_streak": new_streak,
+        "message": f"Day {reward_day + 1} reward claimed: {reward['label']}!"
     }
 
 
