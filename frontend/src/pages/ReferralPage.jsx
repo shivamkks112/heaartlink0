@@ -17,6 +17,7 @@ const ReferralPage = ({ user }) => {
   const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [paused, setPaused] = useState(false);
 
   useEffect(() => {
     fetchReferralData();
@@ -31,8 +32,12 @@ const ReferralPage = ({ user }) => {
       setReferralData(refRes.data);
       setLeaderboard(leaderRes.data.leaderboard || []);
     } catch (error) {
-      console.error('Error fetching referral data:', error);
-      toast.error('Failed to load referral data');
+      if (error.response?.status === 403) {
+        setPaused(true);
+      } else {
+        console.error('Error fetching referral data:', error);
+        toast.error('Failed to load referral data');
+      }
     } finally {
       setLoading(false);
     }
@@ -92,6 +97,16 @@ const ReferralPage = ({ user }) => {
           <p className="text-gray-600 text-sm mt-1">Share HeartLink & earn Superlikes</p>
         </div>
 
+        {paused ? (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-6 text-center" data-testid="referral-paused">
+            <div className="w-14 h-14 bg-yellow-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+              <Gift className="w-7 h-7 text-yellow-600" />
+            </div>
+            <h3 className="font-bold text-gray-900 text-lg">Referral System Paused</h3>
+            <p className="text-gray-600 text-sm mt-2">Referral program is temporarily paused. Check back later!</p>
+          </div>
+        ) : (
+        <>
         {/* Reward Card */}
         <div className="bg-gradient-to-br from-orange-500 via-pink-500 to-purple-600 rounded-2xl p-5 text-white shadow-lg" data-testid="referral-reward-card">
           <div className="flex items-center gap-3 mb-3">
@@ -224,6 +239,8 @@ const ReferralPage = ({ user }) => {
               ))}
             </div>
           </div>
+        )}
+        </>
         )}
       </div>
 

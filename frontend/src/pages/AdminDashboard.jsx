@@ -6,7 +6,7 @@ import {
   ChevronRight, RefreshCw, UserCheck, Bell,
   TrendingUp, UserPlus, Clock, Calendar, Filter,
   Eye, MessageCircle, Heart, Shield, Crown,
-  Activity, BarChart3, PieChart, ClipboardCheck
+  Activity, BarChart3, PieChart, ClipboardCheck, Settings
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -299,6 +299,31 @@ const AdminDashboard = ({ user }) => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
   const [reverifyReason, setReverifyReason] = useState('');
+  const [featureFlags, setFeatureFlags] = useState({ referral_system: true, daily_rewards: true });
+  const [flagsLoading, setFlagsLoading] = useState(false);
+
+  // Fetch feature flags
+  const fetchFeatureFlags = useCallback(async () => {
+    try {
+      const res = await axios.get(`${API}/admin/feature-flags`);
+      setFeatureFlags(res.data);
+    } catch (e) {
+      console.error('Feature flags fetch error:', e);
+    }
+  }, []);
+
+  const toggleFeatureFlag = async (flagName, value) => {
+    setFlagsLoading(true);
+    try {
+      const res = await axios.put(`${API}/admin/feature-flags`, { [flagName]: value });
+      setFeatureFlags(res.data);
+      toast.success(`${flagName.replace('_', ' ')} ${value ? 'enabled' : 'disabled'}!`);
+    } catch (e) {
+      toast.error('Failed to update feature flag');
+    } finally {
+      setFlagsLoading(false);
+    }
+  };
 
   // Fetch dashboard stats
   const fetchStats = useCallback(async () => {
@@ -391,8 +416,10 @@ const AdminDashboard = ({ user }) => {
     } else if (activeTab === 'verifications') {
       fetchPendingVerifications();
       fetchVerifiedUsers();
+    } else if (activeTab === 'settings') {
+      fetchFeatureFlags();
     }
-  }, [activeTab, fetchUsers, fetchPendingVerifications, fetchVerifiedUsers]);
+  }, [activeTab, fetchUsers, fetchPendingVerifications, fetchVerifiedUsers, fetchFeatureFlags]);
 
   const handleDeleteUser = async () => {
     if (!selectedUser) return;
@@ -508,6 +535,13 @@ const AdminDashboard = ({ user }) => {
             className={activeTab === 'notifications' ? 'bg-pink-500' : 'bg-gray-200 text-gray-700'}
           >
             <Bell className="w-4 h-4 mr-2" /> Notifications
+          </Button>
+          <Button
+            onClick={() => setActiveTab('settings')}
+            className={activeTab === 'settings' ? 'bg-pink-500' : 'bg-gray-200 text-gray-700'}
+            data-testid="admin-settings-tab"
+          >
+            <Settings className="w-4 h-4 mr-2" /> Settings
           </Button>
         </div>
 
@@ -927,6 +961,73 @@ const AdminDashboard = ({ user }) => {
                 {blockPermanent ? 'Permanent Ban' : 'Shadow Ban'}
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Settings Tab - Feature Toggles */}
+      {activeTab === 'settings' && (
+        <div className="space-y-6" data-testid="admin-settings-panel">
+          <h2 className="text-xl font-bold text-gray-900">Feature Settings</h2>
+          
+          <div className="bg-white rounded-xl border p-5 space-y-5">
+            <h3 className="font-semibold text-gray-800 text-lg">Feature Toggles</h3>
+            <p className="text-sm text-gray-500">Enable or disable features for all users.</p>
+            
+            {/* Referral System Toggle */}
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl" data-testid="referral-toggle-row">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                  <Users className="w-5 h-5 text-orange-600" />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-gray-900">Referral System</h4>
+                  <p className="text-sm text-gray-500">Invite 3 friends = 10 Superlikes reward</p>
+                </div>
+              </div>
+              <button
+                onClick={() => toggleFeatureFlag('referral_system', !featureFlags.referral_system)}
+                disabled={flagsLoading}
+                data-testid="referral-toggle-btn"
+                className={`relative w-14 h-7 rounded-full transition-colors duration-200 ${
+                  featureFlags.referral_system ? 'bg-green-500' : 'bg-gray-300'
+                } ${flagsLoading ? 'opacity-50' : ''}`}
+              >
+                <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform duration-200 ${
+                  featureFlags.referral_system ? 'translate-x-7' : 'translate-x-0.5'
+                }`} />
+              </button>
+            </div>
+
+            {/* Daily Rewards Toggle */}
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl" data-testid="daily-rewards-toggle-row">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-pink-100 rounded-lg flex items-center justify-center">
+                  <Crown className="w-5 h-5 text-pink-600" />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-gray-900">Daily Login Rewards</h4>
+                  <p className="text-sm text-gray-500">7-day streak with Superlikes & Boost rewards</p>
+                </div>
+              </div>
+              <button
+                onClick={() => toggleFeatureFlag('daily_rewards', !featureFlags.daily_rewards)}
+                disabled={flagsLoading}
+                data-testid="daily-rewards-toggle-btn"
+                className={`relative w-14 h-7 rounded-full transition-colors duration-200 ${
+                  featureFlags.daily_rewards ? 'bg-green-500' : 'bg-gray-300'
+                } ${flagsLoading ? 'opacity-50' : ''}`}
+              >
+                <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform duration-200 ${
+                  featureFlags.daily_rewards ? 'translate-x-7' : 'translate-x-0.5'
+                }`} />
+              </button>
+            </div>
+          </div>
+
+          {/* Status Legend */}
+          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-sm text-yellow-800">
+            <strong>Note:</strong> Disabling a feature will immediately prevent users from accessing it. Existing data (streaks, referral codes) will be preserved and available when re-enabled.
           </div>
         </div>
       )}

@@ -36,6 +36,11 @@ const DailyRewardModal = ({ user, onClose }) => {
         setClaimed(true);
       }
     } catch (error) {
+      // If feature is paused (403), silently close modal
+      if (error.response?.status === 403) {
+        onClose();
+        return;
+      }
       console.error('Error fetching reward:', error);
     } finally {
       setLoading(false);

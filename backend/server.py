@@ -6222,6 +6222,11 @@ async def get_notification_stats():
 @api_router.get("/referral/{user_id}")
 async def get_referral_info(user_id: str):
     """Get user's referral code and stats"""
+    # Check feature flag
+    flags = await db.app_settings.find_one({"type": "feature_flags"}, {"_id": 0})
+    if flags and not flags.get("referral_system", True):
+        raise HTTPException(status_code=403, detail="Referral system is currently paused")
+    
     user = await db.users.find_one({"id": user_id}, {"_id": 0})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -6259,6 +6264,10 @@ async def get_referral_info(user_id: str):
 @api_router.post("/referral/apply")
 async def apply_referral_code(data: dict):
     """Apply a referral code during signup"""
+    flags = await db.app_settings.find_one({"type": "feature_flags"}, {"_id": 0})
+    if flags and not flags.get("referral_system", True):
+        raise HTTPException(status_code=403, detail="Referral system is currently paused")
+    
     referral_code = data.get("referral_code", "").strip().upper()
     new_user_id = data.get("user_id")
     
@@ -6369,6 +6378,10 @@ DAILY_REWARDS = [
 @api_router.get("/daily-reward/{user_id}")
 async def get_daily_reward_status(user_id: str):
     """Get user's daily login reward status and streak"""
+    flags = await db.app_settings.find_one({"type": "feature_flags"}, {"_id": 0})
+    if flags and not flags.get("daily_rewards", True):
+        raise HTTPException(status_code=403, detail="Daily rewards are currently paused")
+    
     user = await db.users.find_one({"id": user_id}, {"_id": 0})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -6430,6 +6443,10 @@ async def get_daily_reward_status(user_id: str):
 @api_router.post("/daily-reward/{user_id}/claim")
 async def claim_daily_reward(user_id: str):
     """Claim today's daily login reward"""
+    flags = await db.app_settings.find_one({"type": "feature_flags"}, {"_id": 0})
+    if flags and not flags.get("daily_rewards", True):
+        raise HTTPException(status_code=403, detail="Daily rewards are currently paused")
+    
     user = await db.users.find_one({"id": user_id}, {"_id": 0})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -6510,6 +6527,43 @@ async def claim_daily_reward(user_id: str):
         "new_streak": new_streak,
         "message": f"Day {reward_day + 1} reward claimed: {reward['label']}!"
     }
+
+
+# ==========================================
+# ADMIN FEATURE TOGGLES
+# ==========================================
+
+DEFAULT_FEATURE_FLAGS = {
+    "referral_system": True,
+    "daily_rewards": True,
+}
+
+@api_router.get("/admin/feature-flags")
+async def get_feature_flags():
+    """Get all feature flags"""
+    flags = await db.app_settings.find_one({"type": "feature_flags"}, {"_id": 0})
+    if not flags:
+        flags = {**DEFAULT_FEATURE_FLAGS, "type": "feature_flags"}
+        await db.app_settings.insert_one(flags)
+    return {k: v for k, v in flags.items() if k != "type"}
+
+@api_router.put("/admin/feature-flags")
+async def update_feature_flags(data: dict):
+    """Update feature flags (admin only)"""
+    allowed_keys = {"referral_system", "daily_rewards"}
+    updates = {k: bool(v) for k, v in data.items() if k in allowed_keys}
+    
+    if not updates:
+        raise HTTPException(status_code=400, detail="No valid flags provided")
+    
+    await db.app_settings.update_one(
+        {"type": "feature_flags"},
+        {"$set": updates},
+        upsert=True
+    )
+    
+    flags = await db.app_settings.find_one({"type": "feature_flags"}, {"_id": 0})
+    return {k: v for k, v in flags.items() if k != "type"}
 
 
 # Include router - MUST be at the very end after all route definitions
