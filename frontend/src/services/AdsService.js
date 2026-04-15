@@ -13,10 +13,6 @@ const AD_CONFIG = {
   APP_ID: 'ca-app-pub-3735972538807236~9004238866',
   INTERSTITIAL_ID: 'ca-app-pub-3735972538807236/8105078421',
   REWARDED_ID: 'ca-app-pub-3735972538807236/8182111801',
-  
-  // Test IDs (for development)
-  TEST_INTERSTITIAL: 'ca-app-pub-3940256099942544/1033173712',
-  TEST_REWARDED: 'ca-app-pub-3940256099942544/5224354917',
 };
 
 // Swipe counter for interstitial ads
