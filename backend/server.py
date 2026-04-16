@@ -16,6 +16,7 @@ import hashlib
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 import json
 import asyncio
+import re
 import orjson  # Fast JSON serialization
 
 # Load environment variables FIRST before importing firebase_config
@@ -541,9 +542,10 @@ class UserSignup(BaseModel):
     bio: str = ""
     location: str
     interests: List[str] = []
+    photos: List[str] = []  # Profile photos - at least 1 mandatory
     # New optional fields during signup
     show_to_gender: str = "both"
-    relationship_status: str = ""  # single, divorced, widowed, separated, complicated
+    relationship_status: str = ""
     relationship_intent: str = ""
     values: List[str] = []
     lifestyle_tags: List[str] = []
@@ -883,6 +885,40 @@ async def signup(request: Request, user_data: UserSignup):
     # Sanitize inputs
     sanitized_name = sanitize_string(user_data.name, max_length=100)
     sanitized_bio = sanitize_string(user_data.bio, max_length=500) if user_data.bio else ""
+    
+    # === MANDATORY CHECKS ===
+    
+    # 1. At least email OR phone must be provided
+    if not user_data.email and not user_data.phone:
+        raise HTTPException(status_code=400, detail="Email ya Mobile Number mein se ek dena zaroori hai")
+    
+    # 2. Profile photo is mandatory
+    if not user_data.photos or len(user_data.photos) == 0:
+        raise HTTPException(status_code=400, detail="Profile photo upload karna zaroori hai")
+    
+    # 3. Block social media handles, telegram, whatsapp mentions in name/bio
+    blocked_patterns = [
+        r'\btelegram\b', r'\btele\s*gram\b', r'\bt\.me\b', r'\b@\w+',
+        r'\bwhatsapp\b', r'\bwhats\s*app\b', r'\bwa\.me\b',
+        r'\binstagram\b', r'\binsta\b', r'\bsnapchat\b', r'\bsnap\b',
+        r'\bfacebook\b', r'\bfb\b', r'\btwitter\b',
+        r'\bsignal\b', r'\bdiscord\b', r'\bskype\b',
+        r'\btg\s*:\s*\w+', r'\btg\b',
+    ]
+    
+    text_to_check = f"{sanitized_name} {sanitized_bio}".lower()
+    for pattern in blocked_patterns:
+        if re.search(pattern, text_to_check, re.IGNORECASE):
+            raise HTTPException(status_code=400, detail="Name ya Bio mein social media handles (Telegram, WhatsApp, Instagram etc.) allowed nahi hai. Safety ke liye sirf app ke andar chat karein.")
+    
+    # 4. Block numeric values / phone numbers in name and bio
+    # Name should not contain digits at all
+    if re.search(r'\d', sanitized_name):
+        raise HTTPException(status_code=400, detail="Name mein numbers allowed nahi hain")
+    
+    # Bio should not contain phone-like numbers (5+ consecutive digits)
+    if sanitized_bio and re.search(r'\d{5,}', sanitized_bio):
+        raise HTTPException(status_code=400, detail="Bio mein phone number ya numeric values allowed nahi hain. Safety ke liye apna number share na karein.")
     
     # Check if user exists - CASE INSENSITIVE for email, NORMALIZED for phone
     if user_data.email:
@@ -1660,6 +1696,29 @@ async def update_profile(user_id: str, updates: dict):
     
     # Filter out None values to prevent validation errors
     filtered_updates = {k: v for k, v in updates.items() if v is not None}
+    
+    # === CONTENT VALIDATION on bio/about_me ===
+    blocked_patterns = [
+        r'\btelegram\b', r'\btele\s*gram\b', r'\bt\.me\b', r'\b@\w+',
+        r'\bwhatsapp\b', r'\bwhats\s*app\b', r'\bwa\.me\b',
+        r'\binstagram\b', r'\binsta\b', r'\bsnapchat\b', r'\bsnap\b',
+        r'\bfacebook\b', r'\bfb\b', r'\btwitter\b',
+        r'\bsignal\b', r'\bdiscord\b', r'\bskype\b',
+        r'\btg\s*:\s*\w+', r'\btg\b',
+    ]
+    
+    text_fields = []
+    if filtered_updates.get("bio"):
+        text_fields.append(filtered_updates["bio"])
+    if filtered_updates.get("about_me"):
+        text_fields.append(filtered_updates["about_me"])
+    
+    for text in text_fields:
+        for pattern in blocked_patterns:
+            if re.search(pattern, text, re.IGNORECASE):
+                raise HTTPException(status_code=400, detail="Bio mein social media handles (Telegram, WhatsApp, Instagram etc.) allowed nahi hai.")
+        if re.search(r'\d{5,}', text):
+            raise HTTPException(status_code=400, detail="Bio mein phone number ya numeric values allowed nahi hain.")
     
     # Update user
     result = await db.users.update_one({"id": user_id}, {"$set": filtered_updates})

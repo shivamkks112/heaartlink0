@@ -349,6 +349,25 @@ const AuthPage = ({ onLogin }) => {
       return;
     }
     
+    // Block social media handles in name/bio
+    const blockedWords = /telegram|whatsapp|instagram|insta|snapchat|snap|facebook|fb|twitter|discord|signal|skype|t\.me|wa\.me|@\w+/i;
+    if (blockedWords.test(signupData.name) || blockedWords.test(signupData.bio)) {
+      toast.error('Name ya Bio mein social media handles (Telegram, WhatsApp, Instagram etc.) allowed nahi hai');
+      return;
+    }
+    
+    // Block numbers in name
+    if (/\d/.test(signupData.name)) {
+      toast.error('Name mein numbers allowed nahi hain');
+      return;
+    }
+    
+    // Block phone numbers in bio (5+ digits)
+    if (signupData.bio && /\d{5,}/.test(signupData.bio)) {
+      toast.error('Bio mein phone number ya numeric values allowed nahi hain');
+      return;
+    }
+    
     setLoading(true);
     
     try {
