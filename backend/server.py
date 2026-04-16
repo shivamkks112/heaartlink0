@@ -916,6 +916,35 @@ async def signup(request: Request, user_data: UserSignup):
         if existing:
             raise HTTPException(status_code=400, detail="Phone number already registered")
     
+    # CROSS-CHECK: If email provided, check if phone already linked to another account & vice versa
+    if user_data.email and user_data.phone:
+        email_lower = user_data.email.lower().strip()
+        phone_normalized = user_data.phone.strip().replace(" ", "").replace("-", "")
+        if not phone_normalized.startswith('+'):
+            phone_normalized = '+91' + phone_normalized.lstrip('0')
+        phone_digits = phone_normalized.replace('+', '').replace('91', '', 1) if phone_normalized.startswith('+91') else phone_normalized
+        
+        cross_check = await db.users.find_one({
+            "$or": [
+                {"phone": phone_normalized},
+                {"phone": phone_digits},
+                {"phone": "+91" + phone_digits},
+                {"phone": {"$regex": phone_digits + "$"}},
+                {"email": email_lower},
+                {"email": {"$regex": f"^{email_lower}$", "$options": "i"}}
+            ]
+        })
+        if cross_check:
+            raise HTTPException(status_code=400, detail="An account already exists with this email or phone number. Please login instead.")
+    
+    # DEVICE/IP duplicate check - prevent same device creating multiple accounts
+    existing_from_ip = await db.users.count_documents({
+        "registered_ip": client_ip,
+        "registered_at": {"$gte": (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()}
+    })
+    if existing_from_ip >= 2:
+        raise HTTPException(status_code=429, detail="Too many accounts created from this device. Please try again later.")
+    
     try:
         # Create user dict from signup data
         user_dict = user_data.dict() if hasattr(user_data, 'dict') else user_data.model_dump()
@@ -935,6 +964,12 @@ async def signup(request: Request, user_data: UserSignup):
         # Create User object to get all defaults (privacy_settings, etc.)
         user = User(**user_dict)
         user_dict_for_db = user.dict() if hasattr(user, 'dict') else user.model_dump()
+        
+        # Remove null/None phone and email to avoid sparse unique index conflicts
+        if not user_dict_for_db.get("phone"):
+            user_dict_for_db.pop("phone", None)
+        if not user_dict_for_db.get("email"):
+            user_dict_for_db.pop("email", None)
         
         # Insert into database
         insert_result = await db.users.insert_one(user_dict_for_db)
@@ -1129,7 +1164,7 @@ async def phone_signup(data: PhoneSignup):
     # Extract just the digits for matching
     phone_digits = phone.replace('+', '').replace('91', '', 1) if phone.startswith('+91') else phone.replace('+', '')
     
-    # Check if user already exists - check all phone variations
+    # Check if user already exists - check all phone variations AND email cross-check
     existing = await db.users.find_one({
         "$or": [
             {"phone": phone},
@@ -1142,7 +1177,15 @@ async def phone_signup(data: PhoneSignup):
     })
     
     if existing:
-        raise HTTPException(status_code=400, detail="User already exists with this phone number")
+        # If account exists, auto-link phone and return existing user (instead of creating duplicate)
+        if not existing.get("phone") or existing.get("phone") != phone:
+            await db.users.update_one(
+                {"id": existing["id"]},
+                {"$set": {"phone": phone, "firebase_uid": data.firebase_uid, "verified": True}}
+            )
+        updated_user = await db.users.find_one({"id": existing["id"]})
+        clean_user = serialize_user_for_response(updated_user, exclude_password=True)
+        return {"message": "Account found and phone linked. Please login.", "user": clean_user, "existing": True}
     
     # Create user
     user_id = str(uuid.uuid4())
@@ -1164,6 +1207,9 @@ async def phone_signup(data: PhoneSignup):
     user_dict = user.dict()
     user_dict["firebase_uid"] = data.firebase_uid
     user_dict.pop("_id", None)
+    # Remove null email to avoid sparse unique index conflicts
+    if not user_dict.get("email"):
+        user_dict.pop("email", None)
     
     await db.users.insert_one(user_dict)
     
