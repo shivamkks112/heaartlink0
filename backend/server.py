@@ -945,6 +945,25 @@ async def signup(request: Request, user_data: UserSignup):
     if existing_from_ip >= 2:
         raise HTTPException(status_code=429, detail="Too many accounts created from this device. Please try again later.")
     
+    # ADVANCED DUPLICATE DETECTION - Same name + same location + similar age
+    name_lower = sanitized_name.lower().strip()
+    age = int(user_data.age) if user_data.age else 0
+    location = user_data.location.strip().lower() if user_data.location else ""
+    
+    if name_lower and location and age > 0:
+        similar_account = await db.users.find_one({
+            "$and": [
+                {"name": {"$regex": f"^{name_lower}$", "$options": "i"}},
+                {"location": {"$regex": f"^{location}$", "$options": "i"}},
+                {"age": {"$gte": age - 2, "$lte": age + 2}}
+            ]
+        })
+        if similar_account:
+            raise HTTPException(
+                status_code=400, 
+                detail="An account with similar details already exists. If this is you, please login with your existing account."
+            )
+    
     try:
         # Create user dict from signup data
         user_dict = user_data.dict() if hasattr(user_data, 'dict') else user_data.model_dump()
