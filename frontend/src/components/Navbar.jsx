@@ -13,32 +13,18 @@ const Navbar = ({ user }) => {
   const API = process.env.REACT_APP_BACKEND_URL + '/api';
 
   useEffect(() => {
-    fetchLikesCount();
-    fetchNotificationCount();
-    // Poll every 30 seconds for updates
-    const interval = setInterval(() => {
-      fetchLikesCount();
-      fetchNotificationCount();
-    }, 30000);
+    fetchCounts();
+    const interval = setInterval(fetchCounts, 60000); // Poll every 60s (was 30s)
     return () => clearInterval(interval);
   }, [user.id]);
 
-  const fetchLikesCount = async () => {
+  const fetchCounts = async () => {
     try {
-      const response = await fetch(`${API}/likes/${user.id}`);
-      const data = await response.json();
-      setLikesCount(data.total_count || 0);
+      const res = await axios.get(`${API}/init/${user.id}`);
+      setLikesCount(res.data.likes_count || 0);
+      setNotificationCount(res.data.notification_count || 0);
     } catch (error) {
-      console.error('Error fetching likes count:', error);
-    }
-  };
-
-  const fetchNotificationCount = async () => {
-    try {
-      const response = await axios.get(`${API}/notifications/${user.id}?limit=1`);
-      setNotificationCount(response.data.unread_count || 0);
-    } catch (error) {
-      console.error('Error fetching notification count:', error);
+      console.error('Error fetching counts:', error);
     }
   };
 

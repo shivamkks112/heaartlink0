@@ -150,11 +150,14 @@ def is_indian_location(location: str) -> bool:
 mongo_url = os.environ.get('MONGO_URL', 'mongodb://localhost:27017')
 client = AsyncIOMotorClient(
     mongo_url,
-    maxPoolSize=50,  # Maximum connections in pool
-    minPoolSize=10,  # Minimum connections to maintain
-    maxIdleTimeMS=30000,  # Close idle connections after 30 sec
-    connectTimeoutMS=5000,  # Connection timeout
-    serverSelectionTimeoutMS=5000  # Server selection timeout
+    maxPoolSize=100,
+    minPoolSize=20,
+    maxIdleTimeMS=60000,
+    connectTimeoutMS=3000,
+    serverSelectionTimeoutMS=3000,
+    retryWrites=True,
+    retryReads=True,
+    compressors="zstd,snappy,zlib"
 )
 db = client[os.environ.get('DB_NAME', 'dating_app_db')]
 
@@ -167,6 +170,24 @@ app = FastAPI(
 
 # Add GZip compression for all responses > 500 bytes
 app.add_middleware(GZipMiddleware, minimum_size=500)
+
+# Add Cache-Control headers for faster repeat loads
+from starlette.middleware.base import BaseHTTPMiddleware
+
+class CacheMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        path = request.url.path
+        # Cache static-like API responses
+        if path.startswith("/api/admin/feature-flags"):
+            response.headers["Cache-Control"] = "public, max-age=60"
+        elif path.startswith("/api/init/"):
+            response.headers["Cache-Control"] = "private, max-age=10"
+        elif path.startswith("/api/health"):
+            response.headers["Cache-Control"] = "no-cache"
+        return response
+
+app.add_middleware(CacheMiddleware)
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -198,6 +219,40 @@ async def health_check():
 async def api_health_check():
     """API health check endpoint"""
     return {"status": "healthy", "service": "HeartLink API"}
+
+# === COMBINED INIT ENDPOINT - Single call for all page data ===
+@api_router.get("/init/{user_id}")
+async def get_init_data(user_id: str):
+    """Combined endpoint - returns user data, counts, feature flags in ONE call"""
+    try:
+        # Run all queries in parallel
+        user_task = db.users.find_one({"id": user_id}, {"_id": 0, "password_hash": 0})
+        likes_task = db.likes.count_documents({"liked_user_id": user_id, "action": "like", "is_matched": False})
+        notif_task = db.notifications.count_documents({"user_id": user_id, "read": False})
+        unread_task = db.messages.count_documents({"receiver_id": user_id, "read": False})
+        flags_task = db.app_settings.find_one({"type": "feature_flags"}, {"_id": 0})
+        
+        user, likes_count, notif_count, unread_msgs, flags = await asyncio.gather(
+            user_task, likes_task, notif_task, unread_task, flags_task
+        )
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        feature_flags = {k: v for k, v in (flags or {}).items() if k != "type"} if flags else {"referral_system": True, "daily_rewards": True}
+        
+        return {
+            "user": user,
+            "likes_count": likes_count,
+            "notification_count": notif_count,
+            "unread_messages": unread_msgs,
+            "feature_flags": feature_flags,
+            "bonus_superlikes": user.get("bonus_superlikes", 0)
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        return {"error": str(e)}
 
 # Simple in-memory cache for frequently accessed data
 from functools import lru_cache
