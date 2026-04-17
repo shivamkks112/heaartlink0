@@ -1,28 +1,32 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import '@/App.css';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+
+// Critical pages - loaded immediately
 import LandingPage from '@/pages/LandingPage';
 import AuthPage from '@/pages/AuthPage';
-import ForgotPasswordPage from '@/pages/ForgotPasswordPage';
-import CompleteProfilePage from '@/pages/CompleteProfilePage';
-import AdminDashboard from '@/pages/AdminDashboard';
-import DiscoverPage from '@/pages/DiscoverPage';
-import MatchesPage from '@/pages/MatchesPage';
-import LikesYouPage from '@/pages/LikesYouPage';
-import ChatPage from '@/pages/ChatPage';
-import ProfilePage from '@/pages/ProfilePage';
-import UserProfilePage from '@/pages/UserProfilePage';
-import PrivacyPage from '@/pages/PrivacyPage';
-import SettingsPage from '@/pages/SettingsPage';
-import PrivacyPolicyPage from '@/pages/PrivacyPolicyPage';
-import DataDeletionPage from '@/pages/DataDeletionPage';
-import TermsPage from '@/pages/TermsPage';
-import ProfileViewersPage from '@/pages/ProfileViewersPage';
-import ProfileEnhancementPage from '@/pages/ProfileEnhancementPage';
-import PremiumPage from '@/pages/PremiumPage';
-import NotificationsPage from '@/pages/NotificationsPage';
-import ReferralPage from '@/pages/ReferralPage';
-import DailyRewardModal from '@/components/DailyRewardModal';
+
+// Lazy loaded pages - loaded on demand
+const ForgotPasswordPage = lazy(() => import('@/pages/ForgotPasswordPage'));
+const CompleteProfilePage = lazy(() => import('@/pages/CompleteProfilePage'));
+const AdminDashboard = lazy(() => import('@/pages/AdminDashboard'));
+const DiscoverPage = lazy(() => import('@/pages/DiscoverPage'));
+const MatchesPage = lazy(() => import('@/pages/MatchesPage'));
+const LikesYouPage = lazy(() => import('@/pages/LikesYouPage'));
+const ChatPage = lazy(() => import('@/pages/ChatPage'));
+const ProfilePage = lazy(() => import('@/pages/ProfilePage'));
+const UserProfilePage = lazy(() => import('@/pages/UserProfilePage'));
+const PrivacyPage = lazy(() => import('@/pages/PrivacyPage'));
+const SettingsPage = lazy(() => import('@/pages/SettingsPage'));
+const PrivacyPolicyPage = lazy(() => import('@/pages/PrivacyPolicyPage'));
+const DataDeletionPage = lazy(() => import('@/pages/DataDeletionPage'));
+const TermsPage = lazy(() => import('@/pages/TermsPage'));
+const ProfileViewersPage = lazy(() => import('@/pages/ProfileViewersPage'));
+const ProfileEnhancementPage = lazy(() => import('@/pages/ProfileEnhancementPage'));
+const PremiumPage = lazy(() => import('@/pages/PremiumPage'));
+const NotificationsPage = lazy(() => import('@/pages/NotificationsPage'));
+const ReferralPage = lazy(() => import('@/pages/ReferralPage'));
+const DailyRewardModal = lazy(() => import('@/components/DailyRewardModal'));
 import InstallPrompt from '@/components/InstallPrompt';
 import { AdProvider } from '@/context/AdContext';
 import { requestNotificationPermission, setupForegroundMessageListener } from '@/firebase/messaging';
@@ -206,12 +210,20 @@ function App() {
     );
   }
 
+  // Loading spinner for lazy components
+  const PageLoader = () => (
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500"></div>
+    </div>
+  );
+
   return (
     <div className="App">
       <AdProvider user={user}>
         <BrowserRouter>
           <NavigationHelper />
           <PendingNavigationHandler user={user} />
+          <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/" element={!user ? <LandingPage /> : <Navigate to="/discover" />} />
             <Route path="/auth" element={!user ? <AuthPage onLogin={handleLogin} /> : <Navigate to="/discover" />} />
@@ -237,9 +249,12 @@ function App() {
             {/* <Route path="/premium" element={user ? <PremiumPage user={user} /> : <Navigate to="/" />} /> */}
             <Route path="/premium" element={<Navigate to="/discover" />} />
           </Routes>
+          </Suspense>
           {/* Daily Reward Modal */}
           {showDailyReward && user && (
-            <DailyRewardModal user={user} onClose={() => setShowDailyReward(false)} />
+            <Suspense fallback={null}>
+              <DailyRewardModal user={user} onClose={() => setShowDailyReward(false)} />
+            </Suspense>
           )}
         </BrowserRouter>
       </AdProvider>
