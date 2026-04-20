@@ -118,9 +118,47 @@ const CompleteProfilePage = ({ onLogin }) => {
       return;
     }
 
+    // Block social media handles in name/bio
+    const blockedWords = /telegram|whatsapp|instagram|insta|snapchat|snap|facebook|fb|twitter|discord|signal|skype|t\.me|wa\.me|@\w+/i;
+    if (blockedWords.test(profileData.name) || blockedWords.test(profileData.bio)) {
+      toast.error('Name ya Bio mein social media handles allowed nahi hai');
+      return;
+    }
+    
+    if (/\d/.test(profileData.name)) {
+      toast.error('Name mein numbers allowed nahi hain');
+      return;
+    }
+    
+    if (profileData.bio && /\d{5,}/.test(profileData.bio)) {
+      toast.error('Bio mein phone number ya numeric values allowed nahi hain');
+      return;
+    }
+
     setLoading(true);
     try {
-      // First create the user
+      // Upload profile picture FIRST (before creating user)
+      toast.loading('Uploading photo...');
+      setUploadingPhoto(true);
+      
+      const tempId = `temp_${Date.now()}`;
+      let photoURL = null;
+      try {
+        const storageRef = ref(storage, `profile_pictures/${tempId}/${Date.now()}_${profilePicture.name}`);
+        await uploadBytes(storageRef, profilePicture);
+        photoURL = await getDownloadURL(storageRef);
+      } catch (uploadError) {
+        console.error('Photo upload error:', uploadError);
+        toast.dismiss();
+        toast.error('Failed to upload photo. Please try again.');
+        setUploadingPhoto(false);
+        setLoading(false);
+        return;
+      }
+      setUploadingPhoto(false);
+      toast.dismiss();
+      
+      // Now create user with photo URL included
       const submitData = {
         phone,
         firebase_uid,
@@ -131,22 +169,23 @@ const CompleteProfilePage = ({ onLogin }) => {
         relationship_status: profileData.relationship_status,
         location: profileData.location,
         bio: profileData.bio,
-        interests: profileData.interests ? profileData.interests.split(',').map(i => i.trim()) : []
+        interests: profileData.interests ? profileData.interests.split(',').map(i => i.trim()) : [],
+        photos: [photoURL]
       };
 
       const response = await axios.post(`${API}/auth/phone-signup`, submitData);
       const userData = response.data.user;
       
-      // Upload profile picture
-      toast.loading('Uploading photo...');
-      const photoURL = await uploadProfilePicture(userData.id);
-      
+      // Photo already uploaded and included in signup, just update profile_picture field
       if (photoURL) {
-        // Update user with profile picture
-        await axios.patch(`${API}/user/${userData.id}`, {
-          profile_picture: photoURL
-        });
-        userData.profile_picture = photoURL;
+        try {
+          await axios.patch(`${API}/user/${userData.id}`, {
+            profile_picture: photoURL
+          });
+          userData.profile_picture = photoURL;
+        } catch (patchErr) {
+          console.error('Profile picture patch error:', patchErr);
+        }
       }
       
       localStorage.setItem('user', JSON.stringify(userData));

@@ -1256,13 +1256,42 @@ class PhoneSignup(BaseModel):
     location: str
     bio: str = ""
     interests: List[str] = []
-    relationship_status: str = ""  # single, divorced, widowed, separated, complicated
+    relationship_status: str = ""
+    photos: List[str] = []  # Profile photos - mandatory
 
 @api_router.post("/auth/phone-signup")
 async def phone_signup(data: PhoneSignup):
     """
     Phone signup - for users who verified via OTP
     """
+    # === MANDATORY CHECKS ===
+    # 1. Profile photo is mandatory
+    if not data.photos or len(data.photos) == 0:
+        raise HTTPException(status_code=400, detail="Profile photo upload karna zaroori hai")
+    
+    # 2. Block social media handles in name/bio
+    blocked_patterns = [
+        r'\btelegram\b', r'\btele\s*gram\b', r'\bt\.me\b', r'\b@\w+',
+        r'\bwhatsapp\b', r'\bwhats\s*app\b', r'\bwa\.me\b',
+        r'\binstagram\b', r'\binsta\b', r'\bsnapchat\b', r'\bsnap\b',
+        r'\bfacebook\b', r'\bfb\b', r'\btwitter\b',
+        r'\bsignal\b', r'\bdiscord\b', r'\bskype\b',
+        r'\btg\s*:\s*\w+', r'\btg\b',
+    ]
+    
+    text_to_check = f"{data.name} {data.bio}".lower()
+    for pattern in blocked_patterns:
+        if re.search(pattern, text_to_check, re.IGNORECASE):
+            raise HTTPException(status_code=400, detail="Name ya Bio mein social media handles allowed nahi hai. Safety ke liye sirf app ke andar chat karein.")
+    
+    # 3. Block numbers in name
+    if re.search(r'\d', data.name):
+        raise HTTPException(status_code=400, detail="Name mein numbers allowed nahi hain")
+    
+    # 4. Block phone numbers in bio
+    if data.bio and re.search(r'\d{5,}', data.bio):
+        raise HTTPException(status_code=400, detail="Bio mein phone number ya numeric values allowed nahi hain.")
+    
     # Normalize phone - comprehensive normalization
     phone = data.phone.strip().replace(" ", "").replace("-", "")
     if not phone.startswith('+'):
@@ -1310,6 +1339,7 @@ async def phone_signup(data: PhoneSignup):
         location=data.location,
         bio=data.bio,
         interests=data.interests,
+        photos=data.photos,
         relationship_status=data.relationship_status,
         verified=True  # Phone verified via OTP
     )
