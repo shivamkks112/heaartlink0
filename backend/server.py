@@ -187,7 +187,53 @@ class CacheMiddleware(BaseHTTPMiddleware):
             response.headers["Cache-Control"] = "no-cache"
         return response
 
+# === SECURITY HEADERS MIDDLEWARE ===
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        # Prevent clickjacking
+        response.headers["X-Frame-Options"] = "DENY"
+        # Prevent MIME type sniffing
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        # XSS Protection
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        # Strict Transport Security (HTTPS enforce)
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        # Referrer Policy
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        # Permissions Policy - disable unnecessary browser features
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(self), payment=()"
+        # Prevent content embedding
+        response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
+        return response
+
+app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(CacheMiddleware)
+
+# === REQUEST BODY SIZE LIMIT (5MB max) ===
+from starlette.requests import Request as StarletteRequest
+
+@app.middleware("http")
+async def limit_request_size(request: StarletteRequest, call_next):
+    content_length = request.headers.get("content-length")
+    if content_length and int(content_length) > 5 * 1024 * 1024:  # 5MB
+        from starlette.responses import JSONResponse
+        return JSONResponse({"detail": "Request too large"}, status_code=413)
+    return await call_next(request)
+
+# === NoSQL INJECTION PREVENTION ===
+def sanitize_mongo_input(data):
+    """Remove MongoDB operators from user input to prevent injection"""
+    if isinstance(data, dict):
+        return {k: sanitize_mongo_input(v) for k, v in data.items() if not str(k).startswith('$')}
+    elif isinstance(data, list):
+        return [sanitize_mongo_input(item) for item in data]
+    elif isinstance(data, str):
+        # Remove potential injection patterns
+        if data.startswith('$'):
+            return ''
+        return data
+    return data
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -1153,12 +1199,41 @@ async def login(request: Request, credentials: UserLogin):
             audit_log.log_event("suspicious_login_attempts", ip=client_ip)
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
+    # Check if account is temporarily locked
+    failed_attempts = user.get("failed_login_attempts", 0)
+    locked_until = user.get("account_locked_until")
+    if locked_until:
+        lock_time = datetime.fromisoformat(locked_until)
+        if datetime.now(timezone.utc) < lock_time:
+            remaining = int((lock_time - datetime.now(timezone.utc)).total_seconds() / 60)
+            raise HTTPException(status_code=423, detail=f"Account locked. Try again in {remaining} minutes.")
+        else:
+            # Lock expired, reset
+            await db.users.update_one({"id": user["id"]}, {"$set": {"failed_login_attempts": 0}, "$unset": {"account_locked_until": ""}})
+            failed_attempts = 0
+    
     # Verify password (supports both bcrypt and legacy SHA256)
     if not verify_password_secure(credentials.password, user["password_hash"]):
+        # Increment failed attempts
+        new_attempts = failed_attempts + 1
+        update = {"$set": {"failed_login_attempts": new_attempts}}
+        
+        # Lock account after 5 failed attempts for 15 minutes
+        if new_attempts >= 5:
+            lock_until = (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()
+            update["$set"]["account_locked_until"] = lock_until
+            
+        await db.users.update_one({"id": user["id"]}, update)
+        
         is_suspicious = activity_detector.record_failed_login(client_ip)
         if is_suspicious:
             audit_log.log_event("suspicious_login_attempts", user_id=user["id"], ip=client_ip)
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        
+        remaining = 5 - new_attempts
+        if remaining > 0:
+            raise HTTPException(status_code=401, detail=f"Invalid credentials. {remaining} attempts remaining.")
+        else:
+            raise HTTPException(status_code=423, detail="Account locked for 15 minutes due to too many failed attempts.")
     
     # Check if user is banned
     if user.get("is_permanently_banned"):
@@ -1166,6 +1241,7 @@ async def login(request: Request, credentials: UserLogin):
     
     # Clear failed login records on successful login
     activity_detector.clear_failed_logins(client_ip)
+    await db.users.update_one({"id": user["id"]}, {"$set": {"failed_login_attempts": 0}, "$unset": {"account_locked_until": ""}})
     
     # Rehash password if using old SHA256 (migration to bcrypt)
     if needs_password_rehash(user["password_hash"]):
@@ -5773,13 +5849,13 @@ async def get_subscription_status(user_id: str):
         }
     }
 
-# CORS - Add before routes
+# CORS - Restricted to allowed origins only
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=os.environ.get('CORS_ORIGINS', 'https://heartlink.co.in,https://www.heartlink.co.in').split(','),
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+    allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
 )
 
 
