@@ -6,7 +6,8 @@ import {
   ChevronRight, RefreshCw, UserCheck, Bell,
   TrendingUp, UserPlus, Clock, Calendar, Filter,
   Eye, MessageCircle, Heart, Shield, Crown,
-  Activity, BarChart3, PieChart, ClipboardCheck, Settings
+  Activity, BarChart3, PieChart, ClipboardCheck, Settings,
+  Bot, Power, RotateCcw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -301,6 +302,8 @@ const AdminDashboard = ({ user }) => {
   const [reverifyReason, setReverifyReason] = useState('');
   const [featureFlags, setFeatureFlags] = useState({ referral_system: true, daily_rewards: true });
   const [flagsLoading, setFlagsLoading] = useState(false);
+  const [aiProfiles, setAiProfiles] = useState([]);
+  const [aiLoading, setAiLoading] = useState(false);
 
   // Fetch feature flags
   const fetchFeatureFlags = useCallback(async () => {
@@ -322,6 +325,50 @@ const AdminDashboard = ({ user }) => {
       toast.error('Failed to update feature flag');
     } finally {
       setFlagsLoading(false);
+    }
+  };
+
+  // AI Profiles Management
+  const fetchAiProfiles = useCallback(async () => {
+    setAiLoading(true);
+    try {
+      const res = await axios.get(`${API}/admin/ai-profiles`);
+      setAiProfiles(res.data);
+    } catch (e) {
+      console.error('AI profiles fetch error:', e);
+    } finally {
+      setAiLoading(false);
+    }
+  }, []);
+
+  const toggleAiProfile = async (profileId, isActive) => {
+    try {
+      await axios.put(`${API}/admin/ai-profiles/${profileId}/toggle`, { is_active: isActive });
+      toast.success(`AI profile ${isActive ? 'activated' : 'deactivated'}`);
+      fetchAiProfiles();
+    } catch (e) {
+      toast.error('Failed to toggle AI profile');
+    }
+  };
+
+  const deleteAiProfile = async (profileId, name) => {
+    if (!window.confirm(`Kya aap "${name}" AI profile delete karna chahte ho? Iske saare matches aur messages bhi delete ho jayenge.`)) return;
+    try {
+      await axios.delete(`${API}/admin/ai-profiles/${profileId}`);
+      toast.success(`${name} deleted successfully`);
+      fetchAiProfiles();
+    } catch (e) {
+      toast.error('Failed to delete AI profile');
+    }
+  };
+
+  const reseedAiProfiles = async () => {
+    try {
+      await axios.post(`${API}/admin/ai-profiles/reseed`);
+      toast.success('AI profiles re-seeded!');
+      fetchAiProfiles();
+    } catch (e) {
+      toast.error('Failed to reseed AI profiles');
     }
   };
 
@@ -418,8 +465,10 @@ const AdminDashboard = ({ user }) => {
       fetchVerifiedUsers();
     } else if (activeTab === 'settings') {
       fetchFeatureFlags();
+    } else if (activeTab === 'ai-profiles') {
+      fetchAiProfiles();
     }
-  }, [activeTab, fetchUsers, fetchPendingVerifications, fetchVerifiedUsers, fetchFeatureFlags]);
+  }, [activeTab, fetchUsers, fetchPendingVerifications, fetchVerifiedUsers, fetchFeatureFlags, fetchAiProfiles]);
 
   const handleDeleteUser = async () => {
     if (!selectedUser) return;
@@ -542,6 +591,13 @@ const AdminDashboard = ({ user }) => {
             data-testid="admin-settings-tab"
           >
             <Settings className="w-4 h-4 mr-2" /> Settings
+          </Button>
+          <Button
+            onClick={() => setActiveTab('ai-profiles')}
+            className={activeTab === 'ai-profiles' ? 'bg-purple-500' : 'bg-gray-200 text-gray-700'}
+            data-testid="admin-ai-profiles-tab"
+          >
+            <Bot className="w-4 h-4 mr-2" /> AI Girls
           </Button>
         </div>
 
@@ -903,6 +959,87 @@ const AdminDashboard = ({ user }) => {
 
         {/* Profile Approvals Tab */}
         {activeTab === 'approvals' && <ProfileApprovals />}
+
+        {/* AI Girls Tab */}
+        {activeTab === 'ai-profiles' && (
+          <div className="space-y-6" data-testid="admin-ai-profiles-panel">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">AI Girl Profiles</h2>
+                <p className="text-sm text-gray-500 mt-1">Manage AI chatbot profiles that auto-match with new users</p>
+              </div>
+              <Button onClick={reseedAiProfiles} variant="outline" data-testid="reseed-ai-btn">
+                <RotateCcw className="w-4 h-4 mr-2" /> Re-seed Profiles
+              </Button>
+            </div>
+
+            {aiLoading ? (
+              <div className="text-center py-10 text-gray-500">Loading AI profiles...</div>
+            ) : aiProfiles.length === 0 ? (
+              <div className="text-center py-10 text-gray-500">No AI profiles found. Click Re-seed to create them.</div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {aiProfiles.map((profile) => (
+                  <div key={profile.id} className={`bg-white rounded-xl border-2 shadow-sm overflow-hidden transition-all ${profile.is_active_ai ? 'border-green-200' : 'border-red-200 opacity-75'}`} data-testid={`ai-profile-card-${profile.id}`}>
+                    <div className="relative">
+                      <div className="h-40 bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center">
+                        {profile.photos && profile.photos[0] ? (
+                          <img src={profile.photos[0]} alt={profile.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <Bot className="w-16 h-16 text-white/60" />
+                        )}
+                      </div>
+                      <div className={`absolute top-3 right-3 px-2 py-1 rounded-full text-xs font-semibold ${profile.is_active_ai ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
+                        {profile.is_active_ai ? 'Active' : 'Inactive'}
+                      </div>
+                    </div>
+
+                    <div className="p-4">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-bold text-gray-900 text-lg">{profile.name}</h3>
+                        <span className="text-sm text-gray-500">{profile.age}</span>
+                      </div>
+                      <p className="text-sm text-gray-500">{profile.location}</p>
+                      <p className="text-sm text-gray-600 mt-2 line-clamp-2">{profile.bio}</p>
+
+                      <div className="flex gap-3 mt-3 text-xs text-gray-500">
+                        <span className="flex items-center gap-1"><Heart className="w-3 h-3" /> {profile.total_matches || 0} matches</span>
+                        <span className="flex items-center gap-1"><MessageCircle className="w-3 h-3" /> {profile.total_messages_sent || 0} msgs</span>
+                      </div>
+
+                      <div className="flex gap-2 mt-4">
+                        <button
+                          onClick={() => toggleAiProfile(profile.id, !profile.is_active_ai)}
+                          data-testid={`toggle-ai-${profile.id}`}
+                          className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                            profile.is_active_ai
+                              ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                              : 'bg-green-100 text-green-700 hover:bg-green-200'
+                          }`}
+                        >
+                          <Power className="w-4 h-4" />
+                          {profile.is_active_ai ? 'Deactivate' : 'Activate'}
+                        </button>
+                        <button
+                          onClick={() => deleteAiProfile(profile.id, profile.name)}
+                          data-testid={`delete-ai-${profile.id}`}
+                          className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm font-medium bg-red-100 text-red-700 hover:bg-red-200 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 text-sm text-purple-800">
+              <strong>How it works:</strong> AI girls auto-match with new male users (2-3 random matches). They send a greeting message and reply in Hinglish using AI. Deactivating a profile stops new matches and replies but keeps existing chats. Deleting removes all data.
+            </div>
+          </div>
+        )}
       </div>
 
       {/* User Detail Modal */}
@@ -1020,6 +1157,31 @@ const AdminDashboard = ({ user }) => {
               >
                 <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform duration-200 ${
                   featureFlags.daily_rewards ? 'translate-x-7' : 'translate-x-0.5'
+                }`} />
+              </button>
+            </div>
+
+            {/* AI Chatbot Toggle */}
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl" data-testid="ai-chatbot-toggle-row">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <Bot className="w-5 h-5 text-purple-600" />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-gray-900">AI Girl Chatbot</h4>
+                  <p className="text-sm text-gray-500">Auto-match AI girls with new users & reply in Hinglish</p>
+                </div>
+              </div>
+              <button
+                onClick={() => toggleFeatureFlag('ai_chatbot', !featureFlags.ai_chatbot)}
+                disabled={flagsLoading}
+                data-testid="ai-chatbot-toggle-btn"
+                className={`relative w-14 h-7 rounded-full transition-colors duration-200 ${
+                  featureFlags.ai_chatbot ? 'bg-green-500' : 'bg-gray-300'
+                } ${flagsLoading ? 'opacity-50' : ''}`}
+              >
+                <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform duration-200 ${
+                  featureFlags.ai_chatbot ? 'translate-x-7' : 'translate-x-0.5'
                 }`} />
               </button>
             </div>

@@ -1,0 +1,58 @@
+{
+  "summary": "AI Girl Chatbot feature tested end-to-end. 11/11 backend pytest tests pass (100%). Admin AI profiles CRUD, auto-matching on new male signup, AI auto-reply with Hinglish + no AI disclaimers, multi-turn chat, feature flag toggle, and discover exclusion all working. Frontend admin AI Girls tab renders all 6 profile cards with Activate/Deactivate, Delete and Re-seed controls.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/matches/{user_id}", "issue": "matches_cache has 120s TTL without invalidation on new match creation. If a user calls /matches/ before the async auto_match_ai_profiles task finishes after signup, the empty result is cached for 2 minutes and AI matches stay hidden until the cache expires. Invalidate or shorten TTL when matches are inserted."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin > AI Girls", "issues": ["Photo mismatch: Riya Gupta card shows a man in a tie (clearly wrong for a female profile). Meera Singh card shows an elderly woman, which doesn't match a 22-year-old persona. The Unsplash URLs in ai_chatbot.py AI_PROFILES need review - recommend replacing Riya Gupta and Meera Singh photos with age-appropriate young Indian woman images."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_ai_chatbot.py",
+    "/app/test_reports/pytest/pytest_results_ai_chatbot.xml"
+  ],
+  "action_items": [
+    "Replace photo URLs for Riya Gupta and Meera Singh in /app/backend/ai_chatbot.py AI_PROFILES - current images don't match the persona (Riya's photo is a man, Meera's is an elderly woman)",
+    "Consider invalidating matches_cache in /app/backend/server.py when a new match document is inserted (especially in auto_match_ai_profiles and action endpoints) so new AI matches appear immediately rather than after 120s TTL"
+  ],
+  "critical_code_review_comments": [
+    "server.py is 6975 lines - violates <700 lines rule. Should be split into routers (auth, messages, matches, admin, ai_profiles, etc.) for maintainability.",
+    "GET /api/matches/{user_id} has no auth check (relies only on user_id path param). Other users can enumerate matches by guessing/stealing user IDs. Should verify via JWT token.",
+    "send_message_http (POST /api/messages) also has no auth check on sender_id - any caller can spoof messages by setting sender_id in body.",
+    "auto_match_ai_profiles is called both from /auth/signup and /auth/phone-signup via asyncio.create_task but exceptions inside the task are silently swallowed (no try/except + logging wrapper). If LLM/DB fails the user never sees AI matches and nothing is logged.",
+    "ai_chatbot.py generate_ai_response creates a brand-new LlmChat instance on every message and passes previous messages in the prompt string - works, but session_id is reused across instances meaning the emergentintegrations library's built-in history can double-count. Prefer either relying on library session memory OR passing manual history, not both.",
+    "Feature-flag check in handle_ai_message runs AFTER the 1.5-4s sleep. Should be checked first to avoid wasted work when disabled."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_ai_chatbot.py"
+  ],
+  "success_rate": {
+    "backend": "100% (11/11 pytest tests passed)",
+    "frontend": "100% (admin AI Girls panel loads 6 profile cards with all controls; toggle/delete/reseed all wired to working APIs)"
+  },
+  "test_credentials": {
+    "testmale_email": "testmale@heartlink.co.in",
+    "testmale_password": "Test@2026",
+    "note": "testmale is admin + male looking_for=female, pre-seeded with 2 AI matches (Nisha Verma, Ananya Patel)"
+  },
+  "seed_data_creation": "Test TestAutoMatchOnSignup creates a TEST_aichat_<uuid>@heartlink.co.in user on each run (leaves DB rows behind - no cleanup). Name 'Rohan Test<letters>' to avoid the 'numbers not allowed in name' and 'similar details exist' validators.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "AI Chatbot test suite is at /app/backend/tests/test_ai_chatbot.py - 11 tests covering admin CRUD, auto-match on signup, AI auto-reply (polls up to 25s for LLM response), multi-turn context, feature flag toggle, and discover exclusion. Admin test user testmale@heartlink.co.in/Test@2026 already has 2+ AI matches so chat tests don't rely on fresh signup. If tests fail due to cache issues on /matches/, remember matches_cache TTL=120s - wait longer OR clear cache via backend restart. Frontend admin panel route is /admin accessible only to is_admin=true users (login via /auth with data-testid login-submit-btn).",
+  "features_tested": {
+    "admin_ai_profiles_crud": "PASS - GET returns 6 profiles with required fields (name, age, location, bio, is_active_ai, total_matches, total_messages_sent); PUT toggle flips is_active_ai and persists; DELETE removes profile + matches + messages; POST reseed re-creates missing profiles; 404s on non-existent IDs.",
+    "auto_match_on_signup": "PASS - New male signup with looking_for=female gets 2-3 AI matches via asyncio background task within ~5-10s.",
+    "ai_chat_auto_reply": "PASS - POST /api/messages to AI receiver triggers handle_ai_message background task; AI reply appears in 5-15s with Hinglish text and no AI disclaimers ('I'm an AI', 'chatbot', 'language model' all checked).",
+    "multi_turn_context": "PASS - Two sequential user messages both receive AI replies; context maintained via session_id + conversation history in prompt.",
+    "discover_excludes_ai": "PASS - GET /api/discover/{user_id} filters out is_ai_profile=true users.",
+    "feature_flag_toggle": "PASS - PUT /api/admin/feature-flags {ai_chatbot: false} persists; GET returns updated value.",
+    "frontend_admin_ai_girls_tab": "PASS - 6 profile cards render with photos, name, age, location, bio, match/msg counts, Activate/Deactivate toggle button, Delete button, and Re-seed Profiles button at top."
+  },
+  "rca_of_minor_matches_cache_issue": "Root cause: /api/matches/{user_id} wraps the result with matches_cache (TTLCache 120s). The auto_match_ai_profiles task runs via asyncio.create_task after signup response is returned. If the client polls /matches/ too quickly, an empty list is cached for 120s. Reproduction: signup a new male user and immediately call /matches/<uid> before auto-match completes. Mitigation: (a) invalidate matches_cache[user_id] inside auto_match_ai_profiles after inserting matches, (b) reduce TTL to ~5-10s, or (c) skip cache for just-created users."
+}

@@ -54,6 +54,16 @@ from onesignal_config import (
     ENGAGEMENT_TEMPLATES
 )
 
+# Import AI Chatbot Module
+from ai_chatbot import (
+    seed_ai_profiles,
+    auto_match_ai_profiles,
+    handle_ai_message,
+    get_ai_profiles,
+    delete_ai_profile,
+    toggle_ai_profile,
+)
+
 # Import Security Module
 from security import (
     hash_password_secure,
@@ -450,9 +460,33 @@ async def startup_event():
     await create_indexes()
     logging.info("🚀 HeartLink server started with optimized indexes")
     
+    # Seed AI girl profiles
+    await seed_ai_profiles(db)
+    logging.info("🤖 AI girl profiles seeded")
+    
+    # Keep AI profiles looking "online"
+    asyncio.create_task(keep_ai_profiles_online(db))
+    
     # Start background notification scheduler
     asyncio.create_task(notification_scheduler())
     logging.info("📬 Notification scheduler started")
+
+
+async def keep_ai_profiles_online(db_ref):
+    """Background task to keep AI profiles appearing online."""
+    while True:
+        try:
+            await db_ref.users.update_many(
+                {"is_ai_profile": True, "is_active_ai": True},
+                {"$set": {
+                    "is_online": True,
+                    "last_active": datetime.now(timezone.utc).isoformat()
+                }}
+            )
+        except Exception as e:
+            logging.error(f"Error keeping AI profiles online: {e}")
+        await asyncio.sleep(300)  # Every 5 minutes
+
 
 
 async def notification_scheduler():
@@ -1154,6 +1188,11 @@ async def signup(request: Request, user_data: UserSignup):
         # Audit log
         audit_log.log_event("signup_success", user_id=user.id, ip=client_ip)
         
+        # Auto-match AI girl profiles with new user (runs in background)
+        asyncio.create_task(
+            auto_match_ai_profiles(db, user.id, user_dict.get("gender", ""), user_dict.get("looking_for", ""))
+        )
+        
         # Serialize for response (removes _id, password_hash, cleans None values)
         clean_user = serialize_user_for_response(created_user, exclude_password=True)
         
@@ -1443,6 +1482,11 @@ async def phone_signup(data: PhoneSignup):
         )
     except Exception as notif_error:
         logger.warning(f"Failed to send phone signup notification: {notif_error}")
+    
+    # Auto-match AI girl profiles with new user (runs in background)
+    asyncio.create_task(
+        auto_match_ai_profiles(db, user_id, data.gender, data.looking_for)
+    )
     
     return {"message": "Signup successful", "user": clean_user}
 
@@ -2770,7 +2814,8 @@ async def discover_users(user_id: str, limit: int = 10, relationship_intent: str
         "id": {"$nin": exclude_ids},
         "privacy_settings.show_profile": {"$ne": False},
         "is_shadow_banned": {"$ne": True},
-        "is_permanently_banned": {"$ne": True}
+        "is_permanently_banned": {"$ne": True},
+        "is_ai_profile": {"$ne": True}
     }
     
     # Gender lock logic
@@ -3391,7 +3436,8 @@ async def get_active_users(user_id: str, limit: int = 20):
         "gender": current_user["looking_for"],
         "looking_for": current_user["gender"],
         "privacy_settings.show_profile": True,
-        "last_active": {"$gte": active_threshold}
+        "last_active": {"$gte": active_threshold},
+        "is_ai_profile": {"$ne": True}
     }
     
     users = await db.users.find(query).sort("last_active", -1).limit(limit).to_list(None)
@@ -3534,8 +3580,11 @@ async def send_message_http(message_data: Message):
     if not sender or not receiver:
         raise HTTPException(status_code=404, detail="User not found")
     
+    # Skip safety checks if receiver is an AI profile
+    is_ai_receiver = receiver.get("is_ai_profile", False)
+    
     # === WOMEN SAFETY MODE CHECKS ===
-    if receiver.get("women_safety_mode"):
+    if not is_ai_receiver and receiver.get("women_safety_mode"):
         sender_gender = sender.get("gender", "").lower()
         
         # Only verified males can message
@@ -3778,21 +3827,31 @@ async def send_message_http(message_data: Message):
     muted_users = receiver.get('muted_users', [])
     sender_not_muted = message_data.sender_id not in muted_users
     
-    # Send push notification to receiver via FCM (legacy)
-    if receiver.get('fcm_token') and sender and sender_not_muted:
+    # Send push notification to receiver via FCM (legacy) - skip for AI profiles
+    if not is_ai_receiver and receiver.get('fcm_token') and sender and sender_not_muted:
         send_message_notification(
             token=receiver['fcm_token'],
             sender_name=sender['name'],
             message_preview=message_data.content
         )
     
-    # Send push notification via OneSignal (primary)
-    if sender and sender_not_muted:
+    # Send push notification via OneSignal (primary) - skip for AI profiles
+    if not is_ai_receiver and sender and sender_not_muted:
         send_message_notification_onesignal(
             user_id=message_data.receiver_id,
             sender_name=sender['name'],
             message_preview=message_data.content,
             match_id=message_data.match_id
+        )
+    
+    # === AI CHATBOT: If receiver is an AI profile, generate auto-reply ===
+    if receiver.get("is_ai_profile") and receiver.get("is_active_ai"):
+        asyncio.create_task(
+            handle_ai_message(
+                db, manager, message_data.match_id,
+                message_data.sender_id, receiver,
+                message_data.content, sender.get("name", "User")
+            )
         )
     
     return clean_message
@@ -3859,6 +3918,16 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
                         sender_name=sender['name'],
                         message_preview=message_data["content"]
                     )
+            
+            # AI Chatbot: If receiver is AI, generate auto-reply
+            if receiver and receiver.get("is_ai_profile") and receiver.get("is_active_ai"):
+                asyncio.create_task(
+                    handle_ai_message(
+                        db, manager, message_data["match_id"],
+                        user_id, receiver,
+                        message_data["content"], sender.get("name", "User") if sender else "User"
+                    )
+                )
     except WebSocketDisconnect:
         manager.disconnect(user_id)
         
@@ -4273,8 +4342,8 @@ async def get_all_users(
     """Get all users with search, filters, sorting and pagination for admin"""
     skip = (page - 1) * limit
     
-    # Build search query
-    query = {}
+    # Build search query (exclude AI profiles)
+    query = {"is_ai_profile": {"$ne": True}}
     if search:
         query["$or"] = [
             {"name": {"$regex": search, "$options": "i"}},
@@ -4374,12 +4443,12 @@ async def get_dashboard_stats():
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     week_ago = now - timedelta(days=7)
     
-    # Total users
-    total_users = await db.users.count_documents({})
+    # Total users (exclude AI profiles)
+    total_users = await db.users.count_documents({"is_ai_profile": {"$ne": True}})
     
-    # Gender breakdown
-    male_users = await db.users.count_documents({"gender": {"$regex": "^male$", "$options": "i"}})
-    female_users = await db.users.count_documents({"gender": {"$regex": "^female$", "$options": "i"}})
+    # Gender breakdown (exclude AI)
+    male_users = await db.users.count_documents({"gender": {"$regex": "^male$", "$options": "i"}, "is_ai_profile": {"$ne": True}})
+    female_users = await db.users.count_documents({"gender": {"$regex": "^female$", "$options": "i"}, "is_ai_profile": {"$ne": True}})
     
     # New users today
     new_today = await db.users.count_documents({
@@ -6815,12 +6884,58 @@ async def claim_daily_reward(user_id: str):
 
 
 # ==========================================
+# ADMIN AI PROFILES MANAGEMENT
+# ==========================================
+
+@api_router.get("/admin/ai-profiles")
+async def admin_get_ai_profiles():
+    """Get all AI profiles for admin management."""
+    profiles = await get_ai_profiles(db)
+    # Get match counts and message counts for each profile
+    result = []
+    for p in profiles:
+        match_count = await db.matches.count_documents({
+            "$or": [{"user1_id": p["id"]}, {"user2_id": p["id"]}],
+            "matched": True
+        })
+        msg_count = await db.messages.count_documents({"sender_id": p["id"]})
+        p["total_matches"] = match_count
+        p["total_messages_sent"] = msg_count
+        result.append(p)
+    return result
+
+@api_router.delete("/admin/ai-profiles/{profile_id}")
+async def admin_delete_ai_profile(profile_id: str):
+    """Delete an AI profile and all related data."""
+    success = await delete_ai_profile(db, profile_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="AI profile not found")
+    return {"message": "AI profile deleted successfully"}
+
+@api_router.put("/admin/ai-profiles/{profile_id}/toggle")
+async def admin_toggle_ai_profile(profile_id: str, data: dict):
+    """Enable or disable an AI profile."""
+    is_active = data.get("is_active", True)
+    success = await toggle_ai_profile(db, profile_id, is_active)
+    if not success:
+        raise HTTPException(status_code=404, detail="AI profile not found")
+    return {"message": f"AI profile {'activated' if is_active else 'deactivated'}", "is_active": is_active}
+
+@api_router.post("/admin/ai-profiles/reseed")
+async def admin_reseed_ai_profiles():
+    """Re-seed AI profiles (updates existing, creates missing)."""
+    await seed_ai_profiles(db)
+    return {"message": "AI profiles re-seeded successfully"}
+
+
+# ==========================================
 # ADMIN FEATURE TOGGLES
 # ==========================================
 
 DEFAULT_FEATURE_FLAGS = {
     "referral_system": True,
     "daily_rewards": True,
+    "ai_chatbot": True,
 }
 
 @api_router.get("/admin/feature-flags")
@@ -6835,7 +6950,7 @@ async def get_feature_flags():
 @api_router.put("/admin/feature-flags")
 async def update_feature_flags(data: dict):
     """Update feature flags (admin only)"""
-    allowed_keys = {"referral_system", "daily_rewards"}
+    allowed_keys = {"referral_system", "daily_rewards", "ai_chatbot"}
     updates = {k: bool(v) for k, v in data.items() if k in allowed_keys}
     
     if not updates:
