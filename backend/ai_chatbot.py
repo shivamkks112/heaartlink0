@@ -56,7 +56,7 @@ AI_PROFILES = [
         "interests": ["Art", "Music", "Poetry", "Nature"],
         "relationship_intent": "friendship",
         "photos": [
-            "https://images.unsplash.com/photo-1580746453801-37b0bc56f3b4?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA3MDR8MHwxfHNlYXJjaHwyfHxpbmRpYW4lMjB3b21hbiUyMHBvcnRyYWl0JTIwc21pbGV8ZW58MHx8fHwxNzc2OTk2NTIzfDA&ixlib=rb-4.1.0&q=85"
+            "https://images.unsplash.com/photo-1728141123512-87c415cecc9d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODF8MHwxfHNlYXJjaHwzfHx5b3VuZyUyMGluZGlhbiUyMGNvbGxlZ2UlMjBnaXJsJTIwc21pbGluZyUyMHBvcnRyYWl0fGVufDB8fHx8MTc3Njk5NzgyMHww&ixlib=rb-4.1.0&q=85"
         ],
         "personality": "dreamy, romantic, artistic soul, speaks poetically sometimes"
     },
@@ -84,7 +84,7 @@ AI_PROFILES = [
         "interests": ["Food", "Shopping", "Bollywood", "Fashion"],
         "relationship_intent": "serious",
         "photos": [
-            "https://images.unsplash.com/photo-1759350075177-eeb89d507990?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzF8MHwxfHNlYXJjaHwyfHx5b3VuZyUyMGluZGlhbiUyMHdvbWFuJTIwc2VsZmllJTIwY2FzdWFsJTIwbW9kZXJufGVufDB8fHx8MTc3Njk5NjUyOXww&ixlib=rb-4.1.0&q=85"
+            "https://images.unsplash.com/photo-1726310722422-21d60f2c3e38?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODF8MHwxfHNlYXJjaHwyfHx5b3VuZyUyMGluZGlhbiUyMGNvbGxlZ2UlMjBnaXJsJTIwc21pbGluZyUyMHBvcnRyYWl0fGVufDB8fHx8MTc3Njk5NzgyMHww&ixlib=rb-4.1.0&q=85"
         ],
         "personality": "sweet, traditional values, shy at first but opens up, uses Hindi words often"
     },
@@ -246,6 +246,14 @@ async def auto_match_ai_profiles(db, user_id: str, user_gender: str, user_lookin
             _send_ai_first_message(db, match_id, ai_girl["id"], user_id, ai_girl["name"])
         )
 
+    # Invalidate matches cache for this user so matches show immediately
+    try:
+        from server import matches_cache
+        cache_key = f"matches_{user_id}"
+        matches_cache.pop(cache_key, None)
+    except Exception:
+        pass
+
     logger.info(f"Auto-matched {len(selected)} AI girls with user {user_id}")
 
 
@@ -371,9 +379,13 @@ async def generate_ai_response(db, match_id: str, ai_user: dict, user_message: s
 
 async def handle_ai_message(db, websocket_manager, match_id: str, sender_id: str, ai_user: dict, user_message: str, user_name: str):
     """Handle message sent to an AI profile - generate and save AI reply."""
-    # Check feature flag
+    # Check feature flag FIRST before any delays
     flags = await db.app_settings.find_one({"type": "feature_flags"}, {"_id": 0})
     if flags and not flags.get("ai_chatbot", True):
+        return
+
+    # Check if AI profile is still active
+    if not ai_user.get("is_active_ai", True):
         return
 
     # Random typing delay (1-4 seconds) for realism
