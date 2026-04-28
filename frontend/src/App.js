@@ -2,9 +2,11 @@ import { useState, useEffect, lazy, Suspense } from 'react';
 import '@/App.css';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 
-// Critical pages - loaded immediately
+// Critical pages - loaded immediately (lightweight)
 import LandingPage from '@/pages/LandingPage';
-import AuthPage from '@/pages/AuthPage';
+
+// Auth page - lazy loaded (has heavy dependencies)
+const AuthPage = lazy(() => import('@/pages/AuthPage'));
 
 // Lazy loaded pages - loaded on demand
 const ForgotPasswordPage = lazy(() => import('@/pages/ForgotPasswordPage'));
@@ -29,9 +31,7 @@ const ReferralPage = lazy(() => import('@/pages/ReferralPage'));
 const DailyRewardModal = lazy(() => import('@/components/DailyRewardModal'));
 import InstallPrompt from '@/components/InstallPrompt';
 import { AdProvider } from '@/context/AdContext';
-import { requestNotificationPermission, setupForegroundMessageListener } from '@/firebase/messaging';
 import { initGoogleAuth } from '@/utils/nativeGoogleAuth';
-import { initPushNotifications } from '@/services/pushNotifications';
 
 // Navigation helper component for native app communication
 function NavigationHelper() {
@@ -152,10 +152,10 @@ function App() {
           }, 2000);
         }
         
-        // Request native push notification permission when user logs in
-        setTimeout(() => {
-          initPushNotifications(userData.id);
-        }, 2000); // Wait 2 seconds before requesting permission
+        // Lazy load push notifications only when user is logged in
+        import('@/services/pushNotifications').then(({ initPushNotifications }) => {
+          setTimeout(() => initPushNotifications(userData.id), 2000);
+        });
       } catch (error) {
         console.error('Error parsing stored user:', error);
         localStorage.removeItem('user');
@@ -168,11 +168,15 @@ function App() {
     // Prevent pull-to-refresh on mobile
     document.body.style.overscrollBehavior = 'none';
     
-    // Setup foreground message listener
-    const unsubscribe = setupForegroundMessageListener((payload) => {
-      console.log('Received foreground message:', payload);
-      // You can show toast notification here
-    });
+    // Setup foreground message listener only if user exists
+    let unsubscribe = null;
+    if (storedUser) {
+      import('@/firebase/messaging').then(({ setupForegroundMessageListener }) => {
+        unsubscribe = setupForegroundMessageListener((payload) => {
+          console.log('Received foreground message:', payload);
+        });
+      });
+    }
     
     return () => {
       if (unsubscribe) unsubscribe();
