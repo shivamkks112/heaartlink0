@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-import { Camera, User, Heart, MapPin, Calendar, Briefcase, GraduationCap, Ruler, Dumbbell, Wine, Cigarette, CheckCircle, Shield, Sparkles, ChevronRight, Search, Share2, Gift } from 'lucide-react';
+import { Camera, User, Heart, MapPin, Calendar, Briefcase, GraduationCap, Ruler, Dumbbell, Wine, Cigarette, CheckCircle, Shield, Sparkles, ChevronRight, Search, Share2, Gift, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
 import { useNavigate } from 'react-router-dom';
@@ -259,6 +259,14 @@ const ProfilePage = ({ user, onUpdate }) => {
         <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
           {/* Header with Profile Picture */}
           <div className="bg-gradient-to-r from-pink-500 via-rose-500 to-orange-500 px-8 py-12 text-white text-center relative">
+            {/* Settings Gear Icon */}
+            <button
+              onClick={() => navigate('/settings')}
+              className="absolute top-4 right-4 bg-white/20 backdrop-blur-sm p-2.5 rounded-full hover:bg-white/30 transition-all"
+              data-testid="profile-settings-btn"
+            >
+              <Settings className="w-5 h-5 text-white" />
+            </button>
             <div className="relative inline-block">
               <div className="w-32 h-32 rounded-full border-4 border-white overflow-hidden mx-auto shadow-2xl">
                 {profile.profile_picture ? (
@@ -670,6 +678,43 @@ const ProfilePage = ({ user, onUpdate }) => {
               </Button>
             </div>
           </div>
+        </div>
+
+        {/* Quick Links */}
+        <div className="mt-6 space-y-3">
+          <button
+            onClick={() => navigate('/settings')}
+            className="w-full flex items-center justify-between bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-all"
+            data-testid="quick-link-settings"
+          >
+            <div className="flex items-center gap-3">
+              <div className="bg-gray-100 p-2.5 rounded-xl">
+                <Settings className="w-5 h-5 text-gray-700" />
+              </div>
+              <div className="text-left">
+                <p className="font-semibold text-gray-900">Settings</p>
+                <p className="text-xs text-gray-500">Chat privacy, blocked users, account</p>
+              </div>
+            </div>
+            <ChevronRight className="w-5 h-5 text-gray-400" />
+          </button>
+
+          <button
+            onClick={() => navigate('/privacy')}
+            className="w-full flex items-center justify-between bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-all"
+            data-testid="quick-link-privacy"
+          >
+            <div className="flex items-center gap-3">
+              <div className="bg-pink-100 p-2.5 rounded-xl">
+                <Shield className="w-5 h-5 text-pink-600" />
+              </div>
+              <div className="text-left">
+                <p className="font-semibold text-gray-900">Privacy & Safety</p>
+                <p className="text-xs text-gray-500">Profile hide, incognito, gender lock</p>
+              </div>
+            </div>
+            <ChevronRight className="w-5 h-5 text-gray-400" />
+          </button>
         </div>
       </div>
     </div>
