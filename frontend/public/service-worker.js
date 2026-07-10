@@ -1,177 +1,167 @@
-// Enhanced service worker for HeartLink PWA
 const CACHE_NAME = 'heartlink-v2';
-const RUNTIME_CACHE = 'heartlink-runtime';
-const IMAGE_CACHE = 'heartlink-images';
+const STATIC_CACHE = 'heartlink-static-v2';
+const API_CACHE = 'heartlink-api-v1';
 
-// Assets to cache on install
-const STATIC_ASSETS = [
+// Files to cache on install
+const PRECACHE_URLS = [
   '/',
   '/index.html',
   '/manifest.json',
   '/icon-192.png',
-  '/icon-512.png'
+  '/icon-512.png',
 ];
 
-// Install service worker and cache static assets
+// Install - cache static assets
 self.addEventListener('install', (event) => {
-  console.log('[SW] Installing...');
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => {
-        console.log('[SW] Caching static assets');
-        return cache.addAll(STATIC_ASSETS.map(url => new Request(url, {cache: 'reload'})));
-      })
-      .catch((error) => {
-        console.error('[SW] Cache installation failed:', error);
-      })
+    caches.open(STATIC_CACHE).then((cache) => {
+      return cache.addAll(PRECACHE_URLS);
+    }).then(() => self.skipWaiting())
   );
-  self.skipWaiting();
 });
 
-// Activate and clean old caches
+// Activate - clean old caches
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activating...');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME && cacheName !== RUNTIME_CACHE && cacheName !== IMAGE_CACHE) {
-            console.log('[SW] Deleting old cache:', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
+        cacheNames.filter((name) => {
+          return name !== CACHE_NAME && name !== STATIC_CACHE && name !== API_CACHE;
+        }).map((name) => caches.delete(name))
       );
-    })
+    }).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
-// Fetch strategy: Network first, falling back to cache
+// Fetch - Network first for API, Cache first for static
 self.addEventListener('fetch', (event) => {
-  const { request } = event;
-  const url = new URL(request.url);
-  
-  // Skip cross-origin requests
-  if (url.origin !== location.origin) {
-    return;
-  }
-  
-  // Handle API requests - network first
+  const url = new URL(event.request.url);
+
+  // Skip non-GET requests
+  if (event.request.method !== 'GET') return;
+
+  // Skip WebSocket
+  if (url.protocol === 'ws:' || url.protocol === 'wss:') return;
+
+  // API calls - Network first, fallback to cache
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(
-      fetch(request)
+      fetch(event.request)
         .then((response) => {
-          // Clone response to cache and return
-          const responseClone = response.clone();
-          caches.open(RUNTIME_CACHE).then((cache) => {
-            cache.put(request, responseClone);
-          });
+          // Cache successful GET API responses
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(API_CACHE).then((cache) => cache.put(event.request, clone));
+          }
           return response;
         })
-        .catch(() => {
-          // Return cached response if network fails
-          return caches.match(request);
-        })
+        .catch(() => caches.match(event.request))
     );
     return;
   }
-  
-  // Handle images - cache first
-  if (request.destination === 'image') {
+
+  // Static assets - Cache first, fallback to network
+  if (
+    url.pathname.startsWith('/static/') ||
+    url.pathname.endsWith('.js') ||
+    url.pathname.endsWith('.css') ||
+    url.pathname.endsWith('.png') ||
+    url.pathname.endsWith('.jpg') ||
+    url.pathname.endsWith('.ico') ||
+    url.pathname.endsWith('.woff2')
+  ) {
     event.respondWith(
-      caches.open(IMAGE_CACHE).then((cache) => {
-        return cache.match(request).then((response) => {
-          return response || fetch(request).then((fetchResponse) => {
-            cache.put(request, fetchResponse.clone());
-            return fetchResponse;
-          });
+      caches.match(event.request).then((cached) => {
+        if (cached) return cached;
+        return fetch(event.request).then((response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(STATIC_CACHE).then((cache) => cache.put(event.request, clone));
+          }
+          return response;
         });
       })
     );
     return;
   }
-  
-  // Handle other requests - cache first, then network
+
+  // HTML pages - Network first, fallback to cached index
   event.respondWith(
-    caches.match(request)
+    fetch(event.request)
       .then((response) => {
-        if (response) {
-          // Return cached version and update cache in background
-          fetch(request).then((fetchResponse) => {
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, fetchResponse);
-            });
-          }).catch(() => {});
-          return response;
+        if (response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
         }
-        
-        // Not in cache, fetch from network
-        return fetch(request).then((fetchResponse) => {
-          // Cache successful responses
-          if (fetchResponse && fetchResponse.status === 200) {
-            const responseClone = fetchResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, responseClone);
-            });
-          }
-          return fetchResponse;
-        });
+        return response;
+      })
+      .catch(() => {
+        return caches.match(event.request)
+          .then((cached) => cached || caches.match('/index.html'));
       })
   );
 });
 
-// Background sync for messages (when network is back)
-self.addEventListener('sync', (event) => {
-  console.log('[SW] Background sync:', event.tag);
-  if (event.tag === 'sync-messages') {
-    event.waitUntil(syncMessages());
-  }
-});
+// Firebase messaging (keep existing functionality)
+importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js');
 
-async function syncMessages() {
-  // Get pending messages from IndexedDB and send them
-  console.log('[SW] Syncing pending messages...');
-  // Implementation would require IndexedDB setup
+const firebaseConfig = {
+  apiKey: "AIzaSyCbcKatJZVvXgShJ8lOGg-EgMjpgYNyZrk",
+  authDomain: "heartlink-6abe9.firebaseapp.com",
+  projectId: "heartlink-6abe9",
+  storageBucket: "heartlink-6abe9.firebasestorage.app",
+  messagingSenderId: "803969423139",
+  appId: "1:803969423139:web:f6ff59de191329b3fade96"
+};
+
+try {
+  firebase.initializeApp(firebaseConfig);
+  const messaging = firebase.messaging();
+
+  messaging.onBackgroundMessage((payload) => {
+    const notificationTitle = payload.notification?.title || 'HeartLink';
+    const notificationOptions = {
+      body: payload.notification?.body || 'You have a new notification',
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      tag: payload.data?.type || 'general',
+      data: payload.data,
+      vibrate: [200, 100, 200],
+      actions: [
+        { action: 'open', title: 'Open App' }
+      ]
+    };
+    self.registration.showNotification(notificationTitle, notificationOptions);
+  });
+} catch(e) {
+  // Firebase not available in this context
 }
 
-// Push notifications (for future use)
-self.addEventListener('push', (event) => {
-  console.log('[SW] Push notification received');
-  const data = event.data ? event.data.json() : {};
+// Handle notification click
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const data = event.notification.data || {};
+  let targetUrl = '/discover';
   
-  const options = {
-    body: data.body || 'You have a new notification',
-    icon: '/icon-192.png',
-    badge: '/icon-192.png',
-    vibrate: [200, 100, 200],
-    data: data,
-    actions: [
-      {
-        action: 'open',
-        title: 'Open'
-      },
-      {
-        action: 'close',
-        title: 'Close'
-      }
-    ]
-  };
+  if (data.type === 'message' && data.match_id) {
+    targetUrl = `/chat/${data.match_id}`;
+  } else if (data.type === 'match') {
+    targetUrl = '/matches';
+  } else if (data.type === 'like') {
+    targetUrl = '/likes';
+  }
   
   event.waitUntil(
-    self.registration.showNotification(data.title || 'HeartLink', options)
+    clients.matchAll({ type: 'window' }).then((clientList) => {
+      for (const client of clientList) {
+        if ('focus' in client) {
+          client.focus();
+          client.navigate(targetUrl);
+          return;
+        }
+      }
+      return clients.openWindow(targetUrl);
+    })
   );
 });
-
-// Handle notification clicks
-self.addEventListener('notificationclick', (event) => {
-  console.log('[SW] Notification clicked:', event.action);
-  event.notification.close();
-  
-  if (event.action === 'open') {
-    event.waitUntil(
-      clients.openWindow(event.notification.data.url || '/')
-    );
-  }
-});
-
-console.log('[SW] Service worker loaded');

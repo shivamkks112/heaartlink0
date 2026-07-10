@@ -489,6 +489,102 @@ async def keep_ai_profiles_online(db_ref):
 
 
 
+
+# === AUTOMATIC NOTIFICATION HELPERS ===
+
+async def _notify_new_user_joined(user_id: str, name: str, gender: str, location: str):
+    """Notify all users when a new user joins."""
+    try:
+        await asyncio.sleep(5)  # Small delay to let signup complete
+        gender_label = "ladki" if gender.lower() == "female" else "ladka"
+        city = location.split(",")[0].strip() if location else "India"
+        send_onesignal_to_all(
+            f"New {gender_label} joined! 🎉",
+            f"{name} from {city} just joined HeartLink. Check out their profile!"
+        )
+        logger.info(f"Sent new user notification for {name}")
+    except Exception as e:
+        logger.error(f"Failed to send new user notification: {e}")
+
+
+async def _notify_matches_user_online(user_id: str, name: str):
+    """Notify matched users when someone comes online."""
+    try:
+        await asyncio.sleep(3)
+        # Get matched user IDs
+        matches = await db.matches.find(
+            {"$or": [{"user1_id": user_id}, {"user2_id": user_id}], "matched": True},
+            {"_id": 0, "user1_id": 1, "user2_id": 1}
+        ).limit(50).to_list(None)
+
+        matched_ids = []
+        for m in matches:
+            other_id = m["user2_id"] if m["user1_id"] == user_id else m["user1_id"]
+            # Skip AI profiles
+            ai_check = await db.users.find_one({"id": other_id, "is_ai_profile": True})
+            if not ai_check:
+                matched_ids.append(other_id)
+
+        if matched_ids:
+            send_onesignal_to_users(
+                matched_ids,
+                f"{name} is online! 💬",
+                f"Your match {name} just came online. Say hi!"
+            )
+            logger.info(f"Sent online notification to {len(matched_ids)} matches of {name}")
+    except Exception as e:
+        logger.error(f"Failed to send online notification: {e}")
+
+
+async def _send_daily_engagement_notifications():
+    """Send daily engagement notifications."""
+    try:
+        now = datetime.now(timezone.utc)
+
+        # "New matches available" to active users
+        active_users = await db.users.find(
+            {
+                "is_ai_profile": {"$ne": True},
+                "profile_status": "approved",
+                "last_active": {"$gte": (now - timedelta(days=3)).isoformat()}
+            },
+            {"_id": 0, "id": 1}
+        ).limit(500).to_list(None)
+
+        if active_users:
+            user_ids = [u["id"] for u in active_users]
+            send_onesignal_to_users(
+                user_ids,
+                "New matches waiting for you! 💝",
+                "Aaj ke new profiles dekho - shayad tumhara perfect match mil jaye!"
+            )
+            logger.info(f"Sent daily engagement to {len(user_ids)} active users")
+
+        # "We miss you" to inactive users (3-7 days)
+        inactive_users = await db.users.find(
+            {
+                "is_ai_profile": {"$ne": True},
+                "last_active": {
+                    "$lt": (now - timedelta(days=3)).isoformat(),
+                    "$gt": (now - timedelta(days=7)).isoformat()
+                }
+            },
+            {"_id": 0, "id": 1}
+        ).limit(200).to_list(None)
+
+        if inactive_users:
+            user_ids = [u["id"] for u in inactive_users]
+            send_onesignal_to_users(
+                user_ids,
+                "Tumhe miss kar rahe hain! 🥺",
+                "Bahut din ho gaye tumhare bina. Naye log join ho rahe hain, wapas aao!"
+            )
+            logger.info(f"Sent miss-you notification to {len(user_ids)} inactive users")
+
+    except Exception as e:
+        logger.error(f"Daily engagement notification error: {e}")
+
+
 async def notification_scheduler():
     """Background task to send automated engagement notifications"""
     while True:
@@ -534,6 +630,9 @@ async def notification_scheduler():
                         "More people are online on weekends. Perfect time to find your match!"
                     )
                     logging.info("📬 Sent weekend special notification")
+                
+                # Daily engagement notifications (run once per cycle)
+                await _send_daily_engagement_notifications()
         
         except Exception as e:
             logging.error(f"Notification scheduler error: {e}")
@@ -1188,6 +1287,10 @@ async def signup(request: Request, user_data: UserSignup):
         # Audit log
         audit_log.log_event("signup_success", user_id=user.id, ip=client_ip)
         
+        # === AUTOMATIC NOTIFICATIONS ===
+        # Notify all users about new user joining
+        asyncio.create_task(_notify_new_user_joined(user.id, sanitized_name, user_dict.get("gender", ""), user_dict.get("location", "")))
+        
         # Auto-match AI girl profiles with new user (runs in background)
         asyncio.create_task(
             auto_match_ai_profiles(db, user.id, user_dict.get("gender", ""), user_dict.get("looking_for", ""))
@@ -1309,6 +1412,10 @@ async def login(request: Request, credentials: UserLogin):
     # Audit log
     audit_log.log_event("login_success", user_id=user["id"], ip=client_ip)
     
+    # === AUTOMATIC NOTIFICATIONS ===
+    # Notify matched users that this user is online
+    asyncio.create_task(_notify_matches_user_online(user["id"], user.get("name", "Someone")))
+    
     # Serialize for response (removes _id, password_hash, cleans None values)
     clean_user = serialize_user_for_response(user, exclude_password=True)
     
@@ -1355,6 +1462,9 @@ async def phone_login(credentials: PhoneLogin):
     
     # Invalidate cache
     invalidate_user_cache(user["id"])
+    
+    # Notify matched users that this user is online
+    asyncio.create_task(_notify_matches_user_online(user["id"], user.get("name", "Someone")))
     
     # Serialize for response
     clean_user = serialize_user_for_response(user, exclude_password=True)
@@ -1482,6 +1592,9 @@ async def phone_signup(data: PhoneSignup):
         )
     except Exception as notif_error:
         logger.warning(f"Failed to send phone signup notification: {notif_error}")
+    
+    # Notify all users about new user joining
+    asyncio.create_task(_notify_new_user_joined(user_id, data.name, data.gender, data.location))
     
     # Auto-match AI girl profiles with new user (runs in background)
     asyncio.create_task(

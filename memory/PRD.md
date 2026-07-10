@@ -29,6 +29,10 @@ Building a modern, safe, trust-based dating app for Indian users called "HeartLi
 14. Server Speed Optimization (React lazy loading, /api/init, -32% bundle)
 15. **AI Girl Chatbot** (6 profiles, auto-match, Hinglish LLM replies, admin management)
 16. Google AdMob (Capacitor 7.2.0 compatible)
+17. **Automatic Notification System** - New user signup broadcast, login online alerts to matches, daily engagement
+18. **Offline Caching (Service Worker)** - Cache static assets, near-instant reload
+19. **SEO Optimization** - City-based content, expanded keywords, updated sitemap
+20. **Profile Settings Access** - Gear icon + quick links on profile page
 
 ## AI Girl Chatbot (P0 - COMPLETED)
 - 6 AI girl profiles: Priya Sharma (Delhi), Ananya Patel (Mumbai), Meera Singh (Jaipur), Kavya Reddy (Bangalore), Riya Gupta (Lucknow), Nisha Verma (Pune)
