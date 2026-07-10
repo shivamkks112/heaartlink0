@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Heart, Shield, Sparkles, MessageCircle, Users, Award, Star, CheckCircle, ArrowRight, Download, Play, ChevronDown } from 'lucide-react';
+import { Heart, Shield, Sparkles, MessageCircle, Users, Award, Star, CheckCircle, ArrowRight, Download, Play, ChevronDown, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const LandingPage = () => {
@@ -280,6 +280,59 @@ const LandingPage = () => {
         </div>
       </section>
 
+      {/* SEO Content - Dating in Indian Cities */}
+      <section className="py-20 bg-gradient-to-b from-gray-50 to-white" aria-labelledby="cities-heading">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 id="cities-heading" className="text-3xl sm:text-4xl font-bold mb-4 text-gray-900">
+              Find Love in Your City
+            </h2>
+            <p className="text-lg text-gray-600">HeartLink connects singles across India's top cities</p>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {[
+              { city: "Delhi", tag: "NCR Singles" },
+              { city: "Mumbai", tag: "Local Matches" },
+              { city: "Bangalore", tag: "IT Hub Dating" },
+              { city: "Hyderabad", tag: "City of Pearls" },
+              { city: "Chennai", tag: "South Indian" },
+              { city: "Kolkata", tag: "Cultural City" },
+              { city: "Pune", tag: "Young Professionals" },
+              { city: "Jaipur", tag: "Pink City Love" },
+              { city: "Lucknow", tag: "Nawabi Tehzeeb" },
+              { city: "Ahmedabad", tag: "Gujarat Singles" },
+              { city: "Chandigarh", tag: "City Beautiful" },
+              { city: "Goa", tag: "Beach Vibes" },
+            ].map((item, index) => (
+              <div key={index} className="bg-white rounded-xl p-4 text-center shadow-sm hover:shadow-md transition-all hover:-translate-y-1 cursor-pointer border border-gray-100">
+                <MapPin className="w-5 h-5 text-pink-500 mx-auto mb-2" />
+                <h3 className="font-semibold text-gray-900 text-sm">{item.city}</h3>
+                <p className="text-xs text-gray-500 mt-1">{item.tag}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-12 bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
+            <h3 className="text-xl font-bold text-gray-900 mb-4">Why HeartLink is India's Best Dating App</h3>
+            <div className="text-gray-600 space-y-3 text-sm leading-relaxed">
+              <p>
+                HeartLink is India's fastest growing dating app designed specifically for Indian singles looking for meaningful relationships. 
+                Unlike international apps like Tinder or Bumble, HeartLink understands Indian dating culture, family values, and regional preferences.
+              </p>
+              <p>
+                Our AI-powered matchmaking considers your interests, relationship goals, location, and lifestyle to suggest the most compatible matches. 
+                Whether you're in Delhi NCR, Mumbai, Bangalore, or any city across India, HeartLink helps you find genuine connections nearby.
+              </p>
+              <p>
+                Safety is our top priority. Every profile goes through verification, and our women safety features include night quiet hours, 
+                screenshot alerts, and instant blocking. HeartLink is the safest dating app for Indian women.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section className="py-24 bg-gradient-to-r from-pink-500 via-rose-500 to-orange-500 text-white" aria-label="Call to action">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -342,7 +395,7 @@ const LandingPage = () => {
           </div>
           <div className="border-t border-gray-800 pt-8 text-center">
             <p className="text-gray-400">
-              © 2025 HeartLink India. Made with ❤️ in India for Indians.
+              © 2026 HeartLink India. Made with ❤️ in India for Indians.
             </p>
           </div>
         </div>
