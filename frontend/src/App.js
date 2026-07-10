@@ -29,9 +29,20 @@ const PremiumPage = lazy(() => import('@/pages/PremiumPage'));
 const NotificationsPage = lazy(() => import('@/pages/NotificationsPage'));
 const ReferralPage = lazy(() => import('@/pages/ReferralPage'));
 const DailyRewardModal = lazy(() => import('@/components/DailyRewardModal'));
-import InstallPrompt from '@/components/InstallPrompt';
-import { AdProvider } from '@/context/AdContext';
-import { initGoogleAuth } from '@/utils/nativeGoogleAuth';
+const InstallPrompt = lazy(() => import('@/components/InstallPrompt'));
+
+// Lazy load AdProvider - only needed for logged-in users
+const LazyAdProvider = lazy(() => import('@/context/AdContext').then(mod => ({ default: mod.AdProvider })));
+
+// Wrapper to provide ad context only when logged in
+function AdWrapper({ user, children }) {
+  if (!user) return children;
+  return (
+    <Suspense fallback={children}>
+      <LazyAdProvider user={user}>{children}</LazyAdProvider>
+    </Suspense>
+  );
+}
 
 // Navigation helper component for native app communication
 function NavigationHelper() {
@@ -132,9 +143,6 @@ function App() {
   const [showDailyReward, setShowDailyReward] = useState(false);
 
   useEffect(() => {
-    // Initialize native Google Auth
-    initGoogleAuth();
-    
     // Check for stored user
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
@@ -152,7 +160,8 @@ function App() {
           }, 2000);
         }
         
-        // Lazy load push notifications only when user is logged in
+        // Lazy load heavy native modules only when user is logged in
+        import('@/utils/nativeGoogleAuth').then(({ initGoogleAuth }) => initGoogleAuth());
         import('@/services/pushNotifications').then(({ initPushNotifications }) => {
           setTimeout(() => initPushNotifications(userData.id), 2000);
         });
@@ -223,7 +232,7 @@ function App() {
 
   return (
     <div className="App">
-      <AdProvider user={user}>
+      <AdWrapper user={user}>
         <BrowserRouter>
           <NavigationHelper />
           <PendingNavigationHandler user={user} />
@@ -261,10 +270,14 @@ function App() {
             </Suspense>
           )}
         </BrowserRouter>
-      </AdProvider>
+      </AdWrapper>
       
-      {/* PWA Install Prompt */}
-      <InstallPrompt />
+      {/* PWA Install Prompt - only for non-logged in users */}
+      {!user && (
+        <Suspense fallback={null}>
+          <InstallPrompt />
+        </Suspense>
+      )}
     </div>
   );
 }
