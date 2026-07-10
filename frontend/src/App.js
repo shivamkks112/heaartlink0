@@ -143,6 +143,13 @@ function App() {
   const [showDailyReward, setShowDailyReward] = useState(false);
 
   useEffect(() => {
+    // Register Service Worker for offline caching
+    import('@/utils/hybridLoader').then(({ registerServiceWorker, checkForAppUpdate }) => {
+      registerServiceWorker();
+      // Check for updates after 5 seconds (don't block initial load)
+      setTimeout(checkForAppUpdate, 5000);
+    });
+
     // Check for stored user
     const storedUser = localStorage.getItem('user');
     if (storedUser) {

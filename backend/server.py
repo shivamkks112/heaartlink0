@@ -273,8 +273,8 @@ async def health_check():
 # Also add /api/health for API-prefixed health checks
 @api_router.get("/health")
 async def api_health_check():
-    """API health check endpoint"""
-    return {"status": "healthy", "service": "HeartLink API"}
+    """API health check endpoint with version for hybrid app updates"""
+    return {"status": "healthy", "service": "HeartLink API", "version": "2.5.0", "timestamp": datetime.now(timezone.utc).isoformat()}
 
 # === COMBINED INIT ENDPOINT - Single call for all page data ===
 @api_router.get("/init/{user_id}")
