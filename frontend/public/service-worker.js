@@ -9,6 +9,14 @@ const PRECACHE_URLS = [
   '/manifest.json',
   '/icon-192.png',
   '/icon-512.png',
+  '/assets/splash.png',
+  '/assets/onboarding1.png',
+  '/assets/onboarding2.png',
+  '/assets/onboarding3.png',
+  '/assets/cities_banner.png',
+  '/assets/features_banner.png',
+  '/assets/hero_banner.png',
+  '/assets/safety_badge.png',
 ];
 
 // Install - cache static assets

@@ -24,7 +24,6 @@
     }
   },
   "server": {
-    "url": "https://heartlink.co.in",
     "androidScheme": "https",
     "cleartext": true
   }

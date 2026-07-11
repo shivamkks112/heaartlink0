@@ -62,8 +62,11 @@ const LandingPage = () => {
     <div className="min-h-screen">
       {/* Hero Section */}
       <header className="relative min-h-screen flex items-center justify-center overflow-hidden" role="banner">
-        {/* Enhanced gradient background */}
-        <div className="absolute inset-0 animate-gradient bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50"></div>
+        {/* Hero background image */}
+        <div className="absolute inset-0">
+          <img src="/assets/hero_banner.png" alt="HeartLink - Find Love" className="w-full h-full object-cover opacity-15" loading="eager" />
+          <div className="absolute inset-0 bg-gradient-to-br from-pink-50/90 via-rose-50/90 to-orange-50/90"></div>
+        </div>
         
         {/* Decorative elements */}
         <div className="absolute top-20 left-10 w-72 h-72 bg-pink-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
@@ -153,7 +156,8 @@ const LandingPage = () => {
       {/* Features Section */}
       <section id="features" className="py-24 bg-gradient-to-b from-white to-gray-50" aria-labelledby="features-heading">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
+          <div className="text-center mb-10">
+            <img src="/assets/features_banner.png" alt="HeartLink Features" className="w-full max-w-2xl mx-auto rounded-2xl shadow-lg mb-8" loading="lazy" />
             <h2 id="features-heading" className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 text-gray-900">
               Why Choose HeartLink?
             </h2>
@@ -314,20 +318,25 @@ const LandingPage = () => {
           </div>
 
           <div className="mt-12 bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">Why HeartLink is India's Best Dating App</h3>
-            <div className="text-gray-600 space-y-3 text-sm leading-relaxed">
-              <p>
-                HeartLink is India's fastest growing dating app designed specifically for Indian singles looking for meaningful relationships. 
-                Unlike international apps like Tinder or Bumble, HeartLink understands Indian dating culture, family values, and regional preferences.
-              </p>
-              <p>
-                Our AI-powered matchmaking considers your interests, relationship goals, location, and lifestyle to suggest the most compatible matches. 
-                Whether you're in Delhi NCR, Mumbai, Bangalore, or any city across India, HeartLink helps you find genuine connections nearby.
-              </p>
-              <p>
-                Safety is our top priority. Every profile goes through verification, and our women safety features include night quiet hours, 
-                screenshot alerts, and instant blocking. HeartLink is the safest dating app for Indian women.
-              </p>
+            <div className="flex flex-col md:flex-row items-center gap-6">
+              <img src="/assets/safety_badge.png" alt="HeartLink Verified & Safe" className="w-32 h-32 rounded-xl object-cover flex-shrink-0" loading="lazy" />
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Why HeartLink is India's Best Dating App</h3>
+                <div className="text-gray-600 space-y-3 text-sm leading-relaxed">
+                  <p>
+                    HeartLink is India's fastest growing dating app designed specifically for Indian singles looking for meaningful relationships. 
+                    Unlike international apps like Tinder or Bumble, HeartLink understands Indian dating culture, family values, and regional preferences.
+                  </p>
+                  <p>
+                    Our AI-powered matchmaking considers your interests, relationship goals, location, and lifestyle to suggest the most compatible matches. 
+                    Whether you're in Delhi NCR, Mumbai, Bangalore, or any city across India, HeartLink helps you find genuine connections nearby.
+                  </p>
+                  <p>
+                    Safety is our top priority. Every profile goes through verification, and our women safety features include night quiet hours, 
+                    screenshot alerts, and instant blocking. HeartLink is the safest dating app for Indian women.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
