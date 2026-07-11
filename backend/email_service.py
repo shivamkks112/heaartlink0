@@ -14,12 +14,25 @@ import ssl
 logger = logging.getLogger(__name__)
 
 # SMTP Configuration from environment
-SMTP_HOST = os.getenv('SMTP_HOST', 'smtp.titan.email')
+SMTP_HOST = os.getenv('SMTP_HOST', 'smtp.office365.com')
 SMTP_PORT = int(os.getenv('SMTP_PORT', '587'))
 SMTP_USER = os.getenv('SMTP_USER', 'help@heartlink.co.in')
 SMTP_PASSWORD = os.getenv('SMTP_PASSWORD', '')
 SMTP_FROM_EMAIL = os.getenv('SMTP_FROM_EMAIL', 'help@heartlink.co.in')
 SMTP_FROM_NAME = os.getenv('SMTP_FROM_NAME', 'HeartLink Support')
+
+# Fallback: read password directly from .env if env var has issues with special chars
+if not SMTP_PASSWORD or len(SMTP_PASSWORD) < 5:
+    try:
+        from pathlib import Path
+        env_path = Path(__file__).parent / '.env'
+        if env_path.exists():
+            for line in env_path.read_text().splitlines():
+                if line.startswith('SMTP_PASSWORD='):
+                    SMTP_PASSWORD = line.split('=', 1)[1].strip().strip('"').strip("'")
+                    break
+    except Exception:
+        pass
 
 
 def send_email(to_email: str, subject: str, html_body: str, text_body: Optional[str] = None) -> dict:
