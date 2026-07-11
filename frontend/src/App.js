@@ -172,6 +172,10 @@ function App() {
         import('@/services/pushNotifications').then(({ initPushNotifications }) => {
           setTimeout(() => initPushNotifications(userData.id), 2000);
         });
+        // Initialize OneSignal for push notifications
+        import('@/services/oneSignalService').then(({ initOneSignal }) => {
+          setTimeout(() => initOneSignal(userData.id), 3000);
+        });
       } catch (error) {
         console.error('Error parsing stored user:', error);
         localStorage.removeItem('user');
@@ -202,6 +206,10 @@ function App() {
   const handleLogin = (userData) => {
     setUser(userData);
     localStorage.setItem('user', JSON.stringify(userData));
+    // Initialize OneSignal on fresh login
+    import('@/services/oneSignalService').then(({ initOneSignal }) => {
+      initOneSignal(userData.id);
+    });
     // Show daily reward after login (check if not claimed today)
     const lastShown = localStorage.getItem('heartlink_daily_reward_date');
     const today = new Date().toISOString().split('T')[0];
@@ -214,6 +222,10 @@ function App() {
   };
 
   const handleLogout = () => {
+    // Logout from OneSignal
+    import('@/services/oneSignalService').then(({ logoutOneSignal }) => {
+      logoutOneSignal();
+    });
     setUser(null);
     localStorage.removeItem('user');
   };
