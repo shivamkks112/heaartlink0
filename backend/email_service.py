@@ -1,10 +1,12 @@
 """
 Email Service for HeartLink Dating App
-Using Titan Email with SMTP
+Primary: Resend API (fast, reliable)
+Fallback: Microsoft 365 SMTP
 """
 
 import smtplib
 import os
+import resend
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Optional
@@ -13,7 +15,11 @@ import ssl
 
 logger = logging.getLogger(__name__)
 
-# SMTP Configuration from environment
+# Resend Configuration
+RESEND_API_KEY = os.getenv('RESEND_API_KEY', '')
+RESEND_FROM_EMAIL = os.getenv('RESEND_FROM_EMAIL', 'HeartLink Support <help@heartlink.co.in>')
+
+# SMTP Configuration (fallback)
 SMTP_HOST = os.getenv('SMTP_HOST', 'smtp.office365.com')
 SMTP_PORT = int(os.getenv('SMTP_PORT', '587'))
 SMTP_USER = os.getenv('SMTP_USER', 'help@heartlink.co.in')
@@ -34,39 +40,40 @@ if not SMTP_PASSWORD or len(SMTP_PASSWORD) < 5:
     except Exception:
         pass
 
+# Initialize Resend
+if RESEND_API_KEY:
+    resend.api_key = RESEND_API_KEY
 
-def send_email(to_email: str, subject: str, html_body: str, text_body: Optional[str] = None) -> dict:
-    """
-    Send email using GoDaddy Professional Email SMTP
-    
-    Args:
-        to_email: Recipient email address
-        subject: Email subject
-        html_body: HTML email body
-        text_body: Plain text fallback (optional)
-    
-    Returns:
-        dict with success status and message
-    """
-    
-    # GoDaddy SMTP with SSL/TLS
+
+def send_email_resend(to_email: str, subject: str, html_body: str) -> dict:
+    """Send email via Resend API (primary)"""
     try:
-        # Create message
+        params = {
+            "from": RESEND_FROM_EMAIL,
+            "to": [to_email],
+            "subject": subject,
+            "html": html_body,
+        }
+        result = resend.Emails.send(params)
+        logger.info(f"✅ Resend email sent to {to_email} (ID: {result.get('id', 'unknown')})")
+        return {"success": True, "message": "Email sent via Resend", "provider": "resend"}
+    except Exception as e:
+        logger.error(f"❌ Resend failed: {e}")
+        return {"success": False, "error": str(e), "provider": "resend"}
+
+
+def send_email_smtp(to_email: str, subject: str, html_body: str, text_body: Optional[str] = None) -> dict:
+    """Send email via SMTP (fallback)"""
+    try:
         msg = MIMEMultipart('alternative')
         msg['From'] = f"{SMTP_FROM_NAME} <{SMTP_FROM_EMAIL}>"
         msg['To'] = to_email
         msg['Subject'] = subject
         
-        # Add plain text version if provided
         if text_body:
-            part1 = MIMEText(text_body, 'plain')
-            msg.attach(part1)
+            msg.attach(MIMEText(text_body, 'plain'))
+        msg.attach(MIMEText(html_body, 'html'))
         
-        # Add HTML version
-        part2 = MIMEText(html_body, 'html')
-        msg.attach(part2)
-        
-        # Connect with STARTTLS (port 587 for GoDaddy)
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as server:
             server.ehlo()
             server.starttls()
@@ -74,18 +81,26 @@ def send_email(to_email: str, subject: str, html_body: str, text_body: Optional[
             server.login(SMTP_USER, SMTP_PASSWORD)
             server.send_message(msg)
         
-        logger.info(f"✅ Email sent successfully to {to_email}")
-        return {"success": True, "message": "Email sent successfully"}
-        
-    except smtplib.SMTPAuthenticationError as e:
-        error_msg = f"Authentication failed: {str(e)}"
-        logger.error(f"❌ {error_msg}")
-        return {"success": False, "error": error_msg}
-        
+        logger.info(f"✅ SMTP email sent to {to_email}")
+        return {"success": True, "message": "Email sent via SMTP", "provider": "smtp"}
     except Exception as e:
-        error_msg = f"Failed to send email: {str(e)}"
-        logger.error(f"❌ {error_msg}")
-        return {"success": False, "error": error_msg}
+        logger.error(f"❌ SMTP failed: {e}")
+        return {"success": False, "error": str(e), "provider": "smtp"}
+
+
+def send_email(to_email: str, subject: str, html_body: str, text_body: Optional[str] = None) -> dict:
+    """
+    Send email - tries Resend first, falls back to SMTP
+    """
+    # Try Resend first (faster, more reliable)
+    if RESEND_API_KEY:
+        result = send_email_resend(to_email, subject, html_body)
+        if result["success"]:
+            return result
+        logger.warning(f"Resend failed, falling back to SMTP for {to_email}")
+    
+    # Fallback to SMTP
+    return send_email_smtp(to_email, subject, html_body, text_body)
 
 
 def send_otp_email(to_email: str, otp_code: str, user_name: str = "User") -> dict:
