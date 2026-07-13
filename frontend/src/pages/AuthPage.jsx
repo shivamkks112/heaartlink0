@@ -8,7 +8,8 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
 import { setupRecaptcha, sendOTP, verifyOTP, clearRecaptcha, getStorage, ref, uploadBytes, getDownloadURL } from '@/firebase/config';
-import { sendNativeOTP, verifyNativeOTP, isNativeAuthAvailable } from '@/services/nativePhoneAuth';
+import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
+import { Capacitor } from '@capacitor/core';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || import.meta.env?.REACT_APP_BACKEND_URL;
 if (!BACKEND_URL) console.error('⚠️ REACT_APP_BACKEND_URL is not set!');
@@ -128,8 +129,11 @@ const AuthPage = ({ onLogin }) => {
     return '+91' + cleaned;
   };
 
+  // Store native verification ID
+  const nativeVerificationId = useRef(null);
+  const isNative = Capacitor.isNativePlatform();
+
   const handleSendOTP = async () => {
-    // Validate phone number
     if (!phoneNumber || phoneNumber.length !== 10) {
       toast.error('Please enter a valid 10-digit phone number');
       return;
@@ -138,83 +142,71 @@ const AuthPage = ({ onLogin }) => {
     setLoading(true);
     try {
       const formattedPhone = formatPhoneNumber(phoneNumber);
-      
+
       if (!formattedPhone) {
         toast.error('Invalid phone number format');
-        setLoading(false);
         return;
       }
-      
-      console.log('Sending OTP to:', formattedPhone);
-      
-      // Try native auth first (Capacitor app)
-      if (isNativeAuthAvailable()) {
-        console.log('Using native Firebase Phone Auth');
-        const result = await sendNativeOTP(formattedPhone);
-        
+
+      console.log('[PhoneAuth] Sending OTP to:', formattedPhone, '| Native:', isNative);
+
+      if (isNative) {
+        // ─── NATIVE: @capacitor-firebase/authentication ───
+        // No reCAPTCHA needed on Android/iOS
+        const result = await FirebaseAuthentication.signInWithPhoneNumber({
+          phoneNumber: formattedPhone,
+        });
+
+        if (result.verificationId) {
+          nativeVerificationId.current = result.verificationId;
+          setOtpSent(true);
+          setCountdown(60);
+          toast.success('OTP sent! Check your phone.');
+          console.log('[PhoneAuth] Native OTP sent, verificationId received');
+        } else {
+          toast.error('Failed to send OTP. Try again.');
+        }
+      } else {
+        // ─── WEB: Firebase Web SDK with reCAPTCHA ───
+        clearRecaptcha();
+        await new Promise((r) => setTimeout(r, 300));
+
+        const recaptchaVerifier = setupRecaptcha('recaptcha-container');
+
+        try {
+          await Promise.race([
+            recaptchaVerifier.render(),
+            new Promise((_, rej) => setTimeout(() => rej(new Error('reCAPTCHA timeout')), 10000)),
+          ]);
+        } catch (e) {
+          console.warn('[PhoneAuth] reCAPTCHA render:', e.message);
+        }
+
+        const result = await sendOTP(formattedPhone, recaptchaVerifier);
+
         if (result.success) {
           setOtpSent(true);
           setCountdown(60);
-          toast.success('OTP sent successfully! Check your phone.');
-          setLoading(false);
-          return;
-        }
-        
-        // If native failed but not because of platform, show error
-        if (!result.useWebFallback) {
+          toast.success('OTP sent! Check your phone.');
+        } else {
           toast.error(result.error || 'Failed to send OTP');
-          setLoading(false);
-          return;
+          clearRecaptcha();
         }
-        // Fall through to web-based auth
-        console.log('Falling back to web-based auth');
-      }
-      
-      // Web-based Firebase Phone Auth (browser)
-      clearRecaptcha();
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      const recaptchaVerifier = setupRecaptcha('recaptcha-container');
-      
-      const renderPromise = recaptchaVerifier.render();
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('reCAPTCHA timeout')), 10000)
-      );
-      
-      try {
-        await Promise.race([renderPromise, timeoutPromise]);
-      } catch (renderError) {
-        console.warn('reCAPTCHA render issue:', renderError.message);
-      }
-      
-      const result = await sendOTP(formattedPhone, recaptchaVerifier);
-      
-      if (result.success) {
-        setOtpSent(true);
-        setCountdown(60);
-        toast.success('OTP sent successfully! Check your phone.');
-      } else {
-        toast.error(result.error || 'Failed to send OTP');
-        clearRecaptcha();
       }
     } catch (error) {
-      console.error('Send OTP error:', error);
-      
-      let errorMessage = 'Failed to send OTP. Please try again.';
-      if (error.message?.includes('already been rendered')) {
-        errorMessage = 'Please wait a moment and try again.';
-        clearRecaptcha();
-      } else if (error.message?.includes('too-short')) {
-        errorMessage = 'Phone number is too short. Enter 10 digits.';
-      } else if (error.message?.includes('timeout')) {
-        errorMessage = 'Network slow hai, dobara try karo.';
-        clearRecaptcha();
-      } else if (error.message?.includes('auth/network-request-failed')) {
-        errorMessage = 'Internet connection check karo.';
-      }
-      
-      toast.error(errorMessage);
-      clearRecaptcha();
+      console.error('[PhoneAuth] Send OTP error:', error);
+
+      let msg = 'Failed to send OTP. Try again.';
+      const e = error.message || '';
+      if (e.includes('too-many-requests'))        msg = 'Too many attempts. Wait 5 min.';
+      else if (e.includes('invalid-phone-number')) msg = 'Invalid phone number.';
+      else if (e.includes('network'))              msg = 'Check internet connection.';
+      else if (e.includes('quota'))                msg = 'SMS quota exceeded. Try later.';
+      else if (e.includes('timeout'))              msg = 'Network slow, try again.';
+      else if (e.includes('already been rendered')){ msg = 'Wait a moment, try again.'; clearRecaptcha(); }
+
+      toast.error(msg);
+      if (!isNative) clearRecaptcha();
     } finally {
       setLoading(false);
     }
@@ -222,15 +214,12 @@ const AuthPage = ({ onLogin }) => {
 
   const handleResendOTP = async () => {
     if (countdown > 0) return;
-    
-    // Clear existing state and recaptcha
-    clearRecaptcha();
+
+    nativeVerificationId.current = null;
+    if (!isNative) clearRecaptcha();
     setOtp('');
-    
-    // Wait for cleanup
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Send OTP again
+
+    await new Promise((r) => setTimeout(r, 400));
     await handleSendOTP();
   };
 
@@ -243,11 +232,30 @@ const AuthPage = ({ onLogin }) => {
     setLoading(true);
     try {
       let result;
-      
-      // Use native verify if on native platform
-      if (isNativeAuthAvailable()) {
-        result = await verifyNativeOTP(otp);
+
+      if (isNative) {
+        // ─── NATIVE VERIFY ───
+        if (!nativeVerificationId.current) {
+          toast.error('Session expired. Send OTP again.');
+          setOtpSent(false);
+          return;
+        }
+
+        const confirmResult = await FirebaseAuthentication.confirmVerificationCode({
+          verificationId: nativeVerificationId.current,
+          verificationCode: otp,
+        });
+
+        result = {
+          success: true,
+          user: {
+            uid: confirmResult.user?.uid,
+            phoneNumber: confirmResult.user?.phoneNumber,
+          },
+        };
+        nativeVerificationId.current = null;
       } else {
+        // ─── WEB VERIFY ───
         result = await verifyOTP(otp);
       }
       
