@@ -150,19 +150,29 @@ const AuthPage = ({ onLogin }) => {
       clearRecaptcha();
       
       // Wait a bit for cleanup
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 300));
       
       // Setup fresh recaptcha
       const recaptchaVerifier = setupRecaptcha('recaptcha-container');
       
-      // Render the recaptcha (needed for invisible recaptcha)
-      await recaptchaVerifier.render();
+      // Render with timeout (WebView can hang here)
+      const renderPromise = recaptchaVerifier.render();
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('reCAPTCHA timeout')), 10000)
+      );
+      
+      try {
+        await Promise.race([renderPromise, timeoutPromise]);
+      } catch (renderError) {
+        console.warn('reCAPTCHA render issue:', renderError.message);
+        // Continue anyway - invisible reCAPTCHA may still work
+      }
       
       const result = await sendOTP(formattedPhone, recaptchaVerifier);
       
       if (result.success) {
         setOtpSent(true);
-        setCountdown(60); // 60 seconds countdown
+        setCountdown(60);
         toast.success('OTP sent successfully! Check your phone.');
       } else {
         toast.error(result.error || 'Failed to send OTP');
@@ -177,6 +187,11 @@ const AuthPage = ({ onLogin }) => {
         clearRecaptcha();
       } else if (error.message?.includes('too-short')) {
         errorMessage = 'Phone number is too short. Enter 10 digits.';
+      } else if (error.message?.includes('timeout')) {
+        errorMessage = 'Network slow hai, dobara try karo.';
+        clearRecaptcha();
+      } else if (error.message?.includes('auth/network-request-failed')) {
+        errorMessage = 'Internet connection check karo.';
       }
       
       toast.error(errorMessage);
