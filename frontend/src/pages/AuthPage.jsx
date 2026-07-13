@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
 import { setupRecaptcha, sendOTP, verifyOTP, clearRecaptcha, getStorage, ref, uploadBytes, getDownloadURL } from '@/firebase/config';
+import { sendNativeOTP, verifyNativeOTP, isNativeAuthAvailable } from '@/services/nativePhoneAuth';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || import.meta.env?.REACT_APP_BACKEND_URL;
 if (!BACKEND_URL) console.error('⚠️ REACT_APP_BACKEND_URL is not set!');
@@ -146,16 +147,35 @@ const AuthPage = ({ onLogin }) => {
       
       console.log('Sending OTP to:', formattedPhone);
       
-      // Clear any existing recaptcha first
-      clearRecaptcha();
+      // Try native auth first (Capacitor app)
+      if (isNativeAuthAvailable()) {
+        console.log('Using native Firebase Phone Auth');
+        const result = await sendNativeOTP(formattedPhone);
+        
+        if (result.success) {
+          setOtpSent(true);
+          setCountdown(60);
+          toast.success('OTP sent successfully! Check your phone.');
+          setLoading(false);
+          return;
+        }
+        
+        // If native failed but not because of platform, show error
+        if (!result.useWebFallback) {
+          toast.error(result.error || 'Failed to send OTP');
+          setLoading(false);
+          return;
+        }
+        // Fall through to web-based auth
+        console.log('Falling back to web-based auth');
+      }
       
-      // Wait a bit for cleanup
+      // Web-based Firebase Phone Auth (browser)
+      clearRecaptcha();
       await new Promise(resolve => setTimeout(resolve, 300));
       
-      // Setup fresh recaptcha
       const recaptchaVerifier = setupRecaptcha('recaptcha-container');
       
-      // Render with timeout (WebView can hang here)
       const renderPromise = recaptchaVerifier.render();
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('reCAPTCHA timeout')), 10000)
@@ -165,7 +185,6 @@ const AuthPage = ({ onLogin }) => {
         await Promise.race([renderPromise, timeoutPromise]);
       } catch (renderError) {
         console.warn('reCAPTCHA render issue:', renderError.message);
-        // Continue anyway - invisible reCAPTCHA may still work
       }
       
       const result = await sendOTP(formattedPhone, recaptchaVerifier);
@@ -223,7 +242,14 @@ const AuthPage = ({ onLogin }) => {
 
     setLoading(true);
     try {
-      const result = await verifyOTP(otp);
+      let result;
+      
+      // Use native verify if on native platform
+      if (isNativeAuthAvailable()) {
+        result = await verifyNativeOTP(otp);
+      } else {
+        result = await verifyOTP(otp);
+      }
       
       if (result.success) {
         const firebaseUser = result.user;
