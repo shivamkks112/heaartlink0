@@ -7,9 +7,8 @@ import { Label } from '@/components/ui/label';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
-import { setupRecaptcha, sendOTP, verifyOTP, clearRecaptcha, getStorage, ref, uploadBytes, getDownloadURL } from '@/firebase/config';
+import { getStorage, ref, uploadBytes, getDownloadURL } from '@/firebase/config';
 import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
-import { Capacitor } from '@capacitor/core';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || import.meta.env?.REACT_APP_BACKEND_URL;
 if (!BACKEND_URL) console.error('⚠️ REACT_APP_BACKEND_URL is not set!');
@@ -102,36 +101,14 @@ const AuthPage = ({ onLogin }) => {
     }
   }, [countdown]);
 
-  // Cleanup recaptcha on component unmount or auth method change
-  useEffect(() => {
-    return () => {
-      clearRecaptcha();
-    };
-  }, []);
-
-  // Clear recaptcha when switching auth methods
-  useEffect(() => {
-    if (authMethod === 'email') {
-      clearRecaptcha();
-    }
-  }, [authMethod]);
-
   const formatPhoneNumber = (phone) => {
-    // Remove all non-digits
     let cleaned = phone.replace(/\D/g, '');
-    
-    // Ensure it's 10 digits
-    if (cleaned.length !== 10) {
-      return null;
-    }
-    
-    // Add India country code
+    if (cleaned.length !== 10) return null;
     return '+91' + cleaned;
   };
 
-  // Store native verification ID
+  // Verification ID from native Firebase Auth
   const nativeVerificationId = useRef(null);
-  const isNative = Capacitor.isNativePlatform();
 
   const handleSendOTP = async () => {
     if (!phoneNumber || phoneNumber.length !== 10) {
@@ -142,71 +119,47 @@ const AuthPage = ({ onLogin }) => {
     setLoading(true);
     try {
       const formattedPhone = formatPhoneNumber(phoneNumber);
-
       if (!formattedPhone) {
         toast.error('Invalid phone number format');
         return;
       }
 
-      console.log('[PhoneAuth] Sending OTP to:', formattedPhone, '| Native:', isNative);
+      console.log('[PhoneAuth] Sending OTP via native plugin to:', formattedPhone);
 
-      if (isNative) {
-        // ─── NATIVE: @capacitor-firebase/authentication ───
-        // No reCAPTCHA needed on Android/iOS
-        const result = await FirebaseAuthentication.signInWithPhoneNumber({
-          phoneNumber: formattedPhone,
-        });
+      // Use ONLY native Capawesome Firebase Authentication
+      // This bypasses reCAPTCHA completely on Android/iOS
+      const { verificationId } = await FirebaseAuthentication.signInWithPhoneNumber({
+        phoneNumber: formattedPhone,
+      });
 
-        if (result.verificationId) {
-          nativeVerificationId.current = result.verificationId;
-          setOtpSent(true);
-          setCountdown(60);
-          toast.success('OTP sent! Check your phone.');
-          console.log('[PhoneAuth] Native OTP sent, verificationId received');
-        } else {
-          toast.error('Failed to send OTP. Try again.');
-        }
+      if (verificationId) {
+        nativeVerificationId.current = verificationId;
+        setOtpSent(true);
+        setCountdown(60);
+        toast.success('OTP sent! Check your phone.');
+        console.log('[PhoneAuth] verificationId received');
       } else {
-        // ─── WEB: Firebase Web SDK with reCAPTCHA ───
-        clearRecaptcha();
-        await new Promise((r) => setTimeout(r, 300));
-
-        const recaptchaVerifier = setupRecaptcha('recaptcha-container');
-
-        try {
-          await Promise.race([
-            recaptchaVerifier.render(),
-            new Promise((_, rej) => setTimeout(() => rej(new Error('reCAPTCHA timeout')), 10000)),
-          ]);
-        } catch (e) {
-          console.warn('[PhoneAuth] reCAPTCHA render:', e.message);
-        }
-
-        const result = await sendOTP(formattedPhone, recaptchaVerifier);
-
-        if (result.success) {
-          setOtpSent(true);
-          setCountdown(60);
-          toast.success('OTP sent! Check your phone.');
-        } else {
-          toast.error(result.error || 'Failed to send OTP');
-          clearRecaptcha();
-        }
+        toast.error('OTP send failed. Try again.');
       }
     } catch (error) {
-      console.error('[PhoneAuth] Send OTP error:', error);
+      console.error('[PhoneAuth] Send error:', error);
 
       let msg = 'Failed to send OTP. Try again.';
-      const e = error.message || '';
-      if (e.includes('too-many-requests'))        msg = 'Too many attempts. Wait 5 min.';
-      else if (e.includes('invalid-phone-number')) msg = 'Invalid phone number.';
-      else if (e.includes('network'))              msg = 'Check internet connection.';
-      else if (e.includes('quota'))                msg = 'SMS quota exceeded. Try later.';
-      else if (e.includes('timeout'))              msg = 'Network slow, try again.';
-      else if (e.includes('already been rendered')){ msg = 'Wait a moment, try again.'; clearRecaptcha(); }
+      const e = (error.message || error.code || '').toLowerCase();
+      if (e.includes('too-many-requests') || e.includes('17010'))
+        msg = 'Bahut baar try kiya. 5 min baad try karo.';
+      else if (e.includes('invalid-phone-number') || e.includes('17048'))
+        msg = 'Phone number galat hai. 10 digit daalo.';
+      else if (e.includes('network'))
+        msg = 'Internet check karo.';
+      else if (e.includes('quota') || e.includes('17028'))
+        msg = 'SMS limit ho gayi. Thodi der baad try karo.';
+      else if (e.includes('missing-client-identifier') || e.includes('17093'))
+        msg = 'App configuration error. Please use email login.';
+      else if (e.includes('app-not-authorized') || e.includes('17004'))
+        msg = 'App authorized nahi hai. Email se login karo.';
 
       toast.error(msg);
-      if (!isNative) clearRecaptcha();
     } finally {
       setLoading(false);
     }
@@ -214,12 +167,9 @@ const AuthPage = ({ onLogin }) => {
 
   const handleResendOTP = async () => {
     if (countdown > 0) return;
-
     nativeVerificationId.current = null;
-    if (!isNative) clearRecaptcha();
     setOtp('');
-
-    await new Promise((r) => setTimeout(r, 400));
+    await new Promise((r) => setTimeout(r, 300));
     await handleSendOTP();
   };
 
@@ -231,83 +181,63 @@ const AuthPage = ({ onLogin }) => {
 
     setLoading(true);
     try {
-      let result;
+      if (!nativeVerificationId.current) {
+        toast.error('Session expired. OTP dobara bhejo.');
+        setOtpSent(false);
+        return;
+      }
 
-      if (isNative) {
-        // ─── NATIVE VERIFY ───
-        if (!nativeVerificationId.current) {
-          toast.error('Session expired. Send OTP again.');
-          setOtpSent(false);
-          return;
-        }
+      // Confirm OTP via native plugin ONLY
+      const { user: firebaseUser } = await FirebaseAuthentication.confirmVerificationCode({
+        verificationId: nativeVerificationId.current,
+        verificationCode: otp,
+      });
 
-        const confirmResult = await FirebaseAuthentication.confirmVerificationCode({
-          verificationId: nativeVerificationId.current,
-          verificationCode: otp,
+      nativeVerificationId.current = null;
+
+      if (!firebaseUser) {
+        toast.error('Verification failed. Try again.');
+        return;
+      }
+
+      const formattedPhone = formatPhoneNumber(phoneNumber);
+
+      // Check if user exists in our database
+      try {
+        const loginResponse = await axios.post(`${API}/auth/phone-login`, {
+          phone: formattedPhone,
+          firebase_uid: firebaseUser.uid
         });
 
-        result = {
-          success: true,
-          user: {
-            uid: confirmResult.user?.uid,
-            phoneNumber: confirmResult.user?.phoneNumber,
-          },
-        };
-        nativeVerificationId.current = null;
-      } else {
-        // ─── WEB VERIFY ───
-        result = await verifyOTP(otp);
-      }
-      
-      if (result.success) {
-        const firebaseUser = result.user;
-        const formattedPhone = formatPhoneNumber(phoneNumber);
-        
-        // Check if user exists in our database
-        try {
-          const loginResponse = await axios.post(`${API}/auth/phone-login`, {
-            phone: formattedPhone,
-            firebase_uid: firebaseUser.uid
+        const userData = loginResponse.data.user;
+        localStorage.setItem('user', JSON.stringify(userData));
+        await onLogin(userData);
+        toast.success(`Welcome back, ${userData.name}!`);
+        navigate('/discover');
+      } catch (error) {
+        if (error.response?.status === 404) {
+          toast.info('Please complete your profile');
+          navigate('/complete-profile', {
+            state: {
+              phone: formattedPhone,
+              firebase_uid: firebaseUser.uid
+            }
           });
-          
-          const userData = loginResponse.data.user;
-          localStorage.setItem('user', JSON.stringify(userData));
-          await onLogin(userData);
-          toast.success(`Welcome back, ${userData.name}!`);
-          navigate('/discover');
-        } catch (error) {
-          if (error.response?.status === 404) {
-            // User doesn't exist, redirect to complete profile
-            toast.info('Please complete your profile');
-            navigate('/complete-profile', { 
-              state: { 
-                phone: formattedPhone, 
-                firebase_uid: firebaseUser.uid 
-              } 
-            });
-          } else {
-            throw error;
-          }
+        } else {
+          throw error;
         }
-      } else {
-        toast.error(result.error || 'Invalid OTP');
       }
     } catch (error) {
-      console.error('Verify OTP error:', error);
-      
-      // Better error messages
-      let errorMessage = 'Verification failed. Please try again.';
-      if (error.code === 'auth/code-expired') {
-        errorMessage = 'OTP expired! Please request a new one.';
-      } else if (error.code === 'auth/invalid-verification-code') {
-        errorMessage = 'Invalid OTP. Please check and try again.';
-      } else if (error.message?.includes('expired')) {
-        errorMessage = 'OTP expired! Please request a new one.';
-      }
-      
+      console.error('[PhoneAuth] Verify error:', error);
+
+      let errorMessage = 'Verification failed. Try again.';
+      const e = (error.message || error.code || '').toLowerCase();
+      if (e.includes('code-expired') || e.includes('expired'))
+        errorMessage = 'OTP expire ho gaya! Dobara bhejo.';
+      else if (e.includes('invalid-verification-code'))
+        errorMessage = 'Galat OTP. Sahi code daalo.';
+
       toast.error(errorMessage);
-      
-      // Clear OTP and allow resend
       setOtp('');
       setCountdown(0);
     } finally {
@@ -477,7 +407,7 @@ const AuthPage = ({ onLogin }) => {
       <Toaster position="top-center" richColors />
       
       {/* Recaptcha container - invisible */}
-      <div id="recaptcha-container"></div>
+      {/* Phone auth handled natively - no recaptcha needed */}
       
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
@@ -669,7 +599,7 @@ const AuthPage = ({ onLogin }) => {
                           onClick={() => { 
                             setOtpSent(false); 
                             setOtp(''); 
-                            clearRecaptcha();
+                            nativeVerificationId.current = null;
                           }}
                           className="text-gray-600 hover:text-gray-800 text-sm"
                         >
