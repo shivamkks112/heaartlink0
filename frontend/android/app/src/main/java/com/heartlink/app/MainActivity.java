@@ -97,24 +97,55 @@ public class MainActivity extends BridgeActivity {
     
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationManager manager = getSystemService(NotificationManager.class);
+            if (manager == null) return;
+
+            final String CHANNEL_ID = "heartlink_high_v2";
+
+            // Clean up legacy channels from earlier builds. Android does NOT allow
+            // editing an existing channel's importance/sound after creation, so we
+            // must migrate to a new channel id and delete the old ones.
+            try {
+                if (manager.getNotificationChannel("heartlink_high") != null) {
+                    manager.deleteNotificationChannel("heartlink_high");
+                }
+                if (manager.getNotificationChannel("heartlink_notifications") != null) {
+                    manager.deleteNotificationChannel("heartlink_notifications");
+                }
+            } catch (Exception ignored) {}
+
+            // Idempotent: only create if not already present.
+            if (manager.getNotificationChannel(CHANNEL_ID) != null) {
+                Log.d(TAG, "Channel already exists: " + CHANNEL_ID);
+                return;
+            }
+
             NotificationChannel channel = new NotificationChannel(
-                "heartlink_high",
+                CHANNEL_ID,
                 "HeartLink Notifications",
                 NotificationManager.IMPORTANCE_HIGH
             );
-            channel.setDescription("Matches, Likes, Messages, Profile Views");
+            channel.setDescription("Matches, Likes, Messages, Profile Views, Admin");
             channel.enableVibration(true);
             channel.setVibrationPattern(new long[]{0, 300, 200, 300});
             channel.enableLights(true);
             channel.setLightColor(0xFFFF6B9D);
             channel.setShowBadge(true);
             channel.setLockscreenVisibility(android.app.Notification.VISIBILITY_PUBLIC);
-            
-            NotificationManager manager = getSystemService(NotificationManager.class);
-            if (manager != null) {
-                manager.createNotificationChannel(channel);
-                Log.d(TAG, "Notification channel created: heartlink_high");
-            }
+
+            // Attach a sound URI to the channel — required for consistent
+            // audio + heads-up popup on Android 8+ (Oreo+).
+            android.net.Uri sound = android.media.RingtoneManager.getDefaultUri(
+                android.media.RingtoneManager.TYPE_NOTIFICATION
+            );
+            android.media.AudioAttributes audioAttrs = new android.media.AudioAttributes.Builder()
+                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION)
+                .build();
+            channel.setSound(sound, audioAttrs);
+
+            manager.createNotificationChannel(channel);
+            Log.d(TAG, "Notification channel created: " + CHANNEL_ID + " (IMPORTANCE_HIGH, sound, vibrate, lock-screen visible)");
         }
     }
     

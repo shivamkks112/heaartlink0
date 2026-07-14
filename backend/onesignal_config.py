@@ -54,12 +54,20 @@ def send_onesignal_notification(
         "headings": {"en": title},
         "contents": {"en": message},
         "data": data or {},
-        # Android notification settings
+        # Android notification settings — heads-up popup
         "priority": 10,
         "android_visibility": 1,
         "android_sound": "default",
         "android_led_color": "FFFF6B9D",
         "android_accent_color": "FFFF6B9D",
+        # Route through the high-importance channel created by MainActivity/HeartLinkMessagingService
+        # This is what actually enables heads-up popup on Android 8+ (Oreo+)
+        "android_channel_id": "heartlink_high_v2",
+        "existing_android_channel_id": "heartlink_high_v2",
+        # iOS
+        "ios_sound": "default",
+        "ios_badgeType": "Increase",
+        "ios_badgeCount": 1,
     }
     
     # Targeting options

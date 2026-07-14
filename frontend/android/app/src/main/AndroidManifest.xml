@@ -81,7 +81,7 @@
             android:resource="@color/colorPrimary" />
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="heartlink_notifications" />
+            android:value="heartlink_high_v2" />
 
         <!-- Google AdMob App ID - CRITICAL: Must match AdMob Console -->
         <meta-data

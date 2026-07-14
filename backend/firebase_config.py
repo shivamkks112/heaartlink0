@@ -44,8 +44,28 @@ def send_notification(token: str, title: str, body: str, data: dict = None):
                 title=title,
                 body=body,
             ),
-            data=data or {},
+            data={k: str(v) for k, v in (data or {}).items()},
             token=token,
+            # Android heads-up popup config — routes to high-importance channel
+            android=messaging.AndroidConfig(
+                priority="high",
+                notification=messaging.AndroidNotification(
+                    channel_id="heartlink_high_v2",
+                    sound="default",
+                    default_vibrate_timings=True,
+                    default_sound=True,
+                    default_light_settings=True,
+                    priority="max",
+                    visibility="public",
+                ),
+            ),
+            # iOS heads-up config (if any iOS build exists)
+            apns=messaging.APNSConfig(
+                headers={"apns-priority": "10"},
+                payload=messaging.APNSPayload(
+                    aps=messaging.Aps(sound="default", badge=1, content_available=True)
+                ),
+            ),
         )
         
         response = messaging.send(message)
@@ -72,8 +92,28 @@ def send_notification_to_multiple(tokens: list, title: str, body: str, data: dic
                 title=title,
                 body=body,
             ),
-            data=data or {},
+            data={k: str(v) for k, v in (data or {}).items()},
             tokens=tokens,
+            # Android heads-up popup config — routes to high-importance channel
+            # Android heads-up popup config — routes to high-importance channel
+            android=messaging.AndroidConfig(
+                priority="high",
+                notification=messaging.AndroidNotification(
+                    channel_id="heartlink_high_v2",
+                    sound="default",
+                    default_vibrate_timings=True,
+                    default_sound=True,
+                    default_light_settings=True,
+                    priority="max",
+                    visibility="public",
+                ),
+            ),
+            apns=messaging.APNSConfig(
+                headers={"apns-priority": "10"},
+                payload=messaging.APNSPayload(
+                    aps=messaging.Aps(sound="default", badge=1, content_available=True)
+                ),
+            ),
         )
         
         response = messaging.send_multicast(message)
