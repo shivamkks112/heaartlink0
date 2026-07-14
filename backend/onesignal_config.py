@@ -56,6 +56,7 @@ def send_onesignal_notification(
         "data": data or {},
         # Android heads-up notification settings
         "priority": 10,
+        "android_channel_id": "heartlink_high",
         "android_visibility": 1,
         "android_sound": "default",
         "android_led_color": "FFFF6B9D",

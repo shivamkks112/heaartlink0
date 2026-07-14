@@ -8,6 +8,9 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 import android.webkit.WebView;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.os.Build;
 
 import com.getcapacitor.BridgeActivity;
 import com.google.android.gms.ads.MobileAds;
@@ -45,6 +48,9 @@ public class MainActivity extends BridgeActivity {
         // Initialize OneSignal
         initializeOneSignal();
         
+        // Create high importance notification channel for heads-up popups
+        createNotificationChannel();
+        
         // Check for pending navigation
         checkPendingNavigation();
         
@@ -78,9 +84,37 @@ public class MainActivity extends BridgeActivity {
                 }
             });
             
+            // Request notification permission for Android 13+
+            if (Build.VERSION.SDK_INT >= 33) {
+                OneSignal.getNotifications().requestPermission(true, null);
+            }
+            
             Log.d(TAG, "OneSignal initialized");
         } catch (Exception e) {
             Log.e(TAG, "OneSignal error: " + e.getMessage());
+        }
+    }
+    
+    private void createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel(
+                "heartlink_high",
+                "HeartLink Notifications",
+                NotificationManager.IMPORTANCE_HIGH
+            );
+            channel.setDescription("Matches, Likes, Messages, Profile Views");
+            channel.enableVibration(true);
+            channel.setVibrationPattern(new long[]{0, 300, 200, 300});
+            channel.enableLights(true);
+            channel.setLightColor(0xFFFF6B9D);
+            channel.setShowBadge(true);
+            channel.setLockscreenVisibility(android.app.Notification.VISIBILITY_PUBLIC);
+            
+            NotificationManager manager = getSystemService(NotificationManager.class);
+            if (manager != null) {
+                manager.createNotificationChannel(channel);
+                Log.d(TAG, "Notification channel created: heartlink_high");
+            }
         }
     }
     
