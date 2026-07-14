@@ -53,7 +53,14 @@ def send_onesignal_notification(
         "app_id": ONESIGNAL_APP_ID,
         "headings": {"en": title},
         "contents": {"en": message},
-        "data": data or {}
+        "data": data or {},
+        # Android heads-up notification settings
+        "priority": 10,
+        "android_visibility": 1,
+        "android_sound": "default",
+        "android_led_color": "FFFF6B9D",
+        "android_accent_color": "FFFF6B9D",
+        "small_icon": "ic_stat_onesignal_default",
     }
     
     # Targeting options
