@@ -1,12 +1,14 @@
 """
 OneSignal Push Notification Service
-Replaces Firebase FCM for better reliability and admin control
 """
 
 import os
 import requests
 import logging
 from typing import List, Optional, Dict, Any
+from dotenv import load_dotenv
+
+load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
 
 logger = logging.getLogger(__name__)
 
