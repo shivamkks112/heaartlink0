@@ -8,6 +8,7 @@ import Navbar from '@/components/Navbar';
 import TopBar from '@/components/TopBar';
 import { Button } from '@/components/ui/button';
 import { MatchCardSkeleton } from '@/components/SkeletonLoader';
+import wsService from '@/services/WebSocketService';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || import.meta.env.REACT_APP_BACKEND_URL;
 if (!BACKEND_URL) {
@@ -284,6 +285,43 @@ const MatchesPage = ({ user }) => {
     } else {
       fetchActiveUsers();
     }
+    
+    // Real-time listeners
+    const unsubMatch = wsService.on('new_match', () => {
+      if (activeTab === 'matches') fetchMatches();
+      toast.success('New match! Check your matches tab');
+    });
+    
+    const unsubMsg = wsService.on('new_message', (msg) => {
+      if (activeTab === 'messages') fetchConversations();
+      // Update unread count for this match
+      if (msg?.match_id) {
+        setUnreadCounts(prev => ({
+          ...prev,
+          [msg.match_id]: (prev[msg.match_id] || 0) + 1
+        }));
+      }
+    });
+    
+    const unsubStatus = wsService.on('status_update', (data) => {
+      // Update online status in real-time
+      setMatches(prev => prev.map(m => 
+        m.user?.id === data.user_id 
+          ? { ...m, user: { ...m.user, is_online: data.is_online, last_active: data.last_active } }
+          : m
+      ));
+      setConversations(prev => prev.map(c => 
+        c.user?.id === data.user_id 
+          ? { ...c, user: { ...c.user, is_online: data.is_online, last_active: data.last_active } }
+          : c
+      ));
+    });
+    
+    return () => {
+      unsubMatch();
+      unsubMsg();
+      unsubStatus();
+    };
     // eslint-disable-next-line
   }, [activeTab]);
 

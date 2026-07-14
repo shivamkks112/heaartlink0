@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Bell, Check, Trash2, Heart, MessageSquare, UserPlus, Megaphone, ChevronRight } from 'lucide-react';
+import { Bell, Check, Trash2, Heart, MessageSquare, UserPlus, Megaphone, ChevronRight, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import TopBar from '@/components/TopBar';
 import { Button } from '@/components/ui/button';
+import wsService from '@/services/WebSocketService';
 
 const API = process.env.REACT_APP_BACKEND_URL + '/api';
 
@@ -18,6 +19,17 @@ const NotificationsPage = ({ user }) => {
 
   useEffect(() => {
     fetchNotifications();
+    
+    // Real-time notification listeners
+    const unsubMatch = wsService.on('new_match', () => fetchNotifications());
+    const unsubLike = wsService.on('new_like', () => fetchNotifications());
+    const unsubView = wsService.on('profile_view', () => fetchNotifications());
+    
+    return () => {
+      unsubMatch();
+      unsubLike();
+      unsubView();
+    };
   }, []);
 
   const fetchNotifications = async () => {
@@ -78,6 +90,8 @@ const NotificationsPage = ({ user }) => {
         return <Heart className="w-5 h-5 text-pink-500" />;
       case 'like':
         return <Heart className="w-5 h-5 text-red-500" />;
+      case 'profile_view':
+        return <Eye className="w-5 h-5 text-blue-500" />;
       case 'message':
         return <MessageSquare className="w-5 h-5 text-blue-500" />;
       case 'admin':

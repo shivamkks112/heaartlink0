@@ -5,6 +5,7 @@ import Navbar from '@/components/Navbar';
 import SeeWhoLikedYouCard from '@/components/ads/SeeWhoLikedYouCard';
 import { useAds } from '@/context/AdContext';
 import { Button } from '@/components/ui/button';
+import wsService from '@/services/WebSocketService';
 
 const API = process.env.REACT_APP_BACKEND_URL + '/api';
 
@@ -27,6 +28,13 @@ const LikesYouPage = ({ user }) => {
     // Load revealed profiles from localStorage
     const revealed = JSON.parse(localStorage.getItem('heartlink_revealed_likes') || '[]');
     setRevealedProfiles(revealed);
+    
+    // Listen for new likes in real-time
+    const unsubLike = wsService.on('new_like', () => {
+      fetchLikes(); // Refresh likes list
+    });
+    
+    return () => unsubLike();
   }, [user.id]);
 
   const fetchLikes = async () => {

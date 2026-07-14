@@ -176,6 +176,10 @@ function App() {
         import('@/services/oneSignalService').then(({ initOneSignal }) => {
           setTimeout(() => initOneSignal(userData.id), 3000);
         });
+        // Connect WebSocket for real-time updates
+        import('@/services/WebSocketService').then((mod) => {
+          mod.default.connect(userData.id);
+        });
       } catch (error) {
         console.error('Error parsing stored user:', error);
         localStorage.removeItem('user');
@@ -210,6 +214,8 @@ function App() {
     import('@/services/oneSignalService').then(({ initOneSignal }) => {
       initOneSignal(userData.id);
     });
+    // Connect WebSocket
+    import('@/services/WebSocketService').then((mod) => mod.default.connect(userData.id));
     // Show daily reward after login (check if not claimed today)
     const lastShown = localStorage.getItem('heartlink_daily_reward_date');
     const today = new Date().toISOString().split('T')[0];
@@ -222,10 +228,9 @@ function App() {
   };
 
   const handleLogout = () => {
-    // Logout from OneSignal
-    import('@/services/oneSignalService').then(({ logoutOneSignal }) => {
-      logoutOneSignal();
-    });
+    // Disconnect services
+    import('@/services/oneSignalService').then(({ logoutOneSignal }) => logoutOneSignal());
+    import('@/services/WebSocketService').then((mod) => mod.default.disconnect());
     setUser(null);
     localStorage.removeItem('user');
   };

@@ -473,9 +473,10 @@ async def startup_event():
 
 
 async def keep_ai_profiles_online(db_ref):
-    """Background task to keep AI profiles appearing online."""
+    """Background task to keep AI profiles online and clean stale online statuses."""
     while True:
         try:
+            # Keep AI profiles online
             await db_ref.users.update_many(
                 {"is_ai_profile": True, "is_active_ai": True},
                 {"$set": {
@@ -483,8 +484,20 @@ async def keep_ai_profiles_online(db_ref):
                     "last_active": datetime.now(timezone.utc).isoformat()
                 }}
             )
+            
+            # Mark stale users as offline (no activity for 5 minutes, not AI)
+            cutoff = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
+            await db_ref.users.update_many(
+                {
+                    "is_online": True,
+                    "is_ai_profile": {"$ne": True},
+                    "last_active": {"$lt": cutoff},
+                    "id": {"$nin": list(manager.active_connections.keys())}
+                },
+                {"$set": {"is_online": False}}
+            )
         except Exception as e:
-            logging.error(f"Error keeping AI profiles online: {e}")
+            logging.error(f"Error in online status cleanup: {e}")
         await asyncio.sleep(300)  # Every 5 minutes
 
 
@@ -657,6 +670,21 @@ class ConnectionManager:
                 await self.active_connections[user_id].send_json(message)
             except:
                 self.disconnect(user_id)
+    
+    async def send_badge_update(self, user_id: str):
+        """Send updated badge counts to a user"""
+        try:
+            likes_count = await db.matches.count_documents({"user2_id": user_id, "user1_liked": True, "matched": False})
+            unread_msgs = await db.messages.count_documents({"receiver_id": user_id, "read": False})
+            notif_count = await db.notifications.count_documents({"user_id": user_id, "is_read": False})
+            await self.send_message(user_id, {
+                "type": "badge_update",
+                "likes_count": likes_count,
+                "unread_messages": unread_msgs,
+                "notification_count": notif_count
+            })
+        except Exception:
+            pass
     
     async def broadcast_status_update(self, user_id: str, is_online: bool):
         """Broadcast user online/offline status to all connected users"""
@@ -3141,6 +3169,14 @@ async def track_profile_view(user_id: str, viewer_id: str = None):
             "viewed_at": datetime.now(timezone.utc).isoformat()
         }
         await db.profile_views.insert_one(view_doc)
+        
+        # Send real-time WebSocket notification
+        viewer_data = await db.users.find_one({"id": viewer_id}, {"_id": 0, "name": 1, "profile_picture": 1})
+        await manager.send_message(user_id, {
+            "type": "profile_view",
+            "viewer_id": viewer_id,
+            "viewer_name": viewer_data.get("name", "Someone") if viewer_data else "Someone"
+        })
     
     return {"message": "Profile view tracked", "incognito": viewer_incognito}
 
@@ -3288,10 +3324,16 @@ async def user_action(user_id: str, action: LikeAction):
             }}
         )
         
-        # Send real-time notification
+        # Send real-time notification to BOTH users
         await manager.send_message(action.target_user_id, {
             "type": "new_match",
-            "user": {"id": user_id, "name": user1["name"]}
+            "match_id": existing["id"],
+            "user": {"id": user_id, "name": user1["name"], "profile_picture": user1.get("profile_picture")}
+        })
+        await manager.send_message(user_id, {
+            "type": "new_match",
+            "match_id": existing["id"],
+            "user": {"id": action.target_user_id, "name": user2["name"], "profile_picture": user2.get("profile_picture")}
         })
         
         # Send push notification to matched user via FCM (legacy)
@@ -3307,6 +3349,10 @@ async def user_action(user_id: str, action: LikeAction):
             user_id=action.target_user_id,
             matched_user_name=user1['name']
         )
+        
+        # Update badge counts for both users
+        asyncio.create_task(manager.send_badge_update(action.target_user_id))
+        asyncio.create_task(manager.send_badge_update(user_id))
         
         return {
             "action": "matched",
@@ -3350,6 +3396,13 @@ async def user_action(user_id: str, action: LikeAction):
                 liker_name=user1['name']
             )
         elif action.action == "like":
+            # Send WebSocket notification for regular likes
+            await manager.send_message(action.target_user_id, {
+                "type": "new_like",
+                "user_id": user_id,
+                "user_name": user1["name"] if user1 else "Someone"
+            })
+            
             # Send like notification for regular likes too via FCM (legacy)
             if user2 and user2.get('fcm_token'):
                 send_like_notification(
@@ -3363,7 +3416,12 @@ async def user_action(user_id: str, action: LikeAction):
                 liker_name=user1['name']
             )
         
+        # Update badge count for target user
+        asyncio.create_task(manager.send_badge_update(action.target_user_id))
+        
         return {"action": "liked"}
+    
+    # Badge update runs after response via background task
 
 # Matches Routes
 @api_router.get("/matches/{user_id}")
@@ -3967,6 +4025,9 @@ async def send_message_http(message_data: Message):
             )
         )
     
+    # Update badge count for receiver
+    asyncio.create_task(manager.send_badge_update(message_data.receiver_id))
+    
     return clean_message
 
 # WebSocket for real-time chat
@@ -3987,6 +4048,20 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
     
     # Broadcast online status to all connected users
     await manager.broadcast_status_update(user_id, True)
+    
+    # Send initial badge counts to user on connect
+    try:
+        likes_count = await db.matches.count_documents({"user2_id": user_id, "user1_liked": True, "matched": False})
+        unread_msgs = await db.messages.count_documents({"receiver_id": user_id, "read": False})
+        notif_count_doc = await db.notifications.count_documents({"user_id": user_id, "is_read": False})
+        await manager.send_message(user_id, {
+            "type": "badge_update",
+            "likes_count": likes_count,
+            "unread_messages": unread_msgs,
+            "notification_count": notif_count_doc
+        })
+    except Exception:
+        pass
     
     try:
         while True:

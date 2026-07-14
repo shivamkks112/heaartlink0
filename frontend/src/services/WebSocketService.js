@@ -1,48 +1,49 @@
 /**
  * WebSocket Service for Real-time Features
+ * Central hub for all real-time events:
  * - Online/Offline status
- * - Real-time chat messages
- * - Typing indicators
- * - Match notifications
+ * - Chat messages & typing indicators
+ * - Match/Like/Superlike notifications
+ * - Badge count updates
+ * - Profile view notifications
  */
+
+const WS_URL = process.env.REACT_APP_BACKEND_URL?.replace('https://', 'wss://').replace('http://', 'ws://');
 
 class WebSocketService {
   constructor() {
     this.ws = null;
     this.userId = null;
     this.reconnectAttempts = 0;
-    this.maxReconnectAttempts = 5;
-    this.reconnectDelay = 3000;
+    this.maxReconnectAttempts = 10;
+    this.reconnectDelay = 2000;
     this.listeners = new Map();
     this.isConnected = false;
     this.onlineUsers = new Set();
+    this.badgeCounts = { likes_count: 0, unread_messages: 0, notification_count: 0 };
+    this.pingInterval = null;
   }
 
-  /**
-   * Connect to WebSocket server
-   */
   connect(userId) {
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      console.log('WebSocket already connected');
-      return;
-    }
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) return;
+    if (!WS_URL) return;
 
     this.userId = userId;
-    const wsUrl = process.env.REACT_APP_BACKEND_URL?.replace('https://', 'wss://').replace('http://', 'ws://');
-    
-    if (!wsUrl) {
-      console.error('WebSocket URL not configured');
-      return;
-    }
 
     try {
-      this.ws = new WebSocket(`${wsUrl}/api/ws/${userId}`);
+      this.ws = new WebSocket(`${WS_URL}/api/ws/${userId}`);
       
       this.ws.onopen = () => {
-        console.log('✅ WebSocket connected');
         this.isConnected = true;
         this.reconnectAttempts = 0;
         this.emit('connected', { userId });
+        
+        // Ping every 30s to keep connection alive
+        this.pingInterval = setInterval(() => {
+          if (this.ws?.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify({ type: 'ping' }));
+          }
+        }, 30000);
       };
 
       this.ws.onmessage = (event) => {
@@ -50,33 +51,28 @@ class WebSocketService {
           const data = JSON.parse(event.data);
           this.handleMessage(data);
         } catch (error) {
-          console.error('Failed to parse WebSocket message:', error);
+          // ignore parse errors
         }
       };
 
       this.ws.onclose = () => {
-        console.log('WebSocket disconnected');
         this.isConnected = false;
-        this.emit('disconnected', { userId });
+        clearInterval(this.pingInterval);
+        this.emit('disconnected', {});
         this.attemptReconnect();
       };
 
-      this.ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        this.emit('error', { error });
+      this.ws.onerror = () => {
+        // onclose will fire after this
       };
     } catch (error) {
-      console.error('Failed to create WebSocket:', error);
+      console.error('WebSocket connect failed:', error);
     }
   }
 
-  /**
-   * Handle incoming WebSocket messages
-   */
   handleMessage(data) {
     switch (data.type) {
       case 'status_update':
-        // User online/offline status changed
         if (data.is_online) {
           this.onlineUsers.add(data.user_id);
         } else {
@@ -86,141 +82,104 @@ class WebSocketService {
         break;
 
       case 'message':
-        // New chat message
         this.emit('new_message', data.message);
+        // Auto-increment unread badge
+        this.badgeCounts.unread_messages++;
+        this.emit('badge_update', { ...this.badgeCounts });
         break;
 
       case 'typing':
-        // User is typing
         this.emit('typing', data);
         break;
 
       case 'new_match':
-        // New match notification
         this.emit('new_match', data);
+        this.emit('badge_update', { ...this.badgeCounts });
         break;
 
       case 'superlike':
-        // Received a superlike
         this.emit('superlike', data);
         break;
 
       case 'new_like':
-        // Someone liked you
         this.emit('new_like', data);
         break;
 
+      case 'profile_view':
+        this.emit('profile_view', data);
+        break;
+
+      case 'badge_update':
+        // Authoritative badge counts from server
+        this.badgeCounts = {
+          likes_count: data.likes_count || 0,
+          unread_messages: data.unread_messages || 0,
+          notification_count: data.notification_count || 0
+        };
+        this.emit('badge_update', { ...this.badgeCounts });
+        break;
+
       default:
-        console.log('Unknown message type:', data.type);
+        break;
     }
   }
 
-  /**
-   * Attempt to reconnect on disconnect
-   */
   attemptReconnect() {
-    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.log('Max reconnect attempts reached');
-      return;
-    }
-
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) return;
     this.reconnectAttempts++;
-    console.log(`Reconnecting... Attempt ${this.reconnectAttempts}`);
-    
     setTimeout(() => {
-      if (this.userId) {
-        this.connect(this.userId);
-      }
-    }, this.reconnectDelay * this.reconnectAttempts);
+      if (this.userId) this.connect(this.userId);
+    }, Math.min(this.reconnectDelay * this.reconnectAttempts, 15000));
   }
 
-  /**
-   * Send message through WebSocket
-   */
   send(data) {
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+    if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(data));
       return true;
     }
-    console.error('WebSocket not connected');
     return false;
   }
 
-  /**
-   * Send chat message
-   */
   sendMessage(matchId, receiverId, content) {
-    return this.send({
-      match_id: matchId,
-      receiver_id: receiverId,
-      content: content
-    });
+    return this.send({ match_id: matchId, receiver_id: receiverId, content });
   }
 
-  /**
-   * Send typing indicator
-   */
   sendTyping(matchId, receiverId) {
-    return this.send({
-      type: 'typing',
-      match_id: matchId,
-      receiver_id: receiverId
-    });
+    return this.send({ type: 'typing', match_id: matchId, receiver_id: receiverId });
   }
 
-  /**
-   * Check if user is online
-   */
   isUserOnline(userId) {
     return this.onlineUsers.has(userId);
   }
 
-  /**
-   * Get all online users
-   */
   getOnlineUsers() {
     return Array.from(this.onlineUsers);
   }
 
-  /**
-   * Add event listener
-   */
+  getBadgeCounts() {
+    return { ...this.badgeCounts };
+  }
+
   on(event, callback) {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());
     }
     this.listeners.get(event).add(callback);
-    
-    // Return unsubscribe function
-    return () => {
-      this.listeners.get(event)?.delete(callback);
-    };
+    return () => this.listeners.get(event)?.delete(callback);
   }
 
-  /**
-   * Remove event listener
-   */
   off(event, callback) {
     this.listeners.get(event)?.delete(callback);
   }
 
-  /**
-   * Emit event to all listeners
-   */
   emit(event, data) {
-    this.listeners.get(event)?.forEach(callback => {
-      try {
-        callback(data);
-      } catch (error) {
-        console.error(`Error in ${event} listener:`, error);
-      }
+    this.listeners.get(event)?.forEach(cb => {
+      try { cb(data); } catch (e) { /* ignore */ }
     });
   }
 
-  /**
-   * Disconnect WebSocket
-   */
   disconnect() {
+    clearInterval(this.pingInterval);
     if (this.ws) {
       this.ws.close();
       this.ws = null;
@@ -230,9 +189,6 @@ class WebSocketService {
     this.onlineUsers.clear();
   }
 
-  /**
-   * Get connection status
-   */
   getStatus() {
     return {
       isConnected: this.isConnected,
@@ -242,7 +198,5 @@ class WebSocketService {
   }
 }
 
-// Singleton instance
 const wsService = new WebSocketService();
-
 export default wsService;

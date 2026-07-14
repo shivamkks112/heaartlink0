@@ -201,9 +201,13 @@ const ChatPage = ({ user }) => {
       const match = response.data.find(m => m.match_id === matchId);
       if (match) {
         setOtherUser(match.user);
+      } else {
+        toast.error('Match not found');
+        navigate('/matches');
       }
     } catch (error) {
-      toast.error('Failed to load match');
+      console.error('Failed to load match:', error);
+      setLoading(false);
     }
   };
 
