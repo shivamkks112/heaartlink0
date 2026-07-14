@@ -195,26 +195,28 @@ const AuthPage = ({ onLogin }) => {
     setLoading(true);
     
     try {
+      // Upload photo FIRST to Firebase
+      toast.loading('Uploading photo...');
+      const tempUserId = `temp_${Date.now()}`;
+      const photoURL = await uploadProfilePicture(tempUserId);
+      toast.dismiss();
+      
+      if (!photoURL) {
+        toast.error('Photo upload failed. Please try again.');
+        setLoading(false);
+        return;
+      }
+
       const submitData = {
         ...signupData,
         age: parseInt(signupData.age),
-        interests: signupData.interests ? signupData.interests.split(',').map(i => i.trim()) : []
+        interests: signupData.interests ? signupData.interests.split(',').map(i => i.trim()) : [],
+        photos: [photoURL],
+        profile_picture: photoURL
       };
       
       const response = await axios.post(`${API}/auth/signup`, submitData);
       const userData = response.data.user;
-      
-      // Upload profile picture (mandatory)
-      toast.loading('Uploading photo...');
-      const photoURL = await uploadProfilePicture(userData.id);
-      
-      if (photoURL) {
-        // Update user with profile picture
-        await axios.patch(`${API}/user/${userData.id}`, {
-          profile_picture: photoURL
-        });
-        userData.profile_picture = photoURL;
-      }
       
       localStorage.setItem('user', JSON.stringify(userData));
       await onLogin(userData);
