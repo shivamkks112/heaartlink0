@@ -549,6 +549,64 @@ async def _notify_matches_user_online(user_id: str, name: str):
         logger.error(f"Failed to send online notification: {e}")
 
 
+# Throttle cache for online notifications (user_id -> last_notified_timestamp)
+_online_notif_cache = {}
+
+async def _send_online_notification_to_matches(user_id: str):
+    """Notify matched users that someone came online. Throttled: max once per 30 min."""
+    try:
+        # Throttle check
+        now = datetime.now(timezone.utc)
+        last_sent = _online_notif_cache.get(user_id)
+        if last_sent and (now - last_sent).total_seconds() < 1800:  # 30 min
+            return
+        _online_notif_cache[user_id] = now
+        
+        user = await db.users.find_one({"id": user_id}, {"_id": 0, "name": 1})
+        if not user:
+            return
+        
+        user_name = user.get("name", "Someone")
+        
+        # Get matched user IDs (only real users, not AI)
+        matches = await db.matches.find(
+            {"$or": [{"user1_id": user_id}, {"user2_id": user_id}], "matched": True},
+            {"_id": 0, "user1_id": 1, "user2_id": 1}
+        ).limit(30).to_list(None)
+        
+        for m in matches:
+            other_id = m["user2_id"] if m["user1_id"] == user_id else m["user1_id"]
+            # Skip AI profiles
+            ai_check = await db.users.find_one({"id": other_id, "is_ai_profile": True})
+            if ai_check:
+                continue
+            
+            # Send WS notification
+            await manager.send_message(other_id, {
+                "type": "user_online",
+                "user_id": user_id,
+                "user_name": user_name
+            })
+            
+            # Store in-app notification
+            await create_in_app_notification(
+                other_id,
+                f"🟢 {user_name} is online",
+                f"{user_name} just came online. Say hi!",
+                "online",
+                {"user_id": user_id, "action": "open_chat", "route": f"/matches"}
+            )
+        
+        # Send badge updates
+        for m in matches:
+            other_id = m["user2_id"] if m["user1_id"] == user_id else m["user1_id"]
+            asyncio.create_task(manager.send_badge_update(other_id))
+            
+    except Exception as e:
+        logger.error(f"Online notification error: {e}")
+
+
+
 async def _send_daily_engagement_notifications():
     """Send daily engagement notifications."""
     try:
@@ -3645,17 +3703,22 @@ async def get_active_users(user_id: str, limit: int = 20):
         matched_ids.add(m["user1_id"])
         matched_ids.add(m["user2_id"])
     
-    # Calculate time threshold for "active" (last 24 hours)
-    active_threshold = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+    # Calculate time threshold - truly active users (last 10 minutes)
+    active_threshold = (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
     
-    # Find active users (users active in last 24 hours)
+    # Find active users - currently online or very recently active
+    ws_connected_ids = list(manager.active_connections.keys())
+    
     query = {
         "id": {"$ne": user_id, "$nin": blocked_users + blocker_ids + list(matched_ids)},
         "gender": current_user["looking_for"],
         "looking_for": current_user["gender"],
         "privacy_settings.show_profile": True,
-        "last_active": {"$gte": active_threshold},
-        "is_ai_profile": {"$ne": True}
+        "is_ai_profile": {"$ne": True},
+        "$or": [
+            {"id": {"$in": ws_connected_ids}},
+            {"is_online": True, "last_active": {"$gte": active_threshold}}
+        ]
     }
     
     users = await db.users.find(query).sort("last_active", -1).limit(limit).to_list(None)
@@ -4104,6 +4167,9 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
     
     # Broadcast online status to all connected users
     await manager.broadcast_status_update(user_id, True)
+    
+    # Notify matches that user is online (throttled: max once per 30 min per user)
+    asyncio.create_task(_send_online_notification_to_matches(user_id))
     
     # Send initial badge counts to user on connect
     try:
