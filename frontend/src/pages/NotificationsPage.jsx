@@ -107,11 +107,21 @@ const NotificationsPage = ({ user }) => {
       markAsRead(notification.id);
     }
     
-    // Navigate based on notification type
-    if (notification.type === 'match' || notification.type === 'like') {
+    // Navigate using route from notification data (most reliable)
+    if (notification.data?.route) {
+      navigate(notification.data.route);
+      return;
+    }
+    
+    // Fallback navigation based on type
+    if (notification.type === 'match') {
       navigate('/matches');
+    } else if (notification.type === 'like' || notification.type === 'superlike') {
+      navigate('/likes');
     } else if (notification.type === 'message' && notification.data?.match_id) {
       navigate(`/chat/${notification.data.match_id}`);
+    } else if (notification.type === 'profile_view' && notification.data?.viewer_id) {
+      navigate(`/profile/${notification.data.viewer_id}`);
     }
   };
 

@@ -676,7 +676,7 @@ class ConnectionManager:
         try:
             likes_count = await db.matches.count_documents({"user2_id": user_id, "user1_liked": True, "matched": False})
             unread_msgs = await db.messages.count_documents({"receiver_id": user_id, "read": False})
-            notif_count = await db.notifications.count_documents({"user_id": user_id, "is_read": False})
+            notif_count = await db.in_app_notifications.count_documents({"user_id": user_id, "is_read": False})
             await self.send_message(user_id, {
                 "type": "badge_update",
                 "likes_count": likes_count,
@@ -3172,11 +3172,24 @@ async def track_profile_view(user_id: str, viewer_id: str = None):
         
         # Send real-time WebSocket notification
         viewer_data = await db.users.find_one({"id": viewer_id}, {"_id": 0, "name": 1, "profile_picture": 1})
+        viewer_name = viewer_data.get("name", "Someone") if viewer_data else "Someone"
         await manager.send_message(user_id, {
             "type": "profile_view",
             "viewer_id": viewer_id,
-            "viewer_name": viewer_data.get("name", "Someone") if viewer_data else "Someone"
+            "viewer_name": viewer_name
         })
+        
+        # Store in-app notification for profile view
+        await create_in_app_notification(
+            user_id,
+            "👀 Profile Viewed",
+            f"{viewer_name} viewed your profile.",
+            "profile_view",
+            {"viewer_id": viewer_id, "action": "open_profile", "route": f"/profile/{viewer_id}"}
+        )
+        
+        # Update badge
+        asyncio.create_task(manager.send_badge_update(user_id))
     
     return {"message": "Profile view tracked", "incognito": viewer_incognito}
 
@@ -3336,6 +3349,22 @@ async def user_action(user_id: str, action: LikeAction):
             "user": {"id": action.target_user_id, "name": user2["name"], "profile_picture": user2.get("profile_picture")}
         })
         
+        # Store in-app notifications for BOTH users
+        await create_in_app_notification(
+            action.target_user_id,
+            "💕 It's a Match!",
+            f"You matched with {user1['name']}! Start chatting now.",
+            "match",
+            {"match_id": existing["id"], "user_id": user_id, "action": "open_chat", "route": f"/chat/{existing['id']}"}
+        )
+        await create_in_app_notification(
+            user_id,
+            "💕 It's a Match!",
+            f"You matched with {user2['name']}! Start chatting now.",
+            "match",
+            {"match_id": existing["id"], "user_id": action.target_user_id, "action": "open_chat", "route": f"/chat/{existing['id']}"}
+        )
+        
         # Send push notification to matched user via FCM (legacy)
         if user2.get('fcm_token'):
             send_match_notification(
@@ -3395,6 +3424,15 @@ async def user_action(user_id: str, action: LikeAction):
                 user_id=action.target_user_id,
                 liker_name=user1['name']
             )
+            
+            # Store in-app notification for superlike
+            await create_in_app_notification(
+                action.target_user_id,
+                "⭐ Superlike!",
+                f"{user1['name']} superliked your profile!",
+                "superlike",
+                {"user_id": user_id, "action": "open_likes", "route": "/likes"}
+            )
         elif action.action == "like":
             # Send WebSocket notification for regular likes
             await manager.send_message(action.target_user_id, {
@@ -3402,6 +3440,15 @@ async def user_action(user_id: str, action: LikeAction):
                 "user_id": user_id,
                 "user_name": user1["name"] if user1 else "Someone"
             })
+            
+            # Store in-app notification for like
+            await create_in_app_notification(
+                action.target_user_id,
+                "❤️ Someone liked you!",
+                f"{user1['name'] if user1 else 'Someone'} liked your profile.",
+                "like",
+                {"user_id": user_id, "action": "open_likes", "route": "/likes"}
+            )
             
             # Send like notification for regular likes too via FCM (legacy)
             if user2 and user2.get('fcm_token'):
@@ -4014,6 +4061,15 @@ async def send_message_http(message_data: Message):
             message_preview=message_data.content,
             match_id=message_data.match_id
         )
+        
+        # Store in-app notification for message
+        await create_in_app_notification(
+            message_data.receiver_id,
+            f"💬 {sender['name']}",
+            message_data.content[:100],
+            "message",
+            {"match_id": message_data.match_id, "sender_id": message_data.sender_id, "action": "open_chat", "route": f"/chat/{message_data.match_id}"}
+        )
     
     # === AI CHATBOT: If receiver is an AI profile, generate auto-reply ===
     if receiver.get("is_ai_profile") and receiver.get("is_active_ai"):
@@ -4053,7 +4109,7 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
     try:
         likes_count = await db.matches.count_documents({"user2_id": user_id, "user1_liked": True, "matched": False})
         unread_msgs = await db.messages.count_documents({"receiver_id": user_id, "read": False})
-        notif_count_doc = await db.notifications.count_documents({"user_id": user_id, "is_read": False})
+        notif_count_doc = await db.in_app_notifications.count_documents({"user_id": user_id, "is_read": False})
         await manager.send_message(user_id, {
             "type": "badge_update",
             "likes_count": likes_count,
