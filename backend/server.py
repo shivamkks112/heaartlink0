@@ -4347,15 +4347,43 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
             receiver = await db.users.find_one({"id": message_data["receiver_id"]})
             sender = await db.users.find_one({"id": user_id})
             
-            if receiver and receiver.get('fcm_token') and sender:
+            if receiver and sender:
                 # Check if sender is muted by receiver
                 muted_users = receiver.get('muted_users', [])
                 if user_id not in muted_users:
-                    send_message_notification(
-                        token=receiver['fcm_token'],
-                        sender_name=sender['name'],
-                        message_preview=message_data["content"]
-                    )
+                    is_ai_receiver = receiver.get('is_ai_profile', False)
+                    # FCM (legacy) — skip for AI profiles
+                    if not is_ai_receiver and receiver.get('fcm_token'):
+                        try:
+                            send_message_notification(
+                                token=receiver['fcm_token'],
+                                sender_name=sender['name'],
+                                message_preview=message_data["content"]
+                            )
+                        except Exception as e:
+                            logger.warning(f"FCM message push (WS) failed: {e}")
+                    # OneSignal (primary — this is what shows heads-up on device)
+                    if not is_ai_receiver:
+                        try:
+                            send_message_notification_onesignal(
+                                user_id=message_data["receiver_id"],
+                                sender_name=sender['name'],
+                                message_preview=message_data["content"],
+                                match_id=message_data.get("match_id"),
+                            )
+                        except Exception as e:
+                            logger.warning(f"OneSignal message push (WS) failed: {e}")
+                        # Store in-app notification for message
+                        try:
+                            await create_in_app_notification(
+                                message_data["receiver_id"],
+                                f"💬 {sender['name']}",
+                                message_data["content"][:100],
+                                "message",
+                                {"match_id": message_data.get("match_id"), "sender_id": user_id, "action": "open_chat", "route": f"/chat/{message_data.get('match_id')}"}
+                            )
+                        except Exception as e:
+                            logger.warning(f"in-app message notif (WS) failed: {e}")
             
             # AI Chatbot: If receiver is AI, generate auto-reply
             if receiver and receiver.get("is_ai_profile") and receiver.get("is_active_ai"):
