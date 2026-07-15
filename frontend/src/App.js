@@ -176,6 +176,14 @@ function App() {
         import('@/services/oneSignalService').then(({ initOneSignal }) => {
           setTimeout(() => initOneSignal(userData.id), 3000);
         });
+        // Notify Native Android OneSignal SDK for auto-login on app relaunch
+        try {
+          setTimeout(() => {
+            if (typeof window !== 'undefined' && window.AndroidBridge && typeof window.AndroidBridge.setOneSignalUser === 'function') {
+              window.AndroidBridge.setOneSignalUser(String(userData.id));
+            }
+          }, 3500);
+        } catch (e) { /* no-op */ }
         // Connect WebSocket for real-time updates
         import('@/services/WebSocketService').then((mod) => {
           mod.default.connect(userData.id);
@@ -210,10 +218,17 @@ function App() {
   const handleLogin = (userData) => {
     setUser(userData);
     localStorage.setItem('user', JSON.stringify(userData));
-    // Initialize OneSignal on fresh login
+    // Initialize OneSignal on fresh login (Web SDK for browser build)
     import('@/services/oneSignalService').then(({ initOneSignal }) => {
       initOneSignal(userData.id);
     });
+    // Notify Native Android OneSignal SDK (Capacitor build) — this is what enables
+    // targeted heads-up popups for message/like/match on the Play Store APK.
+    try {
+      if (typeof window !== 'undefined' && window.AndroidBridge && typeof window.AndroidBridge.setOneSignalUser === 'function') {
+        window.AndroidBridge.setOneSignalUser(String(userData.id));
+      }
+    } catch (e) { /* no-op for web builds */ }
     // Connect WebSocket
     import('@/services/WebSocketService').then((mod) => mod.default.connect(userData.id));
     // Show daily reward after login (check if not claimed today)
@@ -231,6 +246,12 @@ function App() {
     // Disconnect services
     import('@/services/oneSignalService').then(({ logoutOneSignal }) => logoutOneSignal());
     import('@/services/WebSocketService').then((mod) => mod.default.disconnect());
+    // Notify Native Android OneSignal SDK
+    try {
+      if (typeof window !== 'undefined' && window.AndroidBridge && typeof window.AndroidBridge.logoutOneSignal === 'function') {
+        window.AndroidBridge.logoutOneSignal();
+      }
+    } catch (e) { /* no-op for web builds */ }
     setUser(null);
     localStorage.removeItem('user');
   };

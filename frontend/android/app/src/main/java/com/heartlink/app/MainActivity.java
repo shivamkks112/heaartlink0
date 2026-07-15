@@ -7,6 +7,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
+import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -53,8 +54,83 @@ public class MainActivity extends BridgeActivity {
         
         // Check for pending navigation
         checkPendingNavigation();
-        
+
+        // Link OneSignal SDK to the logged-in user_id (read from WebView localStorage)
+        // This is what makes targeted OneSignal pushes (message/like/match) reach THIS device.
+        mainHandler.postDelayed(() -> tryOneSignalLogin(1), 3000);
+        // Register a JS bridge so React can push login/logout events directly to native.
+        mainHandler.postDelayed(this::registerJsBridge, 4000);
+
         Log.d(TAG, "HeartLink started");
+    }
+
+    private void tryOneSignalLogin(int attempt) {
+        if (attempt > 15) {
+            Log.d(TAG, "OneSignal.login: giving up after " + attempt + " attempts");
+            return;
+        }
+        try {
+            if (getBridge() == null || getBridge().getWebView() == null) {
+                mainHandler.postDelayed(() -> tryOneSignalLogin(attempt + 1), 1500);
+                return;
+            }
+            WebView webView = getBridge().getWebView();
+            String js = "(function(){try{var u=localStorage.getItem('user');if(!u)return '';var o=JSON.parse(u);return (o && o.id) ? String(o.id) : '';}catch(e){return '';}})()";
+            webView.evaluateJavascript(js, value -> {
+                String userId = value != null ? value.replace("\"", "").trim() : "";
+                if (!userId.isEmpty() && !"null".equals(userId)) {
+                    try {
+                        OneSignal.login(userId);
+                        Log.d(TAG, "OneSignal.login OK for user_id: " + userId);
+                    } catch (Exception e) {
+                        Log.e(TAG, "OneSignal.login failed: " + e.getMessage());
+                    }
+                } else {
+                    mainHandler.postDelayed(() -> tryOneSignalLogin(attempt + 1), 1500);
+                }
+            });
+        } catch (Exception e) {
+            Log.e(TAG, "tryOneSignalLogin error: " + e.getMessage());
+            mainHandler.postDelayed(() -> tryOneSignalLogin(attempt + 1), 1500);
+        }
+    }
+
+    /**
+     * Registers window.AndroidBridge with methods:
+     *   AndroidBridge.setOneSignalUser("<user_id>")  — links OneSignal to a user
+     *   AndroidBridge.logoutOneSignal()               — unlinks OneSignal on logout
+     */
+    private void registerJsBridge() {
+        try {
+            if (getBridge() == null || getBridge().getWebView() == null) return;
+            WebView webView = getBridge().getWebView();
+            webView.getSettings().setJavaScriptEnabled(true);
+            webView.addJavascriptInterface(new Object() {
+                @JavascriptInterface
+                public void setOneSignalUser(String userId) {
+                    if (userId == null || userId.isEmpty()) return;
+                    try {
+                        OneSignal.login(userId);
+                        Log.d(TAG, "JS bridge -> OneSignal.login(" + userId + ")");
+                    } catch (Exception e) {
+                        Log.e(TAG, "JS bridge OneSignal.login failed: " + e.getMessage());
+                    }
+                }
+
+                @JavascriptInterface
+                public void logoutOneSignal() {
+                    try {
+                        OneSignal.logout();
+                        Log.d(TAG, "JS bridge -> OneSignal.logout()");
+                    } catch (Exception e) {
+                        Log.e(TAG, "JS bridge OneSignal.logout failed: " + e.getMessage());
+                    }
+                }
+            }, "AndroidBridge");
+            Log.d(TAG, "JS bridge AndroidBridge registered");
+        } catch (Exception e) {
+            Log.e(TAG, "registerJsBridge error: " + e.getMessage());
+        }
     }
     
     private void initializeAdMob() {
