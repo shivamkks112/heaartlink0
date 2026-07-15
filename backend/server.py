@@ -597,6 +597,24 @@ async def _send_online_notification_to_matches(user_id: str):
                 {"user_id": user_id, "action": "open_chat", "route": f"/matches"}
             )
         
+        # Send OneSignal push to all matched users at once
+        matched_ids_for_push = []
+        for m in matches:
+            other_id = m["user2_id"] if m["user1_id"] == user_id else m["user1_id"]
+            ai_check = await db.users.find_one({"id": other_id, "is_ai_profile": True})
+            if not ai_check:
+                matched_ids_for_push.append(other_id)
+        
+        if matched_ids_for_push:
+            try:
+                send_onesignal_to_users(
+                    matched_ids_for_push,
+                    f"🟢 {user_name} is online!",
+                    f"Your match {user_name} just came online. Say hi!"
+                )
+            except Exception as e:
+                logger.error(f"Online push notification failed: {e}")
+        
         # Send badge updates
         for m in matches:
             other_id = m["user2_id"] if m["user1_id"] == user_id else m["user1_id"]
@@ -3245,6 +3263,17 @@ async def track_profile_view(user_id: str, viewer_id: str = None):
             "profile_view",
             {"viewer_id": viewer_id, "action": "open_profile", "route": f"/profile/{viewer_id}"}
         )
+        
+        # Send OneSignal push notification for profile view
+        try:
+            send_onesignal_to_user(
+                user_id,
+                "👀 Profile Viewed!",
+                f"{viewer_name} viewed your profile. Check them out!",
+                {"type": "profile_view", "viewer_id": viewer_id, "action": "open_profile"}
+            )
+        except Exception as e:
+            logger.error(f"Profile view push notification failed: {e}")
         
         # Update badge
         asyncio.create_task(manager.send_badge_update(user_id))
