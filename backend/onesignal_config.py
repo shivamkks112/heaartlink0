@@ -60,6 +60,7 @@ def send_onesignal_notification(
         "android_sound": "default",
         "android_led_color": "FFFF6B9D",
         "android_accent_color": "FFFF6B9D",
+        "android_channel_id": "heartlink_high",
     }
     
     # Targeting options
