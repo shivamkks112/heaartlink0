@@ -1,0 +1,30 @@
+{
+  "summary": "OneSignal push notification backend tests completed. All 8 tests passed: config validation (UUID App ID, API key format), all helper functions (send_to_all, send_to_user, match, message, like notifications) return success:true from OneSignal API, and admin broadcast HTTP endpoint (/api/admin/onesignal/send) works. Recipients=0 as expected in preview env (no real subscribers).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_onesignal.py",
+    "/app/test_reports/pytest/onesignal_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "onesignal_config.py is clean and well-structured. Notification payload correctly uses priority=10 and android_visibility=1 as intended. android_channel_id removal confirmed - no reference in payload.",
+    "server.py has 20+ call sites invoking OneSignal helpers for message, like, match, profile view, online status, admin broadcasts and engagement templates - all wire to helpers that succeed.",
+    "Note: /api/auth/login expects field 'email_or_phone' not 'email'. Demo user login returned 401 with correct field - credentials in review request (demo@heartlink.co.in / Demo@2026) may be stale, but this is outside OneSignal scope."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "N/A (not tested per request)"},
+  "test_credentials": "Admin: review@heartlink.co.in / HeartLink@2026 (not exercised). Demo user credentials returned 401 - unrelated to OneSignal.",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "OneSignal fully working. Test file at /app/backend/tests/test_onesignal.py can be re-run any time. All notification helper functions return {success: true, notification_id: <id>, recipients: 0}. Recipients=0 is expected until real devices subscribe.",
+  "rca of the issue": "Previous bugs (wrong App ID 'heartlink-safe', invalid API key, missing push calls in profile view / online status, android_channel_id error) are all resolved. Verified by: (1) App ID is UUID ad0b57dc-908b-4d84-8654-d6b5dd50684e, (2) API key os_v2_app_... valid and accepted by OneSignal, (3) All 5 notification helper functions receive 200 OK from OneSignal API, (4) server.py imports and calls confirmed at lines 3269 (profile view), 610/645/666 (online), 4150 (message), 3463 (match), 3510/3548 (like)."
+}
