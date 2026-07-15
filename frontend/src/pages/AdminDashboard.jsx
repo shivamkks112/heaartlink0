@@ -7,7 +7,7 @@ import {
   TrendingUp, UserPlus, Clock, Calendar, Filter,
   Eye, MessageCircle, Heart, Shield, Crown,
   Activity, BarChart3, PieChart, ClipboardCheck, Settings,
-  Bot, Power, RotateCcw
+  Bot, Power, RotateCcw, KeyRound
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,7 +38,7 @@ const StatCard = ({ icon: Icon, label, value, subValue, color, bgColor }) => (
 );
 
 // UserCard Component
-const UserCard = ({ u, onBlock, onUnblock, onDelete, onView }) => {
+const UserCard = ({ u, onBlock, onUnblock, onDelete, onView, onResetPassword }) => {
   if (!u) return null;
   
   const lastActive = u.last_active ? new Date(u.last_active) : null;
@@ -111,8 +111,11 @@ const UserCard = ({ u, onBlock, onUnblock, onDelete, onView }) => {
       </div>
       
       <div className="flex flex-col gap-2">
-        <Button size="sm" variant="outline" onClick={() => onView(u)}>
+        <Button size="sm" variant="outline" onClick={() => onView(u)} data-testid={`user-view-${u.id}`}>
           <Eye className="w-4 h-4" />
+        </Button>
+        <Button size="sm" variant="outline" className="text-indigo-600 border-indigo-600" onClick={() => onResetPassword(u)} data-testid={`user-reset-password-${u.id}`} title="Reset password">
+          <KeyRound className="w-4 h-4" />
         </Button>
         {(u.is_shadow_banned || u.is_permanently_banned) ? (
           <Button size="sm" variant="outline" className="text-green-600 border-green-600" onClick={() => onUnblock(u.id, u.name)}>
@@ -293,6 +296,10 @@ const AdminDashboard = ({ user }) => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showBlockModal, setShowBlockModal] = useState(false);
+  const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
+  const [resetAdminPassword, setResetAdminPassword] = useState('');
+  const [resetNewPassword, setResetNewPassword] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
   const [showUserDetail, setShowUserDetail] = useState(false);
   const [blockReason, setBlockReason] = useState('');
   const [blockPermanent, setBlockPermanent] = useState(false);
@@ -481,6 +488,39 @@ const AdminDashboard = ({ user }) => {
       fetchStats();
     } catch (err) {
       toast.error('Failed to delete user');
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!selectedUser) return;
+    if (!resetAdminPassword) {
+      toast.error('Admin password required');
+      return;
+    }
+    if (!resetNewPassword || resetNewPassword.length < 6) {
+      toast.error('New password must be at least 6 characters');
+      return;
+    }
+    setResetLoading(true);
+    try {
+      const res = await axios.post(`${API}/admin/user/${selectedUser.id}/reset-password`, {
+        admin_password: resetAdminPassword,
+        new_password: resetNewPassword,
+      });
+      if (res.data?.success) {
+        toast.success(`Password reset for ${res.data.email || selectedUser.name}`);
+        setShowResetPasswordModal(false);
+        setSelectedUser(null);
+        setResetAdminPassword('');
+        setResetNewPassword('');
+      } else {
+        toast.error('Reset failed');
+      }
+    } catch (err) {
+      const msg = err?.response?.data?.detail || 'Reset failed';
+      toast.error(msg);
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -821,6 +861,7 @@ const AdminDashboard = ({ user }) => {
                         onUnblock={handleUnblockUser}
                         onDelete={(usr) => { setSelectedUser(usr); setShowDeleteModal(true); }}
                         onView={handleViewUser}
+                        onResetPassword={(usr) => { setSelectedUser(usr); setResetAdminPassword(''); setResetNewPassword(''); setShowResetPasswordModal(true); }}
                       />
                     ) : null
                   ))}
@@ -1096,6 +1137,69 @@ const AdminDashboard = ({ user }) => {
               <Button variant="outline" className="flex-1" onClick={() => { setShowBlockModal(false); setSelectedUser(null); setBlockReason(''); setBlockPermanent(false); }}>Cancel</Button>
               <Button className={`flex-1 ${blockPermanent ? 'bg-red-500 hover:bg-red-600' : 'bg-yellow-500 hover:bg-yellow-600'}`} onClick={handleBlockUser}>
                 {blockPermanent ? 'Permanent Ban' : 'Shadow Ban'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reset Password Modal */}
+      {showResetPasswordModal && selectedUser && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" data-testid="reset-password-modal">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center">
+                <KeyRound className="w-6 h-6 text-indigo-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Reset Password</h3>
+                <p className="text-sm text-gray-500 truncate">
+                  {selectedUser.name} — {selectedUser.email || selectedUser.phone}
+                </p>
+              </div>
+            </div>
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Admin Password</label>
+                <Input
+                  type="password"
+                  placeholder="Your ADMIN_PASSWORD"
+                  value={resetAdminPassword}
+                  onChange={(e) => setResetAdminPassword(e.target.value)}
+                  data-testid="reset-admin-password-input"
+                  autoFocus
+                />
+                <p className="text-xs text-gray-500 mt-1">Same as configured in Emergent Deploy env vars.</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">New Password for User</label>
+                <Input
+                  type="text"
+                  placeholder="Min 6 characters"
+                  value={resetNewPassword}
+                  onChange={(e) => setResetNewPassword(e.target.value)}
+                  data-testid="reset-new-password-input"
+                />
+                <p className="text-xs text-gray-500 mt-1">User will use this to log in next time. Share it securely.</p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1"
+                disabled={resetLoading}
+                onClick={() => { setShowResetPasswordModal(false); setSelectedUser(null); setResetAdminPassword(''); setResetNewPassword(''); }}
+                data-testid="reset-password-cancel-btn"
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 bg-indigo-500 hover:bg-indigo-600"
+                disabled={resetLoading || !resetAdminPassword || resetNewPassword.length < 6}
+                onClick={handleResetPassword}
+                data-testid="reset-password-submit-btn"
+              >
+                {resetLoading ? 'Resetting…' : 'Reset Password'}
               </Button>
             </div>
           </div>
