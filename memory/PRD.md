@@ -51,6 +51,7 @@ Modern, safe, trust-based dating app for Indian users. Features include admin pa
 
 ## Latest Updates (July 2026)
 24. **Admin Password Reset** - Admin can reset any user's password from the dashboard (KeyRound button on user cards, modal with password input)
+25. **OneSignal Push Notification Fix** - Fixed wrong App ID, wrong API Key, added missing push for profile view & online status, removed invalid android_channel_id
 
 ## Backlog
 - P1: server.py refactor (7200+ lines → modular routes/models/services)
