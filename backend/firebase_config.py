@@ -246,3 +246,29 @@ def send_premium_notification(token: str, plan_id: str):
             "action": "open_premium",
         }
     )
+
+
+def send_online_notification(token: str, user_name: str, other_user_id: str = None):
+    """Send push when a matched/favorite user comes online"""
+    data = {"type": "online", "action": "open_matches", "user_name": user_name}
+    if other_user_id:
+        data["user_id"] = other_user_id
+    return send_notification(
+        token=token,
+        title=f"🟢 {user_name} is online",
+        body="Say hi before they go offline!",
+        data=data
+    )
+
+
+def send_new_user_notification(token: str, new_user_name: str, gender_label: str, city: str, new_user_id: str = None):
+    """Send push when a newly-joined user matches recipient's preferences"""
+    data = {"type": "new_user", "action": "open_discover", "user_name": new_user_name}
+    if new_user_id:
+        data["user_id"] = new_user_id
+    return send_notification(
+        token=token,
+        title=f"New {gender_label} joined! 🎉",
+        body=f"{new_user_name} from {city} just joined HeartLink. Check them out!",
+        data=data
+    )

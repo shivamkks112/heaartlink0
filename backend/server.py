@@ -35,6 +35,8 @@ from firebase_config import (
     send_inactive_user_notification,
     send_profile_view_notification,
     send_premium_notification,
+    send_online_notification,
+    send_new_user_notification,
 )
 
 # Import OneSignal for push notifications (more reliable than FCM)
@@ -48,6 +50,8 @@ from onesignal_config import (
     send_like_notification_onesignal,
     send_profile_view_notification_onesignal,
     send_premium_notification_onesignal,
+    send_online_notification_onesignal,
+    send_new_user_notification_onesignal,
     send_admin_notification,
     set_user_external_id,
     add_user_tags,
@@ -510,16 +514,87 @@ async def keep_ai_profiles_online(db_ref):
 # === AUTOMATIC NOTIFICATION HELPERS ===
 
 async def _notify_new_user_joined(user_id: str, name: str, gender: str, location: str):
-    """Notify all users when a new user joins."""
+    """Notify existing users whose preferences match the new user.
+
+    Filters:
+      - recipient.looking_for contains the new user's gender
+      - recipient is not the new user
+      - recipient is not an AI profile
+      - recipient has notification_settings.new_user_alerts != False (default ON)
+      - dedupe by broadcast_target_ids capped at 500 per broadcast
+    """
     try:
         await asyncio.sleep(5)  # Small delay to let signup complete
-        gender_label = "ladki" if gender.lower() == "female" else "ladka"
+        gender_norm = (gender or "").lower()
+        gender_label = "ladki" if gender_norm == "female" else "ladka"
         city = location.split(",")[0].strip() if location else "India"
-        send_onesignal_to_all(
-            f"New {gender_label} joined! 🎉",
-            f"{name} from {city} just joined HeartLink. Check out their profile!"
-        )
-        logger.info(f"Sent new user notification for {name}")
+
+        # Preference filter: recipient's looking_for must include new user's gender
+        query = {
+            "id": {"$ne": user_id},
+            "is_ai_profile": {"$ne": True},
+            "$or": [
+                {"looking_for": gender_norm},
+                {"looking_for": {"$in": [gender_norm]}},
+                {"looking_for": "both"},
+                {"looking_for": {"$exists": False}},
+            ],
+        }
+        candidates = await db.users.find(query, {"_id": 0, "id": 1, "fcm_token": 1, "notification_settings": 1}).limit(500).to_list(None)
+
+        target_ids = []
+        fcm_tokens = []
+        for u in candidates:
+            settings = u.get("notification_settings", {}) or {}
+            if settings.get("new_user_alerts", True) is False:
+                continue
+            target_ids.append(u["id"])
+            token = u.get("fcm_token")
+            if token:
+                fcm_tokens.append(token)
+
+        if not target_ids:
+            logger.info(f"No preference-matched recipients for new user {name}")
+            return
+
+        # OneSignal — targeted push (respects preference filter)
+        try:
+            send_new_user_notification_onesignal(target_ids, name, gender_label, city, new_user_id=user_id)
+        except Exception as e:
+            logger.warning(f"OneSignal new_user push failed: {e}")
+
+        # FCM — multicast batching
+        if fcm_tokens:
+            try:
+                # Send in batches of 500 (FCM limit)
+                for i in range(0, len(fcm_tokens), 500):
+                    batch = fcm_tokens[i:i + 500]
+                    from firebase_admin import messaging
+                    msg = messaging.MulticastMessage(
+                        notification=messaging.Notification(
+                            title=f"New {gender_label} joined! 🎉",
+                            body=f"{name} from {city} just joined HeartLink. Check them out!",
+                        ),
+                        data={"type": "new_user", "action": "open_discover", "user_name": name, "user_id": user_id},
+                        tokens=batch,
+                        android=messaging.AndroidConfig(
+                            priority="high",
+                            notification=messaging.AndroidNotification(
+                                channel_id="heartlink_high_v2",
+                                sound="default",
+                                default_vibrate_timings=True,
+                                default_sound=True,
+                                default_light_settings=True,
+                                priority="max",
+                                visibility="public",
+                            ),
+                        ),
+                    )
+                    messaging.send_multicast(msg)
+            except Exception as e:
+                logger.warning(f"FCM new_user multicast failed: {e}")
+
+        logger.info(f"Sent new-user notification for {name} to {len(target_ids)} preference-matched recipients")
     except Exception as e:
         logger.error(f"Failed to send new user notification: {e}")
 
@@ -557,7 +632,10 @@ async def _notify_matches_user_online(user_id: str, name: str):
 _online_notif_cache = {}
 
 async def _send_online_notification_to_matches(user_id: str):
-    """Notify matched users that someone came online. Throttled: max once per 30 min."""
+    """Notify matched users that someone came online.
+    Throttled: max once per 30 min per user (spam guard).
+    Fan-out: WebSocket + in-app + push (FCM + OneSignal) — all heads-up.
+    """
     try:
         # Throttle check
         now = datetime.now(timezone.utc)
@@ -578,14 +656,22 @@ async def _send_online_notification_to_matches(user_id: str):
             {"_id": 0, "user1_id": 1, "user2_id": 1}
         ).limit(30).to_list(None)
         
+        recipient_ids = []
+        recipient_tokens = []
         for m in matches:
             other_id = m["user2_id"] if m["user1_id"] == user_id else m["user1_id"]
-            # Skip AI profiles
-            ai_check = await db.users.find_one({"id": other_id, "is_ai_profile": True})
-            if ai_check:
+            # Skip AI profiles + check notification setting + fetch fcm_token
+            other = await db.users.find_one({"id": other_id}, {"_id": 0, "id": 1, "is_ai_profile": 1, "fcm_token": 1, "notification_settings": 1})
+            if not other or other.get("is_ai_profile"):
                 continue
-            
-            # Send WS notification
+            settings = other.get("notification_settings", {}) or {}
+            if settings.get("online_alerts", True) is False:
+                continue
+            recipient_ids.append(other_id)
+            if other.get("fcm_token"):
+                recipient_tokens.append(other["fcm_token"])
+
+            # Send WS notification (existing behavior — preserved)
             await manager.send_message(other_id, {
                 "type": "user_online",
                 "user_id": user_id,
@@ -598,9 +684,29 @@ async def _send_online_notification_to_matches(user_id: str):
                 f"🟢 {user_name} is online",
                 f"{user_name} just came online. Say hi!",
                 "online",
-                {"user_id": user_id, "action": "open_chat", "route": f"/matches"}
+                {"user_id": user_id, "action": "open_chat", "route": "/matches"}
             )
         
+        # Push (FCM + OneSignal) — heads-up popup
+        if recipient_ids:
+            try:
+                for tok in recipient_tokens:
+                    try:
+                        send_online_notification(tok, user_name, other_user_id=user_id)
+                    except Exception as inner:
+                        logger.warning(f"FCM online push failed for one token: {inner}")
+            except Exception as e:
+                logger.warning(f"FCM online push batch failed: {e}")
+            try:
+                # OneSignal — send to each match individually (external_id targeting)
+                for rid in recipient_ids:
+                    try:
+                        send_online_notification_onesignal(rid, user_name, online_user_id=user_id)
+                    except Exception as inner:
+                        logger.warning(f"OneSignal online push failed for {rid}: {inner}")
+            except Exception as e:
+                logger.warning(f"OneSignal online push failed: {e}")
+
         # Send badge updates
         for m in matches:
             other_id = m["user2_id"] if m["user1_id"] == user_id else m["user1_id"]

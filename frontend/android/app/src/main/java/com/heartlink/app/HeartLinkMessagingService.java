@@ -144,6 +144,9 @@ public class HeartLinkMessagingService extends FirebaseMessagingService {
                 return GROUP_MATCHES;
             case "profile_view":
                 return GROUP_PROFILE_VIEWS;
+            case "online":
+            case "new_user":
+                return GROUP_MATCHES; // shares tray with matches for a clean stack
             case "admin":
             case "promotional":
                 return GROUP_ADMIN;

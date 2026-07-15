@@ -195,6 +195,32 @@ def send_premium_notification_onesignal(user_id: str, plan_id: str) -> Dict:
     )
 
 
+def send_online_notification_onesignal(user_id: str, online_user_name: str, online_user_id: str = None) -> Dict:
+    """Send push when a matched/favorite user comes online"""
+    data = {"type": "online", "action": "open_matches", "user_name": online_user_name}
+    if online_user_id:
+        data["user_id"] = online_user_id
+    return send_notification_to_user(
+        user_id=user_id,
+        title=f"🟢 {online_user_name} is online",
+        message="Say hi before they go offline!",
+        data=data
+    )
+
+
+def send_new_user_notification_onesignal(target_user_ids: List[str], new_user_name: str, gender_label: str, city: str, new_user_id: str = None) -> Dict:
+    """Send push when a newly-joined user matches recipients' preferences"""
+    data = {"type": "new_user", "action": "open_discover", "user_name": new_user_name}
+    if new_user_id:
+        data["user_id"] = new_user_id
+    return send_onesignal_notification(
+        title=f"New {gender_label} joined! 🎉",
+        message=f"{new_user_name} from {city} just joined HeartLink. Check them out!",
+        target_user_ids=target_user_ids,
+        data=data,
+    )
+
+
 def send_admin_notification(title: str, message: str, target_user_ids: Optional[List[str]] = None, target_all: bool = False) -> Dict:
     """Send notification from admin panel"""
     return send_onesignal_notification(

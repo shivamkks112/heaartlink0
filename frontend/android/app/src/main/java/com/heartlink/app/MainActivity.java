@@ -180,6 +180,10 @@ public class MainActivity extends BridgeActivity {
                     path = "/profile";
                 } else if ("premium".equals(type)) {
                     path = "/premium";
+                } else if ("online".equals(type)) {
+                    path = "/matches";
+                } else if ("new_user".equals(type)) {
+                    path = "/discover";
                 } else if ("admin".equals(type) || "promotional".equals(type)) {
                     path = "/notifications";
                 } else if ("open_matches".equals(action)) {
@@ -192,6 +196,8 @@ public class MainActivity extends BridgeActivity {
                     path = "/profile-viewers";
                 } else if ("open_premium".equals(action)) {
                     path = "/premium";
+                } else if ("open_discover".equals(action)) {
+                    path = "/discover";
                 } else if ("open_app".equals(action)) {
                     path = "/notifications";
                 }
