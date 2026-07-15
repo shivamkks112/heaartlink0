@@ -4316,8 +4316,35 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
     try:
         while True:
             data = await websocket.receive_text()
-            message_data = json.loads(data)
-            
+            try:
+                message_data = json.loads(data)
+            except (json.JSONDecodeError, TypeError) as _e:
+                logger.warning(f"WS bad JSON from user {user_id}: {_e}")
+                continue
+
+            # Support heartbeat / typing / read-receipt frames that are NOT chat messages
+            frame_type = message_data.get("type") if isinstance(message_data, dict) else None
+            if frame_type in ("ping", "pong", "heartbeat", "typing", "read", "read_receipt"):
+                # Just ack + skip — these are not persisted as chat messages
+                continue
+
+            # Validate required fields BEFORE trying to build a Message.
+            # Previously a missing key would raise KeyError and crash the whole
+            # WebSocket session; now we log + continue so the connection stays alive.
+            required = ("match_id", "receiver_id", "content")
+            missing = [k for k in required if not message_data.get(k)]
+            if missing:
+                logger.warning(f"WS message from user {user_id} missing fields {missing}: {message_data}")
+                try:
+                    await manager.send_message(user_id, {
+                        "type": "error",
+                        "error": "invalid_message",
+                        "missing_fields": missing,
+                    })
+                except Exception:
+                    pass
+                continue
+
             # Save message
             message = Message(
                 match_id=message_data["match_id"],
