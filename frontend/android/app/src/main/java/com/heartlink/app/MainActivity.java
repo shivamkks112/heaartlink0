@@ -174,12 +174,24 @@ public class MainActivity extends BridgeActivity {
                     path = "/likes";
                 } else if ("message".equals(type)) {
                     path = (matchId != null && !matchId.isEmpty()) ? "/chat/" + matchId : "/matches";
+                } else if ("profile_view".equals(type)) {
+                    path = "/profile-viewers";
+                } else if ("verification".equals(type)) {
+                    path = "/profile";
+                } else if ("premium".equals(type)) {
+                    path = "/premium";
+                } else if ("admin".equals(type) || "promotional".equals(type)) {
+                    path = "/notifications";
                 } else if ("open_matches".equals(action)) {
                     path = "/matches";
                 } else if ("open_likes".equals(action)) {
                     path = "/likes";
                 } else if ("open_chat".equals(action)) {
                     path = (matchId != null && !matchId.isEmpty()) ? "/chat/" + matchId : "/matches";
+                } else if ("open_visitors".equals(action) || "open_profile_views".equals(action)) {
+                    path = "/profile-viewers";
+                } else if ("open_premium".equals(action)) {
+                    path = "/premium";
                 } else if ("open_app".equals(action)) {
                     path = "/notifications";
                 }

@@ -217,3 +217,32 @@ def send_inactive_user_notification(token: str, days_inactive: int):
         body=f"You haven't checked HeartLink in {days_inactive} days. New profiles are waiting!",
         data={"type": "re_engagement"}
     )
+
+
+def send_profile_view_notification(token: str, viewer_name: str):
+    """Send notification when someone views the profile"""
+    return send_notification(
+        token=token,
+        title="👀 Someone checked you out!",
+        body=f"{viewer_name} just viewed your profile.",
+        data={
+            "type": "profile_view",
+            "action": "open_profile_views",
+            "viewer_name": viewer_name,
+        }
+    )
+
+
+def send_premium_notification(token: str, plan_id: str):
+    """Send notification when premium subscription is activated"""
+    plan_label = {"monthly": "Monthly", "quarterly": "Quarterly", "yearly": "Yearly"}.get(plan_id, plan_id.title())
+    return send_notification(
+        token=token,
+        title="⭐ Premium Activated!",
+        body=f"Welcome to HeartLink {plan_label} Premium. Unlock all features and start connecting!",
+        data={
+            "type": "premium",
+            "plan": plan_id,
+            "action": "open_premium",
+        }
+    )

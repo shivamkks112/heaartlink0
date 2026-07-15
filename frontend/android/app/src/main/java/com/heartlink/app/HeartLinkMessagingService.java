@@ -13,6 +13,8 @@ import androidx.core.app.NotificationCompat;
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
 
+import java.util.Map;
+
 /**
  * Custom FCM service.
  *
@@ -23,9 +25,14 @@ import com.google.firebase.messaging.RemoteMessage;
  *   com.google.firebase.messaging.default_notification_channel_id
  * in AndroidManifest.xml. That channel is created in MainActivity.onCreate().
  *
- * We use the SAME channel id ("heartlink_high") here for consistency so that
- * every notification lands in the high-importance channel that enables the
- * Android heads-up popup banner.
+ * We use the SAME channel id ("heartlink_high_v2") here for consistency so
+ * that every notification lands in the high-importance channel that enables
+ * the Android heads-up popup banner.
+ *
+ * NOTIFICATION GROUPING:
+ * Different notification types are grouped so the notification tray shows a
+ * clean stack per category rather than a flat list. The heads-up popup for
+ * the LATEST notification still appears — grouping only affects the tray.
  */
 public class HeartLinkMessagingService extends FirebaseMessagingService {
 
@@ -36,6 +43,14 @@ public class HeartLinkMessagingService extends FirebaseMessagingService {
     //   - Backend onesignal_config.py android_channel_id
     private static final String CHANNEL_ID = "heartlink_high_v2";
 
+    // Notification groups (per type). Groups only affect tray layout, not popup.
+    private static final String GROUP_MESSAGES = "com.heartlink.group.messages";
+    private static final String GROUP_LIKES = "com.heartlink.group.likes";
+    private static final String GROUP_MATCHES = "com.heartlink.group.matches";
+    private static final String GROUP_PROFILE_VIEWS = "com.heartlink.group.profile_views";
+    private static final String GROUP_ADMIN = "com.heartlink.group.admin";
+    private static final String GROUP_SYSTEM = "com.heartlink.group.system"; // verification, premium
+
     @Override
     public void onCreate() {
         super.onCreate();
@@ -44,29 +59,33 @@ public class HeartLinkMessagingService extends FirebaseMessagingService {
 
     @Override
     public void onMessageReceived(RemoteMessage remoteMessage) {
-        // Only build a manual notification when we have a title/body.
-        // Data-only messages are handled by the JS layer via the OneSignal SDK.
         String title = null;
         String body = null;
         String type = null;
+        Integer badge = null;
 
         if (remoteMessage.getNotification() != null) {
             title = remoteMessage.getNotification().getTitle();
             body = remoteMessage.getNotification().getBody();
         }
-        if (remoteMessage.getData() != null) {
-            type = remoteMessage.getData().get("type");
-            // Fallback to data-only message content
-            if (title == null) title = remoteMessage.getData().get("title");
-            if (body == null) body = remoteMessage.getData().get("body");
+
+        Map<String, String> data = remoteMessage.getData();
+        if (data != null) {
+            type = data.get("type");
+            if (title == null) title = data.get("title");
+            if (body == null) body = data.get("body");
+            String badgeStr = data.get("badge_count");
+            if (badgeStr != null) {
+                try { badge = Integer.parseInt(badgeStr); } catch (NumberFormatException ignored) {}
+            }
         }
 
         if (title != null || body != null) {
-            sendNotification(title, body, type);
+            sendNotification(title, body, type, badge);
         }
     }
 
-    private void sendNotification(String title, String body, String type) {
+    private void sendNotification(String title, String body, String type, Integer badge) {
         Intent intent = new Intent(this, MainActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         if (type != null) intent.putExtra("notification_type", type);
@@ -79,6 +98,10 @@ public class HeartLinkMessagingService extends FirebaseMessagingService {
         );
 
         Uri sound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+        String group = groupFor(type);
+        int categoryPriority = "message".equals(type)
+            ? NotificationCompat.CATEGORY_MESSAGE.hashCode()
+            : NotificationCompat.CATEGORY_SOCIAL.hashCode();
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
@@ -88,17 +111,46 @@ public class HeartLinkMessagingService extends FirebaseMessagingService {
             .setAutoCancel(true)
             .setSound(sound)
             .setVibrate(new long[]{0, 300, 200, 300})
-            // PRIORITY_MAX + defaults ensure heads-up popup on Android < 8
-            // On Android 8+ heads-up is controlled by channel importance (set below).
+            // PRIORITY_MAX + defaults ensure heads-up popup on Android < 8.
+            // On Android 8+ heads-up is controlled by channel importance.
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setDefaults(NotificationCompat.DEFAULT_ALL)
-            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .setCategory("message".equals(type) ? NotificationCompat.CATEGORY_MESSAGE : NotificationCompat.CATEGORY_SOCIAL)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setGroup(group)
             .setContentIntent(pendingIntent);
+
+        if (badge != null && badge > 0) {
+            builder.setNumber(badge);
+        }
 
         NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         if (manager != null) {
             manager.notify((int) System.currentTimeMillis(), builder.build());
+        }
+    }
+
+    private static String groupFor(String type) {
+        if (type == null) return GROUP_SYSTEM;
+        switch (type) {
+            case "message":
+            case "new_message":
+                return GROUP_MESSAGES;
+            case "like":
+            case "new_like":
+                return GROUP_LIKES;
+            case "match":
+            case "new_match":
+                return GROUP_MATCHES;
+            case "profile_view":
+                return GROUP_PROFILE_VIEWS;
+            case "admin":
+            case "promotional":
+                return GROUP_ADMIN;
+            case "verification":
+            case "premium":
+            default:
+                return GROUP_SYSTEM;
         }
     }
 
@@ -117,9 +169,6 @@ public class HeartLinkMessagingService extends FirebaseMessagingService {
             NotificationManager manager = getSystemService(NotificationManager.class);
             if (manager == null) return;
 
-            // If the channel already exists (created by MainActivity), do not
-            // recreate — Android ignores subsequent NotificationChannel edits
-            // to importance after creation anyway.
             if (manager.getNotificationChannel(CHANNEL_ID) != null) return;
 
             NotificationChannel channel = new NotificationChannel(

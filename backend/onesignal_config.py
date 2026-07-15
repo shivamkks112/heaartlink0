@@ -174,6 +174,27 @@ def send_like_notification_onesignal(user_id: str, liker_name: str) -> Dict:
     )
 
 
+def send_profile_view_notification_onesignal(user_id: str, viewer_name: str) -> Dict:
+    """Send profile-view notification"""
+    return send_notification_to_user(
+        user_id=user_id,
+        title="👀 Someone checked you out!",
+        message=f"{viewer_name} just viewed your profile.",
+        data={"type": "profile_view", "action": "open_profile_views"}
+    )
+
+
+def send_premium_notification_onesignal(user_id: str, plan_id: str) -> Dict:
+    """Send premium-activation notification"""
+    plan_label = {"monthly": "Monthly", "quarterly": "Quarterly", "yearly": "Yearly"}.get(plan_id, plan_id.title())
+    return send_notification_to_user(
+        user_id=user_id,
+        title="⭐ Premium Activated!",
+        message=f"Welcome to HeartLink {plan_label} Premium. Unlock all features and start connecting!",
+        data={"type": "premium", "action": "open_premium", "plan": plan_id}
+    )
+
+
 def send_admin_notification(title: str, message: str, target_user_ids: Optional[List[str]] = None, target_all: bool = False) -> Dict:
     """Send notification from admin panel"""
     return send_onesignal_notification(

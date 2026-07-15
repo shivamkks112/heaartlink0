@@ -32,7 +32,9 @@ from firebase_config import (
     send_notification_to_multiple,
     send_promotional_notification,
     send_daily_reminder,
-    send_inactive_user_notification
+    send_inactive_user_notification,
+    send_profile_view_notification,
+    send_premium_notification,
 )
 
 # Import OneSignal for push notifications (more reliable than FCM)
@@ -44,6 +46,8 @@ from onesignal_config import (
     send_match_notification_onesignal,
     send_message_notification_onesignal,
     send_like_notification_onesignal,
+    send_profile_view_notification_onesignal,
+    send_premium_notification_onesignal,
     send_admin_notification,
     set_user_external_id,
     add_user_tags,
@@ -3246,6 +3250,24 @@ async def track_profile_view(user_id: str, viewer_id: str = None):
             {"viewer_id": viewer_id, "action": "open_profile", "route": f"/profile/{viewer_id}"}
         )
         
+        # Push notification (FCM + OneSignal) — receiver only
+        # (viewer_id is the sender; user_id is the receiver of the notification)
+        target_user = await db.users.find_one({"id": user_id}, {"_id": 0, "fcm_token": 1, "muted_users": 1, "notification_settings": 1})
+        if target_user:
+            muted = target_user.get("muted_users", []) or []
+            settings = target_user.get("notification_settings", {}) or {}
+            profile_view_enabled = settings.get("profile_views", True)  # default ON
+            if viewer_id not in muted and profile_view_enabled:
+                if target_user.get("fcm_token"):
+                    try:
+                        send_profile_view_notification(target_user["fcm_token"], viewer_name)
+                    except Exception as e:
+                        logging.warning(f"FCM profile_view push failed: {e}")
+                try:
+                    send_profile_view_notification_onesignal(user_id, viewer_name)
+                except Exception as e:
+                    logging.warning(f"OneSignal profile_view push failed: {e}")
+
         # Update badge
         asyncio.create_task(manager.send_badge_update(user_id))
     
@@ -6184,6 +6206,29 @@ async def activate_subscription(user_id: str, plan_id: str, order_id: str = None
     
     invalidate_user_cache(user_id)
     
+    # Send premium activation push notification (FCM + OneSignal)
+    try:
+        if user.get("fcm_token"):
+            send_premium_notification(user["fcm_token"], plan_id)
+    except Exception as e:
+        logging.warning(f"FCM premium push failed: {e}")
+    try:
+        send_premium_notification_onesignal(user_id, plan_id)
+    except Exception as e:
+        logging.warning(f"OneSignal premium push failed: {e}")
+    # Store in-app notification too
+    try:
+        plan_label = {"monthly": "Monthly", "quarterly": "Quarterly", "yearly": "Yearly"}.get(plan_id, plan_id.title())
+        await create_in_app_notification(
+            user_id,
+            "⭐ Premium Activated!",
+            f"Welcome to HeartLink {plan_label} Premium. Unlock all features now.",
+            "premium",
+            {"plan": plan_id, "action": "open_premium"}
+        )
+    except Exception as e:
+        logging.warning(f"in-app premium notif failed: {e}")
+
     return {
         "success": True,
         "message": "Premium activated successfully",
