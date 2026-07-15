@@ -1151,7 +1151,7 @@ const AdminDashboard = ({ user }) => {
                   onChange={(e) => setResetNewPassword(e.target.value)} 
                   data-testid="reset-password-input"
                 />
-                <p className="text-xs text-gray-400 mt-1">Min 8 chars, 1 uppercase, 1 number, 1 special char</p>
+                <p className="text-xs text-gray-400 mt-1">Min 6 chars, mix of letters, numbers & special chars recommended</p>
               </div>
             </div>
             <div className="flex gap-3">

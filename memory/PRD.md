@@ -49,7 +49,11 @@ Modern, safe, trust-based dating app for Indian users. Features include admin pa
 - `/app/frontend/src/components/Navbar.jsx` - Real-time badge counts
 - `/app/frontend/src/components/LazyImage.jsx` - Image lazy loading
 
+## Latest Updates (July 2026)
+24. **Admin Password Reset** - Admin can reset any user's password from the dashboard (KeyRound button on user cards, modal with password input)
+
 ## Backlog
-- P1: server.py refactor (7100+ lines → modular)
+- P1: server.py refactor (7200+ lines → modular routes/models/services)
+- P1: Add admin auth/authorization on all /admin/* endpoints (SECURITY)
 - P2: AI photo verification
 - P3: AI Trust Score
