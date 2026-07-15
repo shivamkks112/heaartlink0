@@ -71,6 +71,16 @@
   <!-- Non-blocking font load -->
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'" />
+
+  <!-- Performance: preconnect/DNS-prefetch to shave 200-500ms off first API call after app open -->
+  <link rel="preconnect" href="https://heartlink.co.in" crossorigin />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="dns-prefetch" href="https://onesignal.com" />
+  <link rel="dns-prefetch" href="https://cdn.onesignal.com" />
+  <link rel="dns-prefetch" href="https://fcm.googleapis.com" />
+  <link rel="dns-prefetch" href="https://firebasestorage.googleapis.com" />
+  <link rel="dns-prefetch" href="https://identitytoolkit.googleapis.com" />
+  <link rel="dns-prefetch" href="https://securetoken.googleapis.com" />
   
   <!-- Structured Data - Organization -->
   <script type="application/ld+json">
