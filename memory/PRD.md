@@ -50,8 +50,12 @@ Modern, safe, trust-based dating app for Indian users. Features include admin pa
 - `/app/frontend/src/components/LazyImage.jsx` - Image lazy loading
 
 ## Latest Updates (July 2026)
-24. **Admin Password Reset** - Admin can reset any user's password from the dashboard (KeyRound button on user cards, modal with password input)
-25. **OneSignal Push Notification Fix** - Fixed wrong App ID, wrong API Key, added missing push for profile view & online status, removed invalid android_channel_id
+24. **Admin Password Reset** - Admin can reset any user's password from the dashboard
+25. **OneSignal Push Notification Fix** - Fixed wrong App ID, API Key, added missing push for profile view & online status
+26. **Comprehensive Scan** - 15/15 backend tests + full frontend verification passed
+
+## Known Production Issue
+- `heartlink.co.in` has Cloudflare 308 redirect to `www.heartlink.co.in` which breaks POST requests. Fix: use `www.heartlink.co.in` as API URL or remove redirect in Cloudflare.
 
 ## Backlog
 - P1: server.py refactor (7200+ lines → modular routes/models/services)
