@@ -7,7 +7,7 @@ import {
   TrendingUp, UserPlus, Clock, Calendar, Filter,
   Eye, MessageCircle, Heart, Shield, Crown,
   Activity, BarChart3, PieChart, ClipboardCheck, Settings,
-  Bot, Power, RotateCcw
+  Bot, Power, RotateCcw, KeyRound
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,7 +38,7 @@ const StatCard = ({ icon: Icon, label, value, subValue, color, bgColor }) => (
 );
 
 // UserCard Component
-const UserCard = ({ u, onBlock, onUnblock, onDelete, onView }) => {
+const UserCard = ({ u, onBlock, onUnblock, onDelete, onView, onResetPassword }) => {
   if (!u) return null;
   
   const lastActive = u.last_active ? new Date(u.last_active) : null;
@@ -123,6 +123,9 @@ const UserCard = ({ u, onBlock, onUnblock, onDelete, onView }) => {
             <Ban className="w-4 h-4" />
           </Button>
         )}
+        <Button size="sm" variant="outline" className="text-blue-600 border-blue-600" onClick={() => onResetPassword(u)} data-testid={`reset-password-btn-${u.id}`}>
+            <KeyRound className="w-4 h-4" />
+          </Button>
         <Button size="sm" variant="outline" className="text-red-600 border-red-600" onClick={() => onDelete(u)}>
           <Trash2 className="w-4 h-4" />
         </Button>
@@ -304,6 +307,9 @@ const AdminDashboard = ({ user }) => {
   const [flagsLoading, setFlagsLoading] = useState(false);
   const [aiProfiles, setAiProfiles] = useState([]);
   const [aiLoading, setAiLoading] = useState(false);
+  const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
+  const [resetNewPassword, setResetNewPassword] = useState('');
+  const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
 
   // Fetch feature flags
   const fetchFeatureFlags = useCallback(async () => {
@@ -524,6 +530,25 @@ const AdminDashboard = ({ user }) => {
   const handleViewUser = (user) => {
     setSelectedUser(user);
     setShowUserDetail(true);
+  };
+
+  const handleResetPassword = async () => {
+    if (!selectedUser || !resetNewPassword) return;
+    setResetPasswordLoading(true);
+    try {
+      await axios.post(`${API}/admin/reset-user-password`, {
+        user_id: selectedUser.id,
+        new_password: resetNewPassword
+      });
+      toast.success(`${selectedUser.name} ka password reset ho gaya!`);
+      setShowResetPasswordModal(false);
+      setResetNewPassword('');
+      setSelectedUser(null);
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Password reset failed');
+    } finally {
+      setResetPasswordLoading(false);
+    }
   };
 
   if (error) {
@@ -821,6 +846,7 @@ const AdminDashboard = ({ user }) => {
                         onUnblock={handleUnblockUser}
                         onDelete={(usr) => { setSelectedUser(usr); setShowDeleteModal(true); }}
                         onView={handleViewUser}
+                        onResetPassword={(usr) => { setSelectedUser(usr); setShowResetPasswordModal(true); }}
                       />
                     ) : null
                   ))}
@@ -1096,6 +1122,47 @@ const AdminDashboard = ({ user }) => {
               <Button variant="outline" className="flex-1" onClick={() => { setShowBlockModal(false); setSelectedUser(null); setBlockReason(''); setBlockPermanent(false); }}>Cancel</Button>
               <Button className={`flex-1 ${blockPermanent ? 'bg-red-500 hover:bg-red-600' : 'bg-yellow-500 hover:bg-yellow-600'}`} onClick={handleBlockUser}>
                 {blockPermanent ? 'Permanent Ban' : 'Shadow Ban'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reset Password Modal */}
+      {showResetPasswordModal && selectedUser && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                <KeyRound className="w-6 h-6 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900" data-testid="reset-password-modal-title">Reset Password</h3>
+                <p className="text-sm text-gray-500">{selectedUser.name} ({selectedUser.email})</p>
+              </div>
+            </div>
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                <Input 
+                  type="password" 
+                  placeholder="Enter new password..." 
+                  value={resetNewPassword} 
+                  onChange={(e) => setResetNewPassword(e.target.value)} 
+                  data-testid="reset-password-input"
+                />
+                <p className="text-xs text-gray-400 mt-1">Min 8 chars, 1 uppercase, 1 number, 1 special char</p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <Button variant="outline" className="flex-1" onClick={() => { setShowResetPasswordModal(false); setSelectedUser(null); setResetNewPassword(''); }} data-testid="reset-password-cancel-btn">Cancel</Button>
+              <Button 
+                className="flex-1 bg-blue-500 hover:bg-blue-600" 
+                onClick={handleResetPassword} 
+                disabled={!resetNewPassword || resetPasswordLoading}
+                data-testid="reset-password-confirm-btn"
+              >
+                {resetPasswordLoading ? 'Resetting...' : 'Reset Password'}
               </Button>
             </div>
           </div>

@@ -4922,6 +4922,41 @@ async def admin_unblock_user(user_id: str):
     invalidate_user_cache(user_id)
     return {"message": f"User {user['name']} unblocked"}
 
+# === ADMIN: RESET USER PASSWORD ===
+class AdminResetPasswordRequest(BaseModel):
+    user_id: str
+    new_password: str
+
+@api_router.post("/admin/reset-user-password")
+async def admin_reset_user_password(request: AdminResetPasswordRequest):
+    """Admin endpoint to reset any user's password"""
+    # Validate new password strength
+    is_strong, message = validate_password_strength(request.new_password)
+    if not is_strong:
+        raise HTTPException(status_code=400, detail=message)
+    
+    user = await db.users.find_one({"id": request.user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    new_hash = hash_password_secure(request.new_password)
+    await db.users.update_one(
+        {"id": request.user_id},
+        {"$set": {
+            "password_hash": new_hash,
+            "password_changed_at": datetime.now(timezone.utc).isoformat(),
+            "password_reset_code": None,
+            "password_reset_expires": None
+        }}
+    )
+    
+    # Revoke all sessions for security
+    session_manager.revoke_all_sessions(request.user_id)
+    
+    audit_log.log_event("admin_password_reset", user_id=request.user_id)
+    
+    return {"message": f"Password reset successfully for {user.get('name', 'user')}"}
+
 # === PHOTO VERIFICATION SYSTEM ===
 class SelfieVerificationRequest(BaseModel):
     user_id: str

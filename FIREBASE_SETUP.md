@@ -96,7 +96,7 @@ Add to `/app/frontend/.env`:
 
 ```env
 # Existing variables
-REACT_APP_BACKEND_URL=https://heartlink-preview-1.preview.emergentagent.com
+REACT_APP_BACKEND_URL=https://heartlink-safe.preview.emergentagent.com
 WDS_SOCKET_PORT=443
 
 # Firebase Configuration

@@ -15,7 +15,7 @@ from datetime import datetime
 import uuid
 
 # Backend URL from environment
-BACKEND_URL = "https://heartlink-preview-1.preview.emergentagent.com/api"
+BACKEND_URL = "https://heartlink-safe.preview.emergentagent.com/api"
 WEBSOCKET_URL = "wss://cupids-arrow-23.preview.emergentagent.com/api/ws"
 
 def print_test_header(test_name):

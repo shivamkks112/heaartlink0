@@ -14,7 +14,7 @@ import uuid
 import pytest
 import requests
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://heartlink-preview-1.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://heartlink-safe.preview.emergentagent.com").rstrip("/")
 API = f"{BASE_URL}/api"
 
 TEST_MALE_EMAIL = "testmale@heartlink.co.in"
