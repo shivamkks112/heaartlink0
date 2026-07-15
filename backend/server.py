@@ -6443,6 +6443,165 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# ==================== ADMIN: PASSWORD RESET + TEST USER PROVISIONING ====================
+
+class AdminResetPasswordRequest(BaseModel):
+    admin_password: str
+    new_password: str
+
+@api_router.post("/admin/user/{user_id}/reset-password")
+async def admin_reset_user_password(user_id: str, request: AdminResetPasswordRequest):
+    """
+    Admin: reset a user's password.
+    Requires ADMIN_PASSWORD env verification. Uses bcrypt (same as signup).
+    Never returns the old hash. Logs the reset for audit.
+    """
+    admin_password = os.environ.get('ADMIN_PASSWORD')
+    if not admin_password:
+        raise HTTPException(status_code=500, detail="ADMIN_PASSWORD not configured")
+    if request.admin_password != admin_password:
+        raise HTTPException(status_code=403, detail="Invalid admin password")
+    if not request.new_password or len(request.new_password) < 6:
+        raise HTTPException(status_code=400, detail="new_password must be at least 6 characters")
+
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "id": 1, "email": 1, "phone": 1, "name": 1})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    new_hash = hash_password_secure(request.new_password)
+    result = await db.users.update_one(
+        {"id": user_id},
+        {"$set": {
+            "password_hash": new_hash,
+            "password_reset_by_admin_at": datetime.now(timezone.utc).isoformat(),
+        }}
+    )
+    if result.modified_count != 1:
+        raise HTTPException(status_code=500, detail="Password update failed")
+
+    logger.warning(f"[ADMIN_ACTION] password reset for user_id={user_id} email={user.get('email')} phone={user.get('phone')}")
+    invalidate_user_cache(user_id)
+    return {
+        "success": True,
+        "user_id": user_id,
+        "email": user.get("email"),
+        "phone": user.get("phone"),
+        "name": user.get("name"),
+        "message": "Password reset successfully. User can log in with the new password."
+    }
+
+
+class AdminCreateTestUserRequest(BaseModel):
+    admin_password: str
+    email: str
+    password: str
+    name: str = "Test User"
+    phone: Optional[str] = None
+    age: int = 25
+    gender: str = "male"
+    looking_for: str = "female"
+    location: str = "Test City"
+    bio: str = "Automated test account"
+
+@api_router.post("/admin/create-test-user")
+async def admin_create_test_user(request: AdminCreateTestUserRequest):
+    """
+    Admin: provision a test user with a known password for QA / integration tests.
+    Idempotent — if a user with the given email already exists, resets their
+    password to the requested value instead of creating a duplicate.
+    """
+    admin_password = os.environ.get('ADMIN_PASSWORD')
+    if not admin_password:
+        raise HTTPException(status_code=500, detail="ADMIN_PASSWORD not configured")
+    if request.admin_password != admin_password:
+        raise HTTPException(status_code=403, detail="Invalid admin password")
+    if not request.email or "@" not in request.email:
+        raise HTTPException(status_code=400, detail="valid email required")
+    if not request.password or len(request.password) < 6:
+        raise HTTPException(status_code=400, detail="password must be at least 6 characters")
+    if request.gender.lower() not in ("male", "female"):
+        raise HTTPException(status_code=400, detail="gender must be male or female")
+
+    email_norm = request.email.strip().lower()
+    new_hash = hash_password_secure(request.password)
+
+    existing = await db.users.find_one({"email": email_norm}, {"_id": 0, "id": 1})
+    if existing:
+        # Idempotent — reset password on the existing account, do NOT duplicate.
+        await db.users.update_one(
+            {"id": existing["id"]},
+            {"$set": {
+                "password_hash": new_hash,
+                "password_reset_by_admin_at": datetime.now(timezone.utc).isoformat(),
+                "last_active": datetime.now(timezone.utc).isoformat(),
+            }}
+        )
+        invalidate_user_cache(existing["id"])
+        logger.warning(f"[ADMIN_ACTION] test-user password reset for existing user_id={existing['id']} email={email_norm}")
+        return {
+            "success": True,
+            "created": False,
+            "reused_existing": True,
+            "user_id": existing["id"],
+            "email": email_norm,
+            "message": "Existing user found — password reset to the requested value."
+        }
+
+    # Fresh test user — mirror signup flow but with admin-provided values
+    new_user_id = str(uuid.uuid4())
+    now_iso = datetime.now(timezone.utc).isoformat()
+    user_doc = {
+        "id": new_user_id,
+        "name": request.name,
+        "email": email_norm,
+        "phone": request.phone,
+        "password_hash": new_hash,
+        "age": request.age,
+        "gender": request.gender.lower(),
+        "looking_for": request.looking_for.lower(),
+        "location": request.location,
+        "bio": request.bio,
+        "photos": [],
+        "interests": [],
+        "verified": True,          # test users pre-verified so they can use full app
+        "verification_status": "approved",
+        "is_ai_profile": False,
+        "is_admin": False,
+        "is_premium": False,
+        "is_online": False,
+        "is_shadow_banned": False,
+        "is_permanently_banned": False,
+        "trust_badge_level": "medium",
+        "risk_score": 0,
+        "created_at": now_iso,
+        "registered_at": now_iso,
+        "last_active": now_iso,
+        "total_matches": 0,
+        "total_likes_received": 0,
+        "profile_views": 0,
+        "notification_settings": {
+            "messages": True,
+            "likes": True,
+            "matches": True,
+            "profile_views": True,
+            "online_alerts": True,
+            "new_user_alerts": True,
+        },
+        "created_by_admin": True,
+    }
+    await db.users.insert_one(user_doc)
+    logger.warning(f"[ADMIN_ACTION] test user created user_id={new_user_id} email={email_norm}")
+    return {
+        "success": True,
+        "created": True,
+        "reused_existing": False,
+        "user_id": new_user_id,
+        "email": email_norm,
+        "password": request.password,   # returned once — admin should note it down
+        "message": "Test user created. Use these credentials to log in."
+    }
+
+
 # ==================== DAILY NOTIFICATION CRON ====================
 
 # Daily notification messages (random selection)
