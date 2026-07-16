@@ -3,6 +3,9 @@
   "appName": "HeartLink",
   "webDir": "build",
   "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    },
     "SplashScreen": {
       "launchShowDuration": 2000,
       "backgroundColor": "#ff6b9d",
@@ -25,6 +28,11 @@
   },
   "server": {
     "androidScheme": "https",
-    "cleartext": true
+    "cleartext": true,
+    "allowNavigation": [
+      "*.heartlink.co.in",
+      "*.emergentagent.com",
+      "*.emergent.host"
+    ]
   }
 }
