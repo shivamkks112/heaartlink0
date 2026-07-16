@@ -151,7 +151,7 @@ padding-bottom: env(safe-area-inset-bottom, 0);
 ### 1. Web Browser (Desktop):
 ```bash
 # Open in browser
-https://heartlink-safe.preview.emergentagent.com
+https://trust-based-deploy.preview.emergentagent.com
 
 # Open Developer Tools (F12)
 # Toggle device toolbar (Ctrl+Shift+M)

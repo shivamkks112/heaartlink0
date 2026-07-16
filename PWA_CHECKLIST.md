@@ -259,7 +259,7 @@ These features were evaluated but not added for good reasons:
 ## 🧪 How to Test
 
 ### Test Installation:
-1. Open on mobile: https://heartlink-safe.preview.emergentagent.com
+1. Open on mobile: https://trust-based-deploy.preview.emergentagent.com
 2. Look for install prompt
 3. Install to home screen
 4. Launch from home screen icon

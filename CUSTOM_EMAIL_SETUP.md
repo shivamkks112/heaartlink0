@@ -31,14 +31,14 @@ sudo supervisorctl restart backend
 ### Step 3: Test Email
 
 **Method 1: Forgot Password Test**
-1. Go to: https://heartlink-safe.preview.emergentagent.com/forgot-password
+1. Go to: https://trust-based-deploy.preview.emergentagent.com/forgot-password
 2. Enter: demo1@heartlink.co.in (or any email from database)
 3. Click "Send Reset Code"
 4. ✅ OTP email will be sent to inbox!
 
 **Method 2: Test via API**
 ```bash
-curl -X POST "https://heartlink-safe.preview.emergentagent.com/api/auth/forgot-password" \
+curl -X POST "https://trust-based-deploy.preview.emergentagent.com/api/auth/forgot-password" \
   -H "Content-Type: application/json" \
   -d '{"email_or_phone": "demo1@heartlink.co.in"}'
 ```

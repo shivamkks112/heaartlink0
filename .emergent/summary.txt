@@ -1,146 +1,169 @@
 <analysis>**original_problem_statement:**
-The user is building a modern, safe, and trust-based dating app for Indian users called Heartlink. The product requirements include an admin panel, Android wrapper app (WebView/Capacitor), matching logic, push notifications, strict profile validation, and monetization (Ads). Recent focus shifted to aggressive server speed optimization, preventing duplicate accounts, hacking/security prevention, and addressing organic app growth (zero-budget marketing) through an AI Girl Chatbot, Referral/Reward systems, and SEO/ASO. 
+The user is building a modern, safe, and trust-based dating app for Indian users called Heartlink. The product requirements include an admin panel, Android wrapper app (WebView/Capacitor), matching logic, push notifications, strict profile validation, and monetization (Ads). Recent focus shifted to aggressive server speed optimization, preventing duplicate accounts, hacking/security prevention, and addressing organic app growth through an AI Girl Chatbot, Referral/Reward systems, and SEO/ASO. 
 
 **PRODUCT REQUIREMENTS:**
-1.  **Admin Panel & Notifications:** Comprehensive management with feature toggles and push notifications via OneSignal.
+1.  **Admin Panel & Notifications:** Comprehensive management with feature toggles and push notifications via OneSignal. Needs ability to reset user passwords.
 2.  **Core Logic:** Accurate matching, mandatory profile picture upload during registration, strict duplicate account prevention.
 3.  **Privacy & Safety:** Auto-masking of phone/email in chat, financial/money scam warnings, blocking social handles in bios.
 4.  **Organic Growth & Retention:** Referral system, Daily login rewards, AI Girl Chatbot, and SEO optimization.
-5.  **Security & Performance:** Strict rate limiting, brute-force lockouts, React lazy loading, Service Worker offline caching.
+5.  **Security & Performance:** Strict rate limiting, brute-force lockouts, React lazy loading, Service Worker offline caching. CORS configuration must support Capacitor mobile app.
 
-**User's preferred language**: **Hinglish** (The user communicates in a mix of Hindi and English. You MUST respond in Hinglish only).
+**User's preferred language**: **Hinglish** (You MUST automatically detect the user's primary language from their messages inside the trajectory tag and INSTRUCT next agent to respond in Hinglish only).
 
 **what currently exists?** 
-A FastAPI backend, React frontend (with lazy loading & service workers), and MongoDB database. Features implemented include user authentication (Email/Password with email OTP - Phone OTP was completely removed), real-time chatting, matching, referral system, daily rewards, and AdMob integration for the Capacitor Android app. A fully functional AI Chatbot automatically interacts with new users. WebSockets handle real-time in-app notifications, while OneSignal handles push notifications. Emails are routed via Resend API (primary) and Microsoft 365 SMTP (fallback).
+A FastAPI backend (monolithic  >7300 lines), React frontend, and MongoDB database. A Capacitor Android wrapper connects to the backend. Features include email/password auth (OTP via Resend), WebSockets for real-time presence/chat, AI chatbots, and OneSignal for push notifications. 
 
 **Last working item**:
-    - **Last item agent was working**: Guiding the user through the Emergent deployment process. The user was struggling to get the OneSignal backend fixes live on production because they were only doing a frontend Re-publish instead of a full backend redeployment.
+    - **Last item agent was working**: Fixing a critical CORS issue preventing the Android Capacitor app from logging in. The production  was overriding  without including , blocking all mobile app API requests. The agent forced  and  into the allowed origins list in .
     - **Status**: USER VERIFICATION PENDING
-    - **Agent Testing Done**: Y (Tested on preview environment successfully).
-    - **Which testing method agent to use?**: NA (Waiting for user action on the deployment dashboard).
+    - **Agent Testing Done**: Y (Verified backend code restarts and loads config).
+    - **Which testing method agent to use?**: NA (Waiting for user to trigger a Full Deploy on Emergent dashboard and test via their physical Android device).
     - **User Testing Done**: N
 
 **All Pending/In progress Issue list**:
-  Issue 1: Production vs. Preview Environment Confusion & Deployment Blocker (P0)
-     - Attempted fixes: The agent explained that a Full Deploy (from the Manage Deployments section) is required to install backend Python changes (OneSignal configs) on the live production server, rather than just a frontend Re-publish.
-     - Next debug checklist: Confirm with the user if the Full Deploy was successful and if production notifications are now functioning.
-     - Why fix this issue and what will be achieved with the fix?: The app's core notification logic has been fixed in the preview codebase, but the user cannot see it live until the backend is fully redeployed.
+  Issue 1: Production Login Failure on Android App (CORS / Redirect Issue) (P0)
+     - Attempted fixes: Agent identified a 308 redirect issue (missing  in frontend  caused POST body loss) and a CORS issue ( was blocked by production backend). Agent updated  CORS middleware to explicitly append Capacitor schemes.
+     - Next debug checklist: Check with the user if the Full Deploy resolved the login issue on the Android App. Check  line 6290+ if CORS still blocks requests.
+     - Why fix this issue and what will be achieved with the fix?: The Android app is currently unusable for users due to login network failures. Fixing this restores mobile app functionality.
      - Status: USER VERIFICATION PENDING
      - Is recurring issue? Y
-     - Should Test frontend/backend/both after fix? both (Verify production environment behavior).
+     - Should Test frontend/backend/both after fix? both
      - Blocked on other issue: None
 
 **In progress Task List**:
-  None. The agent successfully stabilized the production notification system and authentication flows.
+  None.
 
 **Upcoming and Future Tasks**
     Upcoming Tasks:
-    - **P1**: Refactor  (Currently critically overgrown at 7200+ lines). Break it down into , , and  modules. This is a critical tech debt task.
+    - **P1**: Add Authentication/Authorization to Admin endpoints. Currently, Admin APIs are unsecured/open. (Identified by testing agent).
+    - **P1**: Refactor  (Currently critically overgrown at 7300+ lines). Break it down into , , and  modules.
     
     Future Tasks:
     - **P2**: AI-based photo verification.
     - **P3**: AI Trust Score algorithm.
 
 **Completed work in this session**
-- AI Girl Chatbot Implementation (Seeded 6 profiles, auto-matching, Hinglish conversational LLM replies via WebSockets) (DONE)
-- Frontend Bundle Optimization (Lazy loaded Firebase, AdMob, Capacitor, Google Auth - reduced bundle by 38%) (DONE)
-- Landing Page SEO (Keyword sections, 12 cities targeting, updated sitemap) & ASO Guide creation (DONE)
-- Capacitor App Size Increase via Offline Assets (Added splash/onboarding high-res assets & Service Worker caching) (DONE)
-- Email System Overhaul (Migrated GoDaddy SMTP to Microsoft 365, added Resend API as primary email provider) (DONE)
-- **CRITICAL AUTH CHANGE**: Completely removed Firebase Phone Auth (SMS OTP) and reCAPTCHA due to WebView/Play Integrity issues. Login is strictly Email/Password. Phone numbers are collected at signup, but OTPs are sent to Email. (DONE)
-- Profile Photo Signup Bug Fix (Photo is now uploaded to Firebase *before* the signup API call) (DONE)
-- Real-time Notification System (WebSockets configured for instant updates on Likes, Matches, Messages, Profile Views, and Badge Counts) (DONE)
-- OneSignal Push Notifications Fix (Added Android Heads-up channel creation in , fixed REST API authorization payloads, fixed Admin panel notification sender) (DONE)
+- **Admin Password Reset (DONE):** Added  to backend and integrated a key icon/modal in the frontend . 
+- **Push Notification Fix (DONE):** Fixed malformed , updated REST API key, added  to message payloads for Android 8+ popup support, and added push notification triggers for Profile View and Online Status.
+- **E2E Testing Scan (DONE):** Ran comprehensive 15/15 testing agent scan on auth, admin, and notification flows.
+- **Capacitor CORS Fix (DONE):** Updated backend CORS middleware to explicitly allow  and .
 
 **Earlier issues found/mentioned but not fixed**
-   None.
+   Issue 1: Security - Admin endpoints lack authentication check
+   - Debug checklist: Review  admin endpoints (). Implement role-based middleware or dependency injection to verify the requester is an admin.
+   - Why to solve this issue and what will be achieved with this?: Prevents malicious users from accessing admin routes.
+   - Should Test frontend/backend/both after fix: backend
+   - Is recurring issue? N
 
 **Known issue recurrence from previous fork**
-  - Issue recurrence in previous fork: User testing on production instead of preview URL, and struggling with the concept of Redeploying vs. Re-publishing.
-  - Recurrence count: Extremely High (Occurred 5+ times this session).
-  - Status: IN PROGRESS (Currently guiding user on this).
+  - Issue recurrence in previous fork: The user struggles with the difference between local Android builds, the Preview environment, and the Production environment. They frequently forget to do a Full Deploy to push backend Python changes to production. They also face constant local npm <command>
+
+Usage:
+
+npm install        install all the dependencies in your project
+npm install <foo>  add the <foo> dependency to your project
+npm test           run this project's tests
+npm run <foo>      run the script named <foo>
+npm <command> -h   quick help on <command>
+npm -l             display usage info for all commands
+npm help <term>    search for help on <term>
+npm help npm       more involved overview
+
+All commands:
+
+    access, adduser, audit, bugs, cache, ci, completion,
+    config, dedupe, deprecate, diff, dist-tag, docs, doctor,
+    edit, exec, explain, explore, find-dupes, fund, get, help,
+    help-search, hook, init, install, install-ci-test,
+    install-test, link, ll, login, logout, ls, org, outdated,
+    owner, pack, ping, pkg, prefix, profile, prune, publish,
+    query, rebuild, repo, restart, root, run-script, sbom,
+    search, set, shrinkwrap, star, stars, start, stop, team,
+    test, token, uninstall, unpublish, unstar, update, version,
+    view, whoami
+
+Specify configs in the ini-formatted file:
+    /root/.npmrc
+or on the command line via: npm <command> --key=value
+
+More configuration info: npm help config
+Configuration fields: npm help 7 config
+
+npm@10.8.2 /usr/lib/node_modules/npm dependency conflicts (Node 22 vs Craco/Capacitor).
+  - Recurrence count: Extremely High.
+  - Status: IN PROGRESS (Agent constantly reminding user to Full Deploy).
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
 - React (Frontend), FastAPI (Backend), MongoDB
-- Capacitor (Android Wrapper)
-- WebSockets (Real-time presence, chat, and in-app notifications)
-- OneSignal (Push Notifications via REST API)
-- Resend API (Transactional Emails)
+- Capacitor (Android Wrapper - requests originate from )
+- WebSockets (Real-time in-app presence)
+- OneSignal (Push Notifications)
 
 **key DB schema**
-  - : {email, phone, photos, is_online, last_active, onesignal_player_id}
-  - : {user_id, title, body, type, data, read, created_at}
-  - , , 
+  - : {email, password_hash, onesignal_player_id}
+  - , 
 
 **changes in tech stack**
-  - **REMOVED**: Firebase Web SDK Phone Authentication and reCAPTCHA. 
-  - **ADDED**:  (Python package for emails).
-  - **ADDED**:  (Frontend web push SDK).
+  - No new technologies added, but enforced  for the user's local Capacitor environment due to  conflicts.
 
-**All files of reference**
-  -  (Heavily modified with WebSockets, Notification event triggers).
-  -  (Fixed auth headers and Android channel ID).
-  -  (Added Resend API).
-  -  (Removed all Phone OTP logic, strict Email login).
-  -  (Manages real-time app state).
-  -  (Added Android 13+ Notification Channel creation).
+**All files of reference** 
+  -  (Updated with Admin password reset endpoint, new notification triggers, and Capacitor CORS origins).
+  -  (Added Reset Password modal/button).
+  -  (Push helper logic).
+  -  (Frontend SDK init).
 
 **Areas that need refactoring**:
--  MUST be broken down. It is over 7200 lines and managing it is becoming extremely risky.
+-  MUST be broken down. It is over 7300 lines.
+-  endpoints need robust authentication/authorization.
 
 **key api endpoints**
--  (Photo mandatory, sends email OTP).
--  (Email/password only).
--  (Global WebSocket for chat, notifications, and presence).
--  (Admin broadcast).
+-  (New)
+-  (Failing on Prod app due to CORS)
+-  (308 redirect issue if  is missing)
 
 **Critical Info for New Agent**
-- **Auth Overhaul**: Do NOT attempt to add SMS/Phone OTP back into the app. The user explicitly agreed to drop it due to persistent Firebase App Check / Capacitor WebView issues. The app uses Email/Password authentication with Email-based OTPs.
-- **Notifications**: Real-time notifications are handled by . Push notifications are handled by OneSignal. The Android channel  was manually added to  to ensure heads-up popups appear.
-- **Deployment Handholding**: The user frequently confuses the Preview environment with Production. You must constantly remind them to deploy their changes. Currently, they are stuck needing a Full Deploy from the Emergent dashboard to apply Python backend changes.
+- **CORS & Capacitor:** The Android app runs on Capacitor, which sends requests from . The backend  environment variable in production was missing this, causing network failures. The agent patched  to append these schemes explicitly.
+- **308 Redirect:** The production domain forces a redirect from non-www to . If the frontend  misses  (e.g., ), POST requests lose their payload and fail. Ensure the user always configures their local  to .
+- **Node Environment:** The user uses Node 22 locally, which breaks  and . If guiding the user on local builds, always recommend .
+- **Security:** Admin APIs are currently entirely unprotected. Anyone with the API path can theoretically ban users or reset passwords. This is a critical tech debt item.
 
 **documents and test reports created in this job**
   -  (Updated)
-  -  (Created for Play Store optimization)
-  - 
+  -  (Admin Reset Tests)
+  -  (OneSignal Tests)
+  -  (Comprehensive App Scan)
 
 **Last 10 User Messages and any pending HUMAN messages** 
-1. User: *Reports production bug regarding push notifications not popping up on Android screen.*
-2. Agent: Found Android channel was missing. Updated  to create high-importance channel and updated backend OneSignal payload.
-3. User: *Reports Admin Panel Send Notification is failing with Access Denied.*
-4. Agent: Fixed OneSignal Admin API payload (removed strict channel ID requirement for broadcasts).
-5. User: RESEND_API_KEY=... RESEND_FROM_EMAIL=...
-6. Agent: Integrated Resend API for emails as primary, kept SMTP as fallback.
-7. User: *Reports Phone OTP is stuck / failing.*
-8. Agent: Tried fixing Firebase Phone Auth natively, ran into Play Integrity / SHA-1 issues. User agreed to scrap SMS OTP. Agent refactored  to rely strictly on Email/Password.
-9. User: *Sends massive prompt asking for complete production stabilization of notifications and presence.*
-10. Agent: Fixed everything. Added WebSockets for notifications, fixed OneSignal keys.
-11. User: Full developement kasie hoga (Shares screenshot of a different AI agent telling them to do a Full Deploy).
-12. Agent: Explains how to trigger a Full Deploy on the Emergent dashboard to push the backend fixes live. (Pending user action).
+1. User: Fresh build krne k bd bhi nhi ho rha (Login failing).
+2. Agent: Tested prod API, login successful. Asked user to test via web browser.
+3. User: Broweser m work kr rha.
+4. Agent: Realized issue is specific to Android APK. Asked to check local  for  URL.
+5. User: https://www.heartlink.co.in (Confirmed URL is correct).
+6. Agent: Realized production  env var is overriding default and blocking .
+7. Agent: Updated backend  to explicitly append  to allowed origins.
+8. Agent: Asked user to do a Full Deploy on Emergent dashboard and re-test.
 
 **Project Health Check:**
-- Broken: None (Pending production deployment by user).
+- Broken: Android Production Login (Awaiting user deployment of the CORS fix).
 - Mocked: None.
 
-**3rd Party Integrations**
+**3rd Party Integrations** 
 - OneSignal (Push Notifications) — requires User API Key
-- Firebase (Auth, Storage) — requires User API Key
-- Google AdMob (Ads) — requires User API Key
 - Resend (Emails) — requires User API Key
-- Gemini/Claude LLMs via  (AI Chatbot) — uses **Emergent LLM Key**
+- Gemini/Claude LLMs via  — uses **Emergent LLM Key**
 
 **Testing status**
-  - Testing agent used after significant changes: YES
+  - Testing agent used after significant changes: YES (Iterations 5, 6, and 7).
   - Troubleshoot agent used after agent stuck in loop: NO
-  - Test files created: None
-  - Known regressions: None
+  - Test files created: None (Agent relied on  pytest creations).
+  - Known regressions: Admin endpoints are unsecured.
 
 **Credentials to test flow:**
   - Admin/Review:  | 
   - Demo User:  | 
 
 **What agent forgot to execute**
-Nothing. The codebase is stable. The ball is in the user's court to execute the Full Deploy on the Emergent platform.</analysis>
+- The agent successfully implemented all functional requests, but heavily noted that **Admin API authentication** is missing and must be implemented soon. Ensure to pick this up.</analysis>
