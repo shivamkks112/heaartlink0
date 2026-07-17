@@ -18,8 +18,10 @@ ONESIGNAL_APP_ID = os.environ.get('ONESIGNAL_APP_ID', '')
 ONESIGNAL_API_KEY = os.environ.get('ONESIGNAL_API_KEY', '')
 ONESIGNAL_API_URL = "https://onesignal.com/api/v1"
 
-# Android Notification Channel ID (must match what's declared in AndroidManifest)
-ANDROID_CHANNEL_ID = "heartlink_notifications"
+# Android Notification Channel ID - only used by device-side (Capacitor LocalNotifications)
+# NOTE: Do NOT put android_channel_id in OneSignal REST API payloads 
+# unless the channel is created in OneSignal Dashboard -> Settings -> Messaging -> Android Notification Channels
+# OneSignal android_channel_id ≠ Android system notification channel
 
 
 def _build_payload(
@@ -37,9 +39,7 @@ def _build_payload(
         "headings": {"en": title},
         "contents": {"en": message},
         "data": data or {},
-        # Android 8+ notification channel (HIGH importance for heads-up)
-        "android_channel_id": ANDROID_CHANNEL_ID,
-        # Android notification settings
+        # Android notification settings (use OS defaults, no custom channel)
         "priority": priority,
         "android_visibility": 1,  # Public visibility
         "android_sound": "default",
