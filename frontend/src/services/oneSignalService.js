@@ -1,13 +1,15 @@
 import axios from 'axios';
+import { Capacitor } from '@capacitor/core';
 
 const API = process.env.REACT_APP_BACKEND_URL + '/api';
 const ONESIGNAL_APP_ID = 'ad0b57dc-908b-4d84-8654-d6b5dd50684e';
 
 export const initOneSignal = async (userId) => {
+  // OneSignal web push may not be configured - gate behind native or skip gracefully
   try {
-    // Dynamically import OneSignal
     const OneSignal = (await import('react-onesignal')).default;
     
+    // On web, init may fail if web push is not configured - that's OK
     await OneSignal.init({
       appId: ONESIGNAL_APP_ID,
       allowLocalhostAsSecureOrigin: true,

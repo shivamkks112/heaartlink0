@@ -1,11 +1,19 @@
-import { PushNotifications } from '@capacitor/push-notifications';
-import { LocalNotifications } from '@capacitor/local-notifications';
+import { Capacitor } from '@capacitor/core';
 import axios from 'axios';
 
 const API = process.env.REACT_APP_BACKEND_URL + '/api';
 
 export const initPushNotifications = async (userId) => {
+  // Only run on native platforms (Android/iOS), skip web
+  if (!Capacitor.isNativePlatform()) {
+    console.log('Push notifications: Skipped (web platform)');
+    return;
+  }
+
   try {
+    const { PushNotifications } = await import('@capacitor/push-notifications');
+    const { LocalNotifications } = await import('@capacitor/local-notifications');
+
     // Request permission
     let permStatus = await PushNotifications.checkPermissions();
 
@@ -183,7 +191,10 @@ function handleNotificationNavigation(data) {
 }
 
 export const removePushNotifications = async () => {
+  if (!Capacitor.isNativePlatform()) return;
   try {
+    const { PushNotifications } = await import('@capacitor/push-notifications');
+    const { LocalNotifications } = await import('@capacitor/local-notifications');
     await PushNotifications.removeAllListeners();
     await LocalNotifications.removeAllListeners();
   } catch (error) {
