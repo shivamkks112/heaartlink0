@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Bell, Check, Trash2, Heart, MessageSquare, UserPlus, Megaphone, ChevronRight, Eye } from 'lucide-react';
+import { Bell, Check, Trash2, Heart, MessageSquare, UserPlus, Megaphone, ChevronRight, Eye, Star, Shield, Image, UserCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
 import { useNavigate } from 'react-router-dom';
@@ -90,10 +90,23 @@ const NotificationsPage = ({ user }) => {
         return <Heart className="w-5 h-5 text-pink-500" />;
       case 'like':
         return <Heart className="w-5 h-5 text-red-500" />;
+      case 'superlike':
+        return <Star className="w-5 h-5 text-yellow-500" />;
       case 'profile_view':
         return <Eye className="w-5 h-5 text-blue-500" />;
       case 'message':
+      case 'unread_reminder':
         return <MessageSquare className="w-5 h-5 text-blue-500" />;
+      case 'verification':
+        return <Shield className="w-5 h-5 text-green-500" />;
+      case 'photo_approved':
+        return <Image className="w-5 h-5 text-green-500" />;
+      case 'photo_rejected':
+        return <Image className="w-5 h-5 text-red-500" />;
+      case 'welcome':
+        return <UserCheck className="w-5 h-5 text-pink-500" />;
+      case 'online':
+        return <UserPlus className="w-5 h-5 text-green-500" />;
       case 'admin':
       case 'promotion':
         return <Megaphone className="w-5 h-5 text-purple-500" />;
@@ -114,14 +127,42 @@ const NotificationsPage = ({ user }) => {
     }
     
     // Fallback navigation based on type
-    if (notification.type === 'match') {
-      navigate('/matches');
-    } else if (notification.type === 'like' || notification.type === 'superlike') {
-      navigate('/likes');
-    } else if (notification.type === 'message' && notification.data?.match_id) {
-      navigate(`/chat/${notification.data.match_id}`);
-    } else if (notification.type === 'profile_view' && notification.data?.viewer_id) {
-      navigate(`/profile/${notification.data.viewer_id}`);
+    switch (notification.type) {
+      case 'match':
+        navigate('/matches');
+        break;
+      case 'like':
+      case 'superlike':
+        navigate('/likes');
+        break;
+      case 'message':
+      case 'unread_reminder':
+        if (notification.data?.match_id) {
+          navigate(`/chat/${notification.data.match_id}`);
+        } else {
+          navigate('/matches');
+        }
+        break;
+      case 'profile_view':
+        if (notification.data?.viewer_id) {
+          navigate(`/profile/${notification.data.viewer_id}`);
+        } else {
+          navigate('/profile-viewers');
+        }
+        break;
+      case 'verification':
+      case 'photo_approved':
+      case 'photo_rejected':
+        navigate('/profile');
+        break;
+      case 'online':
+        navigate('/matches');
+        break;
+      case 'welcome':
+        navigate('/discover');
+        break;
+      default:
+        break;
     }
   };
 
@@ -185,7 +226,7 @@ const NotificationsPage = ({ user }) => {
           <div className="text-center py-12">
             <Bell className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-700">No notifications yet</h3>
-            <p className="text-gray-500">We'll notify you when something happens</p>
+            <p className="text-gray-500">{"We'll notify you when something happens"}</p>
           </div>
         ) : (
           <div className="space-y-3">

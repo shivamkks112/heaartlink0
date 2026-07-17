@@ -44,6 +44,13 @@ from onesignal_config import (
     send_match_notification_onesignal,
     send_message_notification_onesignal,
     send_like_notification_onesignal,
+    send_superlike_notification_onesignal,
+    send_profile_view_notification_onesignal,
+    send_welcome_notification_onesignal,
+    send_verification_notification_onesignal,
+    send_photo_approval_notification_onesignal,
+    send_online_status_notification_onesignal,
+    send_unread_reminder_notification_onesignal,
     send_admin_notification,
     set_user_external_id,
     add_user_tags,
@@ -607,10 +614,9 @@ async def _send_online_notification_to_matches(user_id: str):
         
         if matched_ids_for_push:
             try:
-                send_onesignal_to_users(
-                    matched_ids_for_push,
-                    f"🟢 {user_name} is online!",
-                    f"Your match {user_name} just came online. Say hi!"
+                send_online_status_notification_onesignal(
+                    user_ids=matched_ids_for_push,
+                    online_user_name=user_name
                 )
             except Exception as e:
                 logger.error(f"Online push notification failed: {e}")
@@ -674,6 +680,59 @@ async def _send_daily_engagement_notifications():
         logger.error(f"Daily engagement notification error: {e}")
 
 
+async def _send_unread_message_reminders():
+    """Send reminders to users with unread messages (runs every 2 hours)."""
+    try:
+        # Find users with unread messages who are NOT online
+        pipeline = [
+            {"$match": {"read": False}},
+            {"$group": {"_id": "$receiver_id", "count": {"$sum": 1}}},
+            {"$match": {"count": {"$gte": 1}}}
+        ]
+        unread_groups = await db.messages.aggregate(pipeline).to_list(None)
+        
+        if not unread_groups:
+            return
+        
+        for group in unread_groups:
+            user_id = group["_id"]
+            count = group["count"]
+            
+            # Skip users who are currently online
+            user = await db.users.find_one({"id": user_id}, {"_id": 0, "is_online": 1, "is_ai_profile": 1})
+            if not user or user.get("is_online") or user.get("is_ai_profile"):
+                continue
+            
+            # Check if we already sent a reminder in the last 4 hours
+            four_hours_ago = (datetime.now(timezone.utc) - timedelta(hours=4)).isoformat()
+            existing_reminder = await db.in_app_notifications.find_one({
+                "user_id": user_id,
+                "type": "unread_reminder",
+                "created_at": {"$gt": four_hours_ago}
+            })
+            if existing_reminder:
+                continue
+            
+            # Send unread reminder via OneSignal
+            try:
+                send_unread_reminder_notification_onesignal(user_id, count)
+            except Exception as e:
+                logger.error(f"Unread reminder push failed for {user_id}: {e}")
+            
+            # Store in-app notification
+            await create_in_app_notification(
+                user_id,
+                f"{count} unread messages",
+                "Your matches are waiting for your reply! Don't keep them waiting.",
+                "unread_reminder",
+                {"action": "open_matches", "route": "/matches"}
+            )
+        
+        logger.info(f"Sent unread reminders to {len(unread_groups)} users")
+    except Exception as e:
+        logger.error(f"Unread message reminder error: {e}")
+
+
 async def notification_scheduler():
     """Background task to send automated engagement notifications"""
     while True:
@@ -722,6 +781,9 @@ async def notification_scheduler():
                 
                 # Daily engagement notifications (run once per cycle)
                 await _send_daily_engagement_notifications()
+                
+                # Unread message reminders
+                await _send_unread_message_reminders()
         
         except Exception as e:
             logging.error(f"Notification scheduler error: {e}")
@@ -1372,14 +1434,16 @@ async def signup(request: Request, user_data: UserSignup):
         if not created_user:
             raise HTTPException(status_code=500, detail="User created but not found")
         
-        # Send notification - Profile pending approval
+        # Send welcome notification via in-app + OneSignal push
         try:
-            await send_user_notification(
+            await create_in_app_notification(
                 user_id=user.id,
-                title="Welcome to HeartLink! 🎉",
-                message="Your profile is being reviewed by our team. You'll be notified once approved. This usually takes 24-48 hours.",
-                notification_type="profile_pending"
+                title="Welcome to HeartLink!",
+                body="Your profile is being reviewed by our team. You'll be notified once approved. This usually takes 24-48 hours.",
+                notification_type="welcome",
+                data={"action": "open_discover", "route": "/discover"}
             )
+            send_welcome_notification_onesignal(user.id, sanitized_name)
         except Exception as notif_error:
             logger.warning(f"Failed to send signup notification: {notif_error}")
         
@@ -1686,14 +1750,16 @@ async def phone_signup(data: PhoneSignup):
     created_user = await db.users.find_one({"id": user_id})
     clean_user = serialize_user_for_response(created_user, exclude_password=True)
     
-    # Send notification - Profile pending approval
+    # Send welcome notification via in-app + OneSignal push
     try:
-        await send_user_notification(
+        await create_in_app_notification(
             user_id=user_id,
-            title="Welcome to HeartLink! 🎉",
-            message="Your profile is being reviewed by our team. You'll be notified once approved. This usually takes 24-48 hours.",
-            notification_type="profile_pending"
+            title="Welcome to HeartLink!",
+            body="Your profile is being reviewed by our team. You'll be notified once approved. This usually takes 24-48 hours.",
+            notification_type="welcome",
+            data={"action": "open_discover", "route": "/discover"}
         )
+        send_welcome_notification_onesignal(user_id, data.name)
     except Exception as notif_error:
         logger.warning(f"Failed to send phone signup notification: {notif_error}")
     
@@ -2826,12 +2892,27 @@ async def admin_verify_user(verification: AdminVerification):
             "timestamp": datetime.now(timezone.utc).isoformat()
         })
         
-        # Send push notification
+        # Send push notification via FCM (legacy)
         if user.get('fcm_token'):
             send_verification_notification(
                 token=user['fcm_token'],
                 status="approved"
             )
+        
+        # Send via OneSignal (primary)
+        try:
+            send_verification_notification_onesignal(user_id=verification.user_id, status="approved")
+        except Exception as e:
+            logger.error(f"OneSignal verification notification failed: {e}")
+        
+        # Store in-app notification
+        await create_in_app_notification(
+            verification.user_id,
+            "Profile Verified!",
+            "Congratulations! Your profile has been verified by admin.",
+            "verification",
+            {"status": "approved", "action": "open_profile", "route": "/profile"}
+        )
         
         return {"message": "User verified successfully"}
     
@@ -2858,12 +2939,31 @@ async def admin_verify_user(verification: AdminVerification):
             "timestamp": datetime.now(timezone.utc).isoformat()
         })
         
-        # Send push notification
+        # Send push notification via FCM (legacy)
         if user.get('fcm_token'):
             send_verification_notification(
                 token=user['fcm_token'],
                 status="rejected"
             )
+        
+        # Send via OneSignal (primary)
+        try:
+            send_verification_notification_onesignal(
+                user_id=verification.user_id, 
+                status="rejected",
+                reason=verification.reason or ""
+            )
+        except Exception as e:
+            logger.error(f"OneSignal rejection notification failed: {e}")
+        
+        # Store in-app notification
+        await create_in_app_notification(
+            verification.user_id,
+            "Profile Update Needed",
+            f"Your profile needs changes. {verification.reason}" if verification.reason else "Your profile verification was not approved. Please update your profile.",
+            "verification",
+            {"status": "rejected", "action": "open_profile", "route": "/profile"}
+        )
         
         return {"message": "User rejected"}
     
@@ -3266,11 +3366,10 @@ async def track_profile_view(user_id: str, viewer_id: str = None):
         
         # Send OneSignal push notification for profile view
         try:
-            send_onesignal_to_user(
-                user_id,
-                "👀 Profile Viewed!",
-                f"{viewer_name} viewed your profile. Check them out!",
-                {"type": "profile_view", "viewer_id": viewer_id, "action": "open_profile"}
+            send_profile_view_notification_onesignal(
+                user_id=user_id,
+                viewer_name=viewer_name,
+                viewer_id=viewer_id
             )
         except Exception as e:
             logger.error(f"Profile view push notification failed: {e}")
@@ -3460,10 +3559,16 @@ async def user_action(user_id: str, action: LikeAction):
                 compatibility_score=int(score)
             )
         
-        # Send push notification via OneSignal (primary)
+        # Send push notification via OneSignal (primary) - to BOTH users
         send_match_notification_onesignal(
             user_id=action.target_user_id,
-            matched_user_name=user1['name']
+            matched_user_name=user1['name'],
+            match_id=existing["id"]
+        )
+        send_match_notification_onesignal(
+            user_id=user_id,
+            matched_user_name=user2['name'],
+            match_id=existing["id"]
         )
         
         # Update badge counts for both users
@@ -3506,8 +3611,8 @@ async def user_action(user_id: str, action: LikeAction):
                     user_name=user1['name']
                 )
             
-            # Send push notification via OneSignal (primary)
-            send_like_notification_onesignal(
+            # Send push notification via OneSignal (primary) - dedicated superlike function
+            send_superlike_notification_onesignal(
                 user_id=action.target_user_id,
                 liker_name=user1['name']
             )
@@ -4248,15 +4353,27 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
             receiver = await db.users.find_one({"id": message_data["receiver_id"]})
             sender = await db.users.find_one({"id": user_id})
             
-            if receiver and receiver.get('fcm_token') and sender:
-                # Check if sender is muted by receiver
+            if receiver and sender:
                 muted_users = receiver.get('muted_users', [])
                 if user_id not in muted_users:
-                    send_message_notification(
-                        token=receiver['fcm_token'],
-                        sender_name=sender['name'],
-                        message_preview=message_data["content"]
-                    )
+                    # Send via FCM (legacy fallback)
+                    if receiver.get('fcm_token'):
+                        send_message_notification(
+                            token=receiver['fcm_token'],
+                            sender_name=sender['name'],
+                            message_preview=message_data["content"]
+                        )
+                    
+                    # Send via OneSignal (primary - reliable on Android)
+                    try:
+                        send_message_notification_onesignal(
+                            user_id=message_data["receiver_id"],
+                            sender_name=sender['name'],
+                            message_preview=message_data["content"],
+                            match_id=message_data.get("match_id", "")
+                        )
+                    except Exception as e:
+                        logger.error(f"OneSignal message notification failed: {e}")
             
             # AI Chatbot: If receiver is AI, generate auto-reply
             if receiver and receiver.get("is_ai_profile") and receiver.get("is_active_ai"):
@@ -5228,15 +5345,20 @@ async def admin_approve_profile(data: ProfileApprovalRequest):
             }}
         )
         
-        # Send notification to user via OneSignal
+        # Send push notification via OneSignal
         try:
-            send_onesignal_to_user(
-                user_id=data.user_id,
-                title="🎉 Profile Approved!",
-                message="Your profile has been approved. Start finding your match now!"
-            )
+            send_photo_approval_notification_onesignal(user_id=data.user_id, approved=True)
         except Exception as e:
             logger.error(f"Failed to send approval notification: {e}")
+        
+        # Store in-app notification
+        await create_in_app_notification(
+            data.user_id,
+            "Profile Approved!",
+            "Your profile has been approved. Start finding your match now!",
+            "photo_approved",
+            {"action": "open_discover", "route": "/discover"}
+        )
         
         invalidate_user_cache(data.user_id)
         return {"success": True, "message": "Profile approved successfully"}
@@ -5251,15 +5373,20 @@ async def admin_approve_profile(data: ProfileApprovalRequest):
             }}
         )
         
-        # Send notification to user via OneSignal
+        # Send push notification via OneSignal
         try:
-            send_onesignal_to_user(
-                user_id=data.user_id,
-                title="❌ Profile Not Approved",
-                message=f"Your profile needs changes: {data.reason}" if data.reason else "Please update your profile and try again."
-            )
+            send_photo_approval_notification_onesignal(user_id=data.user_id, approved=False)
         except Exception as e:
             logger.error(f"Failed to send rejection notification: {e}")
+        
+        # Store in-app notification
+        await create_in_app_notification(
+            data.user_id,
+            "Photo Not Approved",
+            f"Your profile needs changes: {data.reason}" if data.reason else "Please upload a clear face photo and try again.",
+            "photo_rejected",
+            {"action": "open_profile", "route": "/profile"}
+        )
         
         invalidate_user_cache(data.user_id)
         return {"success": True, "message": "Profile rejected", "reason": data.reason}
@@ -5279,13 +5406,16 @@ async def bulk_approve_profiles(user_ids: List[str]):
         }}
     )
     
-    # Send notifications to all approved users via OneSignal
+    # Send notifications to all approved users
     for user_id in user_ids:
         try:
-            send_onesignal_to_user(
-                user_id=user_id,
-                title="🎉 Profile Approved!",
-                message="Your profile has been approved. Start finding your match now!"
+            send_photo_approval_notification_onesignal(user_id=user_id, approved=True)
+            await create_in_app_notification(
+                user_id,
+                "Profile Approved!",
+                "Your profile has been approved. Start finding your match now!",
+                "photo_approved",
+                {"action": "open_discover", "route": "/discover"}
             )
         except Exception as e:
             logger.error(f"Failed to send bulk approval notification to {user_id}: {e}")
@@ -6941,6 +7071,38 @@ async def get_notification_stats():
         "total_sent": total,
         "by_type": {s["_id"]: s["count"] for s in stats_by_type},
         "recent": recent
+    }
+
+
+@api_router.get("/admin/notifications/delivery-log")
+async def get_notification_delivery_log(limit: int = 50, notification_type: str = ""):
+    """Get comprehensive notification delivery log for audit"""
+    query = {}
+    if notification_type:
+        query["type"] = notification_type
+    
+    logs = await db.notification_logs.find(
+        query, {"_id": 0}
+    ).sort("sent_at", -1).limit(limit).to_list(None)
+    
+    # Get summary stats
+    total_logs = await db.notification_logs.count_documents({})
+    total_in_app = await db.in_app_notifications.count_documents({})
+    
+    # Count by notification type from in_app_notifications
+    type_pipeline = [
+        {"$group": {"_id": "$type", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}}
+    ]
+    type_stats = await db.in_app_notifications.aggregate(type_pipeline).to_list(None)
+    
+    return {
+        "logs": logs,
+        "summary": {
+            "total_push_logs": total_logs,
+            "total_in_app_notifications": total_in_app,
+            "by_type": {s["_id"]: s["count"] for s in type_stats}
+        }
     }
 
 

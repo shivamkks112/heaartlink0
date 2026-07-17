@@ -27,12 +27,30 @@ export const initOneSignal = async (userId) => {
             user_id: userId,
             onesignal_player_id: subscriptionId
           });
-          console.log('OneSignal: Registered with backend');
+          console.log('OneSignal: Registered with backend, subscription:', subscriptionId);
         }
       } catch (e) {
         console.log('OneSignal: Backend registration skipped:', e.message);
       }
     }
+
+    // Set notification click handler for deep links
+    OneSignal.Notifications.addEventListener('click', (event) => {
+      console.log('OneSignal notification clicked:', event);
+      const data = event.notification?.additionalData || {};
+      
+      if (data.route) {
+        window.location.href = data.route;
+      } else if (data.type === 'message' && data.match_id) {
+        window.location.href = `/chat/${data.match_id}`;
+      } else if (data.type === 'like' || data.type === 'superlike') {
+        window.location.href = '/likes';
+      } else if (data.type === 'match' && data.match_id) {
+        window.location.href = `/chat/${data.match_id}`;
+      } else if (data.type === 'profile_view' && data.viewer_id) {
+        window.location.href = `/profile/${data.viewer_id}`;
+      }
+    });
 
     console.log('OneSignal initialized successfully');
   } catch (error) {

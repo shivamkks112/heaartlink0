@@ -1,0 +1,34 @@
+{
+  "summary": "Iteration 8 - Notification System Audit. Backend: 15/15 pytest tests passed covering all notification endpoints from the review request (health, login, onesignal/status, daily-notification-status, notifications/templates, notifications/delivery-log, notifications/stats, GET/mark-read notifications, admin/onesignal/send target=all, admin/schedule-notification, GET scheduled-notifications, trigger-daily-notification, approve-profile reachability). Frontend: admin login redirects to /discover; /admin > Notifications tab shows OneSignal Ready badge and all four sub-tabs (Send Now, Templates=13, Schedule, History) plus Quick Templates chips, Title/Message fields, target dropdown, and Test button. /notifications page renders in-app list with icons (Profile Viewed shown). OneSignal Android channel id 'heartlink_notifications' is included as base field in payload builder in onesignal_config.py so it applies to all send functions.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Global (web preview)", "issues": ["OneSignal web-push console errors ('App not configured for web push') and Capacitor PushNotifications 'not implemented on web' errors log on every page load. Harmless (Android-only target) but noisy - consider gating init() to Capacitor.isNativePlatform()."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_notifications_audit.py",
+    "/app/test_reports/pytest/notifications_audit.xml"
+  ],
+  "action_items": [
+    "Optional: gate OneSignal.init() and Capacitor PushNotifications.register() behind Capacitor.isNativePlatform() to silence web preview console errors.",
+    "Real device push delivery (OneSignal + Android channel heartlink_notifications) can only be validated on an actual Android build - suggest a manual test on device."
+  ],
+  "critical_code_review_comments": [
+    "server.py is now 7512 lines - continues to grow; strongly recommend splitting into routers (notifications, admin, matches, auth) for maintainability.",
+    "onesignal_config.py sets android_channel_id once in the base payload builder (line 41) - good centralized pattern, all send helpers inherit it.",
+    "delivery-log endpoint returns logs+summary with by_type breakdown as required.",
+    "OneSignalNotificationRequest uses 'message' field (not 'body') while ScheduledNotificationRequest uses 'body' - inconsistent field naming across notification payloads; consider standardizing.",
+    "/api/admin/onesignal/send always returns 200 even when OneSignal call has success=false - frontend should surface OneSignal error messages from the response body."
+  ],
+  "updated_files": ["/app/backend/tests/test_notifications_audit.py (new)"],
+  "success_rate": {"backend": "100% (15/15)", "frontend": "100% (all critical flows verified)"},
+  "test_credentials": "review@heartlink.co.in / HeartLink@2026 verified working.",
+  "seed_data_creation": "None - one scheduled notification created and immediately cancelled inside test_schedule_notification.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Reusable notification suite at /app/backend/tests/test_notifications_audit.py. All 15 tests pass in ~2s. The admin Notifications tab is under /admin route > 'Notifications' tab; frontend testids on login page: login-email-input, login-password-input, login-submit-btn. Known web-only console noise from OneSignal/Capacitor is not a bug. Push delivery to real devices was NOT tested (requires Android build).",
+  "rca of the issue": "No blocking issues found. All 19 items in the review_request features_or_bugs_to_test list verified successfully via pytest (15 endpoint tests) + Playwright UI walkthrough (NotificationsPage, Admin NotificationManager tabs). android_channel_id verified present in base OneSignal payload."
+}
