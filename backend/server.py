@@ -6874,9 +6874,7 @@ async def register_onesignal_user(data: OneSignalUserLinkRequest):
 @api_router.get("/admin/onesignal/status")
 async def get_onesignal_status():
     """Check OneSignal configuration status"""
-    import os
-    app_id = os.environ.get('ONESIGNAL_APP_ID', '')
-    api_key = os.environ.get('ONESIGNAL_API_KEY', '')
+    from onesignal_config import ONESIGNAL_APP_ID as OS_APP_ID, ONESIGNAL_API_KEY as OS_API_KEY
     
     # Count users with OneSignal IDs
     total = await db.users.count_documents({})
@@ -6885,14 +6883,14 @@ async def get_onesignal_status():
     })
     
     return {
-        "configured": bool(app_id and api_key),
-        "app_id_set": bool(app_id),
-        "api_key_set": bool(api_key),
+        "configured": bool(OS_APP_ID and OS_API_KEY),
+        "app_id": OS_APP_ID[:8] + "..." if OS_APP_ID else "NOT SET",
+        "api_key_set": bool(OS_API_KEY),
         "total_users": total,
         "users_with_onesignal": with_onesignal,
         "users_without_onesignal": total - with_onesignal,
-        "can_send_notifications": bool(app_id and api_key),
-        "message": "OneSignal configured and ready!" if (app_id and api_key) else "Please set ONESIGNAL_APP_ID and ONESIGNAL_API_KEY in .env"
+        "can_send_notifications": bool(OS_APP_ID and OS_API_KEY),
+        "message": "OneSignal configured and ready!" if (OS_APP_ID and OS_API_KEY) else "OneSignal credentials missing"
     }
 
 @api_router.post("/admin/onesignal/test")

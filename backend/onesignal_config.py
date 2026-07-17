@@ -13,9 +13,21 @@ load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
 
 logger = logging.getLogger(__name__)
 
-# OneSignal Configuration
-ONESIGNAL_APP_ID = os.environ.get('ONESIGNAL_APP_ID', '')
-ONESIGNAL_API_KEY = os.environ.get('ONESIGNAL_API_KEY', '')
+# OneSignal Configuration - Use HEARTLINK_ prefix to avoid platform env var overrides
+# The Emergent platform injects ONESIGNAL_APP_ID with the deployment slug (wrong value)
+# So we use our own prefixed env vars, falling back to the correct hardcoded values
+_CORRECT_APP_ID = "ad0b57dc-908b-4d84-8654-d6b5dd50684e"
+_CORRECT_API_KEY = "os_v2_app_vufvpxeqrngyjbsu22252udij36lktsi62pewymwcpyvhm6nx76t2qhhygnapw26slvdo4t6pvtt57k4bc2zcaurmrydjfmgomph7wa"
+
+ONESIGNAL_APP_ID = os.environ.get('HEARTLINK_ONESIGNAL_APP_ID', _CORRECT_APP_ID)
+ONESIGNAL_API_KEY = os.environ.get('HEARTLINK_ONESIGNAL_API_KEY', _CORRECT_API_KEY)
+
+# Validate App ID is a UUID (not a slug like "trust-based-deploy")
+import re
+if not re.match(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', ONESIGNAL_APP_ID):
+    logger.warning(f"Invalid ONESIGNAL_APP_ID '{ONESIGNAL_APP_ID}', using hardcoded correct value")
+    ONESIGNAL_APP_ID = _CORRECT_APP_ID
+
 ONESIGNAL_API_URL = "https://onesignal.com/api/v1"
 
 # Android Notification Channel ID - only used by device-side (Capacitor LocalNotifications)
