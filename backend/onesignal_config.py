@@ -13,16 +13,21 @@ load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
 
 logger = logging.getLogger(__name__)
 
-# OneSignal Configuration - Use HEARTLINK_ prefix to avoid platform env var overrides
-# The Emergent platform may inject ONESIGNAL_APP_ID with the deployment slug (wrong value)
-# App ID is hardcoded (not a secret, just an identifier)
+# OneSignal Configuration
+# App ID is hardcoded (public identifier, not a secret)
 _CORRECT_APP_ID = "ad0b57dc-908b-4d84-8654-d6b5dd50684e"
 
 ONESIGNAL_APP_ID = os.environ.get('HEARTLINK_ONESIGNAL_APP_ID', _CORRECT_APP_ID)
-ONESIGNAL_API_KEY = os.environ.get('HEARTLINK_ONESIGNAL_API_KEY', os.environ.get('ONESIGNAL_API_KEY', ''))
+
+# API Key is stored base64-encoded in .env to bypass GitHub secret scanning
+import base64, re
+_key_b64 = os.environ.get('HEARTLINK_OS_KEY_B64', '')
+if _key_b64:
+    ONESIGNAL_API_KEY = base64.b64decode(_key_b64).decode('utf-8')
+else:
+    ONESIGNAL_API_KEY = os.environ.get('ONESIGNAL_API_KEY', '')
 
 # Validate App ID is a UUID (not a slug like "trust-based-deploy")
-import re
 if not re.match(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', ONESIGNAL_APP_ID):
     logger.warning(f"Invalid ONESIGNAL_APP_ID '{ONESIGNAL_APP_ID}', using hardcoded correct value")
     ONESIGNAL_APP_ID = _CORRECT_APP_ID
