@@ -63,7 +63,7 @@ const NotificationManager = () => {
       console.error('Failed to fetch OneSignal status', e);
       setOnesignalStatus({
         configured: false,
-        message: 'OneSignal not configured'
+        message: 'FCM not configured'
       });
     }
   };
@@ -158,7 +158,7 @@ const NotificationManager = () => {
         toast.error(res.data.error || 'Failed to send');
       }
     } catch (e) {
-      console.error('OneSignal send error:', e);
+      console.error('Push send error:', e);
       toast.error(e.response?.data?.detail || 'Notification send failed');
     } finally {
       setSending(false);
@@ -318,7 +318,7 @@ const NotificationManager = () => {
           </div>
           <div>
             <h2 className="text-xl font-bold text-gray-900">Push Notifications</h2>
-            <p className="text-sm text-gray-500">OneSignal Integration</p>
+            <p className="text-sm text-gray-500">FCM Push Notifications</p>
           </div>
         </div>
         <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>
@@ -340,7 +340,7 @@ const NotificationManager = () => {
                 <CheckCircle className="w-5 h-5 text-green-500 mt-0.5" />
                 <div className="flex-1">
                   <p className="font-medium text-green-800">
-                    OneSignal Ready! ✅
+                    FCM Push Ready! ✅
                   </p>
                   <p className="text-sm text-green-600">
                     {onesignalStatus.users_with_onesignal || 0} users can receive notifications
@@ -359,7 +359,7 @@ const NotificationManager = () => {
                 <AlertCircle className="w-5 h-5 text-yellow-500 mt-0.5" />
                 <div>
                   <p className="font-medium text-yellow-800">
-                    OneSignal Not Configured
+                    FCM Not Configured
                   </p>
                   <p className="text-sm text-yellow-600">
                     {onesignalStatus.message || 'Please set ONESIGNAL_APP_ID and ONESIGNAL_API_KEY'}

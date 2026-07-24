@@ -172,10 +172,6 @@ function App() {
         import('@/services/pushNotifications').then(({ initPushNotifications }) => {
           setTimeout(() => initPushNotifications(userData.id), 2000);
         });
-        // Initialize OneSignal for push notifications
-        import('@/services/oneSignalService').then(({ initOneSignal }) => {
-          setTimeout(() => initOneSignal(userData.id), 3000);
-        });
         // Connect WebSocket for real-time updates
         import('@/services/WebSocketService').then((mod) => {
           mod.default.connect(userData.id);
@@ -210,9 +206,9 @@ function App() {
   const handleLogin = (userData) => {
     setUser(userData);
     localStorage.setItem('user', JSON.stringify(userData));
-    // Initialize OneSignal on fresh login
-    import('@/services/oneSignalService').then(({ initOneSignal }) => {
-      initOneSignal(userData.id);
+    // Initialize FCM push on fresh login
+    import('@/services/pushNotifications').then(({ initPushNotifications }) => {
+      initPushNotifications(userData.id);
     });
     // Connect WebSocket
     import('@/services/WebSocketService').then((mod) => mod.default.connect(userData.id));
@@ -229,7 +225,7 @@ function App() {
 
   const handleLogout = () => {
     // Disconnect services
-    import('@/services/oneSignalService').then(({ logoutOneSignal }) => logoutOneSignal());
+    import('@/services/pushNotifications').then(({ removePushNotifications }) => removePushNotifications());
     import('@/services/WebSocketService').then((mod) => mod.default.disconnect());
     setUser(null);
     localStorage.removeItem('user');

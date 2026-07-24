@@ -35,31 +35,8 @@ from firebase_config import (
     send_inactive_user_notification
 )
 
-# Import OneSignal for push notifications (more reliable than FCM)
-from onesignal_config import (
-    send_onesignal_notification,
-    send_notification_to_user as send_onesignal_to_user,
-    send_notification_to_users as send_onesignal_to_users,
-    send_notification_to_all as send_onesignal_to_all,
-    send_match_notification_onesignal,
-    send_message_notification_onesignal,
-    send_like_notification_onesignal,
-    send_superlike_notification_onesignal,
-    send_profile_view_notification_onesignal,
-    send_welcome_notification_onesignal,
-    send_verification_notification_onesignal,
-    send_photo_approval_notification_onesignal,
-    send_online_status_notification_onesignal,
-    send_unread_reminder_notification_onesignal,
-    send_admin_notification,
-    set_user_external_id,
-    add_user_tags,
-    send_engagement_notification,
-    send_bulk_engagement_notification,
-    send_custom_engagement_notification,
-    get_engagement_templates,
-    ENGAGEMENT_TEMPLATES
-)
+# Import FCM service — single source of truth for all push notifications
+import fcm_service
 
 # Import AI Chatbot Module
 from ai_chatbot import (
@@ -513,26 +490,9 @@ async def keep_ai_profiles_online(db_ref):
 # === AUTOMATIC NOTIFICATION HELPERS ===
 
 async def _send_push_to_user(user_id: str, title: str, message: str, data: dict = None):
-    """
-    Central helper to send push notification to a specific user.
-    Automatically looks up OneSignal player_id for reliable delivery.
-    Falls back to external_id targeting if player_id not available.
-    """
+    """Central helper — sends push via FCM service."""
     try:
-        user = await db.users.find_one(
-            {"id": user_id},
-            {"_id": 0, "onesignal_player_id": 1}
-        )
-        player_id = user.get("onesignal_player_id", "") if user else ""
-        
-        result = send_onesignal_to_user(
-            user_id=user_id,
-            title=title,
-            message=message,
-            data=data,
-            player_id=player_id
-        )
-        
+        result = await fcm_service.send_to_user(db, user_id, title, message, data)
         if not result.get("success"):
             logger.warning(f"Push to {user_id} failed: {result.get('error')}")
         return result
@@ -544,11 +504,11 @@ async def _send_push_to_user(user_id: str, title: str, message: str, data: dict 
 async def _notify_new_user_joined(user_id: str, name: str, gender: str, location: str):
     """Notify all users when a new user joins."""
     try:
-        await asyncio.sleep(5)  # Small delay to let signup complete
+        await asyncio.sleep(5)
         gender_label = "ladki" if gender.lower() == "female" else "ladka"
         city = location.split(",")[0].strip() if location else "India"
-        send_onesignal_to_all(
-            f"New {gender_label} joined! 🎉",
+        await fcm_service.send_to_all(db,
+            f"New {gender_label} joined!",
             f"{name} from {city} just joined HeartLink. Check out their profile!"
         )
         logger.info(f"Sent new user notification for {name}")
@@ -575,7 +535,7 @@ async def _notify_matches_user_online(user_id: str, name: str):
                 matched_ids.append(other_id)
 
         if matched_ids:
-            send_onesignal_to_users(
+            await fcm_service.send_to_users(db, 
                 matched_ids,
                 f"{name} is online! 💬",
                 f"Your match {name} just came online. Say hi!"
@@ -643,10 +603,7 @@ async def _send_online_notification_to_matches(user_id: str):
         
         if matched_ids_for_push:
             try:
-                send_online_status_notification_onesignal(
-                    user_ids=matched_ids_for_push,
-                    online_user_name=user_name
-                )
+                await fcm_service.notify_online_status(db, matched_ids_for_push, user_name)
             except Exception as e:
                 logger.error(f"Online push notification failed: {e}")
         
@@ -677,7 +634,7 @@ async def _send_daily_engagement_notifications():
 
         if active_users:
             user_ids = [u["id"] for u in active_users]
-            send_onesignal_to_users(
+            await fcm_service.send_to_users(db, 
                 user_ids,
                 "New matches waiting for you! 💝",
                 "Aaj ke new profiles dekho - shayad tumhara perfect match mil jaye!"
@@ -698,7 +655,7 @@ async def _send_daily_engagement_notifications():
 
         if inactive_users:
             user_ids = [u["id"] for u in inactive_users]
-            send_onesignal_to_users(
+            await fcm_service.send_to_users(db, 
                 user_ids,
                 "Tumhe miss kar rahe hain! 🥺",
                 "Bahut din ho gaye tumhare bina. Naye log join ho rahe hain, wapas aao!"
@@ -744,7 +701,7 @@ async def _send_unread_message_reminders():
             
             # Send unread reminder via OneSignal
             try:
-                send_unread_reminder_notification_onesignal(user_id, count)
+                await fcm_service.notify_unread_reminder(db, user_id, count)
             except Exception as e:
                 logger.error(f"Unread reminder push failed for {user_id}: {e}")
             
@@ -785,7 +742,7 @@ async def notification_scheduler():
                 
                 if inactive_1day:
                     user_ids = [u["id"] for u in inactive_1day]
-                    send_bulk_engagement_notification(user_ids, "inactive_1day")
+                    await fcm_service.send_to_users(db, user_ids, "Someone's waiting!", "Don't miss potential matches!")
                     logging.info(f"📬 Sent 1-day inactive notification to {len(user_ids)} users")
                 
                 # Send to users inactive for 3 days
@@ -797,12 +754,12 @@ async def notification_scheduler():
                 
                 if inactive_3day:
                     user_ids = [u["id"] for u in inactive_3day]
-                    send_bulk_engagement_notification(user_ids, "inactive_3days")
+                    await fcm_service.send_to_users(db, user_ids, "We miss you!", "5+ people viewed your profile. Come back!")
                     logging.info(f"📬 Sent 3-day inactive notification to {len(user_ids)} users")
                 
                 # Weekend special (Saturday/Sunday)
                 if now.weekday() in [5, 6] and current_hour == 10:  # 10 UTC = 3:30 PM IST
-                    send_onesignal_to_all(
+                    await fcm_service.send_to_all(db, 
                         "🎉 Weekend Special!",
                         "More people are online on weekends. Perfect time to find your match!"
                     )
@@ -1463,7 +1420,7 @@ async def signup(request: Request, user_data: UserSignup):
         if not created_user:
             raise HTTPException(status_code=500, detail="User created but not found")
         
-        # Send welcome notification via in-app + OneSignal push
+        # Send welcome notification via in-app + FCM push
         try:
             await create_in_app_notification(
                 user_id=user.id,
@@ -1472,7 +1429,7 @@ async def signup(request: Request, user_data: UserSignup):
                 notification_type="welcome",
                 data={"action": "open_discover", "route": "/discover"}
             )
-            send_welcome_notification_onesignal(user.id, sanitized_name)
+            await fcm_service.notify_welcome(db, user.id, sanitized_name)
         except Exception as notif_error:
             logger.warning(f"Failed to send signup notification: {notif_error}")
         
@@ -1779,7 +1736,7 @@ async def phone_signup(data: PhoneSignup):
     created_user = await db.users.find_one({"id": user_id})
     clean_user = serialize_user_for_response(created_user, exclude_password=True)
     
-    # Send welcome notification via in-app + OneSignal push
+    # Send welcome notification via in-app + FCM push
     try:
         await create_in_app_notification(
             user_id=user_id,
@@ -1788,7 +1745,7 @@ async def phone_signup(data: PhoneSignup):
             notification_type="welcome",
             data={"action": "open_discover", "route": "/discover"}
         )
-        send_welcome_notification_onesignal(user_id, data.name)
+        await fcm_service.notify_welcome(db, user_id, data.name)
     except Exception as notif_error:
         logger.warning(f"Failed to send phone signup notification: {notif_error}")
     
@@ -2745,7 +2702,7 @@ async def send_screenshot_alert(match_id: str, alert: ScreenshotAlert):
         })
         
         # Also send push notification
-        send_onesignal_to_user(
+        await fcm_service.send_to_user(db, 
             other_user_id,
             "📸 Screenshot Detected!",
             f"{screenshot_user.get('name', 'Someone')} took a screenshot of your chat",
@@ -2930,7 +2887,7 @@ async def admin_verify_user(verification: AdminVerification):
         
         # Send via OneSignal (primary)
         try:
-            send_verification_notification_onesignal(user_id=verification.user_id, status="approved")
+            await fcm_service.notify_verification(db, verification.user_id, "approved")
         except Exception as e:
             logger.error(f"OneSignal verification notification failed: {e}")
         
@@ -2977,11 +2934,7 @@ async def admin_verify_user(verification: AdminVerification):
         
         # Send via OneSignal (primary)
         try:
-            send_verification_notification_onesignal(
-                user_id=verification.user_id, 
-                status="rejected",
-                reason=verification.reason or ""
-            )
+            await fcm_service.notify_verification(db, verification.user_id, "rejected", verification.reason or "")
         except Exception as e:
             logger.error(f"OneSignal rejection notification failed: {e}")
         
@@ -3395,11 +3348,7 @@ async def track_profile_view(user_id: str, viewer_id: str = None):
         
         # Send OneSignal push notification for profile view
         try:
-            send_profile_view_notification_onesignal(
-                user_id=user_id,
-                viewer_name=viewer_name,
-                viewer_id=viewer_id
-            )
+            await fcm_service.notify_profile_view(db, user_id, viewer_name, viewer_id)
         except Exception as e:
             logger.error(f"Profile view push notification failed: {e}")
         
@@ -3589,16 +3538,8 @@ async def user_action(user_id: str, action: LikeAction):
             )
         
         # Send push notification via OneSignal (primary) - to BOTH users
-        send_match_notification_onesignal(
-            user_id=action.target_user_id,
-            matched_user_name=user1['name'],
-            match_id=existing["id"]
-        )
-        send_match_notification_onesignal(
-            user_id=user_id,
-            matched_user_name=user2['name'],
-            match_id=existing["id"]
-        )
+        await fcm_service.notify_new_match(db, action.target_user_id, user1['name'], existing["id"])
+        await fcm_service.notify_new_match(db, user_id, user2['name'], existing["id"])
         
         # Update badge counts for both users
         asyncio.create_task(manager.send_badge_update(action.target_user_id))
@@ -3641,10 +3582,7 @@ async def user_action(user_id: str, action: LikeAction):
                 )
             
             # Send push notification via OneSignal (primary) - dedicated superlike function
-            send_superlike_notification_onesignal(
-                user_id=action.target_user_id,
-                liker_name=user1['name']
-            )
+            await fcm_service.notify_superlike(db, action.target_user_id, user1['name'])
             
             # Store in-app notification for superlike
             await create_in_app_notification(
@@ -3679,10 +3617,7 @@ async def user_action(user_id: str, action: LikeAction):
                 )
             
             # Send push notification via OneSignal (primary)
-            send_like_notification_onesignal(
-                user_id=action.target_user_id,
-                liker_name=user1['name']
-            )
+            await fcm_service.notify_new_like(db, action.target_user_id, user1['name'])
         
         # Update badge count for target user
         asyncio.create_task(manager.send_badge_update(action.target_user_id))
@@ -4394,16 +4329,17 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
                             message_preview=message_data["content"]
                         )
                     
-                    # Send via OneSignal (primary - reliable on Android)
+                    # Send via FCM (primary)
                     try:
-                        send_message_notification_onesignal(
-                            user_id=message_data["receiver_id"],
+                        await fcm_service.notify_new_message(
+                            db,
+                            receiver_id=message_data["receiver_id"],
                             sender_name=sender['name'],
-                            message_preview=message_data["content"],
+                            preview=message_data["content"],
                             match_id=message_data.get("match_id", "")
                         )
                     except Exception as e:
-                        logger.error(f"OneSignal message notification failed: {e}")
+                        logger.error(f"FCM message notification failed: {e}")
             
             # AI Chatbot: If receiver is AI, generate auto-reply
             if receiver and receiver.get("is_ai_profile") and receiver.get("is_active_ai"):
@@ -4441,11 +4377,8 @@ class FCMTokenRequest(BaseModel):
 
 @api_router.post("/fcm/register-token")
 async def register_fcm_token(request: FCMTokenRequest):
-    """Register or update FCM token for a user - also registers with OneSignal"""
+    """Register or update FCM token for a user."""
     try:
-        # Get user name for OneSignal tags
-        user = await db.users.find_one({"id": request.user_id}, {"_id": 0, "name": 1, "onesignal_player_id": 1})
-        
         result = await db.users.update_one(
             {"id": request.user_id},
             {"$set": {"fcm_token": request.fcm_token}}
@@ -4454,32 +4387,8 @@ async def register_fcm_token(request: FCMTokenRequest):
         if result.modified_count == 0 and result.matched_count == 0:
             raise HTTPException(status_code=404, detail="User not found")
         
-        # Also register device with OneSignal (for push notification targeting)
-        from onesignal_config import register_device_with_onesignal, update_player_tags
-        
-        existing_player_id = user.get("onesignal_player_id") if user else None
-        
-        if existing_player_id:
-            # Update existing player's FCM token and tags
-            update_player_tags(existing_player_id, {
-                "user_id": request.user_id,
-                "name": user.get("name", "") if user else ""
-            })
-        else:
-            # Register new device with OneSignal
-            os_result = register_device_with_onesignal(
-                fcm_token=request.fcm_token,
-                user_id=request.user_id,
-                user_name=user.get("name", "") if user else ""
-            )
-            if os_result.get("success") and os_result.get("player_id"):
-                await db.users.update_one(
-                    {"id": request.user_id},
-                    {"$set": {"onesignal_player_id": os_result["player_id"]}}
-                )
-                logger.info(f"OneSignal player registered for user {request.user_id}: {os_result['player_id']}")
-        
-        return {"success": True, "message": "FCM token registered successfully"}
+        logger.info(f"FCM token registered for user {request.user_id}")
+        return {"success": True, "message": "FCM token registered"}
     except HTTPException:
         raise
     except Exception as e:
@@ -5231,7 +5140,7 @@ async def admin_verify_selfie(data: VerifySelfieRequest):
         
         # Send notification via OneSignal
         try:
-            send_onesignal_to_user(
+            await fcm_service.send_to_user(db, 
                 user_id=data.user_id,
                 title="✅ Verification Approved!",
                 message="Your profile is now verified. You'll get a blue badge!"
@@ -5313,7 +5222,7 @@ async def admin_request_reverify(data: ReVerifyRequest):
     
     # Send notification to user
     try:
-        send_onesignal_to_user(
+        await fcm_service.send_to_user(db, 
             user_id=data.user_id,
             title="🔄 Re-verification Required",
             message=f"Please verify your profile again. {data.reason}" if data.reason else "Please upload a new selfie for verification."
@@ -5407,7 +5316,7 @@ async def admin_approve_profile(data: ProfileApprovalRequest):
         
         # Send push notification via OneSignal
         try:
-            send_photo_approval_notification_onesignal(user_id=data.user_id, approved=True)
+            await fcm_service.notify_photo_approval(db, data.user_id, True)
         except Exception as e:
             logger.error(f"Failed to send approval notification: {e}")
         
@@ -5435,7 +5344,7 @@ async def admin_approve_profile(data: ProfileApprovalRequest):
         
         # Send push notification via OneSignal
         try:
-            send_photo_approval_notification_onesignal(user_id=data.user_id, approved=False)
+            await fcm_service.notify_photo_approval(db, data.user_id, False)
         except Exception as e:
             logger.error(f"Failed to send rejection notification: {e}")
         
@@ -5469,7 +5378,7 @@ async def bulk_approve_profiles(user_ids: List[str]):
     # Send notifications to all approved users
     for user_id in user_ids:
         try:
-            send_photo_approval_notification_onesignal(user_id=user_id, approved=True)
+            await fcm_service.notify_photo_approval(db, user_id, True)
             await create_in_app_notification(
                 user_id,
                 "Profile Approved!",
@@ -6007,7 +5916,7 @@ async def get_all_notification_templates():
     """Get all notification templates (pre-defined + custom) in array format"""
     # Convert engagement templates to array format
     engagement_templates = []
-    for key, value in ENGAGEMENT_TEMPLATES.items():
+    for key, value in fcm_service.ENGAGEMENT_TEMPLATES.items():
         engagement_templates.append({
             "id": key,
             "title": value["title"],
@@ -6788,13 +6697,13 @@ async def scheduled_notification_processor():
                     message = notif.get("body", "")
                     
                     if target == "all":
-                        result = send_onesignal_to_all(title, message)
+                        result = await fcm_service.send_to_all(db, title, message)
                     elif target in ["male", "female"]:
                         query = {"gender": {"$regex": f"^{target}$", "$options": "i"}}
                         users = await db.users.find(query, {"id": 1}).to_list(None)
                         user_ids = [u["id"] for u in users]
                         if user_ids:
-                            result = send_onesignal_to_users(user_ids, title, message)
+                            result = await fcm_service.send_to_users(db, user_ids, title, message)
                         else:
                             result = {"success": False, "error": f"No {target} users found"}
                     elif target == "inactive":
@@ -6803,7 +6712,7 @@ async def scheduled_notification_processor():
                         users = await db.users.find(query, {"id": 1}).to_list(None)
                         user_ids = [u["id"] for u in users]
                         if user_ids:
-                            result = send_onesignal_to_users(user_ids, title, message)
+                            result = await fcm_service.send_to_users(db, user_ids, title, message)
                         else:
                             result = {"success": False, "error": "No inactive users found"}
                     else:
@@ -6848,164 +6757,76 @@ async def scheduled_notification_processor():
             logger.error(f"Scheduled notification processor error: {e}")
             await asyncio.sleep(60)
 
-# ==================== ONESIGNAL NOTIFICATION APIS ====================
+# ==================== PUSH NOTIFICATION APIS (FCM Only) ====================
 
-class OneSignalNotificationRequest(BaseModel):
+class PushNotificationRequest(BaseModel):
     title: str
     message: str
-    target: str = "all"  # all, user_ids, male, female
+    target: str = "all"
     user_ids: Optional[List[str]] = None
-    notification_data: Optional[Dict[str, Any]] = None  # Additional data for click handling
 
-class OneSignalUserLinkRequest(BaseModel):
-    user_id: str  # Your app's user ID
-    onesignal_player_id: str  # OneSignal's player/subscription ID
-
-@api_router.post("/admin/onesignal/send")
-async def send_onesignal_notification_api(data: OneSignalNotificationRequest):
-    """
-    Send push notification via OneSignal (Admin Panel)
-    Target options: all, user_ids, male, female, inactive
-    """
-    if data.target == "all":
-        result = send_onesignal_to_all(data.title, data.message)
-    elif data.target == "user_ids" and data.user_ids:
-        result = send_onesignal_to_users(data.user_ids, data.title, data.message)
-    elif data.target in ["male", "female"]:
-        # Get users by gender
-        query = {"gender": {"$regex": f"^{data.target}$", "$options": "i"}}
-        users = await db.users.find(query, {"id": 1}).to_list(None)
-        user_ids = [u["id"] for u in users]
-        if user_ids:
-            result = send_onesignal_to_users(user_ids, data.title, data.message)
-        else:
-            result = {"success": False, "error": f"No {data.target} users found"}
-    elif data.target == "inactive":
-        # Get users inactive for 7+ days
-        week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
-        query = {"last_active": {"$lt": week_ago}}
-        users = await db.users.find(query, {"id": 1}).to_list(None)
-        user_ids = [u["id"] for u in users]
-        if user_ids:
-            result = send_onesignal_to_users(user_ids, data.title, data.message)
-        else:
-            result = {"success": False, "error": "No inactive users found"}
-    else:
-        result = {"success": False, "error": "Invalid target"}
+@api_router.post("/admin/push/send")
+async def send_push_notification_api(data: PushNotificationRequest):
+    """Send push notification via FCM (Admin Panel)."""
+    result = await fcm_service.admin_broadcast(db, data.title, data.message, data.target)
+    if data.target == "user_ids" and data.user_ids:
+        result = await fcm_service.send_to_users(db, data.user_ids, data.title, data.message)
     
-    # Log notification
     await db.notification_logs.insert_one({
         "id": str(uuid.uuid4()),
         "title": data.title,
         "body": data.message,
         "target": data.target,
-        "provider": "onesignal",
-        "result": result,
+        "provider": "fcm",
+        "result": {k: v for k, v in result.items() if k != "stale_tokens"},
         "sent_at": datetime.now(timezone.utc).isoformat()
     })
-    
     return result
+
+# Keep old endpoint path for backward compatibility with frontend
+@api_router.post("/admin/onesignal/send")
+async def send_push_compat(data: PushNotificationRequest):
+    """Backward-compatible endpoint — routes to FCM."""
+    return await send_push_notification_api(data)
+
+@api_router.post("/admin/push/send-to-user/{user_id}")
+async def send_push_to_single_user(user_id: str, title: str = "HeartLink", message: str = "Test"):
+    """Send push to a specific user via FCM."""
+    return await fcm_service.send_to_user(db, user_id, title, message)
 
 @api_router.post("/admin/onesignal/send-to-user/{user_id}")
-async def send_onesignal_to_single_user(user_id: str, title: str, message: str):
-    """Send notification to a specific user via OneSignal (uses player_id if available)"""
-    result = await _send_push_to_user(user_id, title, message)
-    return result
+async def send_push_to_single_user_compat(user_id: str, title: str = "HeartLink", message: str = "Test"):
+    """Backward-compatible endpoint."""
+    return await send_push_to_single_user(user_id, title, message)
 
-
-@api_router.post("/admin/onesignal/migrate-fcm-users")
-async def migrate_fcm_users_to_onesignal():
-    """
-    One-time migration: Register all users with FCM tokens in OneSignal.
-    This creates player_id mappings so targeted notifications work.
-    """
-    from onesignal_config import register_device_with_onesignal
-    
-    users = await db.users.find(
-        {
-            "fcm_token": {"$exists": True, "$ne": None, "$ne": ""},
-            "$or": [
-                {"onesignal_player_id": {"$exists": False}},
-                {"onesignal_player_id": None},
-                {"onesignal_player_id": ""}
-            ]
-        },
-        {"_id": 0, "id": 1, "name": 1, "fcm_token": 1}
-    ).to_list(None)
-    
-    registered = 0
-    failed = 0
-    for user in users:
-        result = register_device_with_onesignal(
-            fcm_token=user["fcm_token"],
-            user_id=user["id"],
-            user_name=user.get("name", "")
-        )
-        if result.get("success") and result.get("player_id"):
-            await db.users.update_one(
-                {"id": user["id"]},
-                {"$set": {"onesignal_player_id": result["player_id"]}}
-            )
-            registered += 1
-        else:
-            failed += 1
-    
+@api_router.get("/admin/push/status")
+async def get_push_status():
+    """Check FCM push notification status."""
+    total = await db.users.count_documents({})
+    with_fcm = await db.users.count_documents({"fcm_token": {"$exists": True, "$ne": None, "$ne": ""}})
     return {
-        "success": True,
-        "total_users": len(users),
-        "registered": registered,
-        "failed": failed
+        "provider": "fcm",
+        "configured": fcm_service.is_fcm_ready(),
+        "can_send_notifications": fcm_service.is_fcm_ready(),
+        "total_users": total,
+        "users_with_fcm_token": with_fcm,
+        "users_without_fcm_token": total - with_fcm,
     }
-
-@api_router.post("/user/onesignal/register")
-async def register_onesignal_user(data: OneSignalUserLinkRequest):
-    """
-    Link OneSignal player ID with app user ID
-    Call this when user logs in
-    """
-    # Set external ID in OneSignal
-    result = set_user_external_id(data.onesignal_player_id, data.user_id)
-    
-    if result.get("success"):
-        # Also save OneSignal player ID in user profile
-        await db.users.update_one(
-            {"id": data.user_id},
-            {"$set": {"onesignal_player_id": data.onesignal_player_id}}
-        )
-        invalidate_user_cache(data.user_id)
-    
-    return result
 
 @api_router.get("/admin/onesignal/status")
-async def get_onesignal_status():
-    """Check OneSignal configuration status"""
-    from onesignal_config import ONESIGNAL_APP_ID as OS_APP_ID, ONESIGNAL_API_KEY as OS_API_KEY
-    
-    # Count users with OneSignal IDs
-    total = await db.users.count_documents({})
-    with_onesignal = await db.users.count_documents({
-        "onesignal_player_id": {"$exists": True, "$ne": None, "$ne": ""}
-    })
-    
-    return {
-        "configured": bool(OS_APP_ID and OS_API_KEY),
-        "app_id": OS_APP_ID[:8] + "..." if OS_APP_ID else "NOT SET",
-        "api_key_set": bool(OS_API_KEY),
-        "total_users": total,
-        "users_with_onesignal": with_onesignal,
-        "users_without_onesignal": total - with_onesignal,
-        "can_send_notifications": bool(OS_APP_ID and OS_API_KEY),
-        "message": "OneSignal configured and ready!" if (OS_APP_ID and OS_API_KEY) else "OneSignal credentials missing"
-    }
+async def get_push_status_compat():
+    """Backward-compatible endpoint."""
+    return await get_push_status()
+
+@api_router.post("/admin/push/test")
+async def test_push():
+    """Send a test notification to all users via FCM."""
+    return await fcm_service.send_to_all(db, "HeartLink", "Push notification system is working!")
 
 @api_router.post("/admin/onesignal/test")
-async def test_onesignal():
-    """Send a test notification to all users via OneSignal"""
-    result = send_onesignal_to_all(
-        "🎉 Test Notification", 
-        "OneSignal integration is working! - HeartLink Team"
-    )
-    return result
+async def test_push_compat():
+    """Backward-compatible endpoint."""
+    return await test_push()
 
 
 # ==================== ENGAGEMENT NOTIFICATION ENDPOINTS ====================
@@ -7014,8 +6835,8 @@ async def test_onesignal():
 async def get_notification_templates():
     """Get all available engagement notification templates"""
     return {
-        "templates": ENGAGEMENT_TEMPLATES,
-        "template_keys": list(ENGAGEMENT_TEMPLATES.keys())
+        "templates": fcm_service.ENGAGEMENT_TEMPLATES,
+        "template_keys": list(fcm_service.ENGAGEMENT_TEMPLATES.keys())
     }
 
 
@@ -7028,14 +6849,14 @@ async def send_engagement_to_users(
     """
     Send engagement notification using pre-defined templates
     """
-    if template_key not in ENGAGEMENT_TEMPLATES:
+    if template_key not in fcm_service.ENGAGEMENT_TEMPLATES:
         raise HTTPException(status_code=400, detail=f"Unknown template: {template_key}")
     
     if send_to_all:
-        template = ENGAGEMENT_TEMPLATES[template_key]
-        result = send_onesignal_to_all(template["title"], template["message"])
+        template = fcm_service.ENGAGEMENT_TEMPLATES[template_key]
+        result = await fcm_service.send_to_all(db, template["title"], template["message"])
     elif user_ids:
-        result = send_bulk_engagement_notification(user_ids, template_key)
+        result = await fcm_service.send_to_users(db, user_ids, template.get("title",""), template.get("body",""))
     else:
         raise HTTPException(status_code=400, detail="Provide user_ids or set send_to_all=true")
     
@@ -7100,7 +6921,7 @@ async def send_notification_to_inactive_users(days: int = 3):
     else:
         template_key = "inactive_7days"
     
-    result = send_bulk_engagement_notification(user_ids, template_key)
+    result = await fcm_service.send_to_users(db, user_ids, template.get("title",""), template.get("body",""))
     
     # Log
     await db.admin_notifications.insert_one({
@@ -7129,13 +6950,12 @@ async def send_custom_notification(
     action: str = "open_app"
 ):
     """Send custom notification with custom title and message"""
-    result = send_custom_engagement_notification(
-        user_ids=user_ids,
-        target_all=send_to_all,
-        title=title,
-        message=message,
-        action=action
-    )
+    if send_to_all:
+        result = await fcm_service.send_to_all(db, title, message, {"type": "custom", "action": action})
+    elif user_ids:
+        result = await fcm_service.send_to_users(db, user_ids, title, message, {"type": "custom", "action": action})
+    else:
+        result = {"success": False, "error": "No target specified"}
     
     # Log
     await db.admin_notifications.insert_one({
