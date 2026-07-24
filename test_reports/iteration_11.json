@@ -1,0 +1,19 @@
+{
+  "summary": "Verified HeartLink FCM + OneSignal permanent notification fix. All 11 targeted backend tests passed: health, admin login, fcm-status (can_send_notifications=true, users_with_fcm_token>=2), onesignal/status (configured=true, app_id starts with ad0b57dc), onesignal/test (success + notification_id), fcm/register-token, onesignal/migrate-fcm-users, notifications list, daily-notification-status (scheduler_running=true), firebase_config.py AndroidConfig priority=high + channel_id=heartlink_notifications, no raw OneSignal keys in backend production .py files.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/backend/tests/test_notification_pipeline.py", "/app/test_reports/pytest/iteration_11.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Login endpoint uses field name 'email_or_phone' (not 'email') - ensure frontend and any external clients use the correct field.",
+    "Legacy test files under /app/backend/tests still reference literal 'os_v2_app_' key text (in comments/strings). Not in production code, but consider scrubbing to avoid accidental leakage in repo history.",
+    "firebase_config.py handles UnregisteredError gracefully (stale_token=true) - confirmed via code review."
+  ],
+  "updated_files": ["/app/backend/tests/test_notification_pipeline.py"],
+  "success_rate": {"backend": "100%", "frontend": "n/a (backend-only test)"},
+  "test_credentials": "review@heartlink.co.in / HeartLink@2026 (uses email_or_phone field)",
+  "seed_data_creation": "Registered a TEST_ prefixed FCM token for admin user via /api/fcm/register-token",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Login payload requires 'email_or_phone' field, not 'email'. All notification endpoints healthy. Test file /app/backend/tests/test_notification_pipeline.py is the canonical regression suite for FCM/OneSignal pipeline."
+}
