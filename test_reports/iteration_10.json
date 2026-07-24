@@ -1,0 +1,32 @@
+{
+  "summary": "Iteration 10 validates the HeartLink Android notification fix (OneSignal device registration + targeted send via player_id with tags fallback). Backend pytest: 12/12 pass in test_onesignal_device_registration.py covering (1) GET /api/health, (2) admin login with review@heartlink.co.in/HeartLink@2026 (payload key 'email_or_phone'), (3) GET /api/admin/onesignal/status returns configured=true, app_id starts 'ad0b57dc', can_send_notifications=true, users_with_onesignal>0, (4) POST /api/admin/onesignal/test returns success=true with notification_id, (5) POST /api/admin/onesignal/migrate-fcm-users returns success=true with registered/failed/total_users ints (registered=0 acceptable as previous run already migrated), (6) POST /api/fcm/register-token accepts user_id+fcm_token and returns success (now also invokes register_device_with_onesignal / update_player_tags), (7) POST /api/admin/onesignal/send target=all returns success=true, (8) GET /api/notifications/{user_id} returns 200, (9-11) code checks confirm onesignal_config.py has register_device_with_onesignal, _send_via_player_id and _send_via_tags with player_id-tried-before-tags fallback chain in send_notification_to_user, and no raw 'os_v2_app_' pattern in any non-test backend .py file, (12) server.py has async _send_push_to_user helper that looks up onesignal_player_id. Frontend: admin login redirects to /discover; /notifications route renders NotificationsPage with type-specific icon (Profile Viewed with eyes emoji), bottom nav (Discover/Likes/Alerts/Matches/Profile/Admin), unread count. No message-type notifications exist in DB for the review admin yet - message icon rendering path not exercised but component/framework confirmed working via other type icons.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_onesignal_device_registration.py",
+    "/app/test_reports/pytest/iter10.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "onesignal_config.register_device_with_onesignal() POSTs to /players WITHOUT Authorization header - this works for /players legacy endpoint (unauthenticated device registration) but is worth noting; OneSignal may deprecate this in favor of the v2 users API. Current behavior is correct per legacy REST API docs.",
+    "server.register_fcm_token: when existing_player_id is present, tags are updated but the FCM identifier is NOT updated on OneSignal. If a user re-registers with a new FCM token (e.g. app reinstall), the OneSignal player will still hold the old identifier. Consider PUT /players/{id} with identifier on token-refresh path.",
+    "migrate-fcm-users endpoint has no admin auth check - anyone with the URL can trigger a mass OneSignal /players re-registration burst. Should be gated by admin auth dependency (same for /admin/onesignal/status and /admin/onesignal/test and /admin/onesignal/send).",
+    "_send_push_to_user (server.py:515) uses find_one projection {onesignal_player_id:1} - good; but does not also fall back to sending to external_id via segments when both player_id and tags fail. Current send_notification_to_user chain: player_id -> tags. Acceptable, but no final 'give up' logging summary.",
+    "OneSignal web SDK on the site logs 'App not configured for web push' - the app targets Android, so this is expected; consider gating react-onesignal init to native platforms only to remove console noise.",
+    "server.py is now 7615 lines (grew from 7500+); splitting into routers/services remains recommended."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_onesignal_device_registration.py (new)"
+  ],
+  "success_rate": {"backend": "100% (12/12)", "frontend": "100% (login + notifications page render verified)"},
+  "test_credentials": "review@heartlink.co.in / HeartLink@2026 (login field: 'email_or_phone'). Login redirects to /discover.",
+  "seed_data_creation": "test_fcm_register_token registered a fake FCM token 'TEST_FCM_TOKEN_iteration10_<uid8>' for the admin user. This may have created/updated a OneSignal player_id on the admin user record. If undesired, delete admin.onesignal_player_id or re-run migrate.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Use /app/backend/tests/test_onesignal_device_registration.py as regression for the device-registration + player_id-with-tags-fallback fix. Real Android push delivery cannot be verified from preview URL (needs signed device build). To exercise message-notification icon rendering on the frontend, seed a notification of type 'message' for the review admin, e.g. via /api/notifications insert or by having another user send a message. Login uses 'email_or_phone' key. Admin id: admin_login['user']['id']. Fake FCM token was left registered on admin - clear if needed.",
+  "rca of the issue": "Not applicable (validates fix). Prior RCA (per problem statement): targeted OneSignal sends failed because no users had player_id/external_id and FCM tokens were stale. Fix verified: (a) onesignal_config.register_device_with_onesignal() creates OneSignal player + stores onesignal_player_id on user (invoked from register_fcm_token and migrate-fcm-users), (b) send_notification_to_user tries _send_via_player_id first then _send_via_tags fallback (tag key=user_id), (c) _send_push_to_user helper centralizes lookup. users_with_onesignal>0 confirms 15 previously-migrated users retain player_ids."
+}

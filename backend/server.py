@@ -512,6 +512,35 @@ async def keep_ai_profiles_online(db_ref):
 
 # === AUTOMATIC NOTIFICATION HELPERS ===
 
+async def _send_push_to_user(user_id: str, title: str, message: str, data: dict = None):
+    """
+    Central helper to send push notification to a specific user.
+    Automatically looks up OneSignal player_id for reliable delivery.
+    Falls back to external_id targeting if player_id not available.
+    """
+    try:
+        user = await db.users.find_one(
+            {"id": user_id},
+            {"_id": 0, "onesignal_player_id": 1}
+        )
+        player_id = user.get("onesignal_player_id", "") if user else ""
+        
+        result = send_onesignal_to_user(
+            user_id=user_id,
+            title=title,
+            message=message,
+            data=data,
+            player_id=player_id
+        )
+        
+        if not result.get("success"):
+            logger.warning(f"Push to {user_id} failed: {result.get('error')}")
+        return result
+    except Exception as e:
+        logger.error(f"Push to {user_id} error: {e}")
+        return {"success": False, "error": str(e)}
+
+
 async def _notify_new_user_joined(user_id: str, name: str, gender: str, location: str):
     """Notify all users when a new user joins."""
     try:
@@ -4252,17 +4281,18 @@ async def send_message_http(message_data: Message):
     
     # Send push notification via OneSignal (primary) - skip for AI profiles
     if not is_ai_receiver and sender and sender_not_muted:
-        send_message_notification_onesignal(
+        # Use centralized helper with player_id lookup for reliable delivery
+        asyncio.create_task(_send_push_to_user(
             user_id=message_data.receiver_id,
-            sender_name=sender['name'],
-            message_preview=message_data.content,
-            match_id=message_data.match_id
-        )
+            title=f"New message from {sender['name']}",
+            message=message_data.content[:100],
+            data={"type": "message", "action": "open_chat", "match_id": message_data.match_id, "route": f"/chat/{message_data.match_id}"}
+        ))
         
         # Store in-app notification for message
         await create_in_app_notification(
             message_data.receiver_id,
-            f"💬 {sender['name']}",
+            f"New message from {sender['name']}",
             message_data.content[:100],
             "message",
             {"match_id": message_data.match_id, "sender_id": message_data.sender_id, "action": "open_chat", "route": f"/chat/{message_data.match_id}"}
@@ -4411,17 +4441,47 @@ class FCMTokenRequest(BaseModel):
 
 @api_router.post("/fcm/register-token")
 async def register_fcm_token(request: FCMTokenRequest):
-    """Register or update FCM token for a user"""
+    """Register or update FCM token for a user - also registers with OneSignal"""
     try:
+        # Get user name for OneSignal tags
+        user = await db.users.find_one({"id": request.user_id}, {"_id": 0, "name": 1, "onesignal_player_id": 1})
+        
         result = await db.users.update_one(
             {"id": request.user_id},
             {"$set": {"fcm_token": request.fcm_token}}
         )
         
-        if result.modified_count > 0 or result.matched_count > 0:
-            return {"success": True, "message": "FCM token registered successfully"}
-        else:
+        if result.modified_count == 0 and result.matched_count == 0:
             raise HTTPException(status_code=404, detail="User not found")
+        
+        # Also register device with OneSignal (for push notification targeting)
+        from onesignal_config import register_device_with_onesignal, update_player_tags
+        
+        existing_player_id = user.get("onesignal_player_id") if user else None
+        
+        if existing_player_id:
+            # Update existing player's FCM token and tags
+            update_player_tags(existing_player_id, {
+                "user_id": request.user_id,
+                "name": user.get("name", "") if user else ""
+            })
+        else:
+            # Register new device with OneSignal
+            os_result = register_device_with_onesignal(
+                fcm_token=request.fcm_token,
+                user_id=request.user_id,
+                user_name=user.get("name", "") if user else ""
+            )
+            if os_result.get("success") and os_result.get("player_id"):
+                await db.users.update_one(
+                    {"id": request.user_id},
+                    {"$set": {"onesignal_player_id": os_result["player_id"]}}
+                )
+                logger.info(f"OneSignal player registered for user {request.user_id}: {os_result['player_id']}")
+        
+        return {"success": True, "message": "FCM token registered successfully"}
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error registering FCM token: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -6848,9 +6908,54 @@ async def send_onesignal_notification_api(data: OneSignalNotificationRequest):
 
 @api_router.post("/admin/onesignal/send-to-user/{user_id}")
 async def send_onesignal_to_single_user(user_id: str, title: str, message: str):
-    """Send notification to a specific user via OneSignal"""
-    result = send_onesignal_to_user(user_id, title, message)
+    """Send notification to a specific user via OneSignal (uses player_id if available)"""
+    result = await _send_push_to_user(user_id, title, message)
     return result
+
+
+@api_router.post("/admin/onesignal/migrate-fcm-users")
+async def migrate_fcm_users_to_onesignal():
+    """
+    One-time migration: Register all users with FCM tokens in OneSignal.
+    This creates player_id mappings so targeted notifications work.
+    """
+    from onesignal_config import register_device_with_onesignal
+    
+    users = await db.users.find(
+        {
+            "fcm_token": {"$exists": True, "$ne": None, "$ne": ""},
+            "$or": [
+                {"onesignal_player_id": {"$exists": False}},
+                {"onesignal_player_id": None},
+                {"onesignal_player_id": ""}
+            ]
+        },
+        {"_id": 0, "id": 1, "name": 1, "fcm_token": 1}
+    ).to_list(None)
+    
+    registered = 0
+    failed = 0
+    for user in users:
+        result = register_device_with_onesignal(
+            fcm_token=user["fcm_token"],
+            user_id=user["id"],
+            user_name=user.get("name", "")
+        )
+        if result.get("success") and result.get("player_id"):
+            await db.users.update_one(
+                {"id": user["id"]},
+                {"$set": {"onesignal_player_id": result["player_id"]}}
+            )
+            registered += 1
+        else:
+            failed += 1
+    
+    return {
+        "success": True,
+        "total_users": len(users),
+        "registered": registered,
+        "failed": failed
+    }
 
 @api_router.post("/user/onesignal/register")
 async def register_onesignal_user(data: OneSignalUserLinkRequest):

@@ -135,13 +135,154 @@ def send_onesignal_notification(
         return {"success": False, "error": str(e)}
 
 
+# === DEVICE REGISTRATION ===
+
+def register_device_with_onesignal(fcm_token: str, user_id: str = "", user_name: str = "") -> Dict:
+    """
+    Register an Android device with OneSignal using its FCM token.
+    Returns the OneSignal player_id which can be used for targeted notifications.
+    """
+    if not ONESIGNAL_APP_ID:
+        return {"success": False, "error": "OneSignal not configured"}
+
+    payload = {
+        "app_id": ONESIGNAL_APP_ID,
+        "device_type": 1,  # Android
+        "identifier": fcm_token,
+        "tags": {},
+    }
+    if user_id:
+        payload["tags"]["user_id"] = user_id
+    if user_name:
+        payload["tags"]["name"] = user_name
+
+    try:
+        response = requests.post(
+            f"{ONESIGNAL_API_URL}/players",
+            json=payload,
+            timeout=10,
+        )
+        result = response.json()
+        if result.get("success"):
+            logger.info(f"OneSignal device registered: player_id={result.get('id')}")
+            return {"success": True, "player_id": result.get("id")}
+        else:
+            logger.error(f"OneSignal device registration failed: {result}")
+            return {"success": False, "error": str(result.get("errors", "Unknown"))}
+    except Exception as e:
+        logger.error(f"OneSignal device registration error: {e}")
+        return {"success": False, "error": str(e)}
+
+
+def update_player_tags(player_id: str, tags: Dict[str, str]) -> Dict:
+    """Update tags on an existing OneSignal player."""
+    if not ONESIGNAL_APP_ID:
+        return {"success": False, "error": "Not configured"}
+    try:
+        response = requests.put(
+            f"{ONESIGNAL_API_URL}/players/{player_id}",
+            json={"app_id": ONESIGNAL_APP_ID, "tags": tags},
+            timeout=10,
+        )
+        return {"success": response.status_code == 200}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
 # === TARGETED NOTIFICATION HELPERS ===
 
-def send_notification_to_user(user_id: str, title: str, message: str, data: Optional[Dict] = None) -> Dict:
-    """Send notification to a specific user by their app user ID"""
-    return send_onesignal_notification(
-        title=title, message=message, target_user_ids=[user_id], data=data
-    )
+def send_notification_to_user(user_id: str, title: str, message: str, data: Optional[Dict] = None, player_id: str = "") -> Dict:
+    """Send notification to a specific user. Tries player_id first, then tags filter."""
+    if player_id:
+        result = _send_via_player_id(player_id, title, message, data)
+        if result.get("success"):
+            return result
+        logger.warning(f"player_id send failed for {user_id}, trying tags filter")
+    
+    # Use tags-based targeting (reliable even if player_id is invalid)
+    return _send_via_tags(user_id, title, message, data)
+
+
+def _send_via_player_id(player_id: str, title: str, message: str, data: Optional[Dict] = None) -> Dict:
+    """Send notification directly to a OneSignal player_id."""
+    if not ONESIGNAL_APP_ID or not ONESIGNAL_API_KEY:
+        return {"success": False, "error": "OneSignal not configured"}
+
+    headers = {
+        "Authorization": f"Basic {ONESIGNAL_API_KEY}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "app_id": ONESIGNAL_APP_ID,
+        "include_player_ids": [player_id],
+        "headings": {"en": title},
+        "contents": {"en": message},
+        "data": data or {},
+        "priority": 10,
+        "android_visibility": 1,
+        "android_sound": "default",
+        "ttl": 86400,
+    }
+
+    try:
+        response = requests.post(
+            f"{ONESIGNAL_API_URL}/notifications",
+            headers=headers,
+            json=payload,
+            timeout=10,
+        )
+        result = response.json()
+        if response.status_code == 200 and result.get("id") and not result.get("errors"):
+            logger.info(f"OneSignal player_id send: {result.get('id')}")
+            return {"success": True, "notification_id": result.get("id"), "recipients": result.get("recipients", 0)}
+        else:
+            logger.error(f"OneSignal player_id send error: {result}")
+            return {"success": False, "error": str(result.get("errors", "Unknown"))}
+    except Exception as e:
+        logger.error(f"OneSignal player_id send failed: {e}")
+        return {"success": False, "error": str(e)}
+
+
+def _send_via_tags(user_id: str, title: str, message: str, data: Optional[Dict] = None) -> Dict:
+    """Send notification using tags filter (user_id tag). Works even if player_id is stale."""
+    if not ONESIGNAL_APP_ID or not ONESIGNAL_API_KEY:
+        return {"success": False, "error": "OneSignal not configured"}
+
+    headers = {
+        "Authorization": f"Basic {ONESIGNAL_API_KEY}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "app_id": ONESIGNAL_APP_ID,
+        "filters": [
+            {"field": "tag", "key": "user_id", "relation": "=", "value": user_id}
+        ],
+        "headings": {"en": title},
+        "contents": {"en": message},
+        "data": data or {},
+        "priority": 10,
+        "android_visibility": 1,
+        "android_sound": "default",
+        "ttl": 86400,
+    }
+
+    try:
+        response = requests.post(
+            f"{ONESIGNAL_API_URL}/notifications",
+            headers=headers,
+            json=payload,
+            timeout=10,
+        )
+        result = response.json()
+        if response.status_code == 200 and result.get("id"):
+            logger.info(f"OneSignal tags send to {user_id}: {result.get('id')}")
+            return {"success": True, "notification_id": result.get("id"), "recipients": result.get("recipients", 0)}
+        else:
+            logger.error(f"OneSignal tags send error: {result}")
+            return {"success": False, "error": str(result.get("errors", "Unknown"))}
+    except Exception as e:
+        logger.error(f"OneSignal tags send failed: {e}")
+        return {"success": False, "error": str(e)}
 
 
 def send_notification_to_users(user_ids: List[str], title: str, message: str, data: Optional[Dict] = None) -> Dict:
