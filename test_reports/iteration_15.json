@@ -1,0 +1,31 @@
+{
+  "summary": "Iteration 15: FCM Firebase key fix VERIFIED. All 9 backend tests passed (100%). The HEARTLINK_FIREBASE_B64 env var successfully overrides the stale FIREBASE_SERVICE_ACCOUNT_JSON injected by K8s. Diagnostics endpoint now returns error='The registration token is not a valid FCM registration token' (correct key + fake token), NOT 'Invalid JWT Signature' (which would indicate old key still in use). firebase_initialized=true, provider=fcm, configured=true, can_send_notifications=true, scheduler_running=true. Both fcm_service.py and firebase_config.py correctly read HEARTLINK_FIREBASE_B64 first with base64 decoding, and fall back to FIREBASE_SERVICE_ACCOUNT_JSON.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_fcm_firebase_fix.py",
+    "/app/test_reports/pytest/iteration_15.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "firebase_config.py and fcm_service.py both initialize firebase_admin independently - consolidating to single init module would be cleaner, but current dual-init is safe due to `if not firebase_admin._apps` guard.",
+    "PushNotificationRequest uses 'message' field name while FCM diagnostics API and other push APIs use 'body' - inconsistent naming across API surface (minor, not blocking)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_fcm_firebase_fix.py"
+  ],
+  "success_rate": {"backend": "100% (9/9)", "frontend": "not tested (backend only)"},
+  "test_credentials": "Admin: review@heartlink.co.in / HeartLink@2026 (works)",
+  "seed_data_creation": "Registered a fake FCM token on the admin user (review@heartlink.co.in, id=cca39b3f-9f7e-485d-9ae3-d6b210d424fb) to verify diagnostics endpoint. Should be cleared or ignored.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "FCM/Firebase key fix is verified working in preview. Key evidence: /api/fcm/diagnostics/{admin_id} returns test_send_result.error='The registration token is not a valid FCM registration token' proving the NEW key is being used (old key would give 'Invalid JWT Signature'). All push/status, push/test, push/send, daily-notification-status endpoints working. When deployed to production, verify the same by hitting /api/admin/push/status and checking a diagnostics call.",
+  "rca_of_the_issue": "Root cause: Emergent K8s platform injects FIREBASE_SERVICE_ACCOUNT_JSON env var with an old/invalid service account key. Since Python's load_dotenv defaults to override=False, the .env file's correct key was ignored. Mitigation (applied): Added HEARTLINK_FIREBASE_B64 (base64-encoded JSON) with a custom prefix that K8s does not override. Both fcm_service.py and firebase_config.py now check HEARTLINK_FIREBASE_B64 first (base64 decode) and fall back to FIREBASE_SERVICE_ACCOUNT_JSON. Verified: Firebase initialized with new key, no 'Invalid JWT Signature' errors."
+}

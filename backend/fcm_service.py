@@ -21,9 +21,20 @@ _firebase_ok = False
 
 def _init_firebase():
     global _firebase_ok
-    creds_json = os.environ.get('FIREBASE_SERVICE_ACCOUNT_JSON')
+    
+    # Try HEARTLINK_ prefixed base64 key first (not overridden by K8s)
+    import base64
+    b64_key = os.environ.get('HEARTLINK_FIREBASE_B64')
+    if b64_key:
+        try:
+            creds_json = base64.b64decode(b64_key).decode('utf-8')
+        except Exception:
+            creds_json = None
+    else:
+        creds_json = os.environ.get('FIREBASE_SERVICE_ACCOUNT_JSON')
+    
     if not creds_json:
-        logger.warning("FIREBASE_SERVICE_ACCOUNT_JSON not set — push disabled")
+        logger.warning("Firebase credentials not found — push disabled")
         return
     try:
         cred_dict = json.loads(creds_json)
@@ -31,7 +42,7 @@ def _init_firebase():
         if not firebase_admin._apps:
             firebase_admin.initialize_app(cred)
         _firebase_ok = True
-        logger.info(f"Firebase FCM ready (project: {cred_dict.get('project_id')})")
+        logger.info(f"Firebase FCM ready (project: {cred_dict.get('project_id')}, key_id: {cred_dict.get('private_key_id','?')[:8]}...)")
     except Exception as e:
         logger.error(f"Firebase init failed: {e}")
 

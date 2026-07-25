@@ -11,7 +11,16 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Initialize Firebase Admin SDK
-firebase_creds = os.environ.get('FIREBASE_SERVICE_ACCOUNT_JSON')
+# Try HEARTLINK_ prefixed base64 key first (not overridden by K8s platform)
+import base64 as _b64
+_fb_b64 = os.environ.get('HEARTLINK_FIREBASE_B64')
+if _fb_b64:
+    try:
+        firebase_creds = _b64.b64decode(_fb_b64).decode('utf-8')
+    except Exception:
+        firebase_creds = os.environ.get('FIREBASE_SERVICE_ACCOUNT_JSON')
+else:
+    firebase_creds = os.environ.get('FIREBASE_SERVICE_ACCOUNT_JSON')
 
 if not firebase_creds:
     logger.warning("FIREBASE_SERVICE_ACCOUNT_JSON not set - FCM push disabled")
