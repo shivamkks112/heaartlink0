@@ -72,7 +72,7 @@ const Navbar = ({ user }) => {
   const totalAlerts = notificationCount + unreadMessages;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-gradient-to-r from-gray-700 via-gray-600 to-gray-700 shadow-[0_-4px_20px_rgba(0,0,0,0.25)] z-50 border-t border-gray-500 pb-safe">
+    <nav className="fixed bottom-0 left-0 right-0 bg-gradient-to-r from-gray-700 via-gray-600 to-gray-700 shadow-[0_-4px_20px_rgba(0,0,0,0.25)] z-50 border-t border-gray-500" style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 4px)' }}>
       <div className="max-w-7xl mx-auto px-2 sm:px-4">
         <div className="flex items-center justify-around h-16 sm:h-18 md:h-20">
           <div className="flex items-center justify-around gap-1 sm:gap-4 w-full">

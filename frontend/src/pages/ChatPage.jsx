@@ -435,11 +435,11 @@ const ChatPage = ({ user }) => {
   }
 
   return (
-    <div className="h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 relative overflow-hidden">
+    <div className="h-screen flex flex-col bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 overflow-hidden">
       <Toaster position="top-center" />
       
-      {/* Header */}
-      <div className="fixed top-0 left-0 right-0 z-[60] bg-gradient-to-r from-pink-500 via-rose-500 to-orange-500 shadow-lg" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+      {/* Header - fixed height with safe area */}
+      <div className="flex-shrink-0 bg-gradient-to-r from-pink-500 via-rose-500 to-orange-500 shadow-lg z-[60]" style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 24px)' }}>
         <div className="max-w-2xl mx-auto px-2 py-2.5">
           <div className="flex items-center justify-between gap-2">
             {/* Back Button - Keep as is */}
@@ -544,10 +544,9 @@ const ChatPage = ({ user }) => {
         </div>
       </div>
 
-      {/* Messages - Flex layout for proper spacing */}
+      {/* Messages area - flex-1 fills remaining space */}
       <div
-        className="flex-1 overflow-y-auto px-3 py-4 space-y-3 bg-gradient-to-b from-pink-50/50 to-transparent"
-        style={{ marginTop: '80px', marginBottom: '76px', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+        className="flex-1 overflow-y-auto px-4 py-3 space-y-2.5"
         data-testid="messages-container"
       >
         {messages.length === 0 ? (
@@ -576,7 +575,7 @@ const ChatPage = ({ user }) => {
                   </div>
                 ) : (
                   /* Regular Messages */
-                  <div className={`flex items-end gap-2 max-w-[85%] sm:max-w-[75%] ${isOwn ? 'flex-row-reverse' : ''}`}>
+                  <div className={`flex items-end gap-1.5 ${isOwn ? 'flex-row-reverse' : ''}`} style={{ maxWidth: '80%' }}>
                     {/* Avatar for incoming messages */}
                     {!isOwn && (
                       <div className="flex-shrink-0 w-7 h-7">
@@ -696,8 +695,8 @@ const ChatPage = ({ user }) => {
         </div>
       )}
 
-      {/* Input - Fixed at bottom with safe area */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-gray-100 z-50" style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 8px), 8px)' }}>
+      {/* Input area - flex-shrink-0 stays at bottom */}
+      <div className="flex-shrink-0 bg-white border-t border-gray-100 z-50" style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 6px)' }}>
         <form onSubmit={sendMessage} className="flex items-center gap-2 px-3 py-2">
           <Input
             data-testid="message-input"
