@@ -12,11 +12,10 @@ import wsService from '@/services/WebSocketService';
 import { VerifiedBadge, TrustBadge, OnlineStatus, BadgeStyles } from '@/components/badges/VerifiedBadge';
 import MatchAnimation from '@/components/MatchAnimation';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || import.meta.env.REACT_APP_BACKEND_URL;
+import { BACKEND_URL, API } from '@/config/api';
 if (!BACKEND_URL) {
   console.error('⚠️ REACT_APP_BACKEND_URL is not set!');
 }
-const API = `${BACKEND_URL}/api`;
 
 const DiscoverPage = ({ user }) => {
   const navigate = useNavigate();

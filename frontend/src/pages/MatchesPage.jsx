@@ -10,11 +10,10 @@ import { Button } from '@/components/ui/button';
 import { MatchCardSkeleton } from '@/components/SkeletonLoader';
 import wsService from '@/services/WebSocketService';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || import.meta.env.REACT_APP_BACKEND_URL;
+import { BACKEND_URL, API } from '@/config/api';
 if (!BACKEND_URL) {
   console.error('⚠️ REACT_APP_BACKEND_URL is not set!');
 }
-const API = `${BACKEND_URL}/api`;
 
 // Safety Message Modal Component
 const SafetyMessageModal = ({ isOpen, onClose, onProceed }) => {

@@ -5,8 +5,7 @@ import { messaging } from './config';
 import { getToken, onMessage } from 'firebase/messaging';
 import axios from 'axios';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || import.meta.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+import { BACKEND_URL, API } from '@/config/api';
 
 // VAPID key from Firebase Console > Project Settings > Cloud Messaging > Web Push certificates
 const VAPID_KEY = process.env.REACT_APP_FIREBASE_VAPID_KEY || import.meta.env.REACT_APP_FIREBASE_VAPID_KEY;

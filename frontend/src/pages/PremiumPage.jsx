@@ -22,8 +22,8 @@ import {
   Heart
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { API } from '@/config/api';
 
-const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 const PREMIUM_PLANS = [
   {
@@ -146,7 +146,7 @@ const PremiumPage = ({ user }) => {
       // Simulate subscription for demo
       // In production, this would call payment gateway
       /*
-      const response = await fetch(`${API_URL}/api/subscription/create`, {
+      const response = await fetch(`${API/subscription/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

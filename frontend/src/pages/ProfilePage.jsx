@@ -11,9 +11,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '@/firebase/config';
 import { INDIAN_STATES, CITIES_BY_STATE, POPULAR_CITIES } from '@/data/indianCities';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || import.meta.env.REACT_APP_BACKEND_URL;
-if (!BACKEND_URL) console.error('⚠️ REACT_APP_BACKEND_URL is not set!');
-const API = `${BACKEND_URL}/api`;
+import { BACKEND_URL, API } from '@/config/api';
 
 const ProfilePage = ({ user, onUpdate }) => {
   const navigate = useNavigate();

@@ -10,8 +10,7 @@ import { Toaster } from '@/components/ui/sonner';
 import { INDIAN_STATES, CITIES_BY_STATE, POPULAR_CITIES } from '@/data/indianCities';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || import.meta.env?.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+import { BACKEND_URL, API } from '@/config/api';
 
 const CompleteProfilePage = ({ onLogin }) => {
   const location = useLocation();

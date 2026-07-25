@@ -9,9 +9,7 @@ import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
 import { getStorage, ref, uploadBytes, getDownloadURL } from '@/firebase/config';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || import.meta.env?.REACT_APP_BACKEND_URL;
-if (!BACKEND_URL) console.error('⚠️ REACT_APP_BACKEND_URL is not set!');
-const API = `${BACKEND_URL}/api`;
+import { BACKEND_URL, API } from '@/config/api';
 
 const AuthPage = ({ onLogin }) => {
   const navigate = useNavigate();

@@ -1,3 +1,4 @@
+import { BACKEND_URL as API_URL } from "@/config/api";
 /**
  * AdContext - React Context for AdMob functionality
  * Provides ad-related state and methods to all components
@@ -167,7 +168,7 @@ export const AdProvider = ({ children, user }) => {
     if (!user) return;
     
     try {
-      const API_URL = process.env.REACT_APP_BACKEND_URL;
+      // API_URL imported from config
       await fetch(`${API_URL}/api/ads/reward`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

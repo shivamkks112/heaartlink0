@@ -12,8 +12,8 @@
 
 import { Capacitor } from '@capacitor/core';
 import axios from 'axios';
+import { API } from '@/config/api';
 
-const API = process.env.REACT_APP_BACKEND_URL + '/api';
 const TAG = '[FCM]';
 
 let _currentUserId = null;

@@ -8,8 +8,7 @@ import Navbar from '@/components/Navbar';
 import TopBar from '@/components/TopBar';
 import { Button } from '@/components/ui/button';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+import { BACKEND_URL, API } from '@/config/api';
 
 const ReferralPage = ({ user }) => {
   const navigate = useNavigate();

@@ -13,10 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || import.meta.env.REACT_APP_BACKEND_URL;
-if (!BACKEND_URL) console.error('⚠️ REACT_APP_BACKEND_URL is not set!');
-const API = `${BACKEND_URL}/api`;
-const WS_URL = BACKEND_URL.replace('https://', 'wss://').replace('http://', 'ws://');
+import { BACKEND_URL, API, WS_URL } from '@/config/api';
 
 const ChatPage = ({ user }) => {
   const { matchId } = useParams();

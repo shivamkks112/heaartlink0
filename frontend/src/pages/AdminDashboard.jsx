@@ -18,8 +18,7 @@ import TopBar from '@/components/TopBar';
 import NotificationManager from '@/components/admin/NotificationManager';
 import ProfileApprovals from '@/components/admin/ProfileApprovals';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || '';
-const API = `${BACKEND_URL}/api`;
+import { BACKEND_URL, API } from '@/config/api';
 
 // Stats Card Component
 const StatCard = ({ icon: Icon, label, value, subValue, color, bgColor }) => (

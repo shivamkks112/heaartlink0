@@ -8,8 +8,8 @@ import Navbar from '@/components/Navbar';
 import TopBar from '@/components/TopBar';
 import { Button } from '@/components/ui/button';
 import wsService from '@/services/WebSocketService';
+import { API } from '@/config/api';
 
-const API = process.env.REACT_APP_BACKEND_URL + '/api';
 
 const NotificationsPage = ({ user }) => {
   const navigate = useNavigate();

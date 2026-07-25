@@ -1,3 +1,4 @@
+import { BACKEND_URL as API_URL } from "@/config/api";
 /**
  * AdMob Service for HeartLink
  * Handles all ad-related functionality with gender-based targeting
@@ -378,7 +379,7 @@ class AdMobService {
    */
   async trackImpression(userId, adType, rewardType = null, amount = null) {
     try {
-      const API_URL = process.env.REACT_APP_BACKEND_URL;
+      // API_URL from config
       await fetch(`${API_URL}/api/ads/impression`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -400,7 +401,7 @@ class AdMobService {
    */
   async getAdStats(userId) {
     try {
-      const API_URL = process.env.REACT_APP_BACKEND_URL;
+      // API_URL from config
       const response = await fetch(`${API_URL}/api/ads/stats/${userId}`);
       return await response.json();
     } catch (error) {

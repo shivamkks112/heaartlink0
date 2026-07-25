@@ -7,7 +7,6 @@ import { useAds } from '@/context/AdContext';
 import { Button } from '@/components/ui/button';
 import wsService from '@/services/WebSocketService';
 
-const API = process.env.REACT_APP_BACKEND_URL + '/api';
 
 const LikesYouPage = ({ user }) => {
   const navigate = useNavigate();
@@ -357,6 +356,7 @@ const LikesYouPage = ({ user }) => {
       <style jsx>{`
         @keyframes slideIn {
           from {
+import { API } from '@/config/api';
             opacity: 0;
             transform: translateY(20px);
           }

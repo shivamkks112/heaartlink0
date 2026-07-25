@@ -3,8 +3,7 @@ import axios from 'axios';
 import { Star, Zap, Flame, Gift, X, Check } from 'lucide-react';
 import { toast } from 'sonner';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+import { BACKEND_URL, API } from '@/config/api';
 
 const rewardIcons = {
   superlikes: Star,

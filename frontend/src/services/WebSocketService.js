@@ -8,7 +8,7 @@
  * - Profile view notifications
  */
 
-const WS_URL = process.env.REACT_APP_BACKEND_URL?.replace('https://', 'wss://').replace('http://', 'ws://');
+import { WS_URL } from '@/config/api';
 
 class WebSocketService {
   constructor() {

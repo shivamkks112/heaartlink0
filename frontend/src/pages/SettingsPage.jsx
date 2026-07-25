@@ -12,8 +12,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || import.meta.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+import { BACKEND_URL, API } from '@/config/api';
 
 const SettingsPage = ({ user, setUser }) => {
   const navigate = useNavigate();

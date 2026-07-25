@@ -5,8 +5,8 @@ import { toast, Toaster } from 'react-hot-toast';
 import { Heart, X, Star, MapPin, Briefcase, GraduationCap, ArrowLeft, MessageCircle } from 'lucide-react';
 import TopBar from '@/components/TopBar';
 import Navbar from '@/components/Navbar';
+import { API } from '@/config/api';
 
-const API = process.env.REACT_APP_BACKEND_URL || import.meta.env.REACT_APP_BACKEND_URL;
 
 const UserProfilePage = ({ user }) => {
   const { userId } = useParams();

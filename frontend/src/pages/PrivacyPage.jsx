@@ -14,9 +14,7 @@ import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import TopBar from '@/components/TopBar';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || import.meta.env.REACT_APP_BACKEND_URL;
-if (!BACKEND_URL) console.error('⚠️ REACT_APP_BACKEND_URL is not set!');
-const API = `${BACKEND_URL}/api`;
+import { BACKEND_URL, API } from '@/config/api';
 
 const PrivacyPage = ({ user, onUpdate }) => {
   const navigate = useNavigate();

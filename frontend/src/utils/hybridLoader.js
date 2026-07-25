@@ -1,3 +1,4 @@
+import { BACKEND_URL } from "@/config/api";
 /**
  * Hybrid App Loader for HeartLink
  * - First loads from local cache (instant)
@@ -22,7 +23,7 @@ export async function checkForAppUpdate() {
     localStorage.setItem(LAST_CHECK_KEY, now.toString());
     
     // Fetch version from server
-    const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/health`, {
+    const response = await fetch(`${BACKEND_URL}/api/health`, {
       cache: 'no-store'
     });
     

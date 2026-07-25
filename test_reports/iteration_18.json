@@ -1,0 +1,24 @@
+{
+  "summary": "Verified the PERMANENT git-pull-safe API config fix. /app/frontend/src/config/api.js exists, uses Capacitor.isNativePlatform(), hardcodes PRODUCTION_URL='https://www.heartlink.co.in', and exports BACKEND_URL/API/WS_URL. A grep across src/ confirms ONLY config/api.js references process.env.REACT_APP_BACKEND_URL. All 7 spot-checked files (AuthPage, ChatPage, WebSocketService, pushNotifications, ForgotPasswordPage, DiscoverPage, MatchesPage) import from '@/config/api'. Backend /api/health returns 200 healthy. Login POST /api/auth/login (with email_or_phone) returns 200 for review@heartlink.co.in. Frontend compiles cleanly (37 warnings, all source-map warnings from Capacitor plugins — non-blocking). E2E UI login on preview URL succeeded — redirected to /discover with no pageerrors/console errors.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/test_reports/iteration_18.json"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "config/api.js correctly gates on Capacitor.isNativePlatform() before falling back to process.env — good defensive default of PRODUCTION_URL if env missing.",
+    "Non-blocking: many Capacitor plugin source-map warnings pollute the webpack build log. Consider adding GENERATE_SOURCEMAP=false or a source-map-loader exclude for @capacitor-community/* and @codetrix-studio/* to clean up build logs.",
+    "Optional: also add a runtime console.log(BACKEND_URL) guard behind a debug flag to help future field debugging inside APK."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "review@heartlink.co.in / HeartLink@2026 (works). Login field name is 'email_or_phone', not 'email'.",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "The centralised API config lives at /app/frontend/src/config/api.js. Regression check: `grep -rn 'process.env.REACT_APP_BACKEND_URL' /app/frontend/src/` must return ONLY config/api.js lines (currently lines 9 and 23). Backend login endpoint expects 'email_or_phone' (not 'email') in JSON body.",
+  "rca of the issue": "Previous recurring bug: git pull overwrote frontend/.env with preview URL, breaking APK which hardcoded to that URL at build time. Fix centralises URL resolution in src/config/api.js. On Capacitor native platform it forcibly returns 'https://www.heartlink.co.in' regardless of .env; on web it uses process.env or PRODUCTION_URL fallback. Verified via grep, import checks, health/login curl, and Playwright login flow — all green."
+}
