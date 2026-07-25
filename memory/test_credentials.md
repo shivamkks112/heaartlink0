@@ -1,20 +1,20 @@
-# Test Credentials for HeartLink
+# HeartLink Test Credentials
 
-## Admin/Review Account
+## Admin Account
 - Email: review@heartlink.co.in
 - Password: HeartLink@2026
-- Role: Admin (female, looking_for=male)
 
-## Demo/Test Male Account
-- Email: testmale@heartlink.co.in
-- Password: Test@2026
-- Role: Admin (male, looking_for=female)
-- Has 2 AI matches (Nisha Verma, Ananya Patel) with chat messages
+## Demo User (password may have been changed by user)
+- Email: shivamkks112@gmail.com
+- Password: (user-managed, use forgot-password to reset)
 
-## AI Girl Profiles (is_ai_profile=true, cannot login)
-- Priya Sharma (23, Delhi)
-- Ananya Patel (25, Mumbai)
-- Meera Singh (22, Jaipur)
-- Kavya Reddy (24, Bangalore)
+## Test Accounts
+- testmale@heartlink.co.in (no password set - test account)
+
+## AI Chat Profiles (auto-generated)
+- Riya Sharma (24, Delhi)
+- Priya Patel (22, Mumbai)
+- Ananya Singh (25, Bangalore)
+- Meera Reddy (23, Hyderabad)
 - Riya Gupta (21, Lucknow)
 - Nisha Verma (26, Pune)
