@@ -36,6 +36,10 @@ function measure() {
   if (Capacitor.isNativePlatform() && measuredBottom < 8) {
     measuredBottom = 12;
   }
+  // On mobile web, ensure a small default for gesture bars
+  if (!Capacitor.isNativePlatform() && measuredBottom < 4 && /Mobi|Android/i.test(navigator.userAgent)) {
+    measuredBottom = 6;
+  }
 
   // Top safe area
   const probeTop = document.createElement('div');

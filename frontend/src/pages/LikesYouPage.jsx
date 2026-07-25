@@ -6,6 +6,7 @@ import SeeWhoLikedYouCard from '@/components/ads/SeeWhoLikedYouCard';
 import { useAds } from '@/context/AdContext';
 import { Button } from '@/components/ui/button';
 import wsService from '@/services/WebSocketService';
+import { API } from '@/config/api';
 
 
 const LikesYouPage = ({ user }) => {
@@ -356,7 +357,6 @@ const LikesYouPage = ({ user }) => {
       <style jsx>{`
         @keyframes slideIn {
           from {
-import { API } from '@/config/api';
             opacity: 0;
             transform: translateY(20px);
           }
