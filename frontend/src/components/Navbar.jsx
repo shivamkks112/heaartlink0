@@ -72,28 +72,27 @@ const Navbar = ({ user }) => {
   const totalAlerts = notificationCount + unreadMessages;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-gradient-to-r from-gray-700 via-gray-600 to-gray-700 shadow-[0_-4px_20px_rgba(0,0,0,0.25)] z-50 border-t border-gray-500" style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 4px)' }}>
-      <div className="max-w-7xl mx-auto px-2 sm:px-4">
-        <div className="flex items-center justify-around h-16 sm:h-18 md:h-20">
-          <div className="flex items-center justify-around gap-1 sm:gap-4 w-full">
+    <nav className="fixed bottom-0 left-0 right-0 bg-gray-800 shadow-[0_-2px_10px_rgba(0,0,0,0.3)] z-[100] border-t border-gray-600">
+      <div className="w-full px-2 pt-2 pb-5">
+        <div className="flex items-center justify-around">
             <button
               data-testid="nav-discover"
               onClick={() => navigate('/discover')}
-              className={`flex flex-col items-center justify-center gap-1 px-2 sm:px-4 py-2 rounded-xl font-medium transition-all duration-300 min-w-[60px] touch-manipulation ${
+              className={`flex flex-col items-center justify-center gap-0.5 py-1.5 px-3 rounded-xl transition-all duration-300 touch-manipulation ${
                 isActive('/discover')
                   ? 'bg-gradient-to-r from-pink-500 to-orange-500 text-white shadow-glow'
                   : 'text-gray-300 hover:bg-gray-700 hover:text-white'
               }`}
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
-              <Compass className={`w-6 h-6 ${isActive('/discover') ? 'animate-pulse' : ''}`} />
-              <span className="text-xs">Discover</span>
+              <Compass className={`w-5 h-5 ${isActive('/discover') ? 'animate-pulse' : ''}`} />
+              <span className="text-[10px]">Discover</span>
             </button>
 
             <button
               data-testid="nav-likes"
               onClick={() => navigate('/likes')}
-              className={`relative flex flex-col items-center justify-center gap-1 px-2 sm:px-4 py-2 rounded-xl font-medium transition-all duration-300 min-w-[60px] touch-manipulation ${
+              className={`relative flex flex-col items-center justify-center gap-0.5 py-1.5 px-3 rounded-xl transition-all duration-300 touch-manipulation ${
                 isActive('/likes')
                   ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-glow'
                   : 'text-gray-300 hover:bg-gray-700 hover:text-white'
@@ -101,20 +100,20 @@ const Navbar = ({ user }) => {
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
               <div className="relative">
-                <Heart className={`w-6 h-6 ${isActive('/likes') ? 'animate-pulse fill-current' : ''}`} />
+                <Heart className={`w-5 h-5 ${isActive('/likes') ? 'animate-pulse fill-current' : ''}`} />
                 {likesCount > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-lg animate-pulse">
+                  <span className="absolute -top-2 -right-2 bg-gradient-to-r from-red-500 to-pink-500 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center shadow-lg animate-pulse">
                     {likesCount > 99 ? '99+' : likesCount}
                   </span>
                 )}
               </div>
-              <span className="text-xs">Likes</span>
+              <span className="text-[10px]">Likes</span>
             </button>
 
             <button
               data-testid="nav-notifications"
               onClick={() => navigate('/notifications')}
-              className={`relative flex flex-col items-center justify-center gap-1 px-2 sm:px-4 py-2 rounded-xl font-medium transition-all duration-300 min-w-[60px] touch-manipulation ${
+              className={`relative flex flex-col items-center justify-center gap-0.5 py-1.5 px-3 rounded-xl transition-all duration-300 touch-manipulation ${
                 isActive('/notifications')
                   ? 'bg-gradient-to-r from-pink-500 to-orange-500 text-white shadow-glow'
                   : 'text-gray-300 hover:bg-gray-700 hover:text-white'
@@ -122,20 +121,20 @@ const Navbar = ({ user }) => {
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
               <div className="relative">
-                <Bell className={`w-6 h-6 ${isActive('/notifications') ? 'animate-pulse' : ''}`} />
+                <Bell className={`w-5 h-5 ${isActive('/notifications') ? 'animate-pulse' : ''}`} />
                 {totalAlerts > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-lg animate-pulse">
+                  <span className="absolute -top-2 -right-2 bg-gradient-to-r from-red-500 to-pink-500 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center shadow-lg animate-pulse">
                     {totalAlerts > 99 ? '99+' : totalAlerts}
                   </span>
                 )}
               </div>
-              <span className="text-xs">Alerts</span>
+              <span className="text-[10px]">Alerts</span>
             </button>
 
             <button
               data-testid="nav-matches"
               onClick={() => navigate('/matches')}
-              className={`relative flex flex-col items-center justify-center gap-1 px-2 sm:px-4 py-2 rounded-xl font-medium transition-all duration-300 min-w-[60px] touch-manipulation ${
+              className={`relative flex flex-col items-center justify-center gap-0.5 py-1.5 px-3 rounded-xl transition-all duration-300 touch-manipulation ${
                 isActive('/matches') || location.pathname.startsWith('/chat')
                   ? 'bg-gradient-to-r from-pink-500 to-orange-500 text-white shadow-glow'
                   : 'text-gray-300 hover:bg-gray-700 hover:text-white'
@@ -143,56 +142,29 @@ const Navbar = ({ user }) => {
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
               <div className="relative">
-                <MessageSquare className={`w-6 h-6 ${isActive('/matches') || location.pathname.startsWith('/chat') ? 'animate-pulse' : ''}`} />
+                <MessageSquare className={`w-5 h-5 ${isActive('/matches') || location.pathname.startsWith('/chat') ? 'animate-pulse' : ''}`} />
                 {unreadMessages > 0 && !isActive('/matches') && !location.pathname.startsWith('/chat') && (
-                  <span className="absolute -top-2 -right-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-lg">
+                  <span className="absolute -top-2 -right-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center shadow-lg">
                     {unreadMessages > 99 ? '99+' : unreadMessages}
                   </span>
                 )}
               </div>
-              <span className="text-xs">Matches</span>
+              <span className="text-[10px]">Chats</span>
             </button>
 
             <button
               data-testid="nav-profile"
               onClick={() => navigate('/profile')}
-              className={`flex flex-col items-center justify-center gap-1 px-2 sm:px-4 py-2 rounded-xl font-medium transition-all duration-300 min-w-[60px] touch-manipulation ${
+              className={`flex flex-col items-center justify-center gap-0.5 py-1.5 px-3 rounded-xl transition-all duration-300 touch-manipulation ${
                 isActive('/profile')
                   ? 'bg-gradient-to-r from-pink-500 to-orange-500 text-white shadow-glow'
                   : 'text-gray-300 hover:bg-gray-700 hover:text-white'
               }`}
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
-              <User className={`w-6 h-6 ${isActive('/profile') ? 'animate-pulse' : ''}`} />
-              <span className="text-xs">Profile</span>
+              <User className={`w-5 h-5 ${isActive('/profile') ? 'animate-pulse' : ''}`} />
+              <span className="text-[10px]">Profile</span>
             </button>
-
-            {user.is_admin && (
-              <button
-                data-testid="nav-admin"
-                onClick={() => navigate('/admin')}
-                className={`flex flex-col items-center justify-center gap-1 px-2 sm:px-4 py-2 rounded-xl font-medium transition-all duration-300 min-w-[60px] touch-manipulation ${
-                  isActive('/admin')
-                    ? 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-glow'
-                    : 'text-purple-400 hover:bg-purple-900/50 hover:text-purple-300'
-                }`}
-                style={{ WebkitTapHighlightColor: 'transparent' }}
-              >
-                <Shield className={`w-6 h-6 ${isActive('/admin') ? 'animate-pulse' : ''}`} />
-                <span className="text-xs">Admin</span>
-              </button>
-            )}
-
-            <button
-              data-testid="nav-logout"
-              onClick={handleLogout}
-              className="flex flex-col items-center justify-center gap-1 px-2 sm:px-4 py-2 rounded-xl font-medium text-red-400 hover:bg-red-900/30 hover:text-red-300 transition-all duration-300 min-w-[60px] touch-manipulation"
-              style={{ WebkitTapHighlightColor: 'transparent' }}
-            >
-              <LogOut className="w-6 h-6" />
-              <span className="text-xs">Logout</span>
-            </button>
-          </div>
         </div>
       </div>
     </nav>

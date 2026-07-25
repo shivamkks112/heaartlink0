@@ -60,7 +60,7 @@ body {
 }
 
 .page-with-bottom-nav {
-  padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: 84px;
 }
 
 .trust-badge {
