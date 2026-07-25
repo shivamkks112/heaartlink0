@@ -6805,9 +6805,10 @@ class PushNotificationRequest(BaseModel):
 @api_router.post("/admin/push/send")
 async def send_push_notification_api(data: PushNotificationRequest):
     """Send push notification via FCM (Admin Panel)."""
-    result = await fcm_service.admin_broadcast(db, data.title, data.message, data.target)
     if data.target == "user_ids" and data.user_ids:
         result = await fcm_service.send_to_users(db, data.user_ids, data.title, data.message)
+    else:
+        result = await fcm_service.admin_broadcast(db, data.title, data.message, data.target)
     
     await db.notification_logs.insert_one({
         "id": str(uuid.uuid4()),
