@@ -4381,19 +4381,56 @@ async def register_fcm_token(request: FCMTokenRequest):
     try:
         result = await db.users.update_one(
             {"id": request.user_id},
-            {"$set": {"fcm_token": request.fcm_token}}
+            {"$set": {
+                "fcm_token": request.fcm_token,
+                "fcm_token_updated_at": datetime.now(timezone.utc).isoformat()
+            }}
         )
         
         if result.modified_count == 0 and result.matched_count == 0:
             raise HTTPException(status_code=404, detail="User not found")
         
-        logger.info(f"FCM token registered for user {request.user_id}")
+        logger.info(f"FCM token registered for user {request.user_id}: {request.fcm_token[:30]}...")
         return {"success": True, "message": "FCM token registered"}
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error registering FCM token: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.get("/fcm/diagnostics/{user_id}")
+async def fcm_diagnostics(user_id: str):
+    """Notification diagnostics for a specific user."""
+    user = await db.users.find_one({"id": user_id}, {
+        "_id": 0, "id": 1, "name": 1, "email": 1,
+        "fcm_token": 1, "fcm_token_updated_at": 1, "is_ai_profile": 1
+    })
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    token = user.get("fcm_token", "")
+    has_token = bool(token)
+    
+    # Test send if token exists
+    send_result = None
+    if has_token:
+        send_result = await fcm_service.send_to_user(db, user_id, "Diagnostics", "FCM test from diagnostics")
+    
+    # Count in-app notifications
+    notif_count = await db.in_app_notifications.count_documents({"user_id": user_id})
+    
+    return {
+        "user_id": user_id,
+        "name": user.get("name"),
+        "email": user.get("email"),
+        "has_fcm_token": has_token,
+        "fcm_token_prefix": token[:30] + "..." if token else None,
+        "fcm_token_updated_at": user.get("fcm_token_updated_at"),
+        "firebase_initialized": fcm_service.is_fcm_ready(),
+        "test_send_result": send_result,
+        "in_app_notification_count": notif_count,
+    }
 
 @api_router.post("/fcm/send-test")
 async def send_test_notification(user_id: str):

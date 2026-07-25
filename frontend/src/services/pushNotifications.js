@@ -16,6 +16,8 @@ import axios from 'axios';
 const API = process.env.REACT_APP_BACKEND_URL + '/api';
 const TAG = '[FCM]';
 
+let _currentUserId = null;
+
 // ─── Public API ──────────────────────────────────────────────────
 
 export const initPushNotifications = async (userId) => {
@@ -23,6 +25,9 @@ export const initPushNotifications = async (userId) => {
     console.log(TAG, 'Skipped — web platform');
     return;
   }
+
+  _currentUserId = userId;
+  console.log(TAG, 'Initializing for user:', userId);
 
   const { PushNotifications } = await import('@capacitor/push-notifications');
 
@@ -39,33 +44,34 @@ export const initPushNotifications = async (userId) => {
     return;
   }
 
-  // 2. Create notification channel (Android 8+)
+  // 2. Create notification channel FIRST (Android 8+)
   await createNotificationChannel();
 
-  // 3. Register with FCM
-  await PushNotifications.register();
-  console.log(TAG, 'FCM register() called');
+  // 3. Remove old listeners to prevent duplicates
+  await PushNotifications.removeAllListeners();
 
-  // 4. Token received
+  // ━━━ SET UP ALL LISTENERS BEFORE register() ━━━
+
+  // 4. Token received — MUST be before register()
   await PushNotifications.addListener('registration', async (token) => {
-    console.log(TAG, 'Token received:', token.value?.substring(0, 30) + '…');
-    await registerTokenWithBackend(userId, token.value);
+    console.log(TAG, 'TOKEN RECEIVED:', token.value?.substring(0, 40) + '…');
+    await registerTokenWithBackend(_currentUserId, token.value);
   });
 
   // 5. Token error
   await PushNotifications.addListener('registrationError', (err) => {
-    console.error(TAG, 'Registration error:', JSON.stringify(err));
+    console.error(TAG, 'REGISTRATION ERROR:', JSON.stringify(err));
   });
 
   // 6. Foreground — show local notification
   await PushNotifications.addListener('pushNotificationReceived', async (notification) => {
-    console.log(TAG, 'Foreground notification:', JSON.stringify(notification));
+    console.log(TAG, 'FOREGROUND notification:', JSON.stringify(notification));
     await showLocalNotification(notification);
   });
 
   // 7. Background / Terminated — user tapped notification
   await PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
-    console.log(TAG, 'Notification tapped:', JSON.stringify(action));
+    console.log(TAG, 'NOTIFICATION TAPPED:', JSON.stringify(action));
     const data = action.notification?.data || {};
     navigateToScreen(data);
   });
@@ -74,7 +80,7 @@ export const initPushNotifications = async (userId) => {
   try {
     const { LocalNotifications } = await import('@capacitor/local-notifications');
     await LocalNotifications.addListener('localNotificationActionPerformed', (action) => {
-      console.log(TAG, 'Local notification tapped:', JSON.stringify(action));
+      console.log(TAG, 'LOCAL NOTIFICATION TAPPED:', JSON.stringify(action));
       const data = action.notification?.extra || {};
       navigateToScreen(data);
     });
@@ -82,7 +88,11 @@ export const initPushNotifications = async (userId) => {
     console.log(TAG, 'LocalNotifications listener skip:', e.message);
   }
 
-  console.log(TAG, 'Push initialized for user', userId);
+  // ━━━ NOW REGISTER — listeners are ready to catch the token ━━━
+
+  // 9. Register with FCM (triggers 'registration' event above)
+  await PushNotifications.register();
+  console.log(TAG, 'FCM register() called — waiting for token callback');
 };
 
 export const removePushNotifications = async () => {
@@ -100,19 +110,42 @@ export const removePushNotifications = async () => {
   }
 };
 
-// ─── Internals ───────────────────────────────────────────────────
+// ─── Token Registration ──────────────────────────────────────────
 
 async function registerTokenWithBackend(userId, token) {
-  try {
-    const res = await axios.post(`${API}/fcm/register-token`, {
-      user_id: userId,
-      fcm_token: token,
-    });
-    console.log(TAG, 'Token registered with backend:', res.data?.success);
-  } catch (e) {
-    console.error(TAG, 'Token register failed:', e.message);
+  if (!userId || !token) {
+    console.error(TAG, 'Cannot register — missing userId or token');
+    return;
   }
+
+  // Retry up to 3 times with backoff
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      console.log(TAG, `Registering token (attempt ${attempt})...`);
+      const res = await axios.post(`${API}/fcm/register-token`, {
+        user_id: userId,
+        fcm_token: token,
+      });
+      console.log(TAG, 'TOKEN REGISTERED WITH BACKEND:', res.data?.success);
+      
+      // Store locally for diagnostics
+      try {
+        localStorage.setItem('heartlink_fcm_token', token.substring(0, 30) + '…');
+        localStorage.setItem('heartlink_fcm_registered_at', new Date().toISOString());
+      } catch (_) {}
+      
+      return; // Success — exit retry loop
+    } catch (e) {
+      console.error(TAG, `Token register attempt ${attempt} failed:`, e.message);
+      if (attempt < 3) {
+        await new Promise(r => setTimeout(r, attempt * 2000)); // 2s, 4s backoff
+      }
+    }
+  }
+  console.error(TAG, 'TOKEN REGISTRATION FAILED after 3 attempts');
 }
+
+// ─── Notification Channel ────────────────────────────────────────
 
 async function createNotificationChannel() {
   try {
@@ -121,18 +154,20 @@ async function createNotificationChannel() {
       id: 'heartlink_messages',
       name: 'HeartLink Messages',
       description: 'Chat messages, matches, likes and alerts',
-      importance: 5,
-      visibility: 1,
+      importance: 5, // MAX — heads-up popup
+      visibility: 1, // PUBLIC
       sound: 'default',
       vibration: true,
       lights: true,
       lightColor: '#FF6B9D',
     });
-    console.log(TAG, 'Notification channel created: heartlink_messages');
+    console.log(TAG, 'Channel created: heartlink_messages');
   } catch (e) {
     console.log(TAG, 'Channel creation skipped:', e.message);
   }
 }
+
+// ─── Foreground Display ──────────────────────────────────────────
 
 async function showLocalNotification(notification) {
   try {
@@ -148,21 +183,23 @@ async function showLocalNotification(notification) {
         extra: notification.data || {},
       }],
     });
+    console.log(TAG, 'Foreground notification shown locally');
   } catch (e) {
     console.log(TAG, 'Local notification fallback failed:', e.message);
   }
 }
 
+// ─── Deep Link Navigation ────────────────────────────────────────
+
 function navigateToScreen(data) {
   if (!data) return;
+  console.log(TAG, 'Navigating for data:', JSON.stringify(data));
 
-  // Use explicit route from payload
   if (data.route) {
     window.location.href = data.route;
     return;
   }
 
-  // Fallback by type
   switch (data.type) {
     case 'message':
       window.location.href = data.match_id ? `/chat/${data.match_id}` : '/matches';
