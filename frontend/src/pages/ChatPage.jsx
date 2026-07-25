@@ -438,9 +438,9 @@ const ChatPage = ({ user }) => {
     <div className="h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 relative overflow-hidden">
       <Toaster position="top-center" />
       
-      {/* Header - Unique Chat Design with Gradient Background */}
-      <div className="fixed top-0 left-0 right-0 z-[60] bg-gradient-to-r from-pink-500 via-rose-500 to-orange-500 shadow-lg pt-safe">
-        <div className="max-w-2xl mx-auto px-3 py-3">
+      {/* Header */}
+      <div className="fixed top-0 left-0 right-0 z-[60] bg-gradient-to-r from-pink-500 via-rose-500 to-orange-500 shadow-lg" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+        <div className="max-w-2xl mx-auto px-2 py-2.5">
           <div className="flex items-center justify-between gap-2">
             {/* Back Button - Keep as is */}
             <button
@@ -544,81 +544,109 @@ const ChatPage = ({ user }) => {
         </div>
       </div>
 
-      {/* Messages - Absolute positioned with proper top spacing */}
-      <div className="absolute inset-0 overflow-y-auto px-4 py-6 space-y-4 bg-gradient-to-b from-pink-50/50 to-transparent" style={{ top: '93px', bottom: '88px' }} data-testid="messages-container">
+      {/* Messages - Flex layout for proper spacing */}
+      <div
+        className="flex-1 overflow-y-auto px-3 py-4 space-y-3 bg-gradient-to-b from-pink-50/50 to-transparent"
+        style={{ marginTop: '80px', marginBottom: '76px', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+        data-testid="messages-container"
+      >
         {messages.length === 0 ? (
           <div className="text-center py-20">
             <p className="text-gray-500">Start the conversation!</p>
           </div>
         ) : (
-          messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`flex ${msg.sender_id === 'system' ? 'justify-center' : msg.sender_id === user.id ? 'justify-end' : 'justify-start'}`}
-            >
-              {/* System/Warning Messages */}
-              {msg.sender_id === 'system' || msg.message_type === 'system_warning' ? (
-                <div className="max-w-[85%] px-4 py-2 bg-yellow-100 border border-yellow-300 rounded-xl text-center">
-                  <p className="text-sm text-yellow-800 flex items-center justify-center gap-2">
-                    <AlertTriangle className="w-4 h-4" />
-                    {msg.content}
-                  </p>
-                </div>
-              ) : (
-                /* Regular Messages */
-                <div className="relative group max-w-[85%] sm:max-w-[75%] md:max-w-[70%]">
-                  <div
-                    className={`min-w-[60px] px-4 py-2.5 rounded-2xl ${
-                      msg.is_deleted_for_all
-                        ? 'bg-gray-200 text-gray-500 italic'
-                        : msg.sender_id === user.id
-                        ? 'bg-gradient-to-r from-pink-500 to-orange-500 text-white'
-                        : 'bg-white text-gray-800 shadow-md'
-                    }`}
-                    style={{ wordBreak: 'break-word', overflowWrap: 'break-word', hyphens: 'auto' }}
-                  >
-                    {/* Personal info detected badge */}
-                    {msg.personal_info_detected && (
-                      <div className="flex items-center gap-1 text-xs mb-1 opacity-80">
-                        <Shield className="w-3 h-3" />
-                        <span>Protected</span>
+          messages.map((msg, idx) => {
+            const isOwn = msg.sender_id === user.id;
+            const isSystem = msg.sender_id === 'system' || msg.message_type === 'system_warning';
+            // Show avatar for first message or when sender changes
+            const showAvatar = !isOwn && !isSystem && (idx === 0 || messages[idx - 1]?.sender_id !== msg.sender_id);
+
+            return (
+              <div
+                key={msg.id}
+                className={`flex ${isSystem ? 'justify-center' : isOwn ? 'justify-end' : 'justify-start'}`}
+              >
+                {/* System/Warning Messages */}
+                {isSystem ? (
+                  <div className="max-w-[85%] px-4 py-2 bg-yellow-100 border border-yellow-300 rounded-xl text-center">
+                    <p className="text-sm text-yellow-800 flex items-center justify-center gap-2">
+                      <AlertTriangle className="w-4 h-4" />
+                      {msg.content}
+                    </p>
+                  </div>
+                ) : (
+                  /* Regular Messages */
+                  <div className={`flex items-end gap-2 max-w-[85%] sm:max-w-[75%] ${isOwn ? 'flex-row-reverse' : ''}`}>
+                    {/* Avatar for incoming messages */}
+                    {!isOwn && (
+                      <div className="flex-shrink-0 w-7 h-7">
+                        {showAvatar && otherUser ? (
+                          <div className="w-7 h-7 rounded-full overflow-hidden bg-pink-100 border border-pink-200">
+                            {otherUser.profile_picture ? (
+                              <img
+                                src={otherUser.profile_picture}
+                                alt=""
+                                className="w-full h-full object-cover"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-pink-600 text-xs font-bold">
+                                {otherUser.name?.charAt(0)}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="w-7 h-7" /> 
+                        )}
                       </div>
                     )}
-                    
-                    <p className="text-sm sm:text-base whitespace-pre-wrap" style={{ wordBreak: 'break-word' }}>{msg.content}</p>
-                    
-                    <div className={`flex items-center justify-end gap-2 mt-1`}>
-                      <p
-                        className={`text-[10px] sm:text-xs ${
-                          msg.sender_id === user.id ? 'text-white/70' : 'text-gray-400'
+
+                    {/* Message bubble */}
+                    <div className="relative group">
+                      <div
+                        className={`min-w-[60px] px-3.5 py-2 rounded-2xl ${
+                          msg.is_deleted_for_all
+                            ? 'bg-gray-200 text-gray-500 italic'
+                            : isOwn
+                            ? 'bg-gradient-to-r from-pink-500 to-orange-500 text-white rounded-br-sm'
+                            : 'bg-white text-gray-800 shadow-sm rounded-bl-sm'
                         }`}
+                        style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
                       >
-                        {new Date(msg.created_at).toLocaleTimeString('en-IN', {
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </p>
+                        {msg.personal_info_detected && (
+                          <div className="flex items-center gap-1 text-xs mb-1 opacity-80">
+                            <Shield className="w-3 h-3" />
+                            <span>Protected</span>
+                          </div>
+                        )}
+                        
+                        <p className="text-sm whitespace-pre-wrap" style={{ wordBreak: 'break-word' }}>{msg.content}</p>
+                        
+                        <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                          <p className={`text-[10px] ${isOwn ? 'text-white/70' : 'text-gray-400'}`}>
+                            {new Date(msg.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                          {msg.expires_at && (
+                            <Clock className={`w-3 h-3 ${isOwn ? 'text-white/60' : 'text-gray-400'}`} />
+                          )}
+                        </div>
+                      </div>
                       
-                      {/* Disappearing message indicator */}
-                      {msg.expires_at && (
-                        <Clock className={`w-3 h-3 ${msg.sender_id === user.id ? 'text-white/60' : 'text-gray-400'}`} />
+                      {/* Delete button for own messages */}
+                      {isOwn && !msg.is_deleted_for_all && (
+                        <button
+                          onClick={() => setShowDeleteModal(msg.id)}
+                          className="absolute -left-8 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1 bg-white rounded-full shadow-md hover:bg-red-50"
+                        >
+                          <Trash2 className="w-4 h-4 text-red-500" />
+                        </button>
                       )}
                     </div>
                   </div>
-                  
-                  {/* Delete button - show on hover for own messages */}
-                  {msg.sender_id === user.id && !msg.is_deleted_for_all && (
-                    <button
-                      onClick={() => setShowDeleteModal(msg.id)}
-                      className="absolute -left-8 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1 bg-white rounded-full shadow-md hover:bg-red-50"
-                    >
-                      <Trash2 className="w-4 h-4 text-red-500" />
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          ))
+                )}
+              </div>
+            );
+          })
         )}
         
         {/* Typing indicator */}
@@ -668,9 +696,9 @@ const ChatPage = ({ user }) => {
         </div>
       )}
 
-      {/* Input - Fixed at bottom */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 sm:p-4 pb-safe z-50">
-        <form onSubmit={sendMessage} className="flex gap-2 sm:gap-3">
+      {/* Input - Fixed at bottom with safe area */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-gray-100 z-50" style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 8px), 8px)' }}>
+        <form onSubmit={sendMessage} className="flex items-center gap-2 px-3 py-2">
           <Input
             data-testid="message-input"
             type="text"
@@ -680,15 +708,15 @@ const ChatPage = ({ user }) => {
               handleTyping();
             }}
             placeholder="Type a message..."
-            className="flex-1 py-6 px-5 rounded-full border-2 border-gray-200 focus:border-pink-500"
+            className="flex-1 h-11 px-4 rounded-full border-2 border-gray-200 focus:border-pink-500 bg-gray-50 text-sm"
           />
           <Button
             data-testid="send-btn"
             type="submit"
             disabled={!newMessage.trim()}
-            className="bg-gradient-to-r from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600 w-14 h-14 rounded-full flex items-center justify-center shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-gradient-to-r from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600 w-11 h-11 rounded-full flex items-center justify-center shadow-lg disabled:opacity-50 flex-shrink-0"
           >
-            <Send className="w-6 h-6 text-white" />
+            <Send className="w-5 h-5 text-white" />
           </Button>
         </form>
       </div>
