@@ -1,6 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import '@/App.css';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { initSafeArea } from '@/utils/safeArea';
 
 // Critical pages - loaded immediately (lightweight)
 import LandingPage from '@/pages/LandingPage';
@@ -149,6 +150,9 @@ function App() {
       // Check for updates after 5 seconds (don't block initial load)
       setTimeout(checkForAppUpdate, 5000);
     });
+
+    // Initialize safe area measurements
+    initSafeArea();
 
     // Check for stored user
     const storedUser = localStorage.getItem('user');

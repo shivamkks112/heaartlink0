@@ -1,15 +1,14 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Heart, X, Sparkles, MapPin, Award, Zap, ChevronLeft, ChevronRight, Play, Shield, Star } from 'lucide-react';
+import { Heart, X, MapPin, Play, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
-import TopBar from '@/components/TopBar';
 import adsService, { SWIPES_BEFORE_AD, EXTRA_SWIPES_REWARD } from '@/services/AdsService';
 import wsService from '@/services/WebSocketService';
-import { VerifiedBadge, TrustBadge, OnlineStatus, BadgeStyles } from '@/components/badges/VerifiedBadge';
+import { VerifiedBadge, OnlineStatus } from '@/components/badges/VerifiedBadge';
 import MatchAnimation from '@/components/MatchAnimation';
 
 import { BACKEND_URL, API } from '@/config/api';
@@ -99,23 +98,6 @@ const DiscoverPage = ({ user }) => {
     
     // eslint-disable-next-line
   }, []);
-
-  const formatLastSeen = (lastActive) => {
-    if (!lastActive) return 'recently';
-    
-    const now = new Date();
-    const lastSeenDate = new Date(lastActive);
-    const diffMs = now - lastSeenDate;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-    
-    if (diffMins < 1) return 'just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return 'recently';
-  };
 
   const handleAction = async (action) => {
     if (profiles.length === 0) return;
@@ -264,27 +246,19 @@ const DiscoverPage = ({ user }) => {
   };
 
   const currentProfile = profiles[currentIndex];
+  const photos = currentProfile?.photos || [];
+  const allPhotos = currentProfile?.profile_picture
+    ? [currentProfile.profile_picture, ...photos.filter(p => p !== currentProfile.profile_picture)]
+    : photos;
+  const hasMultiplePhotos = allPhotos.length > 1;
 
-  // Skeleton loading state
+  // Skeleton loading
   if (loading) {
     return (
-      <div className="h-screen flex flex-col bg-gray-950">
-        <TopBar />
+      <div className="fixed inset-0 bg-[#0a0a0a] flex flex-col overflow-hidden">
         <Navbar user={user} />
-        <div className="flex-1 flex items-center justify-center px-4" style={{ paddingTop: '60px', paddingBottom: '84px' }}>
-          <div className="w-full max-w-sm">
-            <div className="rounded-3xl overflow-hidden bg-gray-800 animate-pulse">
-              <div className="h-[65vh] bg-gray-700" />
-              <div className="p-5 space-y-3">
-                <div className="h-6 bg-gray-700 rounded-lg w-2/3" />
-                <div className="h-4 bg-gray-700 rounded-lg w-1/2" />
-                <div className="flex gap-2">
-                  <div className="h-8 bg-gray-700 rounded-full w-20" />
-                  <div className="h-8 bg-gray-700 rounded-full w-24" />
-                </div>
-              </div>
-            </div>
-          </div>
+        <div className="flex-1 flex items-center justify-center p-2" style={{ paddingBottom: 'var(--nav-height, 64px)' }}>
+          <div className="w-full h-full max-w-md rounded-xl overflow-hidden bg-gray-800/60 animate-pulse" />
         </div>
       </div>
     );
@@ -292,217 +266,180 @@ const DiscoverPage = ({ user }) => {
 
   if (!currentProfile) {
     return (
-      <div className="h-screen flex flex-col bg-gray-950">
+      <div className="fixed inset-0 bg-[#0a0a0a] flex flex-col overflow-hidden">
         <Navbar user={user} />
-        <div className="flex-1 flex items-center justify-center px-6">
-          <div className="text-center">
-            <div className="w-24 h-24 mx-auto mb-6 bg-gray-800 rounded-full flex items-center justify-center">
+        <div className="flex-1 flex items-center justify-center px-8" style={{ paddingBottom: 'var(--nav-height, 64px)' }}>
+          <div className="text-center" data-testid="no-profiles">
+            <div className="w-24 h-24 mx-auto mb-6 bg-gray-800/60 rounded-full flex items-center justify-center">
               <Heart className="w-10 h-10 text-gray-600" />
             </div>
-            <h2 className="text-2xl font-bold text-white mb-2">No More Profiles</h2>
-            <p className="text-gray-400 mb-8">Come back later for new people!</p>
-            <Button
-              onClick={() => navigate('/matches')}
-              className="bg-gradient-to-r from-pink-500 to-rose-500 text-white px-8 py-3 rounded-full text-base"
-              data-testid="view-matches-btn"
-            >
-              View Your Matches
-            </Button>
-            {shouldShowAds && (
-              <Button
-                onClick={handleWatchAdForSwipes}
-                disabled={showingAd}
-                className="mt-4 bg-gray-800 text-white px-6 py-3 rounded-full flex items-center gap-2 mx-auto"
-                data-testid="watch-ad-btn"
-              >
-                <Play className="w-4 h-4" /> Get +{EXTRA_SWIPES_REWARD} Swipes
-              </Button>
-            )}
+            <h2 className="text-xl font-bold text-white mb-2">No More Profiles</h2>
+            <p className="text-gray-500 text-sm mb-8">Come back later for new people!</p>
+            <Button onClick={() => navigate('/matches')} className="bg-gradient-to-r from-pink-500 to-rose-500 text-white px-10 py-3 rounded-full text-base font-semibold" data-testid="view-matches-btn">View Matches</Button>
           </div>
         </div>
       </div>
     );
   }
 
-  const photos = currentProfile.photos || [];
-  const mainPhoto = currentProfile.profile_picture || (photos.length > 0 ? photos[photoIndex] : null);
-  const allPhotos = currentProfile.profile_picture 
-    ? [currentProfile.profile_picture, ...photos.filter(p => p !== currentProfile.profile_picture)]
-    : photos;
-  const hasMultiplePhotos = allPhotos.length > 1;
-
   return (
-    <div className="h-screen flex flex-col bg-gray-950 overflow-hidden">
+    <div className="fixed inset-0 bg-[#0a0a0a] flex flex-col overflow-hidden">
       <Toaster position="top-center" />
       <Navbar user={user} />
-      
-      <MatchAnimation
-        isOpen={showMatchAnimation}
-        onClose={handleMatchAnimationClose}
-        currentUser={user}
-        matchedUser={matchedUserData}
-        compatibilityScore={matchCompatibilityScore?.toFixed(0)}
-        onStartChat={handleStartChatFromMatch}
-      />
+      <MatchAnimation isOpen={showMatchAnimation} onClose={handleMatchAnimationClose} currentUser={user} matchedUser={matchedUserData} compatibilityScore={matchCompatibilityScore?.toFixed(0)} onStartChat={handleStartChatFromMatch} />
 
-      {/* Full-screen card */}
-      <div className="flex-1 flex items-center justify-center px-3 pt-2 pb-20">
+      {/* Full-bleed card area */}
+      <div
+        className="flex-1 min-h-0 flex flex-col p-1.5 pb-0"
+        style={{ marginBottom: 'var(--nav-height, 64px)' }}
+      >
         <div
-          className={`relative w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl transition-transform duration-200 ${
-            swipeDirection === 'left' ? '-translate-x-6 -rotate-3 opacity-80' :
-            swipeDirection === 'right' ? 'translate-x-6 rotate-3 opacity-80' : ''
+          className={`relative flex-1 w-full max-w-md mx-auto rounded-xl overflow-hidden transition-transform duration-200 ease-out ${
+            swipeDirection === 'left' ? '-translate-x-6 -rotate-3 opacity-70' :
+            swipeDirection === 'right' ? 'translate-x-6 rotate-3 opacity-70' : ''
           }`}
           data-testid="profile-card"
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
         >
-          {/* Photo */}
-          <div className="relative h-[62vh] bg-gray-800">
-            {mainPhoto ? (
+          {/* Photo fills entire card */}
+          <div className="absolute inset-0 bg-gray-900">
+            {(allPhotos[photoIndex] || currentProfile.profile_picture) ? (
               <img
-                src={allPhotos[photoIndex] || mainPhoto}
+                src={allPhotos[photoIndex] || currentProfile.profile_picture}
                 alt={currentProfile.name}
                 className="w-full h-full object-cover"
                 loading="eager"
+                draggable={false}
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-pink-400 to-rose-500">
-                <span className="text-7xl font-bold text-white/60">{currentProfile.name?.charAt(0)}</span>
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-pink-500/80 to-rose-600/80">
+                <span className="text-8xl font-bold text-white/30">{currentProfile.name?.charAt(0)}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Top gradient for indicators */}
+          <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/50 to-transparent z-[3]" />
+
+          {/* Photo indicators */}
+          {hasMultiplePhotos && (
+            <div className="absolute top-2 left-3 right-3 flex gap-1 z-10">
+              {allPhotos.map((_, i) => (
+                <div key={i} className={`h-[3px] flex-1 rounded-full transition-colors ${i === photoIndex ? 'bg-white' : 'bg-white/30'}`} />
+              ))}
+            </div>
+          )}
+
+          {/* Photo tap zones */}
+          {hasMultiplePhotos && (
+            <>
+              <button className="absolute left-0 top-0 w-1/3 h-[65%] z-[5]" onClick={() => setPhotoIndex(Math.max(0, photoIndex - 1))} aria-label="Previous photo" />
+              <button className="absolute right-0 top-0 w-1/3 h-[65%] z-[5]" onClick={() => setPhotoIndex(Math.min(allPhotos.length - 1, photoIndex + 1))} aria-label="Next photo" />
+            </>
+          )}
+
+          {/* Swipe counter pill - top right */}
+          {!user?.is_premium && !user?.isPremium && (
+            <div className="absolute top-3 right-3 bg-black/50 backdrop-blur-sm text-white text-[11px] px-2.5 py-1 rounded-full z-10 font-medium">
+              {Math.max(0, DAILY_SWIPE_LIMIT - dailySwipeCount)}{extraSwipes > 0 && <span className="text-emerald-400"> +{extraSwipes}</span>}
+            </div>
+          )}
+
+          {/* Verified badge */}
+          {currentProfile.verified && (
+            <div className="absolute top-3 left-3 z-10"><VerifiedBadge size="md" showText={false} /></div>
+          )}
+
+          {/* Swipe labels */}
+          {swipeDirection === 'left' && (
+            <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+              <span className="border-4 border-red-500 text-red-500 text-4xl font-black px-8 py-3 rounded-xl rotate-[-20deg] tracking-wider">NOPE</span>
+            </div>
+          )}
+          {swipeDirection === 'right' && (
+            <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+              <span className="border-4 border-emerald-400 text-emerald-400 text-4xl font-black px-8 py-3 rounded-xl rotate-[20deg] tracking-wider">LIKE</span>
+            </div>
+          )}
+
+          {/* Bottom gradient for info + buttons */}
+          <div className="absolute inset-x-0 bottom-0 h-[55%] bg-gradient-to-t from-black/95 via-black/60 to-transparent z-[6]" />
+
+          {/* Profile info overlay */}
+          <div className="absolute bottom-0 left-0 right-0 z-10 px-5 pb-24">
+            <div className="flex items-center gap-2">
+              <h2 className="text-[28px] font-bold text-white leading-none tracking-tight">{currentProfile.name}</h2>
+              <span className="text-[22px] text-white/70 font-light">{currentProfile.age}</span>
+              <OnlineStatus isOnline={currentProfile.is_online} lastActive={currentProfile.last_active} size="sm" showText={false} />
+            </div>
+
+            {currentProfile.location && (
+              <div className="flex items-center gap-1.5 mt-1.5">
+                <MapPin className="w-3.5 h-3.5 text-white/50" />
+                <span className="text-white/60 text-sm">{currentProfile.location}</span>
               </div>
             )}
 
-            {/* Dark gradient overlay at bottom for text */}
-            <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
-
-            {/* Photo indicators */}
-            {hasMultiplePhotos && (
-              <div className="absolute top-3 left-3 right-3 flex gap-1">
-                {allPhotos.map((_, idx) => (
-                  <div key={idx} className={`h-0.5 flex-1 rounded-full ${idx === photoIndex ? 'bg-white' : 'bg-white/30'}`} />
-                ))}
-              </div>
+            {currentProfile.bio && (
+              <p className="text-white/70 text-sm mt-2 line-clamp-2 leading-relaxed">{currentProfile.bio}</p>
             )}
 
-            {/* Photo tap zones */}
-            {hasMultiplePhotos && (
-              <>
-                <div className="absolute left-0 top-0 w-1/3 h-full" onClick={() => setPhotoIndex(Math.max(0, photoIndex - 1))} />
-                <div className="absolute right-0 top-0 w-1/3 h-full" onClick={() => setPhotoIndex(Math.min(allPhotos.length - 1, photoIndex + 1))} />
-              </>
-            )}
-
-            {/* Swipe overlay */}
-            {swipeDirection === 'left' && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="border-4 border-red-500 text-red-500 px-8 py-3 rounded-xl text-3xl font-black rotate-[-20deg]">NOPE</div>
-              </div>
-            )}
-            {swipeDirection === 'right' && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="border-4 border-green-400 text-green-400 px-8 py-3 rounded-xl text-3xl font-black rotate-[20deg]">LIKE</div>
-              </div>
-            )}
-
-            {/* Verified badge */}
-            {currentProfile.verified && (
-              <div className="absolute top-4 right-4">
-                <VerifiedBadge size="md" showText={false} />
-              </div>
-            )}
-
-            {/* Profile info overlay on photo */}
-            <div className="absolute bottom-0 left-0 right-0 p-5">
-              <div className="flex items-end gap-2">
-                <h2 className="text-3xl font-bold text-white leading-tight">
-                  {currentProfile.name}<span className="font-light ml-1">{currentProfile.age}</span>
-                </h2>
-                <OnlineStatus isOnline={currentProfile.is_online} lastActive={currentProfile.last_active} size="sm" showText={false} />
-              </div>
-
-              {currentProfile.location && (
-                <div className="flex items-center gap-1 mt-1.5">
-                  <MapPin className="w-3.5 h-3.5 text-white/70" />
-                  <span className="text-white/80 text-sm">{currentProfile.location}</span>
-                </div>
+            {/* Tags */}
+            <div className="flex flex-wrap gap-1.5 mt-2.5">
+              {currentProfile.relationship_intent && (
+                <span className="bg-white/10 backdrop-blur-sm text-white/90 text-xs px-3 py-1 rounded-full border border-white/10">
+                  {currentProfile.relationship_intent === 'serious' ? 'Serious' : currentProfile.relationship_intent === 'marriage' ? 'Marriage' : currentProfile.relationship_intent === 'casual' ? 'Casual' : 'Friends'}
+                </span>
               )}
-
-              {currentProfile.bio && (
-                <p className="text-white/80 text-sm mt-2 line-clamp-2">{currentProfile.bio}</p>
-              )}
-
-              {/* Chips */}
-              <div className="flex flex-wrap gap-1.5 mt-3">
-                {currentProfile.relationship_intent && (
-                  <span className="bg-white/20 backdrop-blur-sm text-white text-xs px-2.5 py-1 rounded-full">
-                    {currentProfile.relationship_intent === 'serious' ? 'Serious' : currentProfile.relationship_intent === 'marriage' ? 'Marriage' : currentProfile.relationship_intent === 'casual' ? 'Casual' : 'Friends'}
-                  </span>
-                )}
-                {currentProfile.interests?.slice(0, 3).map((interest, idx) => (
-                  <span key={idx} className="bg-white/20 backdrop-blur-sm text-white text-xs px-2.5 py-1 rounded-full">{interest}</span>
-                ))}
-              </div>
+              {currentProfile.interests?.slice(0, 3).map((tag, i) => (
+                <span key={i} className="bg-white/10 backdrop-blur-sm text-white/90 text-xs px-3 py-1 rounded-full border border-white/10">{tag}</span>
+              ))}
             </div>
           </div>
 
-          {/* Action Buttons — floating over card bottom */}
-          <div className="absolute bottom-4 left-0 right-0 flex justify-center items-center gap-5 z-10">
+          {/* Action buttons — floating at bottom of card */}
+          <div className="absolute bottom-4 left-0 right-0 flex justify-center items-center gap-5 z-20">
             <button
               data-testid="pass-btn"
               onClick={() => handleAction('pass')}
-              className="w-14 h-14 rounded-full bg-white shadow-lg flex items-center justify-center active:scale-90 transition-transform"
+              className="w-[52px] h-[52px] rounded-full bg-white/95 shadow-xl flex items-center justify-center active:scale-90 transition-all duration-150 hover:bg-white"
             >
-              <X className="w-7 h-7 text-red-400" />
+              <X className="w-6 h-6 text-rose-500" strokeWidth={3} />
             </button>
-
             <button
               data-testid="superlike-btn"
               onClick={() => handleAction('superlike')}
-              className="w-12 h-12 rounded-full bg-white shadow-lg flex items-center justify-center active:scale-90 transition-transform"
+              className="w-11 h-11 rounded-full bg-white/95 shadow-xl flex items-center justify-center active:scale-90 transition-all duration-150 hover:bg-white"
             >
-              <Star className="w-6 h-6 text-blue-500" fill="currentColor" />
+              <Star className="w-5 h-5 text-blue-500" fill="currentColor" />
             </button>
-
             <button
               data-testid="like-btn"
               onClick={() => handleAction('like')}
-              className="w-16 h-16 rounded-full bg-gradient-to-br from-pink-500 to-rose-500 shadow-lg shadow-pink-500/30 flex items-center justify-center active:scale-90 transition-transform"
+              className="w-[60px] h-[60px] rounded-full bg-gradient-to-br from-emerald-400 to-emerald-500 shadow-xl shadow-emerald-500/30 flex items-center justify-center active:scale-90 transition-all duration-150"
             >
-              <Heart className="w-8 h-8 text-white" fill="white" />
+              <Heart className="w-7 h-7 text-white" fill="white" />
             </button>
           </div>
         </div>
       </div>
 
-      {/* Swipe counter */}
-      {!user?.is_premium && !user?.isPremium && (
-        <div className="fixed top-16 right-3 bg-gray-800/80 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-full z-40">
-          {Math.max(0, DAILY_SWIPE_LIMIT - dailySwipeCount)} swipes left
-          {extraSwipes > 0 && <span className="text-green-400 ml-1">+{extraSwipes}</span>}
-        </div>
-      )}
-
       {/* Out of Swipes Modal */}
       {showOutOfSwipes && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowOutOfSwipes(false)} />
-          <div className="relative bg-white rounded-3xl shadow-2xl max-w-sm w-full overflow-hidden">
-            <button onClick={() => setShowOutOfSwipes(false)} className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full z-10">
-              <X className="w-5 h-5 text-gray-400" />
-            </button>
-            <div className="bg-gradient-to-br from-pink-500 to-rose-500 px-6 py-8 text-center text-white">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowOutOfSwipes(false)} />
+          <div className="relative bg-gray-900 rounded-3xl max-w-sm w-full overflow-hidden border border-white/10">
+            <button onClick={() => setShowOutOfSwipes(false)} className="absolute top-3 right-3 p-2 hover:bg-white/10 rounded-full z-10"><X className="w-5 h-5 text-gray-400" /></button>
+            <div className="bg-gradient-to-br from-pink-500 to-rose-600 px-6 py-8 text-center text-white">
               <Heart className="w-12 h-12 mx-auto mb-3" />
               <h2 className="text-xl font-bold">Swipes Khatam!</h2>
-              <p className="text-white/80 text-sm mt-1">Kal naye swipes milenge</p>
+              <p className="text-white/80 text-sm mt-1.5">Kal naye swipes milenge</p>
             </div>
             <div className="p-5">
               {shouldShowAds && (
-                <button
-                  onClick={handleWatchAdForSwipes}
-                  disabled={showingAd}
-                  className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white p-4 rounded-2xl flex items-center justify-center gap-2"
-                  data-testid="watch-ad-swipes-btn"
-                >
+                <button onClick={handleWatchAdForSwipes} disabled={showingAd} className="w-full bg-emerald-500 text-white p-3.5 rounded-2xl flex items-center justify-center gap-2 font-semibold active:scale-[0.98] transition-transform" data-testid="watch-ad-swipes-btn">
                   <Play className="w-5 h-5" /> Watch Ad for +{EXTRA_SWIPES_REWARD} Swipes
                 </button>
               )}
