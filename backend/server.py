@@ -3949,6 +3949,50 @@ async def mark_messages_as_read(match_id: str, user_id: str):
     )
     return {"marked_read": result.modified_count}
 
+
+class MessageReaction(BaseModel):
+    message_id: str
+    user_id: str
+    reaction: str  # heart, laugh, thumbsup, sad, angry
+
+@api_router.post("/messages/{message_id}/react")
+async def react_to_message(message_id: str, data: MessageReaction):
+    """Add or remove a reaction on a message."""
+    valid_reactions = ['heart', 'laugh', 'thumbsup', 'sad', 'angry']
+    if data.reaction not in valid_reactions:
+        raise HTTPException(status_code=400, detail=f"Invalid reaction. Use: {valid_reactions}")
+    
+    msg = await db.messages.find_one({"id": message_id})
+    if not msg:
+        raise HTTPException(status_code=404, detail="Message not found")
+    
+    reactions = msg.get("reactions", {})
+    
+    # Toggle: if same user already reacted with same emoji, remove it
+    if reactions.get(data.user_id) == data.reaction:
+        reactions.pop(data.user_id, None)
+    else:
+        reactions[data.user_id] = data.reaction
+    
+    await db.messages.update_one(
+        {"id": message_id},
+        {"$set": {"reactions": reactions}}
+    )
+    
+    # Notify other user via WebSocket
+    other_id = msg["receiver_id"] if msg["sender_id"] == data.user_id else msg["sender_id"]
+    await manager.send_message(other_id, {
+        "type": "message_reaction",
+        "message_id": message_id,
+        "user_id": data.user_id,
+        "reaction": data.reaction if data.user_id in reactions else None,
+        "match_id": msg.get("match_id", "")
+    })
+    
+    return {"success": True, "reactions": reactions}
+
+
+
 @api_router.post("/messages")
 async def send_message_http(message_data: Message):
     """Send message with women safety checks"""

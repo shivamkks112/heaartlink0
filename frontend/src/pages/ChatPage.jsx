@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Send, ArrowLeft, Shield, Flag, BellOff, Bell, MoreVertical, Trash2, AlertTriangle, Camera, Clock } from 'lucide-react';
+import { Send, ArrowLeft, Shield, Flag, BellOff, Bell, MoreVertical, Trash2, AlertTriangle, Camera, Clock, Check, CheckCheck, Heart as HeartIcon, SmilePlus } from 'lucide-react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -96,6 +96,32 @@ const ChatPage = ({ user }) => {
       console.error('Failed to send typing indicator');
     }
   };
+
+  const handleReaction = async (messageId, reaction) => {
+    try {
+      await axios.post(`${API}/messages/${messageId}/react`, {
+        message_id: messageId,
+        user_id: user.id,
+        reaction: reaction
+      });
+      // Update local state
+      setMessages(prev => prev.map(m => {
+        if (m.id === messageId) {
+          const reactions = { ...(m.reactions || {}) };
+          if (reactions[user.id] === reaction) {
+            delete reactions[user.id];
+          } else {
+            reactions[user.id] = reaction;
+          }
+          return { ...m, reactions };
+        }
+        return m;
+      }));
+    } catch (error) {
+      console.error('Reaction failed:', error);
+    }
+  };
+
 
   const handleTyping = () => {
     if (!isTyping) {
@@ -608,6 +634,7 @@ const ChatPage = ({ user }) => {
                             : 'bg-white text-gray-800 shadow-sm rounded-bl-sm'
                         }`}
                         style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
+                        onDoubleClick={() => !msg.is_deleted_for_all && handleReaction(msg.id, 'heart')}
                       >
                         {msg.personal_info_detected && (
                           <div className="flex items-center gap-1 text-xs mb-1 opacity-80">
@@ -618,15 +645,36 @@ const ChatPage = ({ user }) => {
                         
                         <p className="text-sm whitespace-pre-wrap" style={{ wordBreak: 'break-word' }}>{msg.content}</p>
                         
-                        <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                        <div className="flex items-center justify-end gap-1 mt-0.5">
                           <p className={`text-[10px] ${isOwn ? 'text-white/70' : 'text-gray-400'}`}>
                             {new Date(msg.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                           </p>
                           {msg.expires_at && (
                             <Clock className={`w-3 h-3 ${isOwn ? 'text-white/60' : 'text-gray-400'}`} />
                           )}
+                          {/* Read receipts for own messages */}
+                          {isOwn && !msg.is_deleted_for_all && (
+                            msg.read ? (
+                              <CheckCheck className="w-3.5 h-3.5 text-blue-300" />
+                            ) : (
+                              <Check className="w-3.5 h-3.5 text-white/50" />
+                            )
+                          )}
                         </div>
                       </div>
+
+                      {/* Reactions display */}
+                      {msg.reactions && Object.keys(msg.reactions).length > 0 && (
+                        <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'} -mt-2 ${isOwn ? 'mr-1' : 'ml-1'}`}>
+                          <div className="bg-white shadow-sm rounded-full px-1.5 py-0.5 border border-gray-100 flex gap-0.5">
+                            {Object.values(msg.reactions).map((r, i) => (
+                              <span key={i} className="text-xs">
+                                {r === 'heart' ? '❤️' : r === 'laugh' ? '😂' : r === 'thumbsup' ? '👍' : r === 'sad' ? '😢' : '😠'}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       
                       {/* Delete button for own messages */}
                       {isOwn && !msg.is_deleted_for_all && (

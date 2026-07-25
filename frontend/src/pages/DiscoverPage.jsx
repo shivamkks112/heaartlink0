@@ -265,15 +265,25 @@ const DiscoverPage = ({ user }) => {
 
   const currentProfile = profiles[currentIndex];
 
+  // Skeleton loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 flex items-center justify-center">
-        <div className="text-center animate-bounce-in">
-          <div className="w-20 h-20 border-4 border-pink-500 border-t-transparent rounded-full animate-spin mx-auto mb-6 shadow-glow"></div>
-          <div className="bg-white rounded-2xl p-6 shadow-elevated glass-effect">
-            <Heart className="w-12 h-12 text-pink-500 mx-auto mb-4 animate-heart-beat" />
-            <p className="text-gray-700 font-semibold text-lg">Finding your perfect matches...</p>
-            <p className="text-gray-500 text-sm mt-2">AI is analyzing compatibility</p>
+      <div className="h-screen flex flex-col bg-gray-950">
+        <TopBar />
+        <Navbar user={user} />
+        <div className="flex-1 flex items-center justify-center px-4" style={{ paddingTop: '60px', paddingBottom: '84px' }}>
+          <div className="w-full max-w-sm">
+            <div className="rounded-3xl overflow-hidden bg-gray-800 animate-pulse">
+              <div className="h-[65vh] bg-gray-700" />
+              <div className="p-5 space-y-3">
+                <div className="h-6 bg-gray-700 rounded-lg w-2/3" />
+                <div className="h-4 bg-gray-700 rounded-lg w-1/2" />
+                <div className="flex gap-2">
+                  <div className="h-8 bg-gray-700 rounded-full w-20" />
+                  <div className="h-8 bg-gray-700 rounded-full w-24" />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -282,59 +292,50 @@ const DiscoverPage = ({ user }) => {
 
   if (!currentProfile) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 pb-24">
+      <div className="h-screen flex flex-col bg-gray-950">
         <Navbar user={user} />
-        <div className="max-w-2xl mx-auto px-4 py-12 text-center">
-          <div className="bg-white rounded-3xl p-8 shadow-xl">
-            <Heart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">No More Profiles</h2>
-            <p className="text-gray-600 mb-6">Check back later for new matches!</p>
+        <div className="flex-1 flex items-center justify-center px-6">
+          <div className="text-center">
+            <div className="w-24 h-24 mx-auto mb-6 bg-gray-800 rounded-full flex items-center justify-center">
+              <Heart className="w-10 h-10 text-gray-600" />
+            </div>
+            <h2 className="text-2xl font-bold text-white mb-2">No More Profiles</h2>
+            <p className="text-gray-400 mb-8">Come back later for new people!</p>
             <Button
               onClick={() => navigate('/matches')}
-              className="bg-gradient-to-r from-pink-500 to-orange-500 text-white px-6 py-3 rounded-full"
+              className="bg-gradient-to-r from-pink-500 to-rose-500 text-white px-8 py-3 rounded-full text-base"
               data-testid="view-matches-btn"
             >
               View Your Matches
             </Button>
-          </div>
-          
-          {/* Rewarded Ad for Extra Swipes - Only for eligible users */}
-          {shouldShowAds && (
-            <div className="mt-6 bg-white rounded-3xl p-6 shadow-xl">
-              <h3 className="text-lg font-bold text-gray-800 mb-3">🎁 Get Extra Swipes</h3>
-              <p className="text-gray-600 text-sm mb-4">
-                Watch a short video to get +{EXTRA_SWIPES_REWARD} extra swipes!
-              </p>
+            {shouldShowAds && (
               <Button
                 onClick={handleWatchAdForSwipes}
                 disabled={showingAd}
-                className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-6 py-3 rounded-full flex items-center gap-2 mx-auto"
+                className="mt-4 bg-gray-800 text-white px-6 py-3 rounded-full flex items-center gap-2 mx-auto"
                 data-testid="watch-ad-btn"
               >
-                {showingAd ? (
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <Play className="w-5 h-5" />
-                )}
-                Watch Ad for +{EXTRA_SWIPES_REWARD} Swipes
+                <Play className="w-4 h-4" /> Get +{EXTRA_SWIPES_REWARD} Swipes
               </Button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     );
   }
 
   const photos = currentProfile.photos || [];
-  const hasMultiplePhotos = photos.length > 1;
+  const mainPhoto = currentProfile.profile_picture || (photos.length > 0 ? photos[photoIndex] : null);
+  const allPhotos = currentProfile.profile_picture 
+    ? [currentProfile.profile_picture, ...photos.filter(p => p !== currentProfile.profile_picture)]
+    : photos;
+  const hasMultiplePhotos = allPhotos.length > 1;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 pb-40" style={{ paddingTop: '95px' }}>
-      <TopBar />
+    <div className="h-screen flex flex-col bg-gray-950 overflow-hidden">
       <Toaster position="top-center" />
       <Navbar user={user} />
       
-      {/* Match Animation Overlay */}
       <MatchAnimation
         isOpen={showMatchAnimation}
         onClose={handleMatchAnimationClose}
@@ -343,304 +344,168 @@ const DiscoverPage = ({ user }) => {
         compatibilityScore={matchCompatibilityScore?.toFixed(0)}
         onStartChat={handleStartChatFromMatch}
       />
-      
-      <div className="max-w-2xl mx-auto px-4 py-8 pb-32">
-        <div 
-          className={`bg-white rounded-3xl shadow-elevated overflow-hidden relative hover-lift transition-all duration-300 ${swipeDirection === 'left' ? 'translate-x-[-20px] opacity-80' : swipeDirection === 'right' ? 'translate-x-[20px] opacity-80' : ''}`}
+
+      {/* Full-screen card */}
+      <div className="flex-1 flex items-center justify-center px-3 pt-2 pb-20">
+        <div
+          className={`relative w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl transition-transform duration-200 ${
+            swipeDirection === 'left' ? '-translate-x-6 -rotate-3 opacity-80' :
+            swipeDirection === 'right' ? 'translate-x-6 rotate-3 opacity-80' : ''
+          }`}
           data-testid="profile-card"
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
         >
-          {/* Photo Section with enhanced animations */}
-          <div className="relative h-96 bg-gradient-to-br from-pink-200 to-orange-200 overflow-hidden group">
-            {currentProfile.profile_picture ? (
+          {/* Photo */}
+          <div className="relative h-[62vh] bg-gray-800">
+            {mainPhoto ? (
               <img
-                src={currentProfile.profile_picture}
+                src={allPhotos[photoIndex] || mainPhoto}
                 alt={currentProfile.name}
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-              />
-            ) : photos.length > 0 ? (
-              <img
-                src={photos[photoIndex]}
-                alt={currentProfile.name}
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                className="w-full h-full object-cover"
+                loading="eager"
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <Heart className="w-24 h-24 text-white animate-heart-beat" />
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-pink-400 to-rose-500">
+                <span className="text-7xl font-bold text-white/60">{currentProfile.name?.charAt(0)}</span>
               </div>
             )}
 
-            {/* Gradient overlay for better text visibility */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            {/* Dark gradient overlay at bottom for text */}
+            <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
 
-            {/* Swipe Direction Indicators */}
-            {swipeDirection === 'left' && (
-              <div className="absolute inset-0 bg-red-500/30 flex items-center justify-center">
-                <div className="bg-red-500 text-white px-6 py-3 rounded-full text-2xl font-bold shadow-lg rotate-[-15deg]">
-                  <X className="w-12 h-12" />
-                </div>
-              </div>
-            )}
-            {swipeDirection === 'right' && (
-              <div className="absolute inset-0 bg-green-500/30 flex items-center justify-center">
-                <div className="bg-green-500 text-white px-6 py-3 rounded-full text-2xl font-bold shadow-lg rotate-[15deg]">
-                  <Heart className="w-12 h-12" fill="white" />
-                </div>
+            {/* Photo indicators */}
+            {hasMultiplePhotos && (
+              <div className="absolute top-3 left-3 right-3 flex gap-1">
+                {allPhotos.map((_, idx) => (
+                  <div key={idx} className={`h-0.5 flex-1 rounded-full ${idx === photoIndex ? 'bg-white' : 'bg-white/30'}`} />
+                ))}
               </div>
             )}
 
-            {/* Photo Navigation */}
+            {/* Photo tap zones */}
             {hasMultiplePhotos && (
               <>
-                <button
-                  onClick={() => setPhotoIndex(Math.max(0, photoIndex - 1))}
-                  disabled={photoIndex === 0}
-                  className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white p-2 rounded-full shadow-lg disabled:opacity-0 transition-all"
-                >
-                  <ChevronLeft className="w-6 h-6" />
-                </button>
-                <button
-                  onClick={() => setPhotoIndex(Math.min(photos.length - 1, photoIndex + 1))}
-                  disabled={photoIndex === photos.length - 1}
-                  className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white p-2 rounded-full shadow-lg disabled:opacity-0 transition-all"
-                >
-                  <ChevronRight className="w-6 h-6" />
-                </button>
-                
-                {/* Photo indicators */}
-                <div className="absolute top-4 left-0 right-0 flex justify-center gap-2">
-                  {photos.map((_, idx) => (
-                    <div
-                      key={idx}
-                      className={`h-1 rounded-full transition-all ${
-                        idx === photoIndex ? 'w-8 bg-white' : 'w-4 bg-white/50'
-                      }`}
-                    />
-                  ))}
-                </div>
+                <div className="absolute left-0 top-0 w-1/3 h-full" onClick={() => setPhotoIndex(Math.max(0, photoIndex - 1))} />
+                <div className="absolute right-0 top-0 w-1/3 h-full" onClick={() => setPhotoIndex(Math.min(allPhotos.length - 1, photoIndex + 1))} />
               </>
             )}
 
-            {/* Colorful Verified Badge */}
+            {/* Swipe overlay */}
+            {swipeDirection === 'left' && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="border-4 border-red-500 text-red-500 px-8 py-3 rounded-xl text-3xl font-black rotate-[-20deg]">NOPE</div>
+              </div>
+            )}
+            {swipeDirection === 'right' && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="border-4 border-green-400 text-green-400 px-8 py-3 rounded-xl text-3xl font-black rotate-[20deg]">LIKE</div>
+              </div>
+            )}
+
+            {/* Verified badge */}
             {currentProfile.verified && (
               <div className="absolute top-4 right-4">
-                <VerifiedBadge size="md" showText={true} />
+                <VerifiedBadge size="md" showText={false} />
               </div>
             )}
-          </div>
 
-          {/* Profile Info */}
-          <div className="p-6">
-            <BadgeStyles />
-            <div className="flex items-center gap-2 mb-2 flex-wrap">
-              <h2 className="text-3xl font-bold text-gray-900">{currentProfile.name}, {currentProfile.age}</h2>
-              {/* Trust Badge - Colorful */}
-              {currentProfile.trust_badge_level && currentProfile.trust_badge_level !== 'low' && (
-                <TrustBadge level={currentProfile.trust_badge_level} size="sm" showText={true} />
+            {/* Profile info overlay on photo */}
+            <div className="absolute bottom-0 left-0 right-0 p-5">
+              <div className="flex items-end gap-2">
+                <h2 className="text-3xl font-bold text-white leading-tight">
+                  {currentProfile.name}<span className="font-light ml-1">{currentProfile.age}</span>
+                </h2>
+                <OnlineStatus isOnline={currentProfile.is_online} lastActive={currentProfile.last_active} size="sm" showText={false} />
+              </div>
+
+              {currentProfile.location && (
+                <div className="flex items-center gap-1 mt-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-white/70" />
+                  <span className="text-white/80 text-sm">{currentProfile.location}</span>
+                </div>
               )}
+
+              {currentProfile.bio && (
+                <p className="text-white/80 text-sm mt-2 line-clamp-2">{currentProfile.bio}</p>
+              )}
+
+              {/* Chips */}
+              <div className="flex flex-wrap gap-1.5 mt-3">
+                {currentProfile.relationship_intent && (
+                  <span className="bg-white/20 backdrop-blur-sm text-white text-xs px-2.5 py-1 rounded-full">
+                    {currentProfile.relationship_intent === 'serious' ? 'Serious' : currentProfile.relationship_intent === 'marriage' ? 'Marriage' : currentProfile.relationship_intent === 'casual' ? 'Casual' : 'Friends'}
+                  </span>
+                )}
+                {currentProfile.interests?.slice(0, 3).map((interest, idx) => (
+                  <span key={idx} className="bg-white/20 backdrop-blur-sm text-white text-xs px-2.5 py-1 rounded-full">{interest}</span>
+                ))}
+              </div>
             </div>
-            
-            {/* Online Status - Enhanced */}
-            <div className="mb-3">
-              <OnlineStatus 
-                isOnline={currentProfile.is_online} 
-                lastActive={currentProfile.last_active}
-                size="md"
-                showText={true}
-              />
-            </div>
-            
-            {currentProfile.location && (
-              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/80 backdrop-blur-sm border border-gray-200 rounded-full mb-3 shadow-sm">
-                <svg className="w-4 h-4 text-rose-500" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-                </svg>
-                <span className="text-gray-700 font-medium text-sm">{currentProfile.location}</span>
-              </div>
-            )}
-
-            {/* Relationship Intent */}
-            {currentProfile.relationship_intent && (
-              <div className="inline-flex items-center gap-1 bg-pink-100 text-pink-700 px-3 py-1 rounded-full text-sm font-medium mb-3">
-                <Heart className="w-3 h-3" />
-                {currentProfile.relationship_intent === 'serious' && 'Serious Relationship'}
-                {currentProfile.relationship_intent === 'casual' && 'Casual Dating'}
-                {currentProfile.relationship_intent === 'friendship' && 'Friendship First'}
-                {currentProfile.relationship_intent === 'marriage' && 'Marriage'}
-              </div>
-            )}
-
-            {currentProfile.bio && (
-              <p className="text-gray-700 mb-4 leading-relaxed">{currentProfile.bio}</p>
-            )}
-
-            {/* Values */}
-            {currentProfile.values && currentProfile.values.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-3">
-                {currentProfile.values.map((value, idx) => (
-                  <span
-                    key={idx}
-                    className="bg-yellow-50 text-yellow-700 border border-yellow-200 px-3 py-1 rounded-full text-sm"
-                  >
-                    {value === 'respect' && '🤝 Respect'}
-                    {value === 'family' && '👨‍👩‍👧‍👦 Family'}
-                    {value === 'ambition' && '🚀 Ambition'}
-                    {value === 'spirituality' && '🙏 Spirituality'}
-                    {value === 'freedom' && '🦅 Freedom'}
-                  </span>
-                ))}
-              </div>
-            )}
-
-            {/* Lifestyle Tags */}
-            {currentProfile.lifestyle_tags && currentProfile.lifestyle_tags.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-3">
-                {currentProfile.lifestyle_tags.map((tag, idx) => (
-                  <span
-                    key={idx}
-                    className="bg-purple-50 text-purple-700 border border-purple-200 px-3 py-1 rounded-full text-sm"
-                  >
-                    {tag === 'non-smoker' && '🚭 Non-Smoker'}
-                    {tag === 'vegetarian' && '🥗 Vegetarian'}
-                    {tag === 'fitness' && '💪 Fitness'}
-                    {tag === 'travel' && '✈️ Travel'}
-                    {tag === 'night-owl' && '🦉 Night Owl'}
-                    {tag === 'early-bird' && '🐦 Early Bird'}
-                    {tag === 'pet-lover' && '🐶 Pet Lover'}
-                    {tag === 'foodie' && '🍕 Foodie'}
-                  </span>
-                ))}
-              </div>
-            )}
-
-            {currentProfile.interests && currentProfile.interests.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {currentProfile.interests.map((interest, idx) => (
-                  <span
-                    key={idx}
-                    className="bg-gradient-to-r from-pink-100 to-orange-100 text-gray-800 px-4 py-2 rounded-full text-sm font-medium"
-                  >
-                    {interest}
-                  </span>
-                ))}
-              </div>
-            )}
           </div>
 
-          {/* Enhanced Action Buttons */}
-          <div className="p-6 flex justify-center items-center gap-8">
+          {/* Action Buttons — floating over card bottom */}
+          <div className="absolute bottom-4 left-0 right-0 flex justify-center items-center gap-5 z-10">
             <button
               data-testid="pass-btn"
               onClick={() => handleAction('pass')}
-              className="bg-white hover:bg-gray-50 border-4 border-gray-300 hover:border-gray-400 w-16 h-16 rounded-full flex items-center justify-center shadow-soft hover:shadow-elevated transform hover:scale-125 transition-all duration-300 group"
+              className="w-14 h-14 rounded-full bg-white shadow-lg flex items-center justify-center active:scale-90 transition-transform"
             >
-              <X className="w-8 h-8 text-gray-500 group-hover:text-gray-700 transition-colors" />
+              <X className="w-7 h-7 text-red-400" />
             </button>
 
             <button
               data-testid="superlike-btn"
               onClick={() => handleAction('superlike')}
-              className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 w-16 h-16 rounded-full flex items-center justify-center shadow-soft hover:shadow-glow transform hover:scale-125 transition-all duration-300 group animate-glow"
+              className="w-12 h-12 rounded-full bg-white shadow-lg flex items-center justify-center active:scale-90 transition-transform"
             >
-              <Sparkles className="w-8 h-8 text-white group-hover:animate-pulse" />
+              <Star className="w-6 h-6 text-blue-500" fill="currentColor" />
             </button>
 
             <button
               data-testid="like-btn"
               onClick={() => handleAction('like')}
-              className="bg-gradient-to-r from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600 w-20 h-20 rounded-full flex items-center justify-center shadow-glow hover:shadow-elevated transform hover:scale-125 transition-all duration-300 group animate-glow"
+              className="w-16 h-16 rounded-full bg-gradient-to-br from-pink-500 to-rose-500 shadow-lg shadow-pink-500/30 flex items-center justify-center active:scale-90 transition-transform"
             >
-              <Heart className="w-10 h-10 text-white group-hover:animate-heart-beat" fill="white" />
+              <Heart className="w-8 h-8 text-white" fill="white" />
             </button>
           </div>
-
-          {/* Swipe hint for mobile */}
-          <div className="px-6 pb-4 text-center">
-            <p className="text-gray-400 text-sm animate-pulse">
-              ← Swipe or use buttons to choose →
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-6 text-center text-gray-600">
-          <p>{profiles.length - currentIndex} profiles remaining</p>
-          {/* Swipe Counter for non-premium */}
-          {!user?.is_premium && !user?.isPremium && (
-            <div className="mt-2 flex items-center justify-center gap-4 text-sm">
-              <span className={`${dailySwipeCount >= DAILY_SWIPE_LIMIT - 10 ? 'text-orange-500 font-semibold' : 'text-gray-500'}`}>
-                Daily: {Math.max(0, DAILY_SWIPE_LIMIT - dailySwipeCount)} left
-              </span>
-              {extraSwipes > 0 && (
-                <span className="text-green-600 font-semibold">
-                  +{extraSwipes} extra
-                </span>
-              )}
-            </div>
-          )}
-          
-          {/* Ad Counter - Show when ads are enabled */}
-          {shouldShowAds && (
-            <p className="text-xs text-gray-400 mt-1">
-              Ad in {swipesUntilAd} swipes
-            </p>
-          )}
         </div>
       </div>
-      
+
+      {/* Swipe counter */}
+      {!user?.is_premium && !user?.isPremium && (
+        <div className="fixed top-16 right-3 bg-gray-800/80 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-full z-40">
+          {Math.max(0, DAILY_SWIPE_LIMIT - dailySwipeCount)} swipes left
+          {extraSwipes > 0 && <span className="text-green-400 ml-1">+{extraSwipes}</span>}
+        </div>
+      )}
+
       {/* Out of Swipes Modal */}
       {showOutOfSwipes && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowOutOfSwipes(false)} />
-          
-          <div className="relative bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95">
-            <button
-              onClick={() => setShowOutOfSwipes(false)}
-              className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full z-10"
-            >
-              <X className="w-5 h-5 text-gray-500" />
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowOutOfSwipes(false)} />
+          <div className="relative bg-white rounded-3xl shadow-2xl max-w-sm w-full overflow-hidden">
+            <button onClick={() => setShowOutOfSwipes(false)} className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full z-10">
+              <X className="w-5 h-5 text-gray-400" />
             </button>
-
-            <div className="bg-gradient-to-br from-pink-500 via-rose-500 to-orange-500 px-6 py-8 text-center text-white">
-              <div className="w-20 h-20 mx-auto mb-4 bg-white/20 rounded-full flex items-center justify-center">
-                <Heart className="w-10 h-10 text-white" />
-              </div>
-              <h2 className="text-2xl font-bold mb-2">Swipes Khatam! 😅</h2>
-              <p className="text-white/90 text-sm">Aapne aaj ke saare swipes use kar liye</p>
+            <div className="bg-gradient-to-br from-pink-500 to-rose-500 px-6 py-8 text-center text-white">
+              <Heart className="w-12 h-12 mx-auto mb-3" />
+              <h2 className="text-xl font-bold">Swipes Khatam!</h2>
+              <p className="text-white/80 text-sm mt-1">Kal naye swipes milenge</p>
             </div>
-
-            <div className="p-6 space-y-4">
-              {/* Watch Ad Option */}
+            <div className="p-5">
               {shouldShowAds && (
                 <button
                   onClick={handleWatchAdForSwipes}
                   disabled={showingAd}
-                  className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white p-4 rounded-2xl flex items-center justify-between transition-all shadow-lg"
+                  className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white p-4 rounded-2xl flex items-center justify-center gap-2"
                   data-testid="watch-ad-swipes-btn"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="bg-white/20 p-2 rounded-full">
-                      <Play className="w-6 h-6" />
-                    </div>
-                    <div className="text-left">
-                      <p className="font-bold text-lg">Free Swipes!</p>
-                      <p className="text-sm text-white/80">Watch ad, get +{EXTRA_SWIPES_REWARD} swipes</p>
-                    </div>
-                  </div>
-                  {showingAd ? (
-                    <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <Play className="w-6 h-6" />
-                  )}
+                  <Play className="w-5 h-5" /> Watch Ad for +{EXTRA_SWIPES_REWARD} Swipes
                 </button>
               )}
-
-              <div className="text-center pt-2">
-                <p className="text-gray-500 text-sm">
-                  Ya phir <span className="font-semibold text-pink-600">kal</span> naye swipes milenge
-                </p>
-              </div>
             </div>
           </div>
         </div>

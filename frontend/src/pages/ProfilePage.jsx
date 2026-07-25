@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-import { Camera, User, Heart, MapPin, Calendar, Briefcase, GraduationCap, Ruler, Dumbbell, Wine, Cigarette, CheckCircle, Shield, Sparkles, ChevronRight, Search, Share2, Gift, Settings } from 'lucide-react';
+import { Camera, User, Heart, MapPin, Calendar, Briefcase, GraduationCap, Ruler, Dumbbell, Wine, Cigarette, CheckCircle, Shield, Sparkles, ChevronRight, Search, Share2, Gift, Settings, LogOut, Crown } from 'lucide-react';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
 import { useNavigate } from 'react-router-dom';
@@ -709,6 +709,47 @@ const ProfilePage = ({ user, onUpdate }) => {
               <div className="text-left">
                 <p className="font-semibold text-gray-900">Privacy & Safety</p>
                 <p className="text-xs text-gray-500">Profile hide, incognito, gender lock</p>
+              </div>
+            </div>
+            <ChevronRight className="w-5 h-5 text-gray-400" />
+          </button>
+
+          {/* Admin Panel - only for admin users */}
+          {user?.is_admin && (
+            <button
+              onClick={() => navigate('/admin')}
+              className="w-full flex items-center justify-between bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-all"
+              data-testid="quick-link-admin"
+            >
+              <div className="flex items-center gap-3">
+                <div className="bg-purple-100 p-2.5 rounded-xl">
+                  <Crown className="w-5 h-5 text-purple-600" />
+                </div>
+                <div className="text-left">
+                  <p className="font-semibold text-gray-900">Admin Panel</p>
+                  <p className="text-xs text-gray-500">Manage users, approvals, notifications</p>
+                </div>
+              </div>
+              <ChevronRight className="w-5 h-5 text-gray-400" />
+            </button>
+          )}
+
+          {/* Logout */}
+          <button
+            onClick={() => {
+              localStorage.clear();
+              window.location.href = '/auth';
+            }}
+            className="w-full flex items-center justify-between bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-all"
+            data-testid="quick-link-logout"
+          >
+            <div className="flex items-center gap-3">
+              <div className="bg-red-100 p-2.5 rounded-xl">
+                <LogOut className="w-5 h-5 text-red-600" />
+              </div>
+              <div className="text-left">
+                <p className="font-semibold text-red-600">Logout</p>
+                <p className="text-xs text-gray-500">Sign out of your account</p>
               </div>
             </div>
             <ChevronRight className="w-5 h-5 text-gray-400" />
