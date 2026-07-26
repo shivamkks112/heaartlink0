@@ -741,7 +741,7 @@ const ChatPage = ({ user }) => {
       )}
 
       {/* Input area - flex-shrink-0 stays at bottom */}
-      <div className="flex-shrink-0 bg-white border-t border-gray-100 z-50" style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 6px)' }}>
+      <div className="flex-shrink-0 bg-white border-t border-gray-100 z-50" style={{ paddingBottom: 'max(var(--safe-bottom, 8px), env(safe-area-inset-bottom, 0px), 8px)' }}>
         <form onSubmit={sendMessage} className="flex items-center gap-2 px-3 py-2">
           <Input
             data-testid="message-input"

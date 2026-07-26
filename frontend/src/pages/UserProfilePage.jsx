@@ -94,7 +94,7 @@ const UserProfilePage = ({ user }) => {
       <Toaster position="top-center" />
       <Navbar user={user} />
       
-      <div className="max-w-4xl mx-auto px-4 py-8 pb-24">
+      <div className="max-w-4xl mx-auto px-4 py-8">
         {/* Back Button */}
         <button
           onClick={() => navigate(-1)}
