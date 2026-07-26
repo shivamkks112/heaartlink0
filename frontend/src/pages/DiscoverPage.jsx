@@ -74,7 +74,6 @@ const DiscoverPage = ({ user }) => {
       });
       return () => unsub();
     }
-    // eslint-disable-next-line
   }, []);
 
   const handleAction = async (action) => {
@@ -175,29 +174,30 @@ const DiscoverPage = ({ user }) => {
     : photos;
   const hasMultiplePhotos = allPhotos.length > 1;
 
-  // ─── Shared shell: fixed full-screen + navbar ───
-  const Shell = ({ children }) => (
-    <div className="fixed inset-0 bg-[#0a0a0a] flex flex-col overflow-hidden">
+  // Shared wrapper elements for all states
+  const shellTop = (
+    <>
       <Toaster position="top-center" />
       <Navbar user={user} />
       <MatchAnimation isOpen={showMatchAnimation} onClose={handleMatchAnimationClose} currentUser={user} matchedUser={matchedUserData} compatibilityScore={matchCompatibilityScore?.toFixed(0)} onStartChat={handleStartChatFromMatch} />
-      {children}
-    </div>
+    </>
   );
 
   if (loading) {
     return (
-      <Shell>
+      <div className="fixed inset-0 bg-[#0a0a0a] flex flex-col overflow-hidden">
+        {shellTop}
         <div className="discover-card-area flex items-center justify-center p-2">
           <div className="w-full h-full max-w-md rounded-xl overflow-hidden bg-gray-800/60 animate-pulse" />
         </div>
-      </Shell>
+      </div>
     );
   }
 
   if (!currentProfile) {
     return (
-      <Shell>
+      <div className="fixed inset-0 bg-[#0a0a0a] flex flex-col overflow-hidden">
+        {shellTop}
         <div className="discover-card-area flex items-center justify-center px-8">
           <div className="text-center" data-testid="no-profiles">
             <div className="w-24 h-24 mx-auto mb-6 bg-gray-800/60 rounded-full flex items-center justify-center">
@@ -208,12 +208,13 @@ const DiscoverPage = ({ user }) => {
             <Button onClick={() => navigate('/matches')} className="bg-gradient-to-r from-pink-500 to-rose-500 text-white px-10 py-3 rounded-full text-base font-semibold" data-testid="view-matches-btn">View Matches</Button>
           </div>
         </div>
-      </Shell>
+      </div>
     );
   }
 
   return (
-    <Shell>
+    <div className="fixed inset-0 bg-[#0a0a0a] flex flex-col overflow-hidden">
+      {shellTop}
       {/* Card area — dynamically sized between top edge and navbar+gap */}
       <div className="discover-card-area p-1.5 pb-0">
         <div
@@ -383,7 +384,7 @@ const DiscoverPage = ({ user }) => {
           </div>
         </div>
       )}
-    </Shell>
+    </div>
   );
 };
 

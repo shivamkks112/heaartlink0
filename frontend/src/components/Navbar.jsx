@@ -44,13 +44,22 @@ const Navbar = ({ user }) => {
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 z-[100] bg-[#0f0f0f]/98 backdrop-blur-xl border-t border-white/[0.06]"
-      style={{ paddingBottom: 'var(--safe-bottom, 8px)' }}
       data-testid="bottom-nav"
+      style={{
+        // Triple-redundant safe bottom padding:
+        // 1. var(--safe-bottom) from safeArea.js (plugin or heuristic)
+        // 2. env() as CSS-native fallback
+        // 3. Hard minimum 8px for web
+        paddingBottom: 'max(var(--safe-bottom, 12px), env(safe-area-inset-bottom, 0px), 8px)',
+      }}
     >
-      {/* Height uses --nav-inner CSS variable instead of hardcoded px */}
+      {/* Icon row — min-height ensures 48dp+ touch targets */}
       <div
-        className="flex items-stretch justify-around px-1"
-        style={{ height: 'var(--nav-inner, 52px)' }}
+        className="flex items-stretch justify-around"
+        style={{
+          height: 'var(--nav-inner, 52px)',
+          minHeight: '48px',
+        }}
       >
         {tabs.map((tab) => {
           const Icon = tab.icon;
@@ -66,7 +75,11 @@ const Navbar = ({ user }) => {
               className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors duration-200 touch-manipulation ${
                 active ? 'text-pink-400' : 'text-gray-400 active:text-gray-200'
               }`}
-              style={{ WebkitTapHighlightColor: 'transparent' }}
+              style={{
+                WebkitTapHighlightColor: 'transparent',
+                // Ensure every button is at least 48px tall for tap target
+                minHeight: '48px',
+              }}
             >
               <div className="relative">
                 <Icon

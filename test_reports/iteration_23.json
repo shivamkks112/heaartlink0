@@ -1,0 +1,46 @@
+{
+  "summary": "Frontend-only verification of Android nav overlap fix (safe-area + Navbar refactor). Tested 5 viewports (Small 360x780, Medium 393x852, Large 412x915, Tablet 800x1280, Landscape 915x412). All required CSS vars are set, Navbar uses triple-redundant CSS max() with all 3 layers, all 5 nav tabs are visible and tappable with min-height >=48px, and navigation works to Discover/Likes/Alerts/Chats/Profile. However, the gap between action buttons and the navbar has REGRESSED versus iteration_22: it is now <24px on 4 of 5 viewports because the 8px CSS floor added to Navbar paddingBottom is not reflected in --nav-total.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "DiscoverPage layout vs Navbar padding", "issue": "Gap between action buttons and bottom navbar is <24px on Small (17px), Medium (18px), Large (20px), Landscape (15px). Only Tablet (31px) passes. This is a regression from iteration_22 where all portraits were >=24px.", "selector": "[data-testid='action-buttons'] vs [data-testid='bottom-nav']", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "measurements": {
+    "css_vars_root": {
+      "small_360x780":   {"safeBottom":"0px","navInner":"52px","navTotal":"52px","cardPad":"26px","actionOffset":"17px","btnLg":"54px"},
+      "medium_393x852":  {"safeBottom":"0px","navInner":"52px","navTotal":"52px","cardPad":"27px","actionOffset":"19px","btnLg":"59px"},
+      "large_412x915":   {"safeBottom":"0px","navInner":"54px","navTotal":"54px","cardPad":"29px","actionOffset":"20px","btnLg":"62px"},
+      "tablet_800x1280": {"safeBottom":"0px","navInner":"58px","navTotal":"58px","cardPad":"40px","actionOffset":"28px","btnLg":"68px"},
+      "landscape_915x412":{"safeBottom":"0px","navInner":"46px","navTotal":"46px","cardPad":"26px","actionOffset":"16px","btnLg":"68px"}
+    },
+    "navbar_padding_inline": "max(var(--safe-bottom, 12px), env(safe-area-inset-bottom, 0px), 8px)  [all 3 layers present on all viewports]",
+    "navbar_paddingBottom_computed": "8px on all web viewports (safe-bottom=0, env=0, so max()->8px)",
+    "nav_button_heights_px": {"small":52,"medium":52,"large":54,"tablet":58,"landscape":48},
+    "all_five_tabs_visible_and_tappable": true,
+    "action_to_nav_gap_px": {"small":17,"medium":18,"large":20,"tablet":31,"landscape":15},
+    "gap_meets_24px_requirement": {"small":false,"medium":false,"large":false,"tablet":true,"landscape":false},
+    "navigation_flow": "Discover->Likes->Alerts->Chats->Profile all navigate and render; navbar remains fixed at bottom on all pages."
+  },
+  "test_report_links": [],
+  "action_items": [
+    "HIGH: Fix action-buttons-to-navbar gap regression. Root cause: Navbar paddingBottom uses max(var(--safe-bottom,12px), env(...,0px), 8px) which yields 8px on web (safe-bottom=0), so actual navbar height = navInner + 8px. But --nav-total in safeArea.js is computed as navInner + safeBottom (i.e., navInner + 0 = navInner), so DiscoverPage's spacer (which uses --nav-total) reserves 8px too little. Two options: (a) In safeArea.js, floor safeBottom to at least 8 for non-native ('else' branch) OR compute navTotal = navInner + Math.max(safeBottom, 8); (b) Remove the 8px minimum from Navbar max() and rely purely on --safe-bottom. Recommend (a) with `const safePad = Math.max(safeBottom, 8); const navTotal = navInner + safePad;` so DiscoverPage layout accounts for actual navbar height.",
+    "MINOR (pre-existing): Console still emits React warning 'Received true for a non-boolean attribute jsx' (likely a <style jsx> attribute leaking to DOM in some component).",
+    "MINOR (pre-existing from iter22): Add onError fallback to profile-card <img> for broken profile_picture URLs."
+  ],
+  "critical_code_review_comments": [
+    "safeArea.js line 142: navTotal = navInner + safeBottom does not match actual navbar height because Navbar.jsx enforces a 8px floor via CSS max(). Consumers of --nav-total will under-reserve space by 8px whenever safeBottom<8. Compute navTotal against the same floor.",
+    "safeArea.js still creates/removes DOM probes on every measure() call — consider caching env() detection once at init.",
+    "DiscoverPage.jsx (~385 lines): still large; extracting ProfileCard/ActionButtons/OutOfSwipesModal would improve maintainability."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "80% (4/5 viewports fail the 24px gap requirement)"},
+  "test_credentials": "review@heartlink.co.in / HeartLink@2026 (admin) — worked.",
+  "seed_data_creation": "None.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Login: /auth, fill email+password, click [data-testid='login-submit-btn']. Set localStorage.heartlink_daily_reward_date to today's 'YYYY-MM-DD' to skip daily reward modal. Verify --nav-total matches actual navbar bounding-rect height. Selectors: bottom-nav, nav-{discover,likes,notifications,matches,profile}, action-buttons, like-btn, pass-btn, superlike-btn, profile-card, swipe-counter. Requirement: gap between action-buttons.bottom and bottom-nav.top must be >=24px on all 5 viewports.",
+  "rca of the issue": "Navbar.jsx paddingBottom='max(var(--safe-bottom,12px), env(safe-area-inset-bottom,0px), 8px)' means on web (safe-bottom=0, env=0) the navbar has an EXTRA 8px paddingBottom, making actual nav height = navInner + 8px. But safeArea.js computes --nav-total = navInner + safeBottom = navInner + 0. DiscoverPage uses --nav-total to reserve space at the bottom of the discover-card-area, so it reserves 8px less than the nav's real footprint, eating into the action-button-to-navbar gap. On tablet the very large --card-pad (40px) absorbs the shortfall, but on small/medium/large/landscape the gap drops to 15-20px (below the 24px minimum). Fix in safeArea.js: use `const safePad = Math.max(safeBottom, 8); const navTotal = navInner + safePad;` and set --safe-bottom to safePad as well so the CSS max() in Navbar collapses to the same value."
+}
