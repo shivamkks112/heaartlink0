@@ -115,7 +115,7 @@ const PrivacyPage = ({ user, onUpdate }) => {
   };
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--m3-surface-container-low)', paddingTop: '70px', paddingBottom: 'calc(var(--nav-total, 86px) + 16px)' }}>
+    <div className="min-h-screen" style={{ background: 'var(--m3-surface-container-low)', paddingTop: 'calc(var(--safe-top, 24px) + 60px)', paddingBottom: 'calc(var(--nav-total, 86px) + 16px)' }}>
       <TopBar />
       <Toaster position="top-center" />
       <Navbar user={user} />
