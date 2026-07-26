@@ -52,6 +52,75 @@
   --m3-motion-duration-short: 150ms;
   --m3-motion-duration-medium: 300ms;
   --m3-motion-duration-long: 500ms;
+
+  /* Navbar/TopBar glass */
+  --m3-glass-bg: rgba(255,251,255,0.92);
+  --m3-glass-border: rgba(214,194,197,0.4);
+  --m3-topbar-bg: rgba(255,251,255,0.88);
+  --m3-topbar-border: rgba(214,194,197,0.3);
+  --m3-topbar-text: #1F1A1C;
+}
+
+/* ══ M3 DARK THEME ══ */
+html.dark {
+  --m3-primary: #FFB1C8;
+  --m3-on-primary: #5E1133;
+  --m3-primary-container: #7D2949;
+  --m3-on-primary-container: #FFD9E2;
+
+  --m3-secondary: #E4BDC9;
+  --m3-on-secondary: #432A33;
+  --m3-secondary-container: #5B3F49;
+
+  --m3-tertiary: #E5BFA8;
+  --m3-tertiary-container: #5F3D24;
+
+  --m3-surface: #1A1113;
+  --m3-surface-dim: #1A1113;
+  --m3-surface-container-lowest: #140D0F;
+  --m3-surface-container-low: #221A1D;
+  --m3-surface-container: #272022;
+  --m3-surface-container-high: #312A2C;
+  --m3-surface-container-highest: #3D3537;
+  --m3-on-surface: #F0DEE1;
+  --m3-on-surface-variant: #D6C2C5;
+  --m3-outline: #9E8C8F;
+  --m3-outline-variant: #524346;
+
+  --m3-elevation-1: 0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
+  --m3-elevation-2: 0 2px 6px rgba(0,0,0,0.35), 0 1px 3px rgba(0,0,0,0.2);
+  --m3-elevation-3: 0 4px 12px rgba(0,0,0,0.4), 0 2px 4px rgba(0,0,0,0.2);
+
+  --m3-glass-bg: rgba(26,17,19,0.92);
+  --m3-glass-border: rgba(82,67,70,0.5);
+  --m3-topbar-bg: rgba(26,17,19,0.88);
+  --m3-topbar-border: rgba(82,67,70,0.4);
+  --m3-topbar-text: #F0DEE1;
+
+  color-scheme: dark;
+}
+
+/* Dark mode body/html base */
+html.dark body {
+  background: var(--m3-surface);
+  color: var(--m3-on-surface);
+}
+
+/* Dark mode overrides for Tailwind bg/text utilities */
+html.dark .bg-white { background: var(--m3-surface-container-lowest) !important; }
+html.dark .bg-gray-50 { background: var(--m3-surface-container-low) !important; }
+html.dark .bg-gray-100 { background: var(--m3-surface-container) !important; }
+html.dark .bg-gray-200 { background: var(--m3-surface-container-high) !important; }
+html.dark .text-gray-900 { color: var(--m3-on-surface) !important; }
+html.dark .text-gray-800 { color: var(--m3-on-surface) !important; }
+html.dark .text-gray-700 { color: var(--m3-on-surface-variant) !important; }
+html.dark .text-gray-600 { color: var(--m3-on-surface-variant) !important; }
+html.dark .text-gray-500 { color: var(--m3-outline) !important; }
+html.dark .text-gray-400 { color: var(--m3-outline) !important; }
+html.dark .border-gray-100 { border-color: var(--m3-outline-variant) !important; }
+html.dark .border-gray-200 { border-color: var(--m3-outline-variant) !important; }
+html.dark .shadow-sm, html.dark .shadow-md, html.dark .shadow-lg, html.dark .shadow-xl, html.dark .shadow-2xl {
+  --tw-shadow-color: rgba(0,0,0,0.4);
 }
 
 /* ── Global Smooth Transitions ── */

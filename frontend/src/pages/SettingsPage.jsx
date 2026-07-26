@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { ArrowLeft, UserX, BellOff, Mail, Phone, Link2, CheckCircle, AlertCircle, Shield, Eye, EyeOff, MessageSquare, Clock, Camera } from 'lucide-react';
+import { ArrowLeft, UserX, BellOff, Mail, Phone, Link2, CheckCircle, AlertCircle, Shield, Eye, EyeOff, MessageSquare, Clock, Camera, Sun, Moon, Monitor } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -11,11 +11,13 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import { useTheme } from '@/hooks/useTheme';
 
 import { BACKEND_URL, API } from '@/config/api';
 
 const SettingsPage = ({ user, setUser }) => {
   const navigate = useNavigate();
+  const { mode: themeMode, setMode: setThemeMode } = useTheme();
   const [blockedUsers, setBlockedUsers] = useState([]);
   const [mutedUsers, setMutedUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -235,6 +237,35 @@ const SettingsPage = ({ user, setUser }) => {
 
       {/* Content */}
       <div className="p-4 space-y-4">
+        {/* Theme / Appearance Section */}
+        <div className="bg-white rounded-xl p-4 shadow-sm" data-testid="theme-section">
+          <h2 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+            <Sun className="w-5 h-5 text-pink-600" />
+            Appearance
+          </h2>
+          <div className="flex gap-2">
+            {[
+              { id: 'light', icon: Sun, label: 'Light' },
+              { id: 'dark', icon: Moon, label: 'Dark' },
+              { id: 'system', icon: Monitor, label: 'System' },
+            ].map(({ id, icon: Icon, label }) => (
+              <button
+                key={id}
+                data-testid={`theme-${id}`}
+                onClick={() => setThemeMode(id)}
+                className={`flex-1 flex flex-col items-center gap-1.5 py-3 rounded-xl transition-all duration-200 ${
+                  themeMode === id
+                    ? 'bg-pink-50 border-2 border-pink-400 text-pink-700'
+                    : 'bg-gray-50 border-2 border-transparent text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                <Icon className="w-5 h-5" />
+                <span className="text-xs font-medium">{label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Account Linking Section */}
         <div className="bg-white rounded-xl p-4 shadow-sm">
           <h2 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">

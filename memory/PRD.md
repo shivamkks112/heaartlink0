@@ -6,38 +6,29 @@
 - Mobile: Capacitor 7 (Android) with CapacitorHttp + capacitor-plugin-safe-area
 - Notifications: Firebase Cloud Messaging (FCM)
 
-## Architecture
-- `/app/frontend/src/styles/material3.css` - M3 design tokens, animations, utilities
-- `/app/frontend/src/utils/safeArea.js` - Multi-layer safe area detection
-- `/app/frontend/src/config/api.js` - Forces production URL for Capacitor
-- `/app/backend/server.py` - Monolithic backend (~7500 lines)
-
 ## Completed (July 25-26, 2026)
-- Phase 1 & 2: UI/UX Redesign — Safe Area + Tinder-style Discover page
-- CRITICAL FIX: Bottom Nav + Android System Nav Bar overlap (4-layer detection)
-- ALL PAGES safe area fix (A-Z)
-- **COMPLETE Material 3 UI/UX Redesign:**
-  - M3 design tokens (colors, shapes, elevation, motion)
-  - M3 Bottom Navigation with active indicator pill
-  - Frosted glass TopBar and Navbar
-  - M3 surface color system across all pages
-  - Premium card shapes (28px radius)
-  - M3 segmented buttons on Matches page
-  - Premium gradient action buttons on Discover
-  - M3 auth page with pill tab switcher
-  - M3 chat bubbles with gradient
-  - Stagger animations, fade-ins, scale transitions
-  - M3 chips, badges, skeleton loaders
-  - Testing agent verified 100% - all functionality intact
+- Phase 1 & 2: Safe Area + Tinder-style Discover page
+- Bottom Nav + Android System Nav Bar overlap fix (4-layer detection)
+- ALL PAGES safe area fix (A-Z) with dynamic CSS variables
+- Complete Material 3 UI/UX Redesign (all screens)
+- **Dark Mode Support:**
+  - M3 dark tokens in material3.css (html.dark selector)
+  - Deep warm dark surfaces (#1A1113, #221A1D, #272022)
+  - Light pink/cream text (#F0DEE1, #D6C2C5)
+  - Dark frosted glass navbar/topbar via CSS variables
+  - Automatic Tailwind class overrides (bg-white, text-gray-*, border-*)
+  - useTheme hook with localStorage persistence
+  - System preference detection (prefers-color-scheme: dark)
+  - Light/Dark/System toggle in Settings page
+  - All pages auto-adapt via CSS variable system
 
 ## Pending / Backlog
-### P0: Phases 3-13 remaining QA (Dark mode, accessibility audit, performance)
+### P0: Accessibility audit (aria-current, dynamic font scaling)
 ### P1: Admin API authentication, server.py refactoring
 ### P2: AI photo verification, AI Trust Score
 
 ## Critical Notes
-- **M3 Theme:** All design tokens in `/src/styles/material3.css`. Use `--m3-*` CSS variables.
+- **Theme:** Use `--m3-*` CSS variables. Dark tokens auto-apply via `html.dark` class.
+- **Theme Hook:** `import { useTheme } from '@/hooks/useTheme'` — provides mode/setMode.
 - **Safe Areas:** Use `--nav-total` CSS variable. NEVER hardcode bottom padding.
-- **Firebase:** `HEARTLINK_FIREBASE_B64` in K8s. Do NOT change fcm_service.py.
-- **Capacitor:** Always import from `@/config/api.js`.
 - **Production:** https://dating-app-debug-1.emergent.host (redeploy to push changes)

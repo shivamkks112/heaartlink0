@@ -47,10 +47,10 @@ const Navbar = ({ user }) => {
       data-testid="bottom-nav"
       style={{
         paddingBottom: 'max(var(--safe-bottom, 12px), env(safe-area-inset-bottom, 0px), 8px)',
-        background: 'rgba(255,251,255,0.92)',
+        background: 'var(--m3-glass-bg)',
         backdropFilter: 'blur(20px) saturate(180%)',
         WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-        borderTop: '1px solid rgba(214,194,197,0.4)',
+        borderTop: '1px solid var(--m3-glass-border)',
       }}
     >
       <div
@@ -77,16 +77,17 @@ const Navbar = ({ user }) => {
               {/* M3 Active Indicator Pill */}
               <div className={`relative flex items-center justify-center rounded-full transition-all duration-300 ease-[cubic-bezier(0.05,0.7,0.1,1)] ${
                 active
-                  ? 'bg-[#FFD9E2] w-16 h-8'
+                  ? 'w-16 h-8'
                   : 'bg-transparent w-8 h-8'
-              }`}>
+              }`}
+              style={active ? { background: 'var(--m3-primary-container)' } : {}}
+              >
                 <div className="relative">
                   <Icon
                     className={`w-[20px] h-[20px] transition-colors duration-200 ${
-                      active
-                        ? 'text-[#D6336C]'
-                        : 'text-[#524346]'
-                    } ${active && tab.fillActive ? 'fill-current' : ''}`}
+                      active && tab.fillActive ? 'fill-current' : ''
+                    }`}
+                    style={{ color: active ? 'var(--m3-primary)' : 'var(--m3-on-surface-variant)' }}
                     strokeWidth={active ? 2.4 : 1.7}
                   />
                   {tab.badge > 0 && (
@@ -96,9 +97,9 @@ const Navbar = ({ user }) => {
                   )}
                 </div>
               </div>
-              <span className={`text-[11px] leading-none font-medium transition-colors duration-200 ${
-                active ? 'text-[#D6336C]' : 'text-[#524346]'
-              }`}>
+              <span className="text-[11px] leading-none font-medium transition-colors duration-200"
+                style={{ color: active ? 'var(--m3-primary)' : 'var(--m3-on-surface-variant)' }}
+              >
                 {tab.label}
               </span>
             </button>

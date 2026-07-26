@@ -3,6 +3,7 @@ import '@/App.css';
 import '@/styles/material3.css';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { initSafeArea } from '@/utils/safeArea';
+import { useTheme } from '@/hooks/useTheme';
 
 // Critical pages - loaded immediately (lightweight)
 import LandingPage from '@/pages/LandingPage';
@@ -143,6 +144,7 @@ function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showDailyReward, setShowDailyReward] = useState(false);
+  useTheme(); // Initialize theme (applies dark class on <html>)
 
   useEffect(() => {
     // Register Service Worker for offline caching
