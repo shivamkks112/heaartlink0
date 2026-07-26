@@ -13,7 +13,7 @@ import MatchAnimation from '@/components/MatchAnimation';
 
 import { BACKEND_URL, API } from '@/config/api';
 if (!BACKEND_URL) {
-  console.error('⚠️ REACT_APP_BACKEND_URL is not set!');
+  console.error('REACT_APP_BACKEND_URL is not set!');
 }
 
 const DiscoverPage = ({ user }) => {
@@ -30,18 +30,13 @@ const DiscoverPage = ({ user }) => {
   const [extraSwipes, setExtraSwipes] = useState(0);
   const [swipesUntilAd, setSwipesUntilAd] = useState(SWIPES_BEFORE_AD);
   const [showingAd, setShowingAd] = useState(false);
-  
-  // Match Animation State
+
   const [showMatchAnimation, setShowMatchAnimation] = useState(false);
   const [matchedUserData, setMatchedUserData] = useState(null);
   const [matchCompatibilityScore, setMatchCompatibilityScore] = useState(null);
-  
-  // Daily swipe limit (50 for free users)
-  const DAILY_SWIPE_LIMIT = 50;
-  
-  // Check if user should see ads (male, non-premium)
-  const shouldShowAds = user?.gender === 'male' && !user?.is_premium && !user?.isPremium;
 
+  const DAILY_SWIPE_LIMIT = 50;
+  const shouldShowAds = user?.gender === 'male' && !user?.is_premium && !user?.isPremium;
   const minSwipeDistance = 50;
 
   const fetchProfiles = async () => {
@@ -57,13 +52,8 @@ const DiscoverPage = ({ user }) => {
 
   useEffect(() => {
     fetchProfiles();
-    
-    // Initialize ads service
-    if (shouldShowAds) {
-      adsService.initialize();
-    }
-    
-    // Load daily swipe count from localStorage
+    if (shouldShowAds) adsService.initialize();
+
     const today = new Date().toDateString();
     const storedDate = localStorage.getItem('heartlink_swipe_date');
     if (storedDate !== today) {
@@ -71,93 +61,65 @@ const DiscoverPage = ({ user }) => {
       localStorage.setItem('heartlink_swipe_count', '0');
       setDailySwipeCount(0);
     } else {
-      const count = parseInt(localStorage.getItem('heartlink_swipe_count') || '0');
-      setDailySwipeCount(count);
+      setDailySwipeCount(parseInt(localStorage.getItem('heartlink_swipe_count') || '0'));
     }
-    
-    // Load extra swipes
-    const extra = parseInt(localStorage.getItem('heartlink_extra_swipes') || '0');
-    setExtraSwipes(extra);
-    
-    // Connect to WebSocket for real-time updates
+    setExtraSwipes(parseInt(localStorage.getItem('heartlink_extra_swipes') || '0'));
+
     if (user?.id) {
       wsService.connect(user.id);
-      
-      const unsubscribe = wsService.on('status_update', (data) => {
-        setProfiles(prev => prev.map(p => 
-          p.id === data.user_id 
-            ? { ...p, is_online: data.is_online, last_active: data.last_active }
-            : p
+      const unsub = wsService.on('status_update', (data) => {
+        setProfiles(prev => prev.map(p =>
+          p.id === data.user_id ? { ...p, is_online: data.is_online, last_active: data.last_active } : p
         ));
       });
-      
-      return () => unsubscribe();
+      return () => unsub();
     }
+    // eslint-disable-next-line
   }, []);
 
   const handleAction = async (action) => {
     if (profiles.length === 0) return;
-    
-    // Check swipe limit for non-premium users (only for like/pass actions)
+
     if (!user?.is_premium && !user?.isPremium && (action === 'like' || action === 'pass')) {
       const currentExtra = parseInt(localStorage.getItem('heartlink_extra_swipes') || '0');
-      
       if (dailySwipeCount >= DAILY_SWIPE_LIMIT && currentExtra <= 0) {
-        // Out of swipes - show modal
         setShowOutOfSwipes(true);
         return;
       }
-      
-      // Use extra swipe if daily limit reached
       if (dailySwipeCount >= DAILY_SWIPE_LIMIT && currentExtra > 0) {
         const newExtra = currentExtra - 1;
         localStorage.setItem('heartlink_extra_swipes', String(newExtra));
         setExtraSwipes(newExtra);
         toast.info(`Extra swipe used! ${newExtra} remaining`);
       } else {
-        // Increment daily swipe count
         const newCount = dailySwipeCount + 1;
         localStorage.setItem('heartlink_swipe_count', String(newCount));
         setDailySwipeCount(newCount);
-        
-        // Show warning when approaching limit
-        if (newCount === DAILY_SWIPE_LIMIT - 5) {
-          toast.warning('⚠️ Sirf 5 swipes bache hain!');
-        }
+        if (newCount === DAILY_SWIPE_LIMIT - 5) toast.warning('Sirf 5 swipes bache hain!');
       }
-      
-      // Track swipe for interstitial ads (after every 6 swipes)
       if (shouldShowAds) {
         const adShown = await adsService.trackSwipe();
         setSwipesUntilAd(adsService.getSwipesUntilAd());
-        if (adShown) {
-          setShowingAd(true);
-          setTimeout(() => setShowingAd(false), 500);
-        }
+        if (adShown) { setShowingAd(true); setTimeout(() => setShowingAd(false), 500); }
       }
     }
-    
+
     try {
       const response = await axios.post(`${API}/action/${user.id}`, {
         target_user_id: profiles[currentIndex].id,
         action
       });
-
       if (response.data.action === 'matched') {
-        // Show match animation instead of just toast
         setMatchedUserData(profiles[currentIndex]);
         setMatchCompatibilityScore(response.data.compatibility_score);
         setShowMatchAnimation(true);
       } else if (action === 'superlike') {
-        toast.success('⭐ Super Like sent!');
+        toast.success('Super Like sent!');
       }
-
-      // Move to next profile
       if (currentIndex < profiles.length - 1) {
         setCurrentIndex(currentIndex + 1);
         setPhotoIndex(0);
       } else {
-        // Load more profiles
         setCurrentIndex(0);
         setPhotoIndex(0);
         fetchProfiles();
@@ -166,79 +128,39 @@ const DiscoverPage = ({ user }) => {
       toast.error('Action failed');
     }
   };
-  
-  // Handle match animation close
-  const handleMatchAnimationClose = () => {
-    setShowMatchAnimation(false);
-    setMatchedUserData(null);
-    setMatchCompatibilityScore(null);
-  };
-  
-  // Handle start chat from match animation
-  const handleStartChatFromMatch = () => {
-    setShowMatchAnimation(false);
-    if (matchedUserData) {
-      navigate('/matches');
-    }
-  };
-  
-  // Watch rewarded ad for +10 extra swipes
+
+  const handleMatchAnimationClose = () => { setShowMatchAnimation(false); setMatchedUserData(null); setMatchCompatibilityScore(null); };
+  const handleStartChatFromMatch = () => { setShowMatchAnimation(false); if (matchedUserData) navigate('/matches'); };
+
   const handleWatchAdForSwipes = async () => {
     setShowingAd(true);
-    
     const result = await adsService.showRewardedForSwipes((reward) => {
       if (reward.success) {
-        handleSwipesAdded(reward.swipes);
-        toast.success(`🎉 +${reward.swipes} Extra Swipes Added!`);
+        const cur = parseInt(localStorage.getItem('heartlink_extra_swipes') || '0');
+        const nv = cur + reward.swipes;
+        localStorage.setItem('heartlink_extra_swipes', String(nv));
+        setExtraSwipes(nv);
+        toast.success(`+${reward.swipes} Extra Swipes Added!`);
         setShowOutOfSwipes(false);
       }
     });
-    
     setShowingAd(false);
-    
-    if (!result.success && result.error) {
-      toast.error(result.error);
-    }
-    
+    if (!result.success && result.error) toast.error(result.error);
     return result;
   };
-  
-  const handleSwipesAdded = (count) => {
-    const currentExtra = parseInt(localStorage.getItem('heartlink_extra_swipes') || '0');
-    const newExtra = currentExtra + count;
-    localStorage.setItem('heartlink_extra_swipes', String(newExtra));
-    setExtraSwipes(newExtra);
-  };
 
-  const onTouchStart = (e) => {
-    setTouchEnd(null);
-    setTouchStart(e.targetTouches[0].clientX);
-  };
-
+  const onTouchStart = (e) => { setTouchEnd(null); setTouchStart(e.targetTouches[0].clientX); };
   const onTouchMove = (e) => {
     setTouchEnd(e.targetTouches[0].clientX);
-    const distance = touchStart - e.targetTouches[0].clientX;
-    if (Math.abs(distance) > 20) {
-      setSwipeDirection(distance > 0 ? 'left' : 'right');
-    }
+    const d = touchStart - e.targetTouches[0].clientX;
+    if (Math.abs(d) > 20) setSwipeDirection(d > 0 ? 'left' : 'right');
   };
-
   const onTouchEnd = () => {
     if (!touchStart || !touchEnd) return;
-    
-    const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > minSwipeDistance;
-    const isRightSwipe = distance < -minSwipeDistance;
-    
-    if (isLeftSwipe) {
-      handleAction('pass');
-    } else if (isRightSwipe) {
-      handleAction('like');
-    }
-    
-    setSwipeDirection(null);
-    setTouchStart(null);
-    setTouchEnd(null);
+    const d = touchStart - touchEnd;
+    if (d > minSwipeDistance) handleAction('pass');
+    else if (d < -minSwipeDistance) handleAction('like');
+    setSwipeDirection(null); setTouchStart(null); setTouchEnd(null);
   };
 
   const currentProfile = profiles[currentIndex];
@@ -248,23 +170,30 @@ const DiscoverPage = ({ user }) => {
     : photos;
   const hasMultiplePhotos = allPhotos.length > 1;
 
-  // Skeleton loading
+  // ─── Shared shell: fixed full-screen + navbar ───
+  const Shell = ({ children }) => (
+    <div className="fixed inset-0 bg-[#0a0a0a] flex flex-col overflow-hidden">
+      <Toaster position="top-center" />
+      <Navbar user={user} />
+      <MatchAnimation isOpen={showMatchAnimation} onClose={handleMatchAnimationClose} currentUser={user} matchedUser={matchedUserData} compatibilityScore={matchCompatibilityScore?.toFixed(0)} onStartChat={handleStartChatFromMatch} />
+      {children}
+    </div>
+  );
+
   if (loading) {
     return (
-      <div className="fixed inset-0 bg-[#0a0a0a] flex flex-col overflow-hidden">
-        <Navbar user={user} />
-        <div className="flex-1 flex items-center justify-center p-2" style={{ paddingBottom: 'var(--nav-height, 64px)' }}>
+      <Shell>
+        <div className="discover-card-area flex items-center justify-center p-2">
           <div className="w-full h-full max-w-md rounded-xl overflow-hidden bg-gray-800/60 animate-pulse" />
         </div>
-      </div>
+      </Shell>
     );
   }
 
   if (!currentProfile) {
     return (
-      <div className="fixed inset-0 bg-[#0a0a0a] flex flex-col overflow-hidden">
-        <Navbar user={user} />
-        <div className="flex-1 flex items-center justify-center px-8" style={{ paddingBottom: 'var(--nav-height, 64px)' }}>
+      <Shell>
+        <div className="discover-card-area flex items-center justify-center px-8">
           <div className="text-center" data-testid="no-profiles">
             <div className="w-24 h-24 mx-auto mb-6 bg-gray-800/60 rounded-full flex items-center justify-center">
               <Heart className="w-10 h-10 text-gray-600" />
@@ -274,23 +203,16 @@ const DiscoverPage = ({ user }) => {
             <Button onClick={() => navigate('/matches')} className="bg-gradient-to-r from-pink-500 to-rose-500 text-white px-10 py-3 rounded-full text-base font-semibold" data-testid="view-matches-btn">View Matches</Button>
           </div>
         </div>
-      </div>
+      </Shell>
     );
   }
 
   return (
-    <div className="fixed inset-0 bg-[#0a0a0a] flex flex-col overflow-hidden">
-      <Toaster position="top-center" />
-      <Navbar user={user} />
-      <MatchAnimation isOpen={showMatchAnimation} onClose={handleMatchAnimationClose} currentUser={user} matchedUser={matchedUserData} compatibilityScore={matchCompatibilityScore?.toFixed(0)} onStartChat={handleStartChatFromMatch} />
-
-      {/* Full-bleed card area */}
-      <div
-        className="flex-1 min-h-0 flex flex-col p-1.5 pb-0"
-        style={{ marginBottom: 'var(--nav-height, 64px)' }}
-      >
+    <Shell>
+      {/* Card area — dynamically sized between top edge and navbar+gap */}
+      <div className="discover-card-area p-1.5 pb-0">
         <div
-          className={`relative flex-1 w-full max-w-md mx-auto rounded-xl overflow-hidden transition-transform duration-200 ease-out ${
+          className={`relative w-full h-full max-w-md mx-auto rounded-xl overflow-hidden transition-transform duration-200 ease-out ${
             swipeDirection === 'left' ? '-translate-x-6 -rotate-3 opacity-70' :
             swipeDirection === 'right' ? 'translate-x-6 rotate-3 opacity-70' : ''
           }`}
@@ -316,7 +238,7 @@ const DiscoverPage = ({ user }) => {
             )}
           </div>
 
-          {/* Top gradient for indicators */}
+          {/* Top gradient */}
           <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/50 to-transparent z-[3]" />
 
           {/* Photo indicators */}
@@ -331,14 +253,14 @@ const DiscoverPage = ({ user }) => {
           {/* Photo tap zones */}
           {hasMultiplePhotos && (
             <>
-              <button className="absolute left-0 top-0 w-1/3 h-[65%] z-[5]" onClick={() => setPhotoIndex(Math.max(0, photoIndex - 1))} aria-label="Previous photo" />
-              <button className="absolute right-0 top-0 w-1/3 h-[65%] z-[5]" onClick={() => setPhotoIndex(Math.min(allPhotos.length - 1, photoIndex + 1))} aria-label="Next photo" />
+              <button className="absolute left-0 top-0 w-1/3 h-[60%] z-[5]" onClick={() => setPhotoIndex(Math.max(0, photoIndex - 1))} aria-label="Previous photo" />
+              <button className="absolute right-0 top-0 w-1/3 h-[60%] z-[5]" onClick={() => setPhotoIndex(Math.min(allPhotos.length - 1, photoIndex + 1))} aria-label="Next photo" />
             </>
           )}
 
-          {/* Swipe counter pill - top right */}
+          {/* Swipe counter */}
           {!user?.is_premium && !user?.isPremium && (
-            <div className="absolute top-3 right-3 bg-black/50 backdrop-blur-sm text-white text-[11px] px-2.5 py-1 rounded-full z-10 font-medium">
+            <div className="absolute top-3 right-3 bg-black/50 backdrop-blur-sm text-white text-[11px] px-2.5 py-1 rounded-full z-10 font-medium" data-testid="swipe-counter">
               {Math.max(0, DAILY_SWIPE_LIMIT - dailySwipeCount)}{extraSwipes > 0 && <span className="text-emerald-400"> +{extraSwipes}</span>}
             </div>
           )}
@@ -360,64 +282,76 @@ const DiscoverPage = ({ user }) => {
             </div>
           )}
 
-          {/* Bottom gradient for info + buttons */}
+          {/* Bottom gradient */}
           <div className="absolute inset-x-0 bottom-0 h-[55%] bg-gradient-to-t from-black/95 via-black/60 to-transparent z-[6]" />
 
-          {/* Profile info overlay */}
-          <div className="absolute bottom-0 left-0 right-0 z-10 px-5 pb-24">
-            <div className="flex items-center gap-2">
-              <h2 className="text-[28px] font-bold text-white leading-none tracking-tight">{currentProfile.name}</h2>
-              <span className="text-[22px] text-white/70 font-light">{currentProfile.age}</span>
-              <OnlineStatus isOnline={currentProfile.is_online} lastActive={currentProfile.last_active} size="sm" showText={false} />
-            </div>
-
-            {currentProfile.location && (
-              <div className="flex items-center gap-1.5 mt-1.5">
-                <MapPin className="w-3.5 h-3.5 text-white/50" />
-                <span className="text-white/60 text-sm">{currentProfile.location}</span>
+          {/* ─── Bottom content: info + action buttons ─── */}
+          {/* This uses a flex column pinned to the card bottom.
+              Action buttons are flex children at the end,
+              NOT positioned with absolute bottom-Xpx */}
+          <div className="absolute inset-x-0 bottom-0 z-10 flex flex-col">
+            {/* Profile info */}
+            <div className="px-5">
+              <div className="flex items-center gap-2">
+                <h2 className="text-[28px] font-bold text-white leading-none tracking-tight">{currentProfile.name}</h2>
+                <span className="text-[22px] text-white/70 font-light">{currentProfile.age}</span>
+                <OnlineStatus isOnline={currentProfile.is_online} lastActive={currentProfile.last_active} size="sm" showText={false} />
               </div>
-            )}
-
-            {currentProfile.bio && (
-              <p className="text-white/70 text-sm mt-2 line-clamp-2 leading-relaxed">{currentProfile.bio}</p>
-            )}
-
-            {/* Tags */}
-            <div className="flex flex-wrap gap-1.5 mt-2.5">
-              {currentProfile.relationship_intent && (
-                <span className="bg-white/10 backdrop-blur-sm text-white/90 text-xs px-3 py-1 rounded-full border border-white/10">
-                  {currentProfile.relationship_intent === 'serious' ? 'Serious' : currentProfile.relationship_intent === 'marriage' ? 'Marriage' : currentProfile.relationship_intent === 'casual' ? 'Casual' : 'Friends'}
-                </span>
+              {currentProfile.location && (
+                <div className="flex items-center gap-1.5 mt-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-white/50" />
+                  <span className="text-white/60 text-sm">{currentProfile.location}</span>
+                </div>
               )}
-              {currentProfile.interests?.slice(0, 3).map((tag, i) => (
-                <span key={i} className="bg-white/10 backdrop-blur-sm text-white/90 text-xs px-3 py-1 rounded-full border border-white/10">{tag}</span>
-              ))}
+              {currentProfile.bio && (
+                <p className="text-white/70 text-sm mt-2 line-clamp-2 leading-relaxed">{currentProfile.bio}</p>
+              )}
+              <div className="flex flex-wrap gap-1.5 mt-2.5">
+                {currentProfile.relationship_intent && (
+                  <span className="bg-white/10 backdrop-blur-sm text-white/90 text-xs px-3 py-1 rounded-full border border-white/10">
+                    {currentProfile.relationship_intent === 'serious' ? 'Serious' : currentProfile.relationship_intent === 'marriage' ? 'Marriage' : currentProfile.relationship_intent === 'casual' ? 'Casual' : 'Friends'}
+                  </span>
+                )}
+                {currentProfile.interests?.slice(0, 3).map((tag, i) => (
+                  <span key={i} className="bg-white/10 backdrop-blur-sm text-white/90 text-xs px-3 py-1 rounded-full border border-white/10">{tag}</span>
+                ))}
+              </div>
             </div>
-          </div>
 
-          {/* Action buttons — floating at bottom of card */}
-          <div className="absolute bottom-4 left-0 right-0 flex justify-center items-center gap-5 z-20">
-            <button
-              data-testid="pass-btn"
-              onClick={() => handleAction('pass')}
-              className="w-[52px] h-[52px] rounded-full bg-white/95 shadow-xl flex items-center justify-center active:scale-90 transition-all duration-150 hover:bg-white"
+            {/* Action buttons — flow naturally after info, with dynamic padding */}
+            <div
+              className="flex justify-center items-center gap-5 z-20"
+              style={{
+                paddingTop: 'clamp(12px, 2.5vh, 24px)',
+                paddingBottom: 'var(--action-offset, 16px)',
+              }}
+              data-testid="action-buttons"
             >
-              <X className="w-6 h-6 text-rose-500" strokeWidth={3} />
-            </button>
-            <button
-              data-testid="superlike-btn"
-              onClick={() => handleAction('superlike')}
-              className="w-11 h-11 rounded-full bg-white/95 shadow-xl flex items-center justify-center active:scale-90 transition-all duration-150 hover:bg-white"
-            >
-              <Star className="w-5 h-5 text-blue-500" fill="currentColor" />
-            </button>
-            <button
-              data-testid="like-btn"
-              onClick={() => handleAction('like')}
-              className="w-[60px] h-[60px] rounded-full bg-gradient-to-br from-emerald-400 to-emerald-500 shadow-xl shadow-emerald-500/30 flex items-center justify-center active:scale-90 transition-all duration-150"
-            >
-              <Heart className="w-7 h-7 text-white" fill="white" />
-            </button>
+              <button
+                data-testid="pass-btn"
+                onClick={() => handleAction('pass')}
+                className="rounded-full bg-white/95 shadow-xl flex items-center justify-center active:scale-90 transition-all duration-150 hover:bg-white"
+                style={{ width: 'var(--btn-md, 52px)', height: 'var(--btn-md, 52px)' }}
+              >
+                <X className="w-6 h-6 text-rose-500" strokeWidth={3} />
+              </button>
+              <button
+                data-testid="superlike-btn"
+                onClick={() => handleAction('superlike')}
+                className="rounded-full bg-white/95 shadow-xl flex items-center justify-center active:scale-90 transition-all duration-150 hover:bg-white"
+                style={{ width: 'var(--btn-sm, 44px)', height: 'var(--btn-sm, 44px)' }}
+              >
+                <Star className="w-5 h-5 text-blue-500" fill="currentColor" />
+              </button>
+              <button
+                data-testid="like-btn"
+                onClick={() => handleAction('like')}
+                className="rounded-full bg-gradient-to-br from-emerald-400 to-emerald-500 shadow-xl shadow-emerald-500/30 flex items-center justify-center active:scale-90 transition-all duration-150"
+                style={{ width: 'var(--btn-lg, 60px)', height: 'var(--btn-lg, 60px)' }}
+              >
+                <Heart className="w-7 h-7 text-white" fill="white" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -443,7 +377,7 @@ const DiscoverPage = ({ user }) => {
           </div>
         </div>
       )}
-    </div>
+    </Shell>
   );
 };
 

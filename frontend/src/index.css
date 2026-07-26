@@ -92,7 +92,7 @@ code {
 
 /* Extra padding for pages with navbar to accommodate banner ads */
 .page-with-navbar {
-  padding-bottom: calc(var(--nav-height, 72px) + 88px);
+  padding-bottom: calc(var(--nav-total, 72px) + 88px);
 }
 
 /* Banner ad container spacing */

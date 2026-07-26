@@ -1,67 +1,105 @@
 /**
- * SafeArea - Dynamically measures and exposes safe area insets as CSS variables.
- * Works on ALL Android devices regardless of gesture/3-button navigation.
+ * SafeArea — Dynamically measures and exposes responsive CSS variables.
+ * Adapts to ALL screen sizes, orientations, and navigation modes.
  *
  * Sets on <html>:
- *   --safe-bottom:     actual bottom inset in px (0 if none)
- *   --nav-height:      bottom navbar total height including safe area
- *   --header-offset:   top safe area offset
+ *   --safe-bottom      actual bottom inset (px)
+ *   --safe-top         actual top inset (px)
+ *   --nav-inner        navbar icon-row height, scales with screen
+ *   --nav-total        full navbar height (inner + safe-bottom)
+ *   --card-pad         minimum gap between card bottom and navbar
+ *   --action-offset    offset for action buttons from card bottom
+ *   --btn-lg           large button diameter (Like)
+ *   --btn-md           medium button diameter (Pass)
+ *   --btn-sm           small button diameter (SuperLike)
+ *   --vh               1% of real viewport height (for mobile browser chrome)
  */
 
 import { Capacitor } from '@capacitor/core';
 
-const NAVBAR_INNER = 52; // px – icon row height (fixed)
-
 function measure() {
   const root = document.documentElement;
+  const vh = window.innerHeight;
+  const vw = window.innerWidth;
+  const isLandscape = vw > vh;
 
-  // 1. Try CSS env() — works on iOS + some Android
+  // ── 1. Bottom safe area ──
   const probe = document.createElement('div');
   probe.style.cssText = 'position:fixed;bottom:0;left:0;width:1px;padding-bottom:env(safe-area-inset-bottom,0px);visibility:hidden;pointer-events:none';
   document.body.appendChild(probe);
   const envBottom = probe.offsetHeight;
   document.body.removeChild(probe);
 
-  // 2. Fallback: measure gap between window.innerHeight and visualViewport
-  let measuredBottom = envBottom;
+  let safeBottom = envBottom;
   if (envBottom === 0 && window.visualViewport) {
     const gap = window.screen.height - window.innerHeight;
-    // Typically status bar ≈ 24-48px. If gap > 60 there's a nav bar too.
-    if (gap > 80) {
-      measuredBottom = Math.max(gap - 48, 16); // rough nav bar height
+    if (gap > 80 && gap < 200) {
+      safeBottom = Math.max(gap - 48, 16);
     }
   }
-
-  // 3. On native Capacitor, use a safe minimum of 12px (gesture bar)
-  if (Capacitor.isNativePlatform() && measuredBottom < 8) {
-    measuredBottom = 12;
-  }
-  // On mobile web, ensure a small default for gesture bars
-  if (!Capacitor.isNativePlatform() && measuredBottom < 4 && /Mobi|Android/i.test(navigator.userAgent)) {
-    measuredBottom = 6;
+  if (Capacitor.isNativePlatform() && safeBottom < 8) safeBottom = 12;
+  if (!Capacitor.isNativePlatform() && safeBottom < 4 && /Mobi|Android/i.test(navigator.userAgent)) {
+    safeBottom = 6;
   }
 
-  // Top safe area
+  // ── 2. Top safe area ──
   const probeTop = document.createElement('div');
   probeTop.style.cssText = 'position:fixed;top:0;left:0;width:1px;padding-top:env(safe-area-inset-top,0px);visibility:hidden;pointer-events:none';
   document.body.appendChild(probeTop);
-  let topInset = probeTop.offsetHeight;
+  let safeTop = probeTop.offsetHeight;
   document.body.removeChild(probeTop);
-  if (Capacitor.isNativePlatform() && topInset < 20) topInset = 28;
+  if (Capacitor.isNativePlatform() && safeTop < 20) safeTop = 28;
 
-  // Set CSS variables
-  root.style.setProperty('--safe-bottom', `${measuredBottom}px`);
-  root.style.setProperty('--safe-top', `${topInset}px`);
-  root.style.setProperty('--nav-height', `${NAVBAR_INNER + measuredBottom}px`);
-  root.style.setProperty('--header-offset', `${topInset}px`);
+  // ── 3. Responsive navbar inner height ──
+  //    Scales with viewport: smaller on small phones, larger on tablets
+  let navInner;
+  if (vh < 640)       navInner = 46;   // very small / landscape
+  else if (vh < 750)  navInner = 48;   // small phone 6.1"
+  else if (vh < 900)  navInner = 52;   // medium phone 6.5"
+  else if (vh < 1100) navInner = 54;   // large phone 6.7-6.9"
+  else                navInner = 58;   // tablet / foldable
+
+  const navTotal = navInner + safeBottom;
+
+  // ── 4. Card-to-navbar gap (min 24dp guaranteed) ──
+  //    Proportional to screen height, clamped to 24-40px
+  const cardPad = Math.max(24, Math.min(40, Math.round(vh * 0.032)));
+
+  // ── 5. Action button offset from card bottom ──
+  //    Buttons sit this far from card's bottom edge
+  const actionOffset = Math.max(16, Math.min(28, Math.round(vh * 0.022)));
+
+  // ── 6. Responsive button sizes ──
+  const baseSize = Math.min(vw, 480); // cap at 480 for tablets
+  const btnLg = Math.max(54, Math.min(68, Math.round(baseSize * 0.15)));
+  const btnMd = Math.max(46, Math.min(58, Math.round(baseSize * 0.128)));
+  const btnSm = Math.max(38, Math.min(48, Math.round(baseSize * 0.105)));
+
+  // ── Set all CSS variables ──
+  root.style.setProperty('--safe-bottom', `${safeBottom}px`);
+  root.style.setProperty('--safe-top', `${safeTop}px`);
+  root.style.setProperty('--nav-inner', `${navInner}px`);
+  root.style.setProperty('--nav-total', `${navTotal}px`);
+  root.style.setProperty('--card-pad', `${cardPad}px`);
+  root.style.setProperty('--action-offset', `${actionOffset}px`);
+  root.style.setProperty('--btn-lg', `${btnLg}px`);
+  root.style.setProperty('--btn-md', `${btnMd}px`);
+  root.style.setProperty('--btn-sm', `${btnSm}px`);
+  root.style.setProperty('--vh', `${vh * 0.01}px`);
+  root.style.setProperty('--is-landscape', isLandscape ? '1' : '0');
+
+  // Legacy compat (other pages still use these)
+  root.style.setProperty('--nav-height', `${navTotal}px`);
+  root.style.setProperty('--header-offset', `${safeTop}px`);
 }
 
 export function initSafeArea() {
-  // Measure immediately
   measure();
-  // Re-measure on resize (keyboard, rotation, fold)
   window.addEventListener('resize', measure);
-  // Re-measure after short delay (some WebViews report late)
+  window.addEventListener('orientationchange', () => setTimeout(measure, 150));
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', measure);
+  }
   setTimeout(measure, 500);
   setTimeout(measure, 2000);
 }

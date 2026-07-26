@@ -47,7 +47,11 @@ const Navbar = ({ user }) => {
       style={{ paddingBottom: 'var(--safe-bottom, 8px)' }}
       data-testid="bottom-nav"
     >
-      <div className="flex items-stretch justify-around px-1 h-[52px]">
+      {/* Height uses --nav-inner CSS variable instead of hardcoded px */}
+      <div
+        className="flex items-stretch justify-around px-1"
+        style={{ height: 'var(--nav-inner, 52px)' }}
+      >
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const active = tab.matchChat
