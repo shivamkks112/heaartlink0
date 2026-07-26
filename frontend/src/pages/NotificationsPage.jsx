@@ -229,59 +229,56 @@ const NotificationsPage = ({ user }) => {
             <p className="text-gray-500">{"We'll notify you when something happens"}</p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2 m3-stagger">
             {notifications.map((notification) => (
               <div
                 key={notification.id}
                 onClick={() => handleNotificationClick(notification)}
-                className={`bg-white rounded-xl p-4 shadow-sm border cursor-pointer transition-all hover:shadow-md ${
-                  notification.is_read 
-                    ? 'border-gray-100' 
-                    : 'border-pink-200 bg-pink-50/30'
-                }`}
+                className="rounded-2xl p-4 cursor-pointer transition-all duration-200 active:scale-[0.99]"
+                style={{
+                  background: notification.is_read ? 'var(--m3-surface-container-lowest)' : 'var(--m3-primary-container)',
+                  boxShadow: notification.is_read ? 'var(--m3-elevation-1)' : 'var(--m3-elevation-2)',
+                  border: notification.is_read ? '1px solid var(--m3-outline-variant)' : '1px solid transparent',
+                }}
               >
                 <div className="flex items-start gap-3">
-                  {/* Icon */}
-                  <div className={`p-2 rounded-full ${
-                    notification.is_read ? 'bg-gray-100' : 'bg-pink-100'
-                  }`}>
+                  <div className="p-2.5 rounded-xl flex-shrink-0"
+                    style={{ background: notification.is_read ? 'var(--m3-surface-container-high)' : 'var(--m3-surface-container-lowest)' }}>
                     {getNotificationIcon(notification.type)}
                   </div>
                   
-                  {/* Content */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <h3 className={`font-semibold truncate ${
-                        notification.is_read ? 'text-gray-700' : 'text-gray-900'
-                      }`}>
+                      <h3 className="font-semibold text-sm truncate"
+                        style={{ color: notification.is_read ? 'var(--m3-on-surface-variant)' : 'var(--m3-on-surface)' }}>
                         {notification.title}
                       </h3>
                       {!notification.is_read && (
-                        <div className="w-2 h-2 bg-pink-500 rounded-full flex-shrink-0"></div>
+                        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: 'var(--m3-primary)' }}></div>
                       )}
                     </div>
-                    <p className={`text-sm mt-1 ${
-                      notification.is_read ? 'text-gray-500' : 'text-gray-600'
-                    }`}>
+                    <p className="text-[13px] mt-0.5 leading-relaxed"
+                      style={{ color: 'var(--m3-on-surface-variant)' }}>
                       {notification.body}
                     </p>
-                    <p className="text-xs text-gray-400 mt-2">
+                    <p className="text-[11px] mt-1.5 font-medium"
+                      style={{ color: 'var(--m3-outline)' }}>
                       {formatTime(notification.created_at)}
                     </p>
                   </div>
                   
-                  {/* Actions */}
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         deleteNotification(notification.id);
                       }}
-                      className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                      className="p-2 rounded-full hover:bg-red-50 transition-colors"
+                      style={{ color: 'var(--m3-outline)' }}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
-                    <ChevronRight className="w-5 h-5 text-gray-400" />
+                    <ChevronRight className="w-4 h-4" style={{ color: 'var(--m3-outline)' }} />
                   </div>
                 </div>
               </div>

@@ -458,15 +458,19 @@ const MatchesPage = ({ user }) => {
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 m3-stagger">
                 {matches.map((match, index) => (
                   <div
                     key={match.match_id}
                     data-testid="match-card"
-                    className="bg-white rounded-xl sm:rounded-2xl shadow-soft overflow-hidden hover:shadow-elevated transition-all duration-300 transform hover:-translate-y-2 group animate-bounce-in"
-                    style={{animationDelay: `${index * 0.1}s`}}
+                    className="overflow-hidden transition-all duration-300 transform hover:-translate-y-1 group"
+                    style={{
+                      background: 'var(--m3-surface-container-lowest)',
+                      borderRadius: 'var(--m3-shape-lg)',
+                      boxShadow: 'var(--m3-elevation-1)',
+                    }}
                   >
-                    <div className="relative h-48 sm:h-56 md:h-64 bg-gradient-to-br from-pink-200 to-orange-200">
+                    <div className="relative h-48 sm:h-56 md:h-64" style={{ background: 'var(--m3-surface-container-high)' }}>
                       {match.user.profile_picture ? (
                         <img
                           src={match.user.profile_picture}
@@ -481,29 +485,29 @@ const MatchesPage = ({ user }) => {
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <Heart className="w-20 h-20 text-white" />
+                          <Heart className="w-16 h-16" style={{ color: 'var(--m3-outline-variant)' }} />
                         </div>
                       )}
                       
                       {match.user.verified && (
-                        <div className="absolute top-3 right-3 bg-blue-500 text-white px-3 py-1 rounded-full text-xs font-semibold">
-                          ✓ Verified
+                        <div className="absolute top-3 right-3 px-2.5 py-1 rounded-full text-[11px] font-semibold flex items-center gap-1"
+                          style={{ background: 'rgba(59,130,246,0.9)', color: 'white', backdropFilter: 'blur(8px)' }}>
+                          <CheckCircle className="w-3 h-3" /> Verified
                         </div>
                       )}
                     </div>
 
-                    <div className="p-3 sm:p-4 md:p-5">
-                      <h3 className="text-base sm:text-lg md:text-xl font-bold text-gray-900 mb-1 truncate">
+                    <div className="p-4">
+                      <h3 className="text-base font-bold mb-1 truncate" style={{ color: 'var(--m3-on-surface)' }}>
                         {match.user.name}, {match.user.age}
                       </h3>
                       
-                      {/* Online Status with Color Differentiation */}
                       {(() => {
                         const statusInfo = getOnlineStatusInfo(match.user.is_online, match.user.last_active);
                         return (
-                          <div className="flex items-center gap-1 mb-2">
+                          <div className="flex items-center gap-1.5 mb-2">
                             <div className={`w-2 h-2 ${statusInfo.color} rounded-full ${statusInfo.pulse ? 'animate-pulse' : ''}`}></div>
-                            <span className={`text-xs ${statusInfo.textColor} font-medium`}>
+                            <span className="text-[11px] font-medium" style={{ color: 'var(--m3-on-surface-variant)' }}>
                               {statusInfo.label}
                             </span>
                           </div>
@@ -511,16 +515,17 @@ const MatchesPage = ({ user }) => {
                       })()}
                       
                       {match.compatibility_score && (
-                        <div className="flex items-center gap-1 sm:gap-2 mb-2 sm:mb-3">
-                          <Sparkles className="w-3 h-3 sm:w-4 sm:h-4 text-pink-500 flex-shrink-0" />
-                          <span className="text-xs sm:text-sm font-semibold text-pink-600">
+                        <div className="flex items-center gap-1.5 mb-3 px-2.5 py-1 rounded-full w-fit"
+                          style={{ background: 'var(--m3-primary-container)' }}>
+                          <Sparkles className="w-3.5 h-3.5" style={{ color: 'var(--m3-primary)' }} />
+                          <span className="text-xs font-semibold" style={{ color: 'var(--m3-on-primary-container)' }}>
                             {match.compatibility_score.toFixed(0)}% Compatible
                           </span>
                         </div>
                       )}
 
                       {match.ai_analysis && (
-                        <p className="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4 line-clamp-2">
+                        <p className="text-xs mb-3 line-clamp-2 leading-relaxed" style={{ color: 'var(--m3-on-surface-variant)' }}>
                           {match.ai_analysis}
                         </p>
                       )}
@@ -528,10 +533,11 @@ const MatchesPage = ({ user }) => {
                       <button
                         data-testid="chat-btn"
                         onClick={() => handleChatClick(match.match_id)}
-                        className="w-full bg-gradient-to-r from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600 text-white py-2 sm:py-2.5 md:py-3 rounded-lg sm:rounded-xl font-semibold text-sm sm:text-base flex items-center justify-center gap-1 sm:gap-2 transition-all"
+                        className="w-full text-white py-2.5 rounded-full font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
+                        style={{ background: 'linear-gradient(135deg, #D6336C 0%, #E8590C 100%)', boxShadow: '0 2px 8px rgba(214,51,108,0.3)' }}
                       >
-                        <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5" />
-                        <span className="hidden xs:inline">Start </span>Chat
+                        <MessageCircle className="w-4 h-4" />
+                        Chat
                       </button>
                     </div>
                   </div>

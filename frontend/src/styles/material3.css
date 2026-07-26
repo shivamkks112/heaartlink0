@@ -338,3 +338,86 @@ button:active, [role="button"]:active {
 .m3-page-enter {
   animation: m3-fade-in var(--m3-motion-duration-medium) var(--m3-motion-emphasized) both;
 }
+
+/* ══ GLOBAL POLISH ══ */
+
+/* ── Image fade-in on load ── */
+img:not([data-no-fade]) {
+  transition: opacity 0.35s ease;
+}
+img:not([data-no-fade]):not([src]) {
+  opacity: 0;
+}
+/* Fix: ensure SVG icons and inline images don't fade */
+svg { opacity: 1 !important; transition: none !important; }
+
+/* ── Card press feedback ── */
+[data-testid="match-card"],
+[data-testid="chat-btn"],
+.m3-card {
+  transition: transform 150ms var(--m3-motion-standard), box-shadow 200ms var(--m3-motion-standard);
+}
+[data-testid="match-card"]:active {
+  transform: scale(0.98) !important;
+}
+
+/* ── Better notification cards ── */
+[data-testid="bottom-nav"] .m3-badge,
+.m3-badge {
+  top: -3px;
+  right: -6px;
+  font-size: 9px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border: 1.5px solid var(--m3-glass-bg);
+}
+
+/* ── Dark mode: gradient bg overrides ── */
+html.dark .bg-gradient-to-r,
+html.dark .bg-gradient-to-br,
+html.dark .bg-gradient-to-b {
+  /* Keep gradients but adjust opacity in dark */
+}
+html.dark .bg-pink-50\/30 { background: var(--m3-surface-container) !important; }
+html.dark .bg-pink-50 { background: var(--m3-surface-container) !important; }
+html.dark .bg-pink-100 { background: var(--m3-primary-container) !important; }
+html.dark .border-pink-200 { border-color: var(--m3-outline-variant) !important; }
+html.dark .border-pink-100 { border-color: var(--m3-outline-variant) !important; }
+html.dark .text-pink-500 { color: var(--m3-primary) !important; }
+html.dark .text-pink-600 { color: var(--m3-primary) !important; }
+html.dark .text-pink-700 { color: var(--m3-primary) !important; }
+html.dark .bg-green-500\/30 { background: rgba(16,185,129,0.15) !important; }
+html.dark .bg-green-100 { background: rgba(16,185,129,0.15) !important; }
+html.dark .text-green-600 { color: #6EE7B7 !important; }
+
+/* ── Improve scrollbar ── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--m3-outline-variant);
+  border-radius: var(--m3-shape-full);
+}
+
+/* ── Focus visible for accessibility ── */
+:focus-visible {
+  outline: 2px solid var(--m3-primary);
+  outline-offset: 2px;
+  border-radius: var(--m3-shape-sm);
+}
+
+/* ── Standardize all card border-radius ── */
+.rounded-xl { border-radius: var(--m3-shape-lg) !important; }
+.rounded-2xl { border-radius: 20px !important; }
+.rounded-3xl { border-radius: var(--m3-shape-xl) !important; }
+
+/* ── Better touch targets ── */
+button, [role="button"], a {
+  min-height: 36px;
+}
+
+/* ── Image object-fit consistency ── */
+img.object-cover {
+  object-position: center 20%;
+}
+

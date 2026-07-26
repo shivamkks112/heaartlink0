@@ -11,24 +11,23 @@
 - Bottom Nav + Android System Nav Bar overlap fix (4-layer detection)
 - ALL PAGES safe area fix (A-Z) with dynamic CSS variables
 - Complete Material 3 UI/UX Redesign (all screens)
-- **Dark Mode Support:**
-  - M3 dark tokens in material3.css (html.dark selector)
-  - Deep warm dark surfaces (#1A1113, #221A1D, #272022)
-  - Light pink/cream text (#F0DEE1, #D6C2C5)
-  - Dark frosted glass navbar/topbar via CSS variables
-  - Automatic Tailwind class overrides (bg-white, text-gray-*, border-*)
-  - useTheme hook with localStorage persistence
-  - System preference detection (prefers-color-scheme: dark)
-  - Light/Dark/System toggle in Settings page
-  - All pages auto-adapt via CSS variable system
+- Dark Mode Support (Light/Dark/System toggle)
+- **UI Polish Audit:**
+  - Match cards: M3 surfaces, compatibility pill badge, better photo placeholder, pill Chat button
+  - Notification cards: M3 primary-container for unread, rounded icons, better timestamp
+  - Profile stats: Consistent gradient cards with M3 elevation
+  - Discover empty state: Refresh button + "expand distance" hint
+  - Global: Image fade-in, card press animation, focus-visible outlines, scrollbar styling
+  - Dark mode: Extended overrides for pink/green/border colors
+  - Badge positioning: Smaller with border, better alignment
+  - Accessibility: focus-visible outlines, min touch targets
 
 ## Pending / Backlog
-### P0: Accessibility audit (aria-current, dynamic font scaling)
 ### P1: Admin API authentication, server.py refactoring
 ### P2: AI photo verification, AI Trust Score
 
 ## Critical Notes
-- **Theme:** Use `--m3-*` CSS variables. Dark tokens auto-apply via `html.dark` class.
-- **Theme Hook:** `import { useTheme } from '@/hooks/useTheme'` — provides mode/setMode.
-- **Safe Areas:** Use `--nav-total` CSS variable. NEVER hardcode bottom padding.
-- **Production:** https://dating-app-debug-1.emergent.host (redeploy to push changes)
+- **paddingTop:** All TopBar pages use `calc(var(--safe-top, 24px) + 60px)` — accounts for Android status bar
+- **Theme:** `--m3-*` CSS variables. Dark via `html.dark` class
+- **Safe Areas:** `--nav-total` for bottom padding. NEVER hardcode
+- **Production:** https://dating-app-debug-1.emergent.host

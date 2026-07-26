@@ -260,7 +260,8 @@ const ProfilePage = ({ user, onUpdate }) => {
             {/* Settings Gear Icon */}
             <button
               onClick={() => navigate('/settings')}
-              className="absolute top-4 right-4 bg-white/20 backdrop-blur-sm p-2.5 rounded-full hover:bg-white/30 transition-all"
+              className="absolute top-4 right-4 p-2.5 rounded-full transition-all active:scale-90"
+              style={{ background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(8px)' }}
               data-testid="profile-settings-btn"
             >
               <Settings className="w-5 h-5 text-white" />
@@ -351,47 +352,25 @@ const ProfilePage = ({ user, onUpdate }) => {
 
           {/* Activity Stats Section */}
           {userStats && (
-            <div className="px-8 py-6 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100">
-              <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-pink-500" />
+            <div className="px-6 py-6 border-b" style={{ background: 'var(--m3-surface-container-low)', borderColor: 'var(--m3-outline-variant)' }}>
+              <h3 className="text-base font-bold mb-4 flex items-center gap-2" style={{ color: 'var(--m3-on-surface)' }}>
+                <Sparkles className="w-5 h-5" style={{ color: 'var(--m3-primary)' }} />
                 Your Activity Stats
               </h3>
-              <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-                {/* Likes Sent */}
-                <div className="bg-gradient-to-br from-pink-500 to-rose-500 rounded-xl p-3 text-center text-white shadow-lg">
-                  <div className="text-2xl font-bold">{userStats.likes_sent || 0}</div>
-                  <div className="text-xs opacity-90">Likes Sent</div>
-                </div>
-                
-                {/* Likes Received */}
-                <div className="bg-gradient-to-br from-red-500 to-orange-500 rounded-xl p-3 text-center text-white shadow-lg">
-                  <div className="text-2xl font-bold">{userStats.likes_received || 0}</div>
-                  <div className="text-xs opacity-90">Likes Got</div>
-                </div>
-                
-                {/* Mutual Matches */}
-                <div className="bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl p-3 text-center text-white shadow-lg">
-                  <div className="text-2xl font-bold">{userStats.mutual_matches || 0}</div>
-                  <div className="text-xs opacity-90">Matches</div>
-                </div>
-                
-                {/* Superlikes Sent */}
-                <div className="bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl p-3 text-center text-white shadow-lg">
-                  <div className="text-2xl font-bold">{userStats.superlikes_sent || 0}</div>
-                  <div className="text-xs opacity-90">Super ⭐</div>
-                </div>
-                
-                {/* Superlikes Received */}
-                <div className="bg-gradient-to-br from-purple-500 to-violet-500 rounded-xl p-3 text-center text-white shadow-lg">
-                  <div className="text-2xl font-bold">{userStats.superlikes_received || 0}</div>
-                  <div className="text-xs opacity-90">Got Super</div>
-                </div>
-                
-                {/* Profile Views */}
-                <div className="bg-gradient-to-br from-amber-500 to-yellow-500 rounded-xl p-3 text-center text-white shadow-lg">
-                  <div className="text-2xl font-bold">{userStats.profile_views || 0}</div>
-                  <div className="text-xs opacity-90">Views</div>
-                </div>
+              <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+                {[
+                  { val: userStats.likes_sent || 0, label: 'Likes Sent', bg: 'linear-gradient(135deg, #D6336C, #E8590C)' },
+                  { val: userStats.likes_received || 0, label: 'Likes Got', bg: 'linear-gradient(135deg, #E53935, #FF6D00)' },
+                  { val: userStats.mutual_matches || 0, label: 'Matches', bg: 'linear-gradient(135deg, #10B981, #059669)' },
+                  { val: userStats.superlikes_sent || 0, label: 'Super', bg: 'linear-gradient(135deg, #3B82F6, #06B6D4)' },
+                  { val: userStats.superlikes_received || 0, label: 'Got Super', bg: 'linear-gradient(135deg, #8B5CF6, #A855F7)' },
+                  { val: userStats.profile_views || 0, label: 'Views', bg: 'linear-gradient(135deg, #F59E0B, #EAB308)' },
+                ].map((stat, i) => (
+                  <div key={i} className="rounded-2xl p-3 text-center text-white" style={{ background: stat.bg, boxShadow: 'var(--m3-elevation-1)' }}>
+                    <div className="text-xl font-bold">{stat.val}</div>
+                    <div className="text-[10px] font-medium opacity-90">{stat.label}</div>
+                  </div>
+                ))}
               </div>
             </div>
           )}

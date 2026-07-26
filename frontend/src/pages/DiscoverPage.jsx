@@ -199,13 +199,30 @@ const DiscoverPage = ({ user }) => {
       <div className="fixed inset-0 bg-[#0a0a0a] flex flex-col overflow-hidden">
         {shellTop}
         <div className="discover-card-area flex items-center justify-center px-8">
-          <div className="text-center" data-testid="no-profiles">
-            <div className="w-24 h-24 mx-auto mb-6 bg-gray-800/60 rounded-full flex items-center justify-center">
-              <Heart className="w-10 h-10 text-gray-600" />
+          <div className="text-center m3-animate-in" data-testid="no-profiles">
+            <div className="w-24 h-24 mx-auto mb-6 rounded-[28px] flex items-center justify-center" style={{ background: 'var(--m3-surface-container-high)' }}>
+              <Heart className="w-10 h-10" style={{ color: 'var(--m3-outline)' }} />
             </div>
             <h2 className="text-xl font-bold text-white mb-2">No More Profiles</h2>
-            <p className="text-gray-500 text-sm mb-8">Come back later for new people!</p>
-            <Button onClick={() => navigate('/matches')} className="bg-gradient-to-r from-pink-500 to-rose-500 text-white px-10 py-3 rounded-full text-base font-semibold" data-testid="view-matches-btn">View Matches</Button>
+            <p className="text-gray-400 text-sm mb-2">Everyone nearby has been shown</p>
+            <p className="text-gray-500 text-xs mb-8">Try expanding your distance or check back later</p>
+            <div className="flex flex-col gap-3 items-center">
+              <Button
+                onClick={() => { setLoading(true); fetchProfiles(); }}
+                className="text-white px-10 py-3 rounded-full text-base font-semibold active:scale-[0.97] transition-all"
+                style={{ background: 'linear-gradient(135deg, #D6336C 0%, #E8590C 100%)', boxShadow: '0 4px 16px rgba(214,51,108,0.35)' }}
+                data-testid="refresh-profiles-btn"
+              >
+                Refresh Profiles
+              </Button>
+              <Button
+                onClick={() => navigate('/matches')}
+                className="text-gray-300 px-8 py-2.5 rounded-full text-sm font-medium border border-gray-700 hover:bg-gray-800/50 transition-all"
+                data-testid="view-matches-btn"
+              >
+                View Matches
+              </Button>
+            </div>
           </div>
         </div>
       </div>
