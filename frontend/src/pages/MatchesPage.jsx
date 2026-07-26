@@ -398,7 +398,7 @@ const MatchesPage = ({ user }) => {
           <Button
             data-testid="tab-matches"
             onClick={() => setActiveTab('matches')}
-            className={`flex-1 py-3 sm:py-3.5 rounded-none font-medium text-xs sm:text-sm transition-all duration-300 border-r border-[#D6C2C5] ${
+            className={`flex-1 py-3 sm:py-3.5 rounded-l-full rounded-r-none font-medium text-xs sm:text-sm transition-all duration-300 border-r border-[#D6C2C5] ${
               activeTab === 'matches'
                 ? 'bg-[#FFD9E2] text-[#D6336C]'
                 : 'bg-transparent text-[#524346] hover:bg-[#FAEAED]'
@@ -429,7 +429,7 @@ const MatchesPage = ({ user }) => {
           <Button
             data-testid="tab-active"
             onClick={() => setActiveTab('active')}
-            className={`flex-1 py-3 sm:py-3.5 rounded-none font-medium text-xs sm:text-sm transition-all duration-300 ${
+            className={`flex-1 py-3 sm:py-3.5 rounded-r-full rounded-l-none font-medium text-xs sm:text-sm transition-all duration-300 ${
               activeTab === 'active'
                 ? 'bg-[#FFD9E2] text-[#D6336C]'
                 : 'bg-transparent text-[#524346] hover:bg-[#FAEAED]'
