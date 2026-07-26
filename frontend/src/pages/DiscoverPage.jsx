@@ -163,6 +163,11 @@ const DiscoverPage = ({ user }) => {
     setSwipeDirection(null); setTouchStart(null); setTouchEnd(null);
   };
 
+  const [imgError, setImgError] = useState(false);
+
+  // Reset img error when profile changes
+  useEffect(() => { setImgError(false); }, [currentIndex, photoIndex]);
+
   const currentProfile = profiles[currentIndex];
   const photos = currentProfile?.photos || [];
   const allPhotos = currentProfile?.profile_picture
@@ -223,13 +228,14 @@ const DiscoverPage = ({ user }) => {
         >
           {/* Photo fills entire card */}
           <div className="absolute inset-0 bg-gray-900">
-            {(allPhotos[photoIndex] || currentProfile.profile_picture) ? (
+            {(allPhotos[photoIndex] || currentProfile.profile_picture) && !imgError ? (
               <img
                 src={allPhotos[photoIndex] || currentProfile.profile_picture}
                 alt={currentProfile.name}
                 className="w-full h-full object-cover"
                 loading="eager"
                 draggable={false}
+                onError={() => setImgError(true)}
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-pink-500/80 to-rose-600/80">

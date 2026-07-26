@@ -61,9 +61,8 @@ function measure() {
 
   const navTotal = navInner + safeBottom;
 
-  // ── 4. Card-to-navbar gap (min 24dp guaranteed) ──
-  //    Proportional to screen height, clamped to 24-40px
-  const cardPad = Math.max(24, Math.min(40, Math.round(vh * 0.032)));
+  // ── 4. Card-to-navbar gap (min 26dp guaranteed, 24+ after rounding) ──
+  const cardPad = Math.max(26, Math.min(40, Math.round(vh * 0.032)));
 
   // ── 5. Action button offset from card bottom ──
   //    Buttons sit this far from card's bottom edge
