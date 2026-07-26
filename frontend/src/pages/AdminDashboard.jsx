@@ -555,7 +555,7 @@ const AdminDashboard = ({ user }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50" style={{ paddingTop: '120px', paddingBottom: 'calc(var(--nav-total, 86px) + 16px)' }}>
+    <div className="min-h-screen" style={{ background: 'var(--m3-surface-container-low)', paddingTop: '120px', paddingBottom: 'calc(var(--nav-total, 86px) + 16px)' }}>
       <TopBar />
       <Toaster position="top-center" richColors />
       <Navbar user={user} />

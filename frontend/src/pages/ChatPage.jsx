@@ -630,9 +630,15 @@ const ChatPage = ({ user }) => {
                           msg.is_deleted_for_all
                             ? 'bg-gray-200 text-gray-500 italic'
                             : isOwn
-                            ? 'bg-gradient-to-r from-pink-500 to-orange-500 text-white rounded-br-sm'
-                            : 'bg-white text-gray-800 shadow-sm rounded-bl-sm'
+                            ? 'text-white rounded-br-sm'
+                            : 'text-[#1F1A1C] rounded-bl-sm'
                         }`}
+                        style={
+                          msg.is_deleted_for_all ? {} :
+                          isOwn
+                            ? { background: 'linear-gradient(135deg, #D6336C 0%, #E8590C 100%)' }
+                            : { background: 'var(--m3-surface-container)', boxShadow: 'var(--m3-elevation-1)' }
+                        }
                         style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
                         onDoubleClick={() => !msg.is_deleted_for_all && handleReaction(msg.id, 'heart')}
                       >
@@ -741,8 +747,8 @@ const ChatPage = ({ user }) => {
       )}
 
       {/* Input area - flex-shrink-0 stays at bottom */}
-      <div className="flex-shrink-0 bg-white border-t border-gray-100 z-50" style={{ paddingBottom: 'max(var(--safe-bottom, 8px), env(safe-area-inset-bottom, 0px), 8px)' }}>
-        <form onSubmit={sendMessage} className="flex items-center gap-2 px-3 py-2">
+      <div className="flex-shrink-0 z-50" style={{ paddingBottom: 'max(var(--safe-bottom, 8px), env(safe-area-inset-bottom, 0px), 8px)', background: 'var(--m3-surface-container-lowest)', borderTop: '1px solid var(--m3-outline-variant)' }}>
+        <form onSubmit={sendMessage} className="flex items-center gap-2 px-3 py-2.5">
           <Input
             data-testid="message-input"
             type="text"
@@ -752,13 +758,14 @@ const ChatPage = ({ user }) => {
               handleTyping();
             }}
             placeholder="Type a message..."
-            className="flex-1 h-11 px-4 rounded-full border-2 border-gray-200 focus:border-pink-500 bg-gray-50 text-sm"
+            className="flex-1 h-11 px-4 rounded-full border-1.5 border-[#D6C2C5] focus:border-[#D6336C] bg-[#FAEAED] text-sm"
           />
           <Button
             data-testid="send-btn"
             type="submit"
             disabled={!newMessage.trim()}
-            className="bg-gradient-to-r from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600 w-11 h-11 rounded-full flex items-center justify-center shadow-lg disabled:opacity-50 flex-shrink-0"
+            className="w-11 h-11 rounded-full flex items-center justify-center disabled:opacity-50 flex-shrink-0"
+            style={{ background: 'linear-gradient(135deg, #D6336C 0%, #E8590C 100%)' }}
           >
             <Send className="w-5 h-5 text-white" />
           </Button>

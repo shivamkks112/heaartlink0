@@ -315,12 +315,12 @@ const DiscoverPage = ({ user }) => {
               )}
               <div className="flex flex-wrap gap-1.5 mt-2.5">
                 {currentProfile.relationship_intent && (
-                  <span className="bg-white/10 backdrop-blur-sm text-white/90 text-xs px-3 py-1 rounded-full border border-white/10">
+                  <span className="bg-white/15 backdrop-blur-md text-white text-[12px] font-medium px-3 py-1 rounded-lg border border-white/20">
                     {currentProfile.relationship_intent === 'serious' ? 'Serious' : currentProfile.relationship_intent === 'marriage' ? 'Marriage' : currentProfile.relationship_intent === 'casual' ? 'Casual' : 'Friends'}
                   </span>
                 )}
                 {currentProfile.interests?.slice(0, 3).map((tag, i) => (
-                  <span key={i} className="bg-white/10 backdrop-blur-sm text-white/90 text-xs px-3 py-1 rounded-full border border-white/10">{tag}</span>
+                  <span key={i} className="bg-white/12 backdrop-blur-md text-white/90 text-[12px] font-medium px-3 py-1 rounded-lg border border-white/15">{tag}</span>
                 ))}
               </div>
             </div>
@@ -337,24 +337,36 @@ const DiscoverPage = ({ user }) => {
               <button
                 data-testid="pass-btn"
                 onClick={() => handleAction('pass')}
-                className="rounded-full bg-white/95 shadow-xl flex items-center justify-center active:scale-90 transition-all duration-150 hover:bg-white"
-                style={{ width: 'var(--btn-md, 52px)', height: 'var(--btn-md, 52px)' }}
+                className="rounded-full flex items-center justify-center active:scale-90 transition-all duration-200"
+                style={{
+                  width: 'var(--btn-md, 52px)', height: 'var(--btn-md, 52px)',
+                  background: 'rgba(255,255,255,0.95)',
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.2)',
+                }}
               >
-                <X className="w-6 h-6 text-rose-500" strokeWidth={3} />
+                <X className="w-6 h-6 text-[#D6336C]" strokeWidth={2.8} />
               </button>
               <button
                 data-testid="superlike-btn"
                 onClick={() => handleAction('superlike')}
-                className="rounded-full bg-white/95 shadow-xl flex items-center justify-center active:scale-90 transition-all duration-150 hover:bg-white"
-                style={{ width: 'var(--btn-sm, 44px)', height: 'var(--btn-sm, 44px)' }}
+                className="rounded-full flex items-center justify-center active:scale-90 transition-all duration-200"
+                style={{
+                  width: 'var(--btn-sm, 44px)', height: 'var(--btn-sm, 44px)',
+                  background: 'rgba(255,255,255,0.95)',
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.2)',
+                }}
               >
-                <Star className="w-5 h-5 text-blue-500" fill="currentColor" />
+                <Star className="w-5 h-5 text-[#3B82F6]" fill="currentColor" />
               </button>
               <button
                 data-testid="like-btn"
                 onClick={() => handleAction('like')}
-                className="rounded-full bg-gradient-to-br from-emerald-400 to-emerald-500 shadow-xl shadow-emerald-500/30 flex items-center justify-center active:scale-90 transition-all duration-150"
-                style={{ width: 'var(--btn-lg, 60px)', height: 'var(--btn-lg, 60px)' }}
+                className="rounded-full flex items-center justify-center active:scale-90 transition-all duration-200"
+                style={{
+                  width: 'var(--btn-lg, 60px)', height: 'var(--btn-lg, 60px)',
+                  background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                  boxShadow: '0 4px 20px rgba(16,185,129,0.4), 0 0 0 2px rgba(255,255,255,0.15)',
+                }}
               >
                 <Heart className="w-7 h-7 text-white" fill="white" />
               </button>

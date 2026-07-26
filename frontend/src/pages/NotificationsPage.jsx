@@ -182,7 +182,7 @@ const NotificationsPage = ({ user }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50" style={{ paddingBottom: 'calc(var(--nav-total, 86px) + 16px)' }}>
+    <div className="min-h-screen" style={{ background: 'var(--m3-surface-container-low)', paddingBottom: 'calc(var(--nav-total, 86px) + 16px)' }}>
       <Toaster position="top-center" />
       <TopBar user={user} title="Notifications" />
       

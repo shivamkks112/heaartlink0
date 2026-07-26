@@ -1,0 +1,271 @@
+/* ══════════════════════════════════════════════════════
+   HeartLink Material 3 Theme
+   Premium dating app design system
+   ══════════════════════════════════════════════════════ */
+
+/* ── M3 Design Tokens ── */
+:root {
+  /* Primary */
+  --m3-primary: #D6336C;
+  --m3-on-primary: #FFFFFF;
+  --m3-primary-container: #FFD9E2;
+  --m3-on-primary-container: #3E001D;
+
+  /* Secondary */
+  --m3-secondary: #7D5260;
+  --m3-on-secondary: #FFFFFF;
+  --m3-secondary-container: #FFD9E2;
+
+  /* Tertiary */
+  --m3-tertiary: #7F5539;
+  --m3-tertiary-container: #FFDCC2;
+
+  /* Surface */
+  --m3-surface: #FFFBFF;
+  --m3-surface-dim: #E4D7DA;
+  --m3-surface-container-lowest: #FFFFFF;
+  --m3-surface-container-low: #FFF0F3;
+  --m3-surface-container: #FAEAED;
+  --m3-surface-container-high: #F4E4E8;
+  --m3-surface-container-highest: #EFDFE2;
+  --m3-on-surface: #1F1A1C;
+  --m3-on-surface-variant: #524346;
+  --m3-outline: #847376;
+  --m3-outline-variant: #D6C2C5;
+
+  /* Elevation tones */
+  --m3-elevation-1: 0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04);
+  --m3-elevation-2: 0 2px 6px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.04);
+  --m3-elevation-3: 0 4px 12px rgba(0,0,0,0.10), 0 2px 4px rgba(0,0,0,0.04);
+
+  /* Shape */
+  --m3-shape-xs: 4px;
+  --m3-shape-sm: 8px;
+  --m3-shape-md: 12px;
+  --m3-shape-lg: 16px;
+  --m3-shape-xl: 28px;
+  --m3-shape-full: 9999px;
+
+  /* Motion */
+  --m3-motion-standard: cubic-bezier(0.2, 0, 0, 1);
+  --m3-motion-emphasized: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --m3-motion-duration-short: 150ms;
+  --m3-motion-duration-medium: 300ms;
+  --m3-motion-duration-long: 500ms;
+}
+
+/* ── Global Smooth Transitions ── */
+*, *::before, *::after {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button, a, [role="button"] {
+  transition: transform var(--m3-motion-duration-short) var(--m3-motion-standard),
+              opacity var(--m3-motion-duration-short) var(--m3-motion-standard),
+              background-color var(--m3-motion-duration-medium) var(--m3-motion-standard);
+}
+
+button:active, [role="button"]:active {
+  transform: scale(0.97);
+}
+
+/* ── M3 Surface Cards ── */
+.m3-card {
+  background: var(--m3-surface-container-lowest);
+  border-radius: var(--m3-shape-lg);
+  box-shadow: var(--m3-elevation-1);
+  transition: box-shadow var(--m3-motion-duration-medium) var(--m3-motion-standard);
+}
+.m3-card:hover {
+  box-shadow: var(--m3-elevation-2);
+}
+.m3-card-elevated {
+  background: var(--m3-surface-container-low);
+  border-radius: var(--m3-shape-xl);
+  box-shadow: var(--m3-elevation-2);
+}
+
+/* ── Animations ── */
+@keyframes m3-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes m3-scale-in {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes m3-slide-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes m3-pill-expand {
+  from { width: 0; opacity: 0; }
+  to { width: 100%; opacity: 1; }
+}
+@keyframes m3-ripple {
+  from { transform: scale(0); opacity: 0.4; }
+  to { transform: scale(2.5); opacity: 0; }
+}
+@keyframes m3-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes m3-pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+@keyframes m3-heart-beat {
+  0%, 100% { transform: scale(1); }
+  25% { transform: scale(1.15); }
+  50% { transform: scale(1); }
+  75% { transform: scale(1.08); }
+}
+
+.m3-animate-in {
+  animation: m3-fade-in var(--m3-motion-duration-medium) var(--m3-motion-emphasized) both;
+}
+.m3-animate-scale {
+  animation: m3-scale-in var(--m3-motion-duration-medium) var(--m3-motion-emphasized) both;
+}
+.m3-animate-slide-up {
+  animation: m3-slide-up var(--m3-motion-duration-long) var(--m3-motion-emphasized) both;
+}
+
+/* Stagger children */
+.m3-stagger > * {
+  animation: m3-fade-in var(--m3-motion-duration-medium) var(--m3-motion-emphasized) both;
+}
+.m3-stagger > *:nth-child(1) { animation-delay: 50ms; }
+.m3-stagger > *:nth-child(2) { animation-delay: 100ms; }
+.m3-stagger > *:nth-child(3) { animation-delay: 150ms; }
+.m3-stagger > *:nth-child(4) { animation-delay: 200ms; }
+.m3-stagger > *:nth-child(5) { animation-delay: 250ms; }
+.m3-stagger > *:nth-child(6) { animation-delay: 300ms; }
+
+/* ── M3 Skeleton Loader ── */
+.m3-skeleton {
+  background: linear-gradient(90deg,
+    var(--m3-surface-container-high) 25%,
+    var(--m3-surface-container) 50%,
+    var(--m3-surface-container-high) 75%
+  );
+  background-size: 200% 100%;
+  animation: m3-shimmer 1.5s infinite;
+  border-radius: var(--m3-shape-md);
+}
+
+/* ── M3 Chips ── */
+.m3-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 14px;
+  border-radius: var(--m3-shape-sm);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  border: 1px solid var(--m3-outline-variant);
+  background: var(--m3-surface-container-lowest);
+  color: var(--m3-on-surface);
+  transition: all var(--m3-motion-duration-short) var(--m3-motion-standard);
+}
+.m3-chip-filled {
+  background: var(--m3-secondary-container);
+  border-color: transparent;
+  color: var(--m3-on-primary-container);
+}
+
+/* ── M3 Input Fields ── */
+.m3-input {
+  border: 1.5px solid var(--m3-outline-variant);
+  border-radius: var(--m3-shape-md);
+  background: var(--m3-surface-container-lowest);
+  padding: 14px 16px;
+  font-size: 15px;
+  color: var(--m3-on-surface);
+  transition: border-color var(--m3-motion-duration-short) var(--m3-motion-standard),
+              box-shadow var(--m3-motion-duration-short) var(--m3-motion-standard);
+}
+.m3-input:focus {
+  border-color: var(--m3-primary);
+  box-shadow: 0 0 0 2px rgba(214, 51, 108, 0.12);
+  outline: none;
+}
+
+/* ── M3 Buttons ── */
+.m3-btn-filled {
+  background: var(--m3-primary);
+  color: var(--m3-on-primary);
+  border: none;
+  border-radius: var(--m3-shape-full);
+  padding: 12px 24px;
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  box-shadow: var(--m3-elevation-1);
+  transition: all var(--m3-motion-duration-short) var(--m3-motion-standard);
+}
+.m3-btn-filled:hover {
+  box-shadow: var(--m3-elevation-2);
+  filter: brightness(1.05);
+}
+.m3-btn-filled:active {
+  transform: scale(0.97);
+}
+
+.m3-btn-tonal {
+  background: var(--m3-secondary-container);
+  color: var(--m3-on-primary-container);
+  border: none;
+  border-radius: var(--m3-shape-full);
+  padding: 10px 20px;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+/* ── M3 Badge ── */
+.m3-badge {
+  position: absolute;
+  top: -2px;
+  right: -4px;
+  background: #E53935;
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  min-width: 16px;
+  height: 16px;
+  border-radius: var(--m3-shape-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+/* ── Premium Gradient Accents ── */
+.m3-gradient-primary {
+  background: linear-gradient(135deg, #D6336C 0%, #E8590C 100%);
+}
+.m3-gradient-text {
+  background: linear-gradient(135deg, #D6336C 0%, #E8590C 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Smooth Scrolling ── */
+.m3-scroll {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* ── Pull to Refresh animation ── */
+.m3-pull-indicator {
+  transition: transform var(--m3-motion-duration-medium) var(--m3-motion-emphasized);
+}
+
+/* ── Page transition wrapper ── */
+.m3-page-enter {
+  animation: m3-fade-in var(--m3-motion-duration-medium) var(--m3-motion-emphasized) both;
+}

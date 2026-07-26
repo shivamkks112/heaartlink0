@@ -248,29 +248,30 @@ const AuthPage = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-100 via-rose-50 to-orange-100 flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'var(--m3-surface-container-low)' }}>
       <Toaster position="top-center" richColors />
       
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-md m3-animate-in">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-pink-500 to-orange-500 rounded-full mb-4 shadow-lg">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-[28px] mb-4 m3-gradient-primary" style={{ boxShadow: '0 8px 32px rgba(214,51,108,0.3)' }}>
             <Heart className="w-10 h-10 text-white" fill="white" />
           </div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-pink-600 to-orange-600 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold m3-gradient-text">
             HeartLink
           </h1>
+          <p className="text-sm text-[#524346] mt-1">Find your perfect match</p>
         </div>
 
-        <div className="bg-white rounded-3xl shadow-2xl p-8">
+        <div className="rounded-[28px] p-6 sm:p-8" style={{ background: 'var(--m3-surface-container-lowest)', boxShadow: 'var(--m3-elevation-2)' }}>
           {/* Login/Signup Tabs */}
-          <div className="flex gap-2 mb-6">
+          <div className="flex gap-2 mb-6 p-1 rounded-full" style={{ background: 'var(--m3-surface-container)' }}>
             <Button
               data-testid="login-tab-btn"
               onClick={() => { setIsLogin(true); }}
-              className={`flex-1 py-3 rounded-xl font-semibold transition-all ${
+              className={`flex-1 py-2.5 rounded-full font-semibold text-sm transition-all duration-300 ${
                 isLogin
-                  ? 'bg-gradient-to-r from-pink-500 to-orange-500 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  ? 'bg-white text-[#D6336C] shadow-sm'
+                  : 'bg-transparent text-[#524346] hover:text-[#1F1A1C]'
               }`}
             >
               Login
@@ -278,10 +279,10 @@ const AuthPage = ({ onLogin }) => {
             <Button
               data-testid="signup-tab-btn"
               onClick={() => { setIsLogin(false); }}
-              className={`flex-1 py-3 rounded-xl font-semibold transition-all ${
+              className={`flex-1 py-2.5 rounded-full font-semibold text-sm transition-all duration-300 ${
                 !isLogin
-                  ? 'bg-gradient-to-r from-pink-500 to-orange-500 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  ? 'bg-white text-[#D6336C] shadow-sm'
+                  : 'bg-transparent text-[#524346] hover:text-[#1F1A1C]'
               }`}
             >
               Sign Up
@@ -330,7 +331,8 @@ const AuthPage = ({ onLogin }) => {
                   data-testid="login-submit-btn"
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-gradient-to-r from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600 text-white py-6 rounded-xl font-semibold text-lg shadow-lg transform hover:scale-105 transition-all"
+                  className="w-full text-white py-6 rounded-full font-semibold text-base tracking-wide transition-all duration-200 active:scale-[0.98]"
+                  style={{ background: 'linear-gradient(135deg, #D6336C 0%, #E8590C 100%)', boxShadow: '0 4px 20px rgba(214,51,108,0.35)' }}
                 >
                   {loading ? 'Logging in...' : 'Login'}
                 </Button>

@@ -1,21 +1,23 @@
-import React from 'react';
 import { Heart } from 'lucide-react';
 
 const TopBar = () => {
   return (
-    <div 
-      className="fixed top-0 left-0 right-0 z-[9998] bg-gradient-to-r from-pink-500 via-rose-500 to-orange-500 shadow-lg"
+    <div
+      className="fixed top-0 left-0 right-0 z-[9998]"
       style={{
         paddingTop: 'env(safe-area-inset-top, 0)',
-        minHeight: '60px'
+        background: 'rgba(255,251,255,0.88)',
+        backdropFilter: 'blur(20px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+        borderBottom: '1px solid rgba(214,194,197,0.3)',
       }}
     >
-      <div className="h-16 flex items-center justify-center px-4">
+      <div className="h-14 flex items-center justify-center px-4">
         <div className="flex items-center gap-2">
-          <div className="bg-white/20 backdrop-blur-sm p-2 rounded-xl">
-            <Heart className="w-6 h-6 text-white" fill="white" />
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#D6336C] to-[#E8590C] flex items-center justify-center shadow-sm">
+            <Heart className="w-4 h-4 text-white" fill="white" />
           </div>
-          <span className="text-white font-bold text-xl tracking-wide">HeartLink</span>
+          <span className="text-[#1F1A1C] font-bold text-lg tracking-tight">HeartLink</span>
         </div>
       </div>
     </div>

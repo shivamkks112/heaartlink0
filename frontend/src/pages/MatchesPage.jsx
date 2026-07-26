@@ -382,45 +382,45 @@ const MatchesPage = ({ user }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50" style={{ paddingTop: '95px', paddingBottom: 'calc(var(--nav-total, 86px) + 16px)' }}>
+    <div className="min-h-screen" style={{ background: 'var(--m3-surface-container-low)', paddingTop: '70px', paddingBottom: 'calc(var(--nav-total, 86px) + 16px)' }}>
       <TopBar />
       <Toaster position="top-center" />
       <Navbar user={user} />
       
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 m3-animate-in">
         <div className="mb-4 sm:mb-6 md:mb-8">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-1 sm:mb-2">Connections</h1>
-          <p className="text-sm sm:text-base text-gray-600">Your matches and active users</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-[#1F1A1C] mb-1">Connections</h1>
+          <p className="text-sm text-[#524346]">Your matches and active users</p>
         </div>
 
-        {/* Enhanced Tabs - Responsive */}
-        <div className="flex gap-2 sm:gap-3 mb-4 sm:mb-6 md:mb-8 animate-slide-in-up" style={{animationDelay: '0.2s'}}>
+        {/* M3 Segmented Button Tabs */}
+        <div className="flex gap-0 mb-4 sm:mb-6 rounded-full overflow-hidden border border-[#D6C2C5]">
           <Button
             data-testid="tab-matches"
             onClick={() => setActiveTab('matches')}
-            className={`flex-1 py-3 sm:py-4 rounded-lg sm:rounded-xl font-semibold text-xs sm:text-sm md:text-base transition-all duration-300 ${
+            className={`flex-1 py-3 sm:py-3.5 rounded-none font-medium text-xs sm:text-sm transition-all duration-300 border-r border-[#D6C2C5] ${
               activeTab === 'matches'
-                ? 'bg-gradient-to-r from-pink-500 to-orange-500 text-white shadow-lg'
-                : 'bg-white text-gray-700 hover:bg-gray-50 border-2 border-gray-200'
+                ? 'bg-[#FFD9E2] text-[#D6336C]'
+                : 'bg-transparent text-[#524346] hover:bg-[#FAEAED]'
             }`}
           >
-            <Heart className={`w-4 h-4 mr-1 inline ${activeTab === 'matches' ? 'animate-heart-beat' : ''}`} />
+            <Heart className="w-4 h-4 mr-1 inline" />
             Matches ({matches.length})
           </Button>
 
           <Button
             data-testid="tab-messages"
             onClick={() => setActiveTab('messages')}
-            className={`relative flex-1 py-3 sm:py-4 rounded-lg sm:rounded-xl font-semibold text-xs sm:text-sm md:text-base transition-all duration-300 ${
+            className={`relative flex-1 py-3 sm:py-3.5 rounded-none font-medium text-xs sm:text-sm transition-all duration-300 border-r border-[#D6C2C5] ${
               activeTab === 'messages'
-                ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg'
-                : 'bg-white text-gray-700 hover:bg-gray-50 border-2 border-gray-200'
+                ? 'bg-[#FFD9E2] text-[#D6336C]'
+                : 'bg-transparent text-[#524346] hover:bg-[#FAEAED]'
             }`}
           >
-            <Mail className={`w-4 h-4 mr-1 inline ${activeTab === 'messages' ? 'animate-pulse' : ''}`} />
+            <Mail className="w-4 h-4 mr-1 inline" />
             Messages
             {totalUnread > 0 && (
-              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+              <span className="ml-1 bg-[#E53935] text-white text-[10px] font-bold rounded-full w-4 h-4 inline-flex items-center justify-center">
                 {totalUnread > 9 ? '9+' : totalUnread}
               </span>
             )}
@@ -429,13 +429,13 @@ const MatchesPage = ({ user }) => {
           <Button
             data-testid="tab-active"
             onClick={() => setActiveTab('active')}
-            className={`flex-1 py-3 sm:py-4 rounded-lg sm:rounded-xl font-semibold text-xs sm:text-sm md:text-base transition-all duration-300 ${
+            className={`flex-1 py-3 sm:py-3.5 rounded-none font-medium text-xs sm:text-sm transition-all duration-300 ${
               activeTab === 'active'
-                ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg'
-                : 'bg-white text-gray-700 hover:bg-gray-50 border-2 border-gray-200'
+                ? 'bg-[#FFD9E2] text-[#D6336C]'
+                : 'bg-transparent text-[#524346] hover:bg-[#FAEAED]'
             }`}
           >
-            <Zap className={`w-4 h-4 mr-1 inline ${activeTab === 'active' ? 'animate-pulse' : ''}`} />
+            <Zap className="w-4 h-4 mr-1 inline" />
             Active ({activeUsers.length})
           </Button>
         </div>

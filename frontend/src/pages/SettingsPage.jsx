@@ -219,7 +219,7 @@ const SettingsPage = ({ user, setUser }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50" style={{ paddingTop: '95px', paddingBottom: 'calc(var(--nav-total, 86px) + 16px)' }}>
+    <div className="min-h-screen" style={{ background: 'var(--m3-surface-container-low)', paddingTop: '70px', paddingBottom: 'calc(var(--nav-total, 86px) + 16px)' }}>
       <Toaster position="top-center" />
       
       {/* Header */}

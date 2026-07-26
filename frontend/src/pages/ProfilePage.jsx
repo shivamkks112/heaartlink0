@@ -248,15 +248,15 @@ const ProfilePage = ({ user, onUpdate }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50" style={{ paddingTop: '95px', paddingBottom: 'calc(var(--nav-total, 86px) + 16px)' }}>
+    <div className="min-h-screen" style={{ background: 'var(--m3-surface-container-low)', paddingTop: '70px', paddingBottom: 'calc(var(--nav-total, 86px) + 16px)' }}>
       <TopBar />
       <Toaster position="top-center" />
       <Navbar user={user} />
       
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
+      <div className="max-w-4xl mx-auto px-4 py-4 m3-animate-in">
+        <div className="rounded-[28px] overflow-hidden" style={{ background: 'var(--m3-surface-container-lowest)', boxShadow: 'var(--m3-elevation-2)' }}>
           {/* Header with Profile Picture */}
-          <div className="bg-gradient-to-r from-pink-500 via-rose-500 to-orange-500 px-8 py-12 text-white text-center relative">
+          <div className="px-8 py-10 text-white text-center relative" style={{ background: 'linear-gradient(135deg, #D6336C 0%, #E8590C 100%)' }}>
             {/* Settings Gear Icon */}
             <button
               onClick={() => navigate('/settings')}

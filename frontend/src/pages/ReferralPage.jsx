@@ -85,7 +85,7 @@ const ReferralPage = ({ user }) => {
   const progress = referralData ? ((3 - referralData.referrals_for_next_reward) / 3) * 100 : 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50" style={{ paddingBottom: 'calc(var(--nav-total, 86px) + 16px)' }}>
+    <div className="min-h-screen" style={{ background: 'var(--m3-surface-container-low)', paddingBottom: 'calc(var(--nav-total, 86px) + 16px)' }}>
       <TopBar user={user} />
       <Toaster position="top-center" />
 
