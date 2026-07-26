@@ -451,14 +451,14 @@ const ChatPage = ({ user }) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 flex items-center justify-center page-with-bottom-nav status-bar-spacing">
+      <div className="min-h-screen flex items-center justify-center page-with-bottom-nav status-bar-spacing" style={{ background: 'var(--m3-surface-container-low)' }}>
         <div className="w-16 h-16 border-4 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 overflow-hidden">
+    <div className="h-screen flex flex-col overflow-hidden" style={{ background: 'var(--m3-surface-container-low)' }}>
       <Toaster position="top-center" />
       
       {/* Header - fixed height with safe area */}

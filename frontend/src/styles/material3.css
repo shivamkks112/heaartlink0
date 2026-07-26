@@ -123,6 +123,27 @@ html.dark .shadow-sm, html.dark .shadow-md, html.dark .shadow-lg, html.dark .sha
   --tw-shadow-color: rgba(0,0,0,0.4);
 }
 
+/* Dark: Chat-specific overrides */
+html.dark .border-white { border-color: var(--m3-surface-container-lowest) !important; }
+html.dark .bg-white\/20 { background: rgba(255,255,255,0.08) !important; }
+html.dark .bg-white\/10 { background: rgba(255,255,255,0.05) !important; }
+html.dark .hover\:bg-white\/10:hover { background: rgba(255,255,255,0.08) !important; }
+html.dark .hover\:bg-white\/20:hover { background: rgba(255,255,255,0.1) !important; }
+html.dark .text-white\/80 { color: rgba(240,222,225,0.8) !important; }
+html.dark .ring-offset-2 { --tw-ring-offset-color: var(--m3-surface-container-low); }
+
+/* Dark: Gradient backgrounds in cards become surface */
+html.dark .from-pink-200 { --tw-gradient-from: var(--m3-surface-container-high); }
+html.dark .to-orange-200 { --tw-gradient-to: var(--m3-surface-container-high); }
+html.dark .from-blue-200 { --tw-gradient-from: var(--m3-surface-container-high); }
+html.dark .to-indigo-200 { --tw-gradient-to: var(--m3-surface-container-high); }
+html.dark .from-green-200 { --tw-gradient-from: var(--m3-surface-container-high); }
+html.dark .to-emerald-200 { --tw-gradient-to: var(--m3-surface-container-high); }
+
+/* Dark: Keep gradient buttons intact */
+html.dark [style*="linear-gradient(135deg, #D6336C"] { /* Preserved */ }
+html.dark [style*="linear-gradient(135deg, #10B981"] { /* Preserved */ }
+
 /* ── Global Smooth Transitions ── */
 *, *::before, *::after {
   -webkit-tap-highlight-color: transparent;

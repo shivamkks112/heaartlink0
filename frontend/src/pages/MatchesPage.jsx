@@ -389,20 +389,21 @@ const MatchesPage = ({ user }) => {
       
       <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 m3-animate-in">
         <div className="mb-4 sm:mb-6 md:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-[#1F1A1C] mb-1">Connections</h1>
-          <p className="text-sm text-[#524346]">Your matches and active users</p>
+          <h1 className="text-2xl sm:text-3xl font-bold mb-1" style={{ color: 'var(--m3-on-surface)' }}>Connections</h1>
+          <p className="text-sm" style={{ color: 'var(--m3-on-surface-variant)' }}>Your matches and active users</p>
         </div>
 
         {/* M3 Segmented Button Tabs */}
-        <div className="flex gap-0 mb-4 sm:mb-6 rounded-full overflow-hidden border border-[#D6C2C5]">
+        <div className="flex gap-0 mb-4 sm:mb-6 rounded-full overflow-hidden" style={{ border: '1px solid var(--m3-outline-variant)' }}>
           <Button
             data-testid="tab-matches"
             onClick={() => setActiveTab('matches')}
-            className={`flex-1 py-3 sm:py-3.5 rounded-l-full rounded-r-none font-medium text-xs sm:text-sm transition-all duration-300 border-r border-[#D6C2C5] ${
-              activeTab === 'matches'
-                ? 'bg-[#FFD9E2] text-[#D6336C]'
-                : 'bg-transparent text-[#524346] hover:bg-[#FAEAED]'
-            }`}
+            className="flex-1 py-3 sm:py-3.5 rounded-l-full rounded-r-none font-medium text-xs sm:text-sm transition-all duration-300"
+            style={{
+              background: activeTab === 'matches' ? 'var(--m3-primary-container)' : 'transparent',
+              color: activeTab === 'matches' ? 'var(--m3-primary)' : 'var(--m3-on-surface-variant)',
+              borderRight: '1px solid var(--m3-outline-variant)',
+            }}
           >
             <Heart className="w-4 h-4 mr-1 inline" />
             Matches ({matches.length})
@@ -411,11 +412,12 @@ const MatchesPage = ({ user }) => {
           <Button
             data-testid="tab-messages"
             onClick={() => setActiveTab('messages')}
-            className={`relative flex-1 py-3 sm:py-3.5 rounded-none font-medium text-xs sm:text-sm transition-all duration-300 border-r border-[#D6C2C5] ${
-              activeTab === 'messages'
-                ? 'bg-[#FFD9E2] text-[#D6336C]'
-                : 'bg-transparent text-[#524346] hover:bg-[#FAEAED]'
-            }`}
+            className="relative flex-1 py-3 sm:py-3.5 rounded-none font-medium text-xs sm:text-sm transition-all duration-300"
+            style={{
+              background: activeTab === 'messages' ? 'var(--m3-primary-container)' : 'transparent',
+              color: activeTab === 'messages' ? 'var(--m3-primary)' : 'var(--m3-on-surface-variant)',
+              borderRight: '1px solid var(--m3-outline-variant)',
+            }}
           >
             <Mail className="w-4 h-4 mr-1 inline" />
             Messages
@@ -429,11 +431,11 @@ const MatchesPage = ({ user }) => {
           <Button
             data-testid="tab-active"
             onClick={() => setActiveTab('active')}
-            className={`flex-1 py-3 sm:py-3.5 rounded-r-full rounded-l-none font-medium text-xs sm:text-sm transition-all duration-300 ${
-              activeTab === 'active'
-                ? 'bg-[#FFD9E2] text-[#D6336C]'
-                : 'bg-transparent text-[#524346] hover:bg-[#FAEAED]'
-            }`}
+            className="flex-1 py-3 sm:py-3.5 rounded-r-full rounded-l-none font-medium text-xs sm:text-sm transition-all duration-300"
+            style={{
+              background: activeTab === 'active' ? 'var(--m3-primary-container)' : 'transparent',
+              color: activeTab === 'active' ? 'var(--m3-primary)' : 'var(--m3-on-surface-variant)',
+            }}
           >
             <Zap className="w-4 h-4 mr-1 inline" />
             Active ({activeUsers.length})
@@ -444,15 +446,14 @@ const MatchesPage = ({ user }) => {
         {activeTab === 'matches' && (
           <>
             {matches.length === 0 ? (
-              <div className="text-center py-20">
-                <div className="bg-white rounded-3xl p-12 shadow-xl inline-block">
-                  <Heart className="w-20 h-20 text-gray-300 mx-auto mb-4" />
-                  <h2 className="text-2xl font-bold text-gray-800 mb-2">No Matches Yet</h2>
-                  <p className="text-gray-600 mb-6">Start swiping to find your match!</p>
-                  <button
-                    onClick={() => navigate('/discover')}
-                    className="bg-gradient-to-r from-pink-500 to-orange-500 text-white px-8 py-4 rounded-full font-semibold hover:scale-105 transition-all"
-                  >
+              <div className="text-center py-20 m3-animate-in">
+                <div className="rounded-[28px] p-10 inline-block" style={{ background: 'var(--m3-surface-container-lowest)', boxShadow: 'var(--m3-elevation-2)' }}>
+                  <Heart className="w-16 h-16 mx-auto mb-4" style={{ color: 'var(--m3-outline-variant)' }} />
+                  <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--m3-on-surface)' }}>No Matches Yet</h2>
+                  <p className="text-sm mb-6" style={{ color: 'var(--m3-on-surface-variant)' }}>Start swiping to find your match!</p>
+                  <button onClick={() => navigate('/discover')}
+                    className="text-white px-8 py-3 rounded-full font-semibold active:scale-[0.97] transition-all"
+                    style={{ background: 'linear-gradient(135deg, #D6336C 0%, #E8590C 100%)', boxShadow: '0 2px 8px rgba(214,51,108,0.3)' }}>
                     Discover Profiles
                   </button>
                 </div>
@@ -551,21 +552,20 @@ const MatchesPage = ({ user }) => {
         {activeTab === 'messages' && (
           <>
             {conversations.length === 0 ? (
-              <div className="text-center py-20">
-                <div className="bg-white rounded-3xl p-12 shadow-xl inline-block">
-                  <Mail className="w-20 h-20 text-gray-300 mx-auto mb-4" />
-                  <h2 className="text-2xl font-bold text-gray-800 mb-2">No Messages Yet</h2>
-                  <p className="text-gray-600 mb-6">Start chatting with your matches!</p>
-                  <button
-                    onClick={() => setActiveTab('matches')}
-                    className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-8 py-4 rounded-full font-semibold hover:scale-105 transition-all"
-                  >
+              <div className="text-center py-20 m3-animate-in">
+                <div className="rounded-[28px] p-10 inline-block" style={{ background: 'var(--m3-surface-container-lowest)', boxShadow: 'var(--m3-elevation-2)' }}>
+                  <Mail className="w-16 h-16 mx-auto mb-4" style={{ color: 'var(--m3-outline-variant)' }} />
+                  <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--m3-on-surface)' }}>No Messages Yet</h2>
+                  <p className="text-sm mb-6" style={{ color: 'var(--m3-on-surface-variant)' }}>Start chatting with your matches!</p>
+                  <button onClick={() => setActiveTab('matches')}
+                    className="text-white px-8 py-3 rounded-full font-semibold active:scale-[0.97] transition-all"
+                    style={{ background: 'linear-gradient(135deg, #D6336C 0%, #E8590C 100%)', boxShadow: '0 2px 8px rgba(214,51,108,0.3)' }}>
                     View Matches
                   </button>
                 </div>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2 m3-stagger">
                 {conversations.map((conv, index) => {
                   const statusInfo = getOnlineStatusInfo(conv.user.is_online, conv.user.last_active);
                   
@@ -574,75 +574,69 @@ const MatchesPage = ({ user }) => {
                       key={conv.match_id}
                       data-testid="message-card"
                       onClick={() => handleChatClick(conv.match_id)}
-                      className={`bg-white rounded-xl sm:rounded-2xl shadow-soft overflow-hidden hover:shadow-elevated transition-all duration-300 cursor-pointer animate-bounce-in ${
-                        conv.unreadCount > 0 ? 'ring-2 ring-blue-500 ring-offset-2' : ''
+                      className={`overflow-hidden transition-all duration-200 cursor-pointer active:scale-[0.99] ${
+                        conv.unreadCount > 0 ? 'ring-1.5 ring-offset-1' : ''
                       }`}
-                      style={{animationDelay: `${index * 0.05}s`}}
+                      style={{
+                        background: 'var(--m3-surface-container-lowest)',
+                        borderRadius: 'var(--m3-shape-lg)',
+                        boxShadow: conv.unreadCount > 0 ? 'var(--m3-elevation-2)' : 'var(--m3-elevation-1)',
+                        ...(conv.unreadCount > 0 ? { ringColor: 'var(--m3-primary)' } : {}),
+                      }}
                     >
-                      <div className="flex items-center p-3 sm:p-4">
+                      <div className="flex items-center p-3.5">
                         {/* Profile Picture */}
                         <div className="relative flex-shrink-0">
-                          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full overflow-hidden bg-gradient-to-br from-blue-200 to-indigo-200">
+                          <div className="w-14 h-14 rounded-full overflow-hidden" style={{ background: 'var(--m3-surface-container-high)' }}>
                             {conv.user.profile_picture ? (
-                              <img
-                                src={conv.user.profile_picture}
-                                alt={conv.user.name}
-                                className="w-full h-full object-cover"
-                              />
+                              <img src={conv.user.profile_picture} alt={conv.user.name} className="w-full h-full object-cover" />
                             ) : conv.user.photos && conv.user.photos.length > 0 ? (
-                              <img
-                                src={conv.user.photos[0]}
-                                alt={conv.user.name}
-                                className="w-full h-full object-cover"
-                              />
+                              <img src={conv.user.photos[0]} alt={conv.user.name} className="w-full h-full object-cover" />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center">
-                                <Heart className="w-8 h-8 text-white" />
+                                <Heart className="w-7 h-7" style={{ color: 'var(--m3-outline)' }} />
                               </div>
                             )}
                           </div>
-                          {/* Online indicator with color differentiation */}
-                          <div className={`absolute -bottom-0.5 -right-0.5 w-4 h-4 ${statusInfo.color} rounded-full border-2 border-white ${statusInfo.pulse ? 'animate-pulse' : ''}`}></div>
+                          <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 ${statusInfo.color} rounded-full ${statusInfo.pulse ? 'animate-pulse' : ''}`}
+                            style={{ border: '2px solid var(--m3-surface-container-lowest)' }}></div>
                         </div>
 
                         {/* Message Content */}
-                        <div className="flex-1 min-w-0 ml-3 sm:ml-4">
-                          <div className="flex items-center justify-between mb-1">
-                            <div className="flex items-center gap-2">
-                              <h3 className="font-bold text-gray-900 truncate">
+                        <div className="flex-1 min-w-0 ml-3">
+                          <div className="flex items-center justify-between mb-0.5">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <h3 className="font-bold text-sm truncate" style={{ color: 'var(--m3-on-surface)' }}>
                                 {conv.user.name}, {conv.user.age}
                               </h3>
-                              <span className={`text-xs ${statusInfo.textColor}`}>
-                                • {statusInfo.label}
+                              <span className="text-[10px] flex-shrink-0" style={{ color: 'var(--m3-outline)' }}>
+                                {statusInfo.label}
                               </span>
                             </div>
-                            <span className="text-xs text-gray-500 flex-shrink-0 ml-2">
+                            <span className="text-[11px] flex-shrink-0 ml-2 font-medium" style={{ color: 'var(--m3-outline)' }}>
                               {formatMessageTime(conv.lastMessage?.created_at)}
                             </span>
                           </div>
                           
                           <div className="flex items-center justify-between">
-                            <p className={`text-sm truncate ${
-                              conv.unreadCount > 0 ? 'text-gray-900 font-semibold' : 'text-gray-600'
-                            }`}>
+                            <p className="text-[13px] truncate" style={{ color: conv.unreadCount > 0 ? 'var(--m3-on-surface)' : 'var(--m3-on-surface-variant)', fontWeight: conv.unreadCount > 0 ? 600 : 400 }}>
                               {conv.lastMessage?.sender_id === user.id && (
-                                <span className="text-blue-500">You: </span>
+                                <span style={{ color: 'var(--m3-primary)' }}>You: </span>
                               )}
                               {conv.lastMessage?.content || 'Start chatting...'}
                             </p>
                             
-                            {/* Unread badge */}
                             {conv.unreadCount > 0 && (
-                              <span className="ml-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0">
+                              <span className="ml-2 text-white text-[10px] font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center flex-shrink-0 px-1.5"
+                                style={{ background: 'var(--m3-primary)' }}>
                                 {conv.unreadCount > 9 ? '9+' : conv.unreadCount}
                               </span>
                             )}
                           </div>
                         </div>
 
-                        {/* Arrow */}
-                        <div className="ml-2 text-gray-400">
-                          <MessageCircle className="w-5 h-5" />
+                        <div className="ml-2" style={{ color: 'var(--m3-outline)' }}>
+                          <MessageCircle className="w-4 h-4" />
                         </div>
                       </div>
                     </div>
@@ -657,20 +651,21 @@ const MatchesPage = ({ user }) => {
         {activeTab === 'active' && (
           <>
             {activeUsers.length === 0 ? (
-              <div className="text-center py-20">
-                <div className="bg-white rounded-3xl p-12 shadow-xl inline-block">
-                  <Users className="w-20 h-20 text-gray-300 mx-auto mb-4" />
-                  <h2 className="text-2xl font-bold text-gray-800 mb-2">No Active Users</h2>
-                  <p className="text-gray-600 mb-6">No users active in the last 24 hours. Check back later!</p>
+              <div className="text-center py-20 m3-animate-in">
+                <div className="rounded-[28px] p-10 inline-block" style={{ background: 'var(--m3-surface-container-lowest)', boxShadow: 'var(--m3-elevation-2)' }}>
+                  <Users className="w-16 h-16 mx-auto mb-4" style={{ color: 'var(--m3-outline-variant)' }} />
+                  <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--m3-on-surface)' }}>No Active Users</h2>
+                  <p className="text-sm" style={{ color: 'var(--m3-on-surface-variant)' }}>No users active in the last 24 hours</p>
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 m3-stagger">
                 {activeUsers.map((activeUser) => (
                   <div
                     key={activeUser.id}
                     data-testid="active-user-card"
-                    className="bg-white rounded-xl sm:rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition-all transform hover:-translate-y-2 relative"
+                    className="overflow-hidden transition-all duration-200 transform hover:-translate-y-1 relative active:scale-[0.98]"
+                    style={{ background: 'var(--m3-surface-container-lowest)', borderRadius: 'var(--m3-shape-lg)', boxShadow: 'var(--m3-elevation-1)' }}
                   >
                     {/* Online/Active Indicator with Color Differentiation */}
                     {(() => {
@@ -684,7 +679,7 @@ const MatchesPage = ({ user }) => {
                       );
                     })()}
 
-                    <div className="relative h-48 sm:h-56 md:h-64 bg-gradient-to-br from-green-200 to-emerald-200">
+                    <div className="relative h-48 sm:h-56 md:h-64" style={{ background: 'var(--m3-surface-container-high)' }}>
                       {activeUser.profile_picture ? (
                         <img
                           src={activeUser.profile_picture}
@@ -710,12 +705,12 @@ const MatchesPage = ({ user }) => {
                       )}
                     </div>
 
-                    <div className="p-3 sm:p-4 md:p-5">
-                      <h3 className="text-base sm:text-lg md:text-xl font-bold text-gray-900 mb-1 truncate">
+                    <div className="p-4">
+                      <h3 className="text-base font-bold mb-1 truncate" style={{ color: 'var(--m3-on-surface)' }}>
                         {activeUser.name}, {activeUser.age}
                       </h3>
                       
-                      <p className="text-xs sm:text-sm text-gray-600 mb-2 sm:mb-3 truncate">{activeUser.location}</p>
+                      <p className="text-xs mb-2 truncate" style={{ color: 'var(--m3-on-surface-variant)' }}>{activeUser.location}</p>
 
                       {/* Last Active Time with color indicator */}
                       {(() => {
@@ -729,17 +724,18 @@ const MatchesPage = ({ user }) => {
                       })()}
 
                       {activeUser.bio && (
-                        <p className="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4 line-clamp-2">
+                        <p className="text-xs mb-3 line-clamp-2" style={{ color: 'var(--m3-on-surface-variant)' }}>
                           {activeUser.bio}
                         </p>
                       )}
 
                       <button
                         onClick={() => navigate(`/profile/${activeUser.id}`)}
-                        className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white py-2 sm:py-2.5 md:py-3 rounded-lg sm:rounded-xl font-semibold text-sm sm:text-base flex items-center justify-center gap-1 sm:gap-2 transition-all"
+                        className="w-full text-white py-2.5 rounded-full font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.97] transition-all"
+                        style={{ background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', boxShadow: '0 2px 8px rgba(16,185,129,0.3)' }}
                       >
-                        <Heart className="w-4 h-4 sm:w-5 sm:h-5" />
-                        <span className="hidden xs:inline">View </span>Profile
+                        <Heart className="w-4 h-4" />
+                        View Profile
                       </button>
                     </div>
                   </div>
