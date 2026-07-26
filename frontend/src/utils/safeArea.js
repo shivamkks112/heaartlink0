@@ -94,18 +94,17 @@ function measure() {
   // On Android Capacitor, gesture nav is ≈16-24dp, 3-button is ≈48dp.
   // We MUST have enough padding to clear the system bar.
   if (isAndroid) {
-    // Minimum floor: 34px covers gesture nav on 2-3x DPR devices.
-    // This is intentionally generous — it's better to have 10px extra padding
-    // than to have the navbar hidden behind the system bar.
-    const minBottom = Math.round(20 * dpr);  // 20dp in actual pixels
+    const minBottom = Math.round(20 * dpr);
     safeBottom = Math.max(safeBottom, Math.max(minBottom, 34));
   } else if (isNative) {
-    // iOS: env() usually works, but ensure a floor
     safeBottom = Math.max(safeBottom, 20);
   } else if (/Mobi|Android/i.test(navigator.userAgent)) {
-    // Mobile web browser
-    safeBottom = Math.max(safeBottom, 6);
+    safeBottom = Math.max(safeBottom, 8);
   }
+
+  // Universal floor: Navbar CSS uses max(..., 8px), so --nav-total
+  // must account for at least 8px bottom padding to stay in sync.
+  safeBottom = Math.max(safeBottom, 8);
 
   // ── Top safe area ──
   let safeTop = 0;
@@ -129,17 +128,17 @@ function measure() {
   }
 
   // ── Responsive navbar inner height (icon row) ──
-  // Must be ≥ 48dp for Material Design touch target compliance.
-  // On small screens: 48dp. On larger: up to 58dp.
+  // Must be ≥ 48px to match Navbar minHeight and Material Design touch targets.
   let navInner;
-  if (isLandscape && vh < 500) navInner = 46;
+  if (isLandscape && vh < 500) navInner = 48;  // floor = 48 (matches Navbar minHeight)
   else if (vh < 640)          navInner = 48;
   else if (vh < 750)          navInner = 50;
   else if (vh < 900)          navInner = 52;
   else if (vh < 1100)         navInner = 54;
   else                        navInner = 58;
 
-  const navTotal = navInner + safeBottom;
+  // navTotal = inner row + safe bottom padding + 1px border-top
+  const navTotal = navInner + safeBottom + 1;
 
   // ── Card-to-navbar gap (min 26px guaranteed) ──
   const cardPad = Math.max(26, Math.min(40, Math.round(vh * 0.032)));
