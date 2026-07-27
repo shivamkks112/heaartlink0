@@ -580,23 +580,24 @@ const ChatPage = ({ user }) => {
                       <div
                         className={`min-w-[60px] px-3.5 py-2 rounded-2xl ${
                           msg.is_deleted_for_all
-                            ? 'bg-gray-200 text-gray-500 italic'
+                            ? 'italic'
                             : isOwn
                             ? 'text-white rounded-br-sm'
-                            : 'text-[#1F1A1C] rounded-bl-sm'
+                            : 'rounded-bl-sm'
                         }`}
                         style={{
                           wordBreak: 'break-word', overflowWrap: 'break-word',
-                          ...(msg.is_deleted_for_all ? {} :
-                          isOwn
+                          ...(msg.is_deleted_for_all
+                            ? { background: 'var(--m3-surface-container-high)', color: 'var(--m3-outline)' }
+                            : isOwn
                             ? { background: 'linear-gradient(135deg, #D6336C 0%, #E8590C 100%)' }
-                            : { background: 'var(--m3-surface-container)', boxShadow: 'var(--m3-elevation-1)' }
+                            : { background: 'var(--m3-surface-container)', boxShadow: 'var(--m3-elevation-1)', color: 'var(--m3-on-surface)' }
                           ),
                         }}
                         onDoubleClick={() => !msg.is_deleted_for_all && handleReaction(msg.id, 'heart')}
                       >
                         {msg.personal_info_detected && (
-                          <div className="flex items-center gap-1 text-xs mb-1 opacity-80">
+                          <div className="flex items-center gap-1 text-xs mb-1" style={{ color: isOwn ? 'rgba(255,255,255,0.7)' : 'var(--m3-outline)' }}>
                             <Shield className="w-3 h-3" />
                             <span>Protected</span>
                           </div>
@@ -605,7 +606,7 @@ const ChatPage = ({ user }) => {
                         <p className="text-sm whitespace-pre-wrap" style={{ wordBreak: 'break-word' }}>{msg.content}</p>
                         
                         <div className="flex items-center justify-end gap-1 mt-0.5">
-                          <p className={`text-[10px] ${isOwn ? 'text-white/70' : 'text-gray-400'}`}>
+                          <p className="text-[10px]" style={{ color: isOwn ? 'rgba(255,255,255,0.7)' : 'var(--m3-outline)' }}>
                             {new Date(msg.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                           </p>
                           {msg.expires_at && (
