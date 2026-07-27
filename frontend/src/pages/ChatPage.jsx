@@ -32,49 +32,55 @@ const ChatPage = ({ user }) => {
   const messagesEndRef = useRef(null);
   const wsRef = useRef(null);
   const typingTimeoutRef = useRef(null);
+  const wsRetryCount = useRef(0);
+  const wsRetryTimer = useRef(null);
+  const maxWsRetries = 5;
 
   useEffect(() => {
-    fetchMatch();
-    fetchMessages();
-    connectWebSocket();
-    checkMuteStatus();
-    fetchPrivacySettings();
-    
-    // Screenshot detection for web
-    const handleVisibilityChange = () => {
-      if (document.hidden && privacySettings.screenshot_alert) {
-        // User might be taking screenshot
-        sendScreenshotAlert();
+    let cancelled = false;
+
+    const init = async () => {
+      try {
+        // Fetch match first — if not found, don't bother with WS/messages
+        const matchRes = await axios.get(`${API}/matches/${user.id}`);
+        const match = matchRes.data.find(m => m.match_id === matchId);
+        if (!match) {
+          if (!cancelled) { toast.error('Match not found'); navigate('/matches'); }
+          return;
+        }
+        if (!cancelled) setOtherUser(match.user);
+
+        // Fetch messages + privacy in parallel
+        const [msgRes, privRes] = await Promise.allSettled([
+          axios.get(`${API}/messages/${matchId}?user_id=${user.id}&limit=100`),
+          axios.get(`${API}/privacy/${user.id}`),
+        ]);
+
+        if (!cancelled) {
+          if (msgRes.status === 'fulfilled') {
+            setMessages(msgRes.value.data || []);
+            setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'auto' }), 80);
+            // Mark read (fire-and-forget)
+            axios.post(`${API}/messages/${matchId}/mark-read/${user.id}`).catch(() => {});
+          }
+          if (privRes.status === 'fulfilled') setPrivacySettings(privRes.value.data);
+          setLoading(false);
+          connectWebSocket();
+          checkMuteStatus();
+        }
+      } catch (err) {
+        if (!cancelled) { setLoading(false); }
       }
     };
-    
-    // Keyboard shortcut detection (PrintScreen)
-    const handleKeyDown = (e) => {
-      if (e.key === 'PrintScreen' && privacySettings.screenshot_alert) {
-        sendScreenshotAlert();
-      }
-    };
-    
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    document.addEventListener('keydown', handleKeyDown);
+
+    init();
 
     return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      document.removeEventListener('keydown', handleKeyDown);
+      cancelled = true;
+      if (wsRef.current) { wsRef.current.close(); wsRef.current = null; }
+      clearTimeout(wsRetryTimer.current);
     };
   }, [matchId]);
-
-  const fetchPrivacySettings = async () => {
-    try {
-      const response = await axios.get(`${API}/privacy/${user.id}`);
-      setPrivacySettings(response.data);
-    } catch (error) {
-      console.error('Failed to fetch privacy settings');
-    }
-  };
 
   const sendScreenshotAlert = async () => {
     try {
@@ -82,9 +88,7 @@ const ChatPage = ({ user }) => {
         match_id: matchId,
         screenshot_by: user.id
       });
-    } catch (error) {
-      console.error('Failed to send screenshot alert');
-    }
+    } catch (error) { /* silent */ }
   };
 
   const sendTypingIndicator = async (typing) => {
@@ -218,116 +222,60 @@ const ChatPage = ({ user }) => {
     return 'recently';
   };
 
-  const fetchMatch = async () => {
-    try {
-      const response = await axios.get(`${API}/matches/${user.id}`);
-      const match = response.data.find(m => m.match_id === matchId);
-      if (match) {
-        setOtherUser(match.user);
-      } else {
-        toast.error('Match not found');
-        navigate('/matches');
-      }
-    } catch (error) {
-      console.error('Failed to load match:', error);
-      setLoading(false);
-    }
-  };
-
-  const fetchMessages = async () => {
-    try {
-      // Pass user_id to get properly filtered messages (excluding deleted ones)
-      const response = await axios.get(`${API}/messages/${matchId}?user_id=${user.id}&limit=100`);
-      setMessages(response.data || []);
-      setLoading(false);
-      
-      // Scroll to bottom after loading messages
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-      }, 100);
-      
-      // Mark messages as read
-      try {
-        await axios.post(`${API}/messages/${matchId}/mark-read/${user.id}`);
-        console.log('Messages marked as read');
-      } catch (err) {
-        console.error('Failed to mark messages as read:', err);
-      }
-    } catch (error) {
-      console.error('Failed to load messages:', error);
-      toast.error('Failed to load messages');
-      setLoading(false);
-    }
-  };
+  // fetchMatch and fetchMessages are now inline in the useEffect init()
 
   const connectWebSocket = () => {
+    if (wsRetryCount.current >= maxWsRetries) return; // Stop retrying
     try {
+      if (wsRef.current) { wsRef.current.close(); wsRef.current = null; }
       wsRef.current = new WebSocket(`${WS_URL}/api/ws/${user.id}`);
+
+      wsRef.current.onopen = () => { wsRetryCount.current = 0; }; // Reset on success
       
       wsRef.current.onmessage = (event) => {
         const data = JSON.parse(event.data);
         
         if (data.type === 'message' && data.message.match_id === matchId) {
           setMessages(prev => {
-            // Remove temp message if exists
             const withoutTemp = prev.filter(msg => 
               !msg._temp || msg.content !== data.message.content
             );
-            
-            // Check if message already exists (prevent duplicates)
             const exists = withoutTemp.some(msg => 
               msg.sender_id === data.message.sender_id &&
               msg.content === data.message.content &&
               Math.abs(new Date(msg.timestamp) - new Date(data.message.timestamp)) < 1000
             );
-            
             if (exists) return prev;
             return [...withoutTemp, data.message];
           });
         } else if (data.type === 'status_update') {
-          // Update other user's online status in real-time
           if (otherUser && data.user_id === otherUser.id) {
-            setOtherUser(prev => ({
-              ...prev,
-              is_online: data.is_online,
-              last_active: data.last_active
-            }));
+            setOtherUser(prev => prev ? ({ ...prev, is_online: data.is_online, last_active: data.last_active }) : prev);
           }
         } else if (data.type === 'typing_indicator' && data.match_id === matchId) {
-          // Show typing indicator
-          if (data.user_id !== user.id) {
-            setOtherUserTyping(data.is_typing);
-          }
+          if (data.user_id !== user.id) setOtherUserTyping(data.is_typing);
         } else if (data.type === 'screenshot_alert' && data.match_id === matchId) {
-          // Show screenshot alert
-          toast.warning(`📸 ${data.screenshot_by_name} took a screenshot!`, {
-            duration: 5000,
-            icon: '📸'
-          });
+          toast.warning(`${data.screenshot_by_name} took a screenshot!`, { duration: 5000 });
         } else if (data.type === 'system_warning') {
-          // Show system warning
-          toast.warning(data.message, {
-            duration: 5000,
-            icon: '⚠️'
-          });
+          toast.warning(data.message, { duration: 5000 });
         } else if (data.type === 'message_deleted' && data.deleted_for_all) {
-          // Update deleted message
           setMessages(prev => prev.map(msg => 
             msg.id === data.message_id ? {...msg, content: 'This message was deleted', is_deleted_for_all: true} : msg
           ));
         }
       };
 
-      wsRef.current.onerror = (error) => {
-        console.error('WebSocket error:', error);
-      };
+      wsRef.current.onerror = () => {};
 
       wsRef.current.onclose = () => {
-        console.log('WebSocket closed, attempting reconnect...');
-        setTimeout(connectWebSocket, 3000);
+        wsRetryCount.current++;
+        if (wsRetryCount.current < maxWsRetries) {
+          const delay = Math.min(2000 * Math.pow(2, wsRetryCount.current), 30000);
+          wsRetryTimer.current = setTimeout(connectWebSocket, delay);
+        }
       };
     } catch (error) {
-      console.error('Failed to connect WebSocket:', error);
+      console.error('WS connect failed:', error);
     }
   };
 
@@ -451,8 +399,12 @@ const ChatPage = ({ user }) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center page-with-bottom-nav status-bar-spacing" style={{ background: 'var(--m3-surface-container-low)' }}>
-        <div className="w-16 h-16 border-4 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--m3-surface-container-low)' }}>
+        <div className="flex flex-col items-center gap-3 m3-animate-in">
+          <div className="w-12 h-12 rounded-full m3-skeleton"></div>
+          <div className="w-32 h-4 m3-skeleton rounded-full"></div>
+          <div className="w-20 h-3 m3-skeleton rounded-full mt-1"></div>
+        </div>
       </div>
     );
   }
@@ -633,13 +585,14 @@ const ChatPage = ({ user }) => {
                             ? 'text-white rounded-br-sm'
                             : 'text-[#1F1A1C] rounded-bl-sm'
                         }`}
-                        style={
-                          msg.is_deleted_for_all ? {} :
+                        style={{
+                          wordBreak: 'break-word', overflowWrap: 'break-word',
+                          ...(msg.is_deleted_for_all ? {} :
                           isOwn
                             ? { background: 'linear-gradient(135deg, #D6336C 0%, #E8590C 100%)' }
                             : { background: 'var(--m3-surface-container)', boxShadow: 'var(--m3-elevation-1)' }
-                        }
-                        style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
+                          ),
+                        }}
                         onDoubleClick={() => !msg.is_deleted_for_all && handleReaction(msg.id, 'heart')}
                       >
                         {msg.personal_info_detected && (
