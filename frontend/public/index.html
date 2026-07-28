@@ -2,6 +2,10 @@
 <html lang="en-IN">
 <head>
   <meta charset="utf-8" />
+  <!-- Apply dark theme BEFORE any rendering to prevent white flash -->
+  <script>
+    try{var t=localStorage.getItem('heartlink_theme');if(t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme:dark)').matches)){document.documentElement.classList.add('dark')}}catch(e){}
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes, viewport-fit=cover" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   

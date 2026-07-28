@@ -5,6 +5,8 @@
 
 /* ── M3 Design Tokens ── */
 :root {
+  /* Prevent white flash: set root bg immediately */
+  background-color: #FFF0F3;
   /* Primary */
   --m3-primary: #D6336C;
   --m3-on-primary: #FFFFFF;
@@ -63,6 +65,7 @@
 
 /* ══ M3 DARK THEME ══ */
 html.dark {
+  background-color: #1A1113;
   --m3-primary: #FFB1C8;
   --m3-on-primary: #5E1133;
   --m3-primary-container: #7D2949;
