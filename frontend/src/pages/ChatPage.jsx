@@ -24,6 +24,7 @@ const ChatPage = ({ user }) => {
   const [newMessage, setNewMessage] = useState('');
   const [otherUser, setOtherUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [otherUserTyping, setOtherUserTyping] = useState(false);
@@ -69,7 +70,8 @@ const ChatPage = ({ user }) => {
           checkMuteStatus();
         }
       } catch (err) {
-        if (!cancelled) { setLoading(false); }
+        console.error('[ChatPage] init failed:', err);
+        if (!cancelled) { setError('Chat load nahi ho paya. Please go back and try again.'); setLoading(false); }
       }
     };
 
@@ -397,14 +399,22 @@ const ChatPage = ({ user }) => {
     }
   };
 
-  // Theme-aware fallback for instant background (before CSS variables resolve)
+  // Theme-aware fallback (instant bg before CSS variables resolve)
   const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
   const surfaceLow = isDark ? '#221A1D' : '#FFF0F3';
   const surfaceLowest = isDark ? '#140D0F' : '#FFFFFF';
 
+  // Shared container style — uses absolute positioning inside a relative parent
+  // instead of position:fixed which breaks on some Android Capacitor WebViews
+  const containerStyle = {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: surfaceLow,
+  };
+
   if (loading) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center" style={{ backgroundColor: surfaceLow }}>
+      <div style={containerStyle} className="flex items-center justify-center">
         <div className="flex flex-col items-center gap-3 m3-animate-in">
           <div className="w-12 h-12 rounded-full m3-skeleton"></div>
           <div className="w-32 h-4 m3-skeleton rounded-full"></div>
@@ -414,8 +424,26 @@ const ChatPage = ({ user }) => {
     );
   }
 
+  if (error) {
+    return (
+      <div style={containerStyle} className="flex items-center justify-center px-8">
+        <div className="text-center">
+          <HeartIcon className="w-12 h-12 mx-auto mb-4" style={{ color: '#D6336C' }} />
+          <p className="text-base font-semibold mb-6" style={{ color: isDark ? '#F0DEE1' : '#1F1A1C' }}>{error}</p>
+          <button
+            onClick={() => navigate('/matches')}
+            className="text-white px-8 py-3 rounded-full font-semibold"
+            style={{ background: 'linear-gradient(135deg, #D6336C 0%, #E8590C 100%)' }}
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="fixed inset-0 flex flex-col overflow-hidden" style={{ backgroundColor: surfaceLow }}>
+    <div style={containerStyle} className="flex flex-col overflow-hidden">
       <Toaster position="top-center" />
       
       {/* Header - fixed height with safe area */}

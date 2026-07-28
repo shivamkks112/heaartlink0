@@ -4,6 +4,14 @@ import '@/styles/material3.css';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { initSafeArea } from '@/utils/safeArea';
 import { useTheme } from '@/hooks/useTheme';
+import ErrorBoundary from '@/components/ErrorBoundary';
+
+// Chat page wrapper — relative container for absolute-positioned ChatPage
+const ChatWrapper = ({ children }) => (
+  <div style={{ position: 'relative', width: '100%', height: '100dvh', minHeight: '100vh', overflow: 'hidden' }}>
+    {children}
+  </div>
+);
 
 // Critical pages - loaded immediately (lightweight)
 import LandingPage from '@/pages/LandingPage';
@@ -121,6 +129,13 @@ function PendingNavigationHandler({ user }) {
   return null;
 }
 
+// Loading spinner for lazy components
+const PageLoader = () => (
+  <div className="flex items-center justify-center min-h-screen" style={{ backgroundColor: 'var(--m3-surface-container-low)' }}>
+    <div className="w-8 h-8 m3-skeleton rounded-full"></div>
+  </div>
+);
+
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -231,13 +246,6 @@ function App() {
     );
   }
 
-  // Loading spinner for lazy components
-  const PageLoader = () => (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500"></div>
-    </div>
-  );
-
   return (
     <div className="App">
       <AdWrapper user={user}>
@@ -257,7 +265,7 @@ function App() {
             <Route path="/discover" element={user ? <DiscoverPage user={user} /> : <Navigate to="/" />} />
             <Route path="/matches" element={user ? <MatchesPage user={user} /> : <Navigate to="/" />} />
             <Route path="/likes" element={user ? <LikesYouPage user={user} /> : <Navigate to="/" />} />
-            <Route path="/chat/:matchId" element={user ? <ChatPage user={user} /> : <Navigate to="/" />} />
+            <Route path="/chat/:matchId" element={user ? <ErrorBoundary><ChatWrapper><ChatPage user={user} /></ChatWrapper></ErrorBoundary> : <Navigate to="/" />} />
             <Route path="/profile" element={user ? <ProfilePage user={user} onUpdate={handleLogin} /> : <Navigate to="/" />} />
             <Route path="/profile/:userId" element={user ? <UserProfilePage user={user} /> : <Navigate to="/" />} />
             <Route path="/privacy" element={user ? <PrivacyPage user={user} onUpdate={handleLogin} /> : <Navigate to="/" />} />
