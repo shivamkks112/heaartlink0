@@ -25,9 +25,6 @@ load_dotenv(ROOT_DIR / '.env', override=False)  # Don't override K8s environment
 
 # Now import firebase_config after env vars are loaded
 from firebase_config import (
-    send_match_notification,
-    send_message_notification,
-    send_like_notification,
     send_verification_notification,
     send_notification_to_multiple,
     send_promotional_notification,
@@ -3529,15 +3526,7 @@ async def user_action(user_id: str, action: LikeAction):
             {"match_id": existing["id"], "user_id": action.target_user_id, "action": "open_chat", "route": f"/chat/{existing['id']}"}
         )
         
-        # Send push notification to matched user via FCM (legacy)
-        if user2.get('fcm_token'):
-            send_match_notification(
-                token=user2['fcm_token'],
-                user_name=user1['name'],
-                compatibility_score=int(score)
-            )
-        
-        # Send push notification via OneSignal (primary) - to BOTH users
+        # Send push notification to BOTH matched users via FCM
         await fcm_service.notify_new_match(db, action.target_user_id, user1['name'], existing["id"])
         await fcm_service.notify_new_match(db, user_id, user2['name'], existing["id"])
         
@@ -3574,14 +3563,7 @@ async def user_action(user_id: str, action: LikeAction):
                 "user_id": user_id
             })
             
-            # Send push notification via FCM (legacy)
-            if user2 and user2.get('fcm_token'):
-                send_like_notification(
-                    token=user2['fcm_token'],
-                    user_name=user1['name']
-                )
-            
-            # Send push notification via OneSignal (primary) - dedicated superlike function
+            # Send push notification via FCM - dedicated superlike function
             await fcm_service.notify_superlike(db, action.target_user_id, user1['name'])
             
             # Store in-app notification for superlike
@@ -3609,14 +3591,7 @@ async def user_action(user_id: str, action: LikeAction):
                 {"user_id": user_id, "action": "open_likes", "route": "/likes"}
             )
             
-            # Send like notification for regular likes too via FCM (legacy)
-            if user2 and user2.get('fcm_token'):
-                send_like_notification(
-                    token=user2['fcm_token'],
-                    user_name=user1['name']
-                )
-            
-            # Send push notification via OneSignal (primary)
+            # Send push notification via FCM
             await fcm_service.notify_new_like(db, action.target_user_id, user1['name'])
         
         # Update badge count for target user
@@ -4250,17 +4225,8 @@ async def send_message_http(message_data: Message):
     muted_users = receiver.get('muted_users', [])
     sender_not_muted = message_data.sender_id not in muted_users
     
-    # Send push notification to receiver via FCM (legacy) - skip for AI profiles
-    if not is_ai_receiver and receiver.get('fcm_token') and sender and sender_not_muted:
-        send_message_notification(
-            token=receiver['fcm_token'],
-            sender_name=sender['name'],
-            message_preview=message_data.content
-        )
-    
-    # Send push notification via OneSignal (primary) - skip for AI profiles
+    # Send push notification via FCM (centralized service) - skip for AI profiles
     if not is_ai_receiver and sender and sender_not_muted:
-        # Use centralized helper with player_id lookup for reliable delivery
         asyncio.create_task(_send_push_to_user(
             user_id=message_data.receiver_id,
             title=f"New message from {sender['name']}",
@@ -4365,15 +4331,7 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
             if receiver and sender:
                 muted_users = receiver.get('muted_users', [])
                 if user_id not in muted_users:
-                    # Send via FCM (legacy fallback)
-                    if receiver.get('fcm_token'):
-                        send_message_notification(
-                            token=receiver['fcm_token'],
-                            sender_name=sender['name'],
-                            message_preview=message_data["content"]
-                        )
-                    
-                    # Send via FCM (primary)
+                    # Send push via FCM (centralized service only)
                     try:
                         await fcm_service.notify_new_message(
                             db,
