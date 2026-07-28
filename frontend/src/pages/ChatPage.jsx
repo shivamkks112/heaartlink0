@@ -397,13 +397,14 @@ const ChatPage = ({ user }) => {
     }
   };
 
-  // Determine background color based on theme (fallback for CSS variable delay)
+  // Theme-aware fallback for instant background (before CSS variables resolve)
   const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
-  const chatBg = isDark ? '#221A1D' : '#FFF0F3';
+  const surfaceLow = isDark ? '#221A1D' : '#FFF0F3';
+  const surfaceLowest = isDark ? '#140D0F' : '#FFFFFF';
 
   if (loading) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center" style={{ backgroundColor: chatBg, background: 'var(--m3-surface-container-low)' }}>
+      <div className="fixed inset-0 flex items-center justify-center" style={{ backgroundColor: surfaceLow }}>
         <div className="flex flex-col items-center gap-3 m3-animate-in">
           <div className="w-12 h-12 rounded-full m3-skeleton"></div>
           <div className="w-32 h-4 m3-skeleton rounded-full"></div>
@@ -414,7 +415,7 @@ const ChatPage = ({ user }) => {
   }
 
   return (
-    <div className="fixed inset-0 flex flex-col overflow-hidden" style={{ backgroundColor: chatBg, background: 'var(--m3-surface-container-low)' }}>
+    <div className="fixed inset-0 flex flex-col overflow-hidden" style={{ backgroundColor: surfaceLow }}>
       <Toaster position="top-center" />
       
       {/* Header - fixed height with safe area */}
@@ -526,7 +527,7 @@ const ChatPage = ({ user }) => {
       {/* Messages area */}
       <div
         className="flex-1 overflow-y-auto px-4 py-3 space-y-2.5"
-        style={{ backgroundColor: chatBg, background: 'var(--m3-surface-container-low)' }}
+        style={{ backgroundColor: surfaceLow }}
         data-testid="messages-container"
       >
         {messages.length === 0 ? (
@@ -707,7 +708,7 @@ const ChatPage = ({ user }) => {
       )}
 
       {/* Input area - flex-shrink-0 stays at bottom */}
-      <div className="flex-shrink-0 z-50" style={{ paddingBottom: 'max(var(--safe-bottom, 8px), env(safe-area-inset-bottom, 0px), 8px)', backgroundColor: chatBg, background: 'var(--m3-surface-container-lowest)', borderTop: '1px solid var(--m3-outline-variant)' }}>
+      <div className="flex-shrink-0 z-50" style={{ paddingBottom: 'max(var(--safe-bottom, 8px), env(safe-area-inset-bottom, 0px), 8px)', backgroundColor: surfaceLowest, borderTop: '1px solid var(--m3-outline-variant)' }}>
         <form onSubmit={sendMessage} className="flex items-center gap-2 px-3 py-2.5">
           <Input
             data-testid="message-input"
