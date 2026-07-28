@@ -144,6 +144,43 @@ html.dark .to-emerald-200 { --tw-gradient-to: var(--m3-surface-container-high); 
 html.dark [style*="linear-gradient(135deg, #D6336C"] { /* Preserved */ }
 html.dark [style*="linear-gradient(135deg, #10B981"] { /* Preserved */ }
 
+/* Dark: Settings page - gradient row backgrounds */
+html.dark .from-red-50, html.dark .from-green-50, html.dark .from-blue-50,
+html.dark .from-purple-50, html.dark .from-yellow-50, html.dark .from-teal-50,
+html.dark .from-indigo-50, html.dark .from-orange-50,
+html.dark .from-pink-50, html.dark .from-amber-50,
+html.dark .from-emerald-50, html.dark .from-lime-50 {
+  --tw-gradient-from: var(--m3-surface-container) !important;
+}
+html.dark .to-orange-50, html.dark .to-teal-50, html.dark .to-indigo-50,
+html.dark .to-pink-50, html.dark .to-amber-50, html.dark .to-lime-50,
+html.dark .to-emerald-50, html.dark .to-cyan-50 {
+  --tw-gradient-to: var(--m3-surface-container) !important;
+}
+
+/* Dark: Font colors in setting items */
+html.dark .font-medium.text-gray-900,
+html.dark .font-semibold.text-gray-900,
+html.dark .font-bold.text-gray-900 {
+  color: var(--m3-on-surface) !important;
+}
+
+/* Dark: Toggle track bg */
+html.dark .peer ~ div[class*="bg-gray-200"] { background: var(--m3-surface-container-highest) !important; }
+html.dark .bg-gray-200 { background: var(--m3-surface-container-highest) !important; }
+
+/* Dark: Input fields */
+html.dark input[type="email"], html.dark input[type="password"],
+html.dark input[type="tel"], html.dark input[type="text"] {
+  background: var(--m3-surface-container) !important;
+  border-color: var(--m3-outline-variant) !important;
+  color: var(--m3-on-surface) !important;
+}
+html.dark input::placeholder { color: var(--m3-outline) !important; }
+
+/* Dark: Back button */
+html.dark .hover\:bg-gray-100 { background: var(--m3-surface-container-high) !important; }
+
 /* ── Global Smooth Transitions ── */
 *, *::before, *::after {
   -webkit-tap-highlight-color: transparent;
