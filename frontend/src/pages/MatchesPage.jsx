@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Heart, MessageCircle, Sparkles, Users, Zap, Mail, Shield, AlertTriangle, X } from 'lucide-react';
+import { Heart, MessageCircle, Sparkles, Users, Zap, Mail, Shield, AlertTriangle, X, CheckCircle } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
