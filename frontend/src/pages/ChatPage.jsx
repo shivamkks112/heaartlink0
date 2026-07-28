@@ -404,17 +404,9 @@ const ChatPage = ({ user }) => {
   const surfaceLow = isDark ? '#221A1D' : '#FFF0F3';
   const surfaceLowest = isDark ? '#140D0F' : '#FFFFFF';
 
-  // Shared container style — uses absolute positioning inside a relative parent
-  // instead of position:fixed which breaks on some Android Capacitor WebViews
-  const containerStyle = {
-    position: 'absolute',
-    top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: surfaceLow,
-  };
-
   if (loading) {
     return (
-      <div style={containerStyle} className="flex items-center justify-center">
+      <div style={{ width: '100%', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: surfaceLow }}>
         <div className="flex flex-col items-center gap-3 m3-animate-in">
           <div className="w-12 h-12 rounded-full m3-skeleton"></div>
           <div className="w-32 h-4 m3-skeleton rounded-full"></div>
@@ -426,7 +418,7 @@ const ChatPage = ({ user }) => {
 
   if (error) {
     return (
-      <div style={containerStyle} className="flex items-center justify-center px-8">
+      <div style={{ width: '100%', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: surfaceLow, padding: '0 32px' }}>
         <div className="text-center">
           <HeartIcon className="w-12 h-12 mx-auto mb-4" style={{ color: '#D6336C' }} />
           <p className="text-base font-semibold mb-6" style={{ color: isDark ? '#F0DEE1' : '#1F1A1C' }}>{error}</p>
@@ -443,7 +435,7 @@ const ChatPage = ({ user }) => {
   }
 
   return (
-    <div style={containerStyle} className="flex flex-col overflow-hidden">
+    <div style={{ width: '100%', height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', backgroundColor: surfaceLow }}>
       <Toaster position="top-center" />
       
       {/* Header - fixed height with safe area */}
@@ -554,8 +546,8 @@ const ChatPage = ({ user }) => {
 
       {/* Messages area */}
       <div
-        className="flex-1 overflow-y-auto px-4 py-3 space-y-2.5"
-        style={{ backgroundColor: surfaceLow }}
+        className="overflow-y-auto px-4 py-3 space-y-2.5"
+        style={{ flex: '1 1 0%', minHeight: 0, backgroundColor: surfaceLow }}
         data-testid="messages-container"
       >
         {messages.length === 0 ? (
