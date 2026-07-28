@@ -1,6 +1,5 @@
 apply plugin: 'com.android.application'
 apply plugin: 'com.google.gms.google-services'
-apply plugin: 'com.onesignal.androidsdk.onesignal-gradle-plugin'
 
 android {
     namespace "com.heartlink.app"
@@ -9,16 +8,15 @@ android {
         applicationId "com.heartlink.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 12
-        versionName "2.0.4"
+        versionCode 13
+        versionName "2.1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         
         // Multi-dex support for large apps with many dependencies
         multiDexEnabled true
         
         aaptOptions {
-             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
-             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+             // Files and dirs to omit from the packaged assets dir
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
@@ -34,15 +32,10 @@ android {
         }
     }
     
-    // Java compatibility
+    // Java compatibility — AGP 8.11 requires Java 17+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
-    }
-    
-    // CRITICAL: Force AD_ID permission in all variants
-    androidResources {
-        additionalParameters '--warn-manifest-validation'
     }
 }
 
@@ -59,16 +52,16 @@ dependencies {
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
     
-    // Firebase for push notifications
-    implementation 'com.google.firebase:firebase-messaging:23.4.1'
-    implementation 'com.google.firebase:firebase-analytics:21.5.1'
-    implementation 'com.google.android.gms:play-services-base:18.3.0'
+    // Firebase BoM — manages all Firebase library versions
+    implementation platform('com.google.firebase:firebase-bom:34.13.0')
+    implementation 'com.google.firebase:firebase-messaging'
+    implementation 'com.google.firebase:firebase-analytics'
     
-    // Google AdMob - REQUIRED for ads
-    implementation 'com.google.android.gms:play-services-ads:23.0.0'
+    // Google Play Services
+    implementation 'com.google.android.gms:play-services-base:18.5.0'
     
-    // OneSignal Push Notifications
-    implementation 'com.onesignal:OneSignal:[5.0.0, 5.99.99]'
+    // Google AdMob
+    implementation 'com.google.android.gms:play-services-ads:23.6.0'
     
     // Multi-dex support
     implementation 'androidx.multidex:multidex:2.0.1'

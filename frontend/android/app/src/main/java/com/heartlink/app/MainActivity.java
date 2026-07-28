@@ -2,7 +2,6 @@ package com.heartlink.app;
 
 import android.content.SharedPreferences;
 import android.content.Intent;
-import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -16,18 +15,10 @@ import com.getcapacitor.BridgeActivity;
 import com.google.android.gms.ads.MobileAds;
 import com.google.android.gms.ads.RequestConfiguration;
 
-import com.onesignal.OneSignal;
-import com.onesignal.debug.LogLevel;
-import com.onesignal.notifications.INotificationClickListener;
-import com.onesignal.notifications.INotificationClickEvent;
-
 import org.json.JSONObject;
-
-import java.util.Arrays;
 
 public class MainActivity extends BridgeActivity {
     
-    private static final String ONESIGNAL_APP_ID = "ad0b57dc-908b-4d84-8654-d6b5dd50684e";
     private static final String TAG = "HeartLink";
     private static final String PREFS_NAME = "HeartLinkPrefs";
     private static final String PENDING_NAV_KEY = "pending_navigation";
@@ -45,16 +36,13 @@ public class MainActivity extends BridgeActivity {
         // Initialize AdMob
         initializeAdMob();
         
-        // Initialize OneSignal
-        initializeOneSignal();
-        
-        // Create high importance notification channel for heads-up popups
+        // Create notification channels (FCM handles push)
         createNotificationChannel();
         
-        // Check for pending navigation
+        // Check for pending navigation from notification click
         checkPendingNavigation();
         
-        Log.d(TAG, "HeartLink started");
+        Log.d(TAG, "HeartLink started — API " + Build.VERSION.SDK_INT);
     }
     
     private void initializeAdMob() {
@@ -71,107 +59,39 @@ public class MainActivity extends BridgeActivity {
         }
     }
     
-    private void initializeOneSignal() {
-        try {
-            OneSignal.getDebug().setLogLevel(LogLevel.VERBOSE);
-            OneSignal.initWithContext(this, ONESIGNAL_APP_ID);
-            
-            OneSignal.getNotifications().addClickListener(new INotificationClickListener() {
-                @Override
-                public void onClick(INotificationClickEvent event) {
-                    Log.d(TAG, "*** NOTIFICATION CLICKED ***");
-                    handleNotificationClick(event);
-                }
-            });
-            
-            // Request notification permission for Android 13+
-            if (Build.VERSION.SDK_INT >= 33) {
-                OneSignal.getNotifications().requestPermission(true, null);
-            }
-            
-            Log.d(TAG, "OneSignal initialized");
-        } catch (Exception e) {
-            Log.e(TAG, "OneSignal error: " + e.getMessage());
-        }
-    }
-    
     private void createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(
-                "heartlink_high",
-                "HeartLink Notifications",
-                NotificationManager.IMPORTANCE_HIGH
-            );
-            channel.setDescription("Matches, Likes, Messages, Profile Views");
-            channel.enableVibration(true);
-            channel.setVibrationPattern(new long[]{0, 300, 200, 300});
-            channel.enableLights(true);
-            channel.setLightColor(0xFFFF6B9D);
-            channel.setShowBadge(true);
-            channel.setLockscreenVisibility(android.app.Notification.VISIBILITY_PUBLIC);
-            
-            NotificationManager manager = getSystemService(NotificationManager.class);
-            if (manager != null) {
-                manager.createNotificationChannel(channel);
-                Log.d(TAG, "Notification channel created: heartlink_high");
-            }
-        }
-    }
-    
-    private void handleNotificationClick(INotificationClickEvent event) {
-        try {
-            if (event == null || event.getNotification() == null) {
-                Log.d(TAG, "Notification event is null");
-                return;
-            }
-            
-            JSONObject data = event.getNotification().getAdditionalData();
-            String path = null;
-            
-            Log.d(TAG, "Notification data: " + (data != null ? data.toString() : "null"));
-            
-            if (data != null) {
-                String type = data.optString("type", "");
-                String action = data.optString("action", "");
-                String matchId = data.optString("match_id", "");
-                
-                Log.d(TAG, "type=" + type + ", action=" + action + ", matchId=" + matchId);
-                
-                if ("match".equals(type)) {
-                    path = "/matches";
-                } else if ("like".equals(type)) {
-                    path = "/likes";
-                } else if ("message".equals(type)) {
-                    path = (matchId != null && !matchId.isEmpty()) ? "/chat/" + matchId : "/matches";
-                } else if ("open_matches".equals(action)) {
-                    path = "/matches";
-                } else if ("open_likes".equals(action)) {
-                    path = "/likes";
-                } else if ("open_chat".equals(action)) {
-                    path = (matchId != null && !matchId.isEmpty()) ? "/chat/" + matchId : "/matches";
-                } else if ("open_app".equals(action)) {
-                    path = "/notifications";
-                }
-            }
-            
-            if (path != null) {
-                Log.d(TAG, "Target path: " + path);
-                savePendingNavigation(path);
-                navigateToPath(path);
-            } else {
-                Log.d(TAG, "No path determined from notification");
-            }
-            
-        } catch (Exception e) {
-            Log.e(TAG, "Error: " + e.getMessage());
-            e.printStackTrace();
+        NotificationChannel channel = new NotificationChannel(
+            "heartlink_high",
+            "HeartLink Notifications",
+            NotificationManager.IMPORTANCE_HIGH
+        );
+        channel.setDescription("Matches, Likes, Messages, Profile Views");
+        channel.enableVibration(true);
+        channel.setVibrationPattern(new long[]{0, 300, 200, 300});
+        channel.enableLights(true);
+        channel.setLightColor(0xFFFF6B9D);
+        channel.setShowBadge(true);
+        channel.setLockscreenVisibility(android.app.Notification.VISIBILITY_PUBLIC);
+        
+        // Default channel for FCM
+        NotificationChannel defaultChannel = new NotificationChannel(
+            "heartlink_notifications",
+            "General Notifications",
+            NotificationManager.IMPORTANCE_DEFAULT
+        );
+        defaultChannel.setDescription("General HeartLink notifications");
+        defaultChannel.setShowBadge(true);
+        
+        NotificationManager manager = getSystemService(NotificationManager.class);
+        if (manager != null) {
+            manager.createNotificationChannel(channel);
+            manager.createNotificationChannel(defaultChannel);
         }
     }
     
     private void savePendingNavigation(String path) {
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
         prefs.edit().putString(PENDING_NAV_KEY, path).apply();
-        Log.d(TAG, "Saved pending navigation: " + path);
     }
     
     private void checkPendingNavigation() {
@@ -179,63 +99,40 @@ public class MainActivity extends BridgeActivity {
         String path = prefs.getString(PENDING_NAV_KEY, null);
         
         if (path != null && !path.isEmpty()) {
-            Log.d(TAG, "Found pending navigation: " + path);
             prefs.edit().remove(PENDING_NAV_KEY).apply();
             navigateToPath(path);
         }
     }
     
     private void navigateToPath(String path) {
-        if (isNavigating) {
-            Log.d(TAG, "Already navigating, skipping");
-            return;
-        }
+        if (isNavigating) return;
         
         isNavigating = true;
         final String fullUrl = BASE_URL + path;
-        Log.d(TAG, "Will navigate to: " + fullUrl);
         
-        // Try navigation at multiple intervals
-        int[] delays = {2000, 4000, 6000, 8000, 10000};
+        int[] delays = {2000, 4000, 6000};
         
         for (int delay : delays) {
-            mainHandler.postDelayed(() -> {
-                loadUrlInWebView(fullUrl);
-            }, delay);
+            mainHandler.postDelayed(() -> loadUrlInWebView(fullUrl), delay);
         }
         
-        // Reset flag after last attempt
-        mainHandler.postDelayed(() -> {
-            isNavigating = false;
-        }, 12000);
+        mainHandler.postDelayed(() -> isNavigating = false, 8000);
     }
     
     private void loadUrlInWebView(String url) {
         try {
-            if (getBridge() == null || getBridge().getWebView() == null) {
-                Log.d(TAG, "WebView not ready");
-                return;
-            }
+            if (getBridge() == null || getBridge().getWebView() == null) return;
             
             WebView webView = getBridge().getWebView();
             String currentUrl = webView.getUrl();
             
-            Log.d(TAG, "Current: " + currentUrl);
-            Log.d(TAG, "Target: " + url);
-            
-            // Check if already on target page
             String targetPath = url.replace(BASE_URL, "");
             if (currentUrl != null && currentUrl.endsWith(targetPath)) {
-                Log.d(TAG, "Already on target page");
                 isNavigating = false;
                 return;
             }
             
-            Log.d(TAG, ">>> LOADING URL: " + url);
-            runOnUiThread(() -> {
-                webView.loadUrl(url);
-            });
-            
+            runOnUiThread(() -> webView.loadUrl(url));
         } catch (Exception e) {
             Log.e(TAG, "Load error: " + e.getMessage());
         }

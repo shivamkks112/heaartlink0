@@ -9,35 +9,28 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- Media permissions: Android 13+ (API 33+) uses granular media permissions -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <!-- Android 14+ (API 34+): Partial photo access via photo picker -->
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
+    <!-- Legacy storage: Only for Android 12 and below -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     
-    <!-- 
-        Google Advertising ID Permission - REQUIRED for Android 13+ (API 33+)
-        CRITICAL: Using tools:node="replace" to FORCE this permission across ALL dependencies
-        This overrides any conflicting declarations from child libraries
-    -->
+    <!-- Google Advertising ID Permission — Required for Android 13+ (API 33+) -->
     <uses-permission 
         android:name="com.google.android.gms.permission.AD_ID"
         tools:node="replace" />
     
-    <!-- 
-        Queries declaration for Android 11+ (API 30+)
-        Required for advertising ID to work properly with Google Play Services
-        Including all possible advertising-related intents and packages
-    -->
+    <!-- Queries for Android 11+ (API 30+) -->
     <queries>
-        <!-- Google Advertising ID Service -->
         <intent>
             <action android:name="com.google.android.gms.ads.identifier.service.START" />
         </intent>
-        <!-- Google Play Services -->
         <package android:name="com.google.android.gms" />
-        <!-- Google Ads SDK -->
         <intent>
             <action android:name="com.google.android.gms.ads.service.START" />
         </intent>
-        <!-- Files by Google (nbu.files) - for storage access -->
         <package android:name="com.google.android.apps.nbu.files" />
     </queries>
 
@@ -83,12 +76,10 @@
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="heartlink_notifications" />
 
-        <!-- Google AdMob App ID - CRITICAL: Must match AdMob Console -->
+        <!-- Google AdMob App ID -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="ca-app-pub-3735972538807236~9004238866"/>
-            
-        <!-- AdMob Optimization Flags -->
         <meta-data
             android:name="com.google.android.gms.ads.flag.OPTIMIZE_INITIALIZATION"
             android:value="true"/>
