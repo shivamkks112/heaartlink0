@@ -181,108 +181,153 @@ const NotificationsPage = ({ user }) => {
     return date.toLocaleDateString();
   };
 
+  // ── Group duplicate notifications ──
+  const groupedNotifications = (() => {
+    if (!notifications.length) return [];
+    const groups = [];
+    const seen = new Map();
+    
+    for (const n of notifications) {
+      // Group by: same type + same title prefix (e.g. "Rani came online") within same day
+      const day = new Date(n.created_at).toDateString();
+      const key = `${n.type}::${(n.title || '').split(' ').slice(0, 2).join(' ')}::${day}`;
+      
+      if (seen.has(key)) {
+        const group = seen.get(key);
+        group.count++;
+        group.ids.push(n.id);
+        // Keep the latest timestamp
+        if (new Date(n.created_at) > new Date(group.latest.created_at)) {
+          group.latest = n;
+        }
+      } else {
+        const group = { latest: n, count: 1, ids: [n.id] };
+        seen.set(key, group);
+        groups.push(group);
+      }
+    }
+    return groups;
+  })();
+
   return (
     <div className="min-h-screen" style={{ background: 'var(--m3-surface-container-low)', paddingBottom: 'calc(var(--nav-total, 86px) + 16px)' }}>
       <Toaster position="top-center" />
       <TopBar user={user} title="Notifications" />
       
-      <div className="max-w-2xl mx-auto px-4 py-6">
+      <div className="max-w-2xl mx-auto px-4 py-6" style={{ paddingTop: 'calc(var(--safe-top, 24px) + 68px)' }}>
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-3">
-            <div className="relative">
-              <Bell className="w-8 h-8 text-pink-500" />
+            <div className="relative p-2.5 rounded-xl" style={{ background: 'var(--m3-primary-container)' }}>
+              <Bell className="w-6 h-6" style={{ color: 'var(--m3-primary)' }} />
               {unreadCount > 0 && (
-                <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">{unreadCount}</span>
+                <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: 'var(--m3-primary)' }}>
+                  <span className="text-white text-[10px] font-bold">{unreadCount}</span>
                 </div>
               )}
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Notifications</h1>
-              <p className="text-sm text-gray-500">{unreadCount} unread</p>
+              <h1 className="text-2xl font-bold" style={{ color: 'var(--m3-on-surface)' }}>Notifications</h1>
+              <p className="text-xs" style={{ color: 'var(--m3-on-surface-variant)' }}>{unreadCount} unread</p>
             </div>
           </div>
           
           {unreadCount > 0 && (
-            <Button
+            <button
               onClick={markAllAsRead}
-              variant="outline"
-              size="sm"
-              className="text-pink-600 border-pink-200"
+              className="text-xs font-semibold px-4 py-2 rounded-full transition-all active:scale-95"
+              style={{ background: 'var(--m3-primary-container)', color: 'var(--m3-primary)' }}
             >
-              <Check className="w-4 h-4 mr-1" />
-              Mark all read
-            </Button>
+              <Check className="w-3.5 h-3.5 mr-1 inline" /> Read all
+            </button>
           )}
         </div>
 
-        {/* Notifications List */}
+        {/* Notifications */}
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500"></div>
-          </div>
-        ) : notifications.length === 0 ? (
-          <div className="text-center py-12">
-            <Bell className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-700">No notifications yet</h3>
-            <p className="text-gray-500">{"We'll notify you when something happens"}</p>
-          </div>
-        ) : (
-          <div className="space-y-2 m3-stagger">
-            {notifications.map((notification) => (
-              <div
-                key={notification.id}
-                onClick={() => handleNotificationClick(notification)}
-                className="rounded-2xl p-4 cursor-pointer transition-all duration-200 active:scale-[0.99]"
-                style={{
-                  background: notification.is_read ? 'var(--m3-surface-container-lowest)' : 'var(--m3-primary-container)',
-                  boxShadow: notification.is_read ? 'var(--m3-elevation-1)' : 'var(--m3-elevation-2)',
-                  border: notification.is_read ? '1px solid var(--m3-outline-variant)' : '1px solid transparent',
-                }}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="p-2.5 rounded-xl flex-shrink-0"
-                    style={{ background: notification.is_read ? 'var(--m3-surface-container-high)' : 'var(--m3-surface-container-lowest)' }}>
-                    {getNotificationIcon(notification.type)}
-                  </div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-sm truncate"
-                        style={{ color: notification.is_read ? 'var(--m3-on-surface-variant)' : 'var(--m3-on-surface)' }}>
-                        {notification.title}
-                      </h3>
-                      {!notification.is_read && (
-                        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: 'var(--m3-primary)' }}></div>
-                      )}
-                    </div>
-                    <p className="text-[13px] mt-0.5 leading-relaxed"
-                      style={{ color: 'var(--m3-on-surface-variant)' }}>
-                      {notification.body}
-                    </p>
-                    <p className="text-[11px] mt-1.5 font-medium"
-                      style={{ color: 'var(--m3-outline)' }}>
-                      {formatTime(notification.created_at)}
-                    </p>
-                  </div>
-                  
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteNotification(notification.id);
-                      }}
-                      className="p-2 rounded-full hover:bg-red-50 transition-colors"
-                      style={{ color: 'var(--m3-outline)' }}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                    <ChevronRight className="w-4 h-4" style={{ color: 'var(--m3-outline)' }} />
-                  </div>
+          <div className="space-y-3">
+            {[1,2,3].map(i => (
+              <div key={i} className="rounded-2xl p-4 flex gap-3" style={{ background: 'var(--m3-surface-container-lowest)' }}>
+                <div className="w-10 h-10 rounded-xl m3-skeleton flex-shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="w-3/4 h-4 m3-skeleton rounded-full" />
+                  <div className="w-1/2 h-3 m3-skeleton rounded-full" />
                 </div>
               </div>
             ))}
+          </div>
+        ) : groupedNotifications.length === 0 ? (
+          <div className="text-center py-16 m3-animate-in">
+            <div className="w-20 h-20 mx-auto mb-4 rounded-[28px] flex items-center justify-center" style={{ background: 'var(--m3-surface-container-high)' }}>
+              <Bell className="w-10 h-10" style={{ color: 'var(--m3-outline)' }} />
+            </div>
+            <h3 className="text-lg font-bold mb-1" style={{ color: 'var(--m3-on-surface)' }}>No notifications yet</h3>
+            <p className="text-sm" style={{ color: 'var(--m3-on-surface-variant)' }}>We'll notify you when something happens</p>
+          </div>
+        ) : (
+          <div className="space-y-2 m3-stagger">
+            {groupedNotifications.map((group) => {
+              const n = group.latest;
+              return (
+                <div
+                  key={n.id}
+                  onClick={() => handleNotificationClick(n)}
+                  className="rounded-2xl p-4 cursor-pointer transition-all duration-200 active:scale-[0.99]"
+                  style={{
+                    background: n.is_read ? 'var(--m3-surface-container-lowest)' : 'var(--m3-primary-container)',
+                    boxShadow: n.is_read ? 'var(--m3-elevation-1)' : 'var(--m3-elevation-2)',
+                    border: n.is_read ? '1px solid var(--m3-outline-variant)' : '1px solid transparent',
+                  }}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="p-2.5 rounded-xl flex-shrink-0"
+                      style={{ background: n.is_read ? 'var(--m3-surface-container-high)' : 'var(--m3-surface-container-lowest)' }}>
+                      {getNotificationIcon(n.type)}
+                    </div>
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-sm truncate"
+                          style={{ color: n.is_read ? 'var(--m3-on-surface-variant)' : 'var(--m3-on-surface)' }}>
+                          {n.title}
+                        </h3>
+                        {!n.is_read && (
+                          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: 'var(--m3-primary)' }} />
+                        )}
+                      </div>
+                      <p className="text-[13px] mt-0.5 leading-relaxed"
+                        style={{ color: 'var(--m3-on-surface-variant)' }}>
+                        {group.count > 1 ? `${n.body} (${group.count}x today)` : n.body}
+                      </p>
+                      <p className="text-[11px] mt-1.5 font-medium"
+                        style={{ color: 'var(--m3-outline)' }}>
+                        {formatTime(n.created_at)}
+                      </p>
+                    </div>
+                    
+                    <div className="flex items-center gap-1">
+                      {group.count > 1 && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full mr-1"
+                          style={{ background: 'var(--m3-surface-container-high)', color: 'var(--m3-on-surface-variant)' }}>
+                          {group.count}
+                        </span>
+                      )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          group.ids.forEach(id => deleteNotification(id));
+                        }}
+                        className="p-2 rounded-full transition-colors"
+                        style={{ color: 'var(--m3-outline)' }}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                      <ChevronRight className="w-4 h-4" style={{ color: 'var(--m3-outline)' }} />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

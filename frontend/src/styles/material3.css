@@ -181,6 +181,68 @@ html.dark input::placeholder { color: var(--m3-outline) !important; }
 /* Dark: Back button */
 html.dark .hover\:bg-gray-100 { background: var(--m3-surface-container-high) !important; }
 
+/* Dark: Form labels and hints */
+html.dark .text-gray-600 label,
+html.dark label.text-gray-600,
+html.dark .text-sm.font-medium.text-gray-600 { color: var(--m3-on-surface-variant) !important; }
+html.dark .text-xs.text-gray-400 { color: var(--m3-outline) !important; }
+html.dark .text-sm.text-gray-400 { color: var(--m3-outline) !important; }
+
+/* Dark: Disabled inputs */
+html.dark input:disabled, html.dark textarea:disabled, html.dark select:disabled {
+  background: var(--m3-surface-container-high) !important;
+  color: var(--m3-on-surface-variant) !important;
+  border-color: var(--m3-outline-variant) !important;
+  opacity: 0.7;
+}
+html.dark .cursor-not-allowed { color: var(--m3-on-surface-variant) !important; }
+
+/* Dark: Select dropdowns */
+html.dark select {
+  background: var(--m3-surface-container) !important;
+  color: var(--m3-on-surface) !important;
+  border-color: var(--m3-outline-variant) !important;
+}
+
+/* Dark: Textarea */
+html.dark textarea {
+  background: var(--m3-surface-container) !important;
+  color: var(--m3-on-surface) !important;
+  border-color: var(--m3-outline-variant) !important;
+}
+
+/* Dark: Section titles inside cards */
+html.dark .text-xl.font-bold.text-gray-900,
+html.dark .text-lg.font-bold.text-gray-900,
+html.dark .text-base.font-bold.text-gray-900 {
+  color: var(--m3-on-surface) !important;
+}
+html.dark .text-lg.font-semibold.text-gray-700,
+html.dark .text-lg.font-semibold.text-gray-900 {
+  color: var(--m3-on-surface) !important;
+}
+
+/* Dark: Chip/tag backgrounds */
+html.dark .bg-pink-50 { background: var(--m3-surface-container) !important; }
+html.dark .bg-blue-50 { background: rgba(59,130,246,0.12) !important; }
+html.dark .bg-green-50 { background: rgba(16,185,129,0.12) !important; }
+html.dark .bg-purple-50 { background: rgba(139,92,246,0.12) !important; }
+html.dark .bg-yellow-50 { background: rgba(245,158,11,0.12) !important; }
+html.dark .bg-red-50 { background: rgba(239,68,68,0.12) !important; }
+html.dark .bg-orange-50 { background: rgba(249,115,22,0.12) !important; }
+
+/* Dark: Badge text colors */
+html.dark .text-pink-600 { color: var(--m3-primary) !important; }
+html.dark .text-pink-800 { color: var(--m3-primary) !important; }
+
+/* Dark: Dividers */
+html.dark .border-gray-100, html.dark .border-gray-200, html.dark .border-gray-300 {
+  border-color: var(--m3-outline-variant) !important;
+}
+
+/* Dark: Placeholder images */
+html.dark .bg-gray-300 { background: var(--m3-surface-container-highest) !important; }
+
 /* ── Global Smooth Transitions ── */
 *, *::before, *::after {
   -webkit-tap-highlight-color: transparent;
