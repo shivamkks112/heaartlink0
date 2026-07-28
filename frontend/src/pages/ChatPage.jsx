@@ -410,7 +410,7 @@ const ChatPage = ({ user }) => {
   }
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden" style={{ background: 'var(--m3-surface-container-low)' }}>
+    <div className="fixed inset-0 flex flex-col overflow-hidden" style={{ background: 'var(--m3-surface-container-low)' }}>
       <Toaster position="top-center" />
       
       {/* Header - fixed height with safe area */}
@@ -519,14 +519,15 @@ const ChatPage = ({ user }) => {
         </div>
       </div>
 
-      {/* Messages area - flex-1 fills remaining space */}
+      {/* Messages area */}
       <div
         className="flex-1 overflow-y-auto px-4 py-3 space-y-2.5"
+        style={{ background: 'var(--m3-surface-container-low)' }}
         data-testid="messages-container"
       >
         {messages.length === 0 ? (
           <div className="text-center py-20">
-            <p className="text-gray-500">Start the conversation!</p>
+            <p style={{ color: 'var(--m3-on-surface-variant)' }}>Start the conversation!</p>
           </div>
         ) : (
           messages.map((msg, idx) => {
@@ -626,7 +627,7 @@ const ChatPage = ({ user }) => {
                       {/* Reactions display */}
                       {msg.reactions && Object.keys(msg.reactions).length > 0 && (
                         <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'} -mt-2 ${isOwn ? 'mr-1' : 'ml-1'}`}>
-                          <div className="bg-white shadow-sm rounded-full px-1.5 py-0.5 border border-gray-100 flex gap-0.5">
+                          <div className="shadow-sm rounded-full px-1.5 py-0.5 flex gap-0.5" style={{ background: 'var(--m3-surface-container-lowest)', border: '1px solid var(--m3-outline-variant)' }}>
                             {Object.values(msg.reactions).map((r, i) => (
                               <span key={i} className="text-xs">
                                 {r === 'heart' ? '❤️' : r === 'laugh' ? '😂' : r === 'thumbsup' ? '👍' : r === 'sad' ? '😢' : '😠'}
@@ -640,7 +641,8 @@ const ChatPage = ({ user }) => {
                       {isOwn && !msg.is_deleted_for_all && (
                         <button
                           onClick={() => setShowDeleteModal(msg.id)}
-                          className="absolute -left-8 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1 bg-white rounded-full shadow-md hover:bg-red-50"
+                          className="absolute -left-8 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-full shadow-md hover:bg-red-50"
+                          style={{ background: 'var(--m3-surface-container-lowest)' }}
                         >
                           <Trash2 className="w-4 h-4 text-red-500" />
                         </button>
@@ -656,11 +658,11 @@ const ChatPage = ({ user }) => {
         {/* Typing indicator */}
         {otherUserTyping && (
           <div className="flex justify-start">
-            <div className="bg-white px-4 py-3 rounded-3xl shadow-md">
+            <div className="px-4 py-3 rounded-3xl" style={{ background: 'var(--m3-surface-container)', boxShadow: 'var(--m3-elevation-1)' }}>
               <div className="flex space-x-1">
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
+                <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: 'var(--m3-outline)', animationDelay: '0ms' }}></div>
+                <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: 'var(--m3-outline)', animationDelay: '150ms' }}></div>
+                <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: 'var(--m3-outline)', animationDelay: '300ms' }}></div>
               </div>
             </div>
           </div>

@@ -105,6 +105,12 @@ html.dark body {
   background: var(--m3-surface);
   color: var(--m3-on-surface);
 }
+html.dark {
+  background: var(--m3-surface);
+}
+html.dark #root {
+  background: var(--m3-surface);
+}
 
 /* Dark mode overrides for Tailwind bg/text utilities */
 html.dark .bg-white { background: var(--m3-surface-container-lowest) !important; }
