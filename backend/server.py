@@ -3564,7 +3564,7 @@ async def user_action(user_id: str, action: LikeAction):
             })
             
             # Send push notification via FCM - dedicated superlike function
-            await fcm_service.notify_superlike(db, action.target_user_id, user1['name'])
+            await fcm_service.notify_superlike(db, action.target_user_id, user1['name'], liker_id=user_id)
             
             # Store in-app notification for superlike
             await create_in_app_notification(
@@ -3592,7 +3592,7 @@ async def user_action(user_id: str, action: LikeAction):
             )
             
             # Send push notification via FCM
-            await fcm_service.notify_new_like(db, action.target_user_id, user1['name'])
+            await fcm_service.notify_new_like(db, action.target_user_id, user1['name'], liker_id=user_id)
         
         # Update badge count for target user
         asyncio.create_task(manager.send_badge_update(action.target_user_id))

@@ -471,14 +471,8 @@ button:active, [role="button"]:active {
 /* ══ GLOBAL POLISH ══ */
 
 /* ── Image fade-in on load ── */
-img:not([data-no-fade]) {
-  transition: opacity 0.35s ease;
-}
-img:not([data-no-fade]):not([src]) {
-  opacity: 0;
-}
-/* Fix: ensure SVG icons and inline images don't fade */
-svg { opacity: 1 !important; transition: none !important; }
+/* Smooth reveal without affecting render quality */
+svg { transition: none !important; }
 
 /* ── Card press feedback ── */
 [data-testid="match-card"],
@@ -547,6 +541,8 @@ button, [role="button"], a {
 
 /* ── Image object-fit consistency ── */
 img.object-cover {
-  object-position: center 20%;
+  object-position: center center;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
 }
 

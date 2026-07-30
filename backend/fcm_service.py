@@ -193,6 +193,24 @@ async def notify_new_message(db, receiver_id: str, sender_name: str, preview: st
         data={"type": "message", "match_id": match_id, "route": f"/chat/{match_id}"},
     )
 
+async def _should_notify_by_gender(db, receiver_id: str, sender_id: str) -> bool:
+    """Check if notification should be sent based on gender preference.
+    Male users only get engagement notifs from females, and vice versa.
+    Returns True if notification should proceed."""
+    try:
+        users = await db.users.find(
+            {"id": {"$in": [receiver_id, sender_id]}},
+            {"_id": 0, "id": 1, "gender": 1}
+        ).to_list(2)
+        user_map = {u["id"]: u.get("gender", "").lower() for u in users}
+        r_gender = user_map.get(receiver_id, "")
+        s_gender = user_map.get(sender_id, "")
+        if not r_gender or not s_gender:
+            return True  # Unknown gender — allow
+        return r_gender != s_gender  # Only opposite gender
+    except Exception:
+        return True  # On error, allow notification
+
 async def notify_new_match(db, user_id: str, matched_name: str, match_id: str):
     return await send_to_user(db, user_id,
         title="New Match!",
@@ -200,14 +218,18 @@ async def notify_new_match(db, user_id: str, matched_name: str, match_id: str):
         data={"type": "match", "match_id": match_id, "route": f"/chat/{match_id}"},
     )
 
-async def notify_new_like(db, user_id: str, liker_name: str):
+async def notify_new_like(db, user_id: str, liker_name: str, liker_id: str = ""):
+    if liker_id and not await _should_notify_by_gender(db, user_id, liker_id):
+        return None
     return await send_to_user(db, user_id,
         title="Someone likes you!",
         body=f"{liker_name} liked your profile. Check them out!",
         data={"type": "like", "route": "/likes"},
     )
 
-async def notify_superlike(db, user_id: str, liker_name: str):
+async def notify_superlike(db, user_id: str, liker_name: str, liker_id: str = ""):
+    if liker_id and not await _should_notify_by_gender(db, user_id, liker_id):
+        return None
     return await send_to_user(db, user_id,
         title="Super Like!",
         body=f"{liker_name} superliked you! They really like you!",
@@ -215,6 +237,8 @@ async def notify_superlike(db, user_id: str, liker_name: str):
     )
 
 async def notify_profile_view(db, user_id: str, viewer_name: str, viewer_id: str):
+    if not await _should_notify_by_gender(db, user_id, viewer_id):
+        return None
     return await send_to_user(db, user_id,
         title="Profile Viewed!",
         body=f"{viewer_name} viewed your profile.",
