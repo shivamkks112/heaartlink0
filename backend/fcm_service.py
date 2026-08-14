@@ -276,7 +276,23 @@ async def notify_photo_approval(db, user_id: str, approved: bool):
             data={"type": "photo_rejected", "route": "/profile"},
         )
 
-async def notify_online_status(db, user_ids: List[str], online_name: str):
+async def notify_online_status(db, user_ids: List[str], online_name: str, online_user_id: str = ""):
+    """Send online notification only to opposite-gender users."""
+    if online_user_id and user_ids:
+        # Get the online user's gender
+        online_user = await db.users.find_one({"id": online_user_id}, {"_id": 0, "gender": 1})
+        online_gender = (online_user.get("gender", "") if online_user else "").lower()
+        
+        if online_gender:
+            # Filter: only notify opposite gender
+            receivers = await db.users.find(
+                {"id": {"$in": user_ids}},
+                {"_id": 0, "id": 1, "gender": 1}
+            ).to_list(len(user_ids))
+            user_ids = [u["id"] for u in receivers if u.get("gender", "").lower() != online_gender]
+    
+    if not user_ids:
+        return None
     return await send_to_users(db, user_ids,
         title=f"{online_name} is online!",
         body=f"Your match {online_name} is online. Say hi!",

@@ -600,7 +600,7 @@ async def _send_online_notification_to_matches(user_id: str):
         
         if matched_ids_for_push:
             try:
-                await fcm_service.notify_online_status(db, matched_ids_for_push, user_name)
+                await fcm_service.notify_online_status(db, matched_ids_for_push, user_name, online_user_id=user_id)
             except Exception as e:
                 logger.error(f"Online push notification failed: {e}")
         
@@ -1382,6 +1382,13 @@ async def signup(request: Request, user_data: UserSignup):
                 status_code=400, 
                 detail="An account with similar details already exists. If this is you, please login with your existing account."
             )
+    
+    # INDIA-ONLY RESTRICTION - Block non-Indian locations
+    if location and not is_indian_location(location):
+        raise HTTPException(
+            status_code=400,
+            detail="HeartLink is currently available only in India. Please enter an Indian city or state."
+        )
     
     try:
         # Create user dict from signup data
