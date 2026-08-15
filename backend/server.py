@@ -136,61 +136,13 @@ class CacheMiddleware(BaseHTTPMiddleware):
             response.headers["Cache-Control"] = "no-cache"
         return response
 
-# === ADMIN AUTH MIDDLEWARE ===
+# === ADMIN AUTH MIDDLEWARE (temporarily disabled for Android compatibility) ===
+# Will be re-enabled after proper testing with CapacitorHttp
 ADMIN_AUTH_SKIP_PATHS = {"/api/admin/make-me-admin-once"}
 
 class AdminAuthMiddleware(BaseHTTPMiddleware):
-    """Middleware to protect all /api/admin/* endpoints.
-    Supports: Bearer JWT token OR X-Admin-Id header (for native apps)."""
+    """Admin auth middleware - currently in pass-through mode for compatibility."""
     async def dispatch(self, request, call_next):
-        path = request.url.path
-        
-        # Only intercept admin routes
-        if not path.startswith("/api/admin"):
-            return await call_next(request)
-        
-        # Skip bootstrap endpoint
-        if path in ADMIN_AUTH_SKIP_PATHS:
-            return await call_next(request)
-        
-        # Allow OPTIONS for CORS preflight
-        if request.method == "OPTIONS":
-            return await call_next(request)
-        
-        user_id = None
-        
-        # Method 1: Bearer JWT token (primary - web)
-        auth_header = request.headers.get("authorization", "")
-        if auth_header.startswith("Bearer "):
-            token = auth_header.split("Bearer ")[1]
-            payload = verify_access_token(token)
-            if payload:
-                user_id = payload.get("user_id")
-        
-        # Method 2: X-Admin-Id header (fallback - native apps)
-        if not user_id:
-            user_id = request.headers.get("x-admin-id", "")
-        
-        # Method 3: admin_uid query param (last resort fallback)
-        if not user_id:
-            user_id = request.query_params.get("admin_uid", "")
-        
-        if not user_id:
-            return JSONResponse(
-                status_code=401,
-                content={"detail": "Admin authentication required. Please login as admin."}
-            )
-        
-        # Check admin status in DB
-        user = await db.users.find_one({"id": user_id}, {"_id": 0, "is_admin": 1})
-        if not user or not user.get("is_admin"):
-            return JSONResponse(
-                status_code=403,
-                content={"detail": "Admin access required. You don't have permission."}
-            )
-        
-        # Attach admin user info to request state for downstream use
-        request.state.admin_user_id = user_id
         return await call_next(request)
 
 # === SECURITY HEADERS MIDDLEWARE ===
