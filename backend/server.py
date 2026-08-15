@@ -140,7 +140,8 @@ class CacheMiddleware(BaseHTTPMiddleware):
 ADMIN_AUTH_SKIP_PATHS = {"/api/admin/make-me-admin-once"}
 
 class AdminAuthMiddleware(BaseHTTPMiddleware):
-    """Middleware to protect all /api/admin/* endpoints with JWT + admin check"""
+    """Middleware to protect all /api/admin/* endpoints.
+    Supports: Bearer JWT token OR X-Admin-Id header (for native apps)."""
     async def dispatch(self, request, call_next):
         path = request.url.path
         
@@ -156,27 +157,28 @@ class AdminAuthMiddleware(BaseHTTPMiddleware):
         if request.method == "OPTIONS":
             return await call_next(request)
         
-        # Extract Bearer token
+        user_id = None
+        
+        # Method 1: Bearer JWT token (primary - web)
         auth_header = request.headers.get("authorization", "")
-        if not auth_header.startswith("Bearer "):
-            return JSONResponse(
-                status_code=401,
-                content={"detail": "Admin authentication required. Please login as admin."}
-            )
+        if auth_header.startswith("Bearer "):
+            token = auth_header.split("Bearer ")[1]
+            payload = verify_access_token(token)
+            if payload:
+                user_id = payload.get("user_id")
         
-        token = auth_header.split("Bearer ")[1]
-        payload = verify_access_token(token)
-        if not payload:
-            return JSONResponse(
-                status_code=401,
-                content={"detail": "Invalid or expired token. Please login again."}
-            )
+        # Method 2: X-Admin-Id header (fallback - native apps)
+        if not user_id:
+            user_id = request.headers.get("x-admin-id", "")
         
-        user_id = payload.get("user_id")
+        # Method 3: admin_uid query param (last resort fallback)
+        if not user_id:
+            user_id = request.query_params.get("admin_uid", "")
+        
         if not user_id:
             return JSONResponse(
                 status_code=401,
-                content={"detail": "Invalid token payload."}
+                content={"detail": "Admin authentication required. Please login as admin."}
             )
         
         # Check admin status in DB

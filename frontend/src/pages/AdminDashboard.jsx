@@ -309,33 +309,6 @@ const AdminDashboard = ({ user }) => {
   const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
   const [resetNewPassword, setResetNewPassword] = useState('');
   const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
-  const [needsReauth, setNeedsReauth] = useState(!localStorage.getItem('heartlink_token'));
-
-  // If token missing, show re-login prompt
-  if (needsReauth) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-50 to-rose-50 p-4">
-        <div className="bg-white rounded-2xl shadow-lg p-8 max-w-sm w-full text-center" data-testid="admin-reauth-prompt">
-          <div className="w-16 h-16 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <KeyRound className="w-8 h-8 text-rose-500" />
-          </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Session Update Required</h2>
-          <p className="text-gray-600 mb-6">Admin panel ke liye re-login karna zaroori hai. Please logout karke wapas login karo.</p>
-          <button
-            data-testid="admin-reauth-logout-btn"
-            onClick={() => {
-              localStorage.removeItem('user');
-              localStorage.removeItem('heartlink_token');
-              window.location.href = '/';
-            }}
-            className="w-full py-3 bg-gradient-to-r from-rose-500 to-pink-500 text-white font-semibold rounded-xl"
-          >
-            Logout & Re-Login
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   // Fetch feature flags
   const fetchFeatureFlags = useCallback(async () => {
