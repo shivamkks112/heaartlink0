@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import adminApi from '@/utils/adminApi';
 import { 
   Bell, Send, Clock, Users, Calendar, 
   Trash2, RefreshCw, CheckCircle, AlertTriangle,
@@ -9,8 +9,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-
-import { BACKEND_URL, API } from '@/config/api';
 
 // Category colors
 const categoryColors = {
@@ -56,7 +54,7 @@ const NotificationManager = () => {
 
   const fetchOnesignalStatus = async () => {
     try {
-      const res = await axios.get(`${API}/admin/onesignal/status`);
+      const res = await adminApi.get(`/admin/onesignal/status`);
       setOnesignalStatus(res.data);
     } catch (e) {
       console.error('Failed to fetch OneSignal status', e);
@@ -69,7 +67,7 @@ const NotificationManager = () => {
 
   const fetchTemplates = async () => {
     try {
-      const res = await axios.get(`${API}/admin/notification-templates`);
+      const res = await adminApi.get(`/admin/notification-templates`);
       // Handle both array format (from DB) and engagement templates format
       if (Array.isArray(res.data)) {
         setTemplates(res.data || []);
@@ -85,7 +83,7 @@ const NotificationManager = () => {
         
         // Also fetch custom templates from DB
         try {
-          const dbRes = await axios.get(`${API}/admin/custom-templates`);
+          const dbRes = await adminApi.get(`/admin/custom-templates`);
           const dbTemplates = Array.isArray(dbRes.data) ? dbRes.data : [];
           setTemplates([...engagementTemplates, ...dbTemplates]);
         } catch {
@@ -102,7 +100,7 @@ const NotificationManager = () => {
 
   const fetchHistory = async () => {
     try {
-      const res = await axios.get(`${API}/admin/notification-history`);
+      const res = await adminApi.get(`/admin/notification-history`);
       setHistory(res.data || []);
     } catch (e) {
       console.error('Failed to fetch history', e);
@@ -112,7 +110,7 @@ const NotificationManager = () => {
 
   const fetchScheduled = async () => {
     try {
-      const res = await axios.get(`${API}/admin/scheduled-notifications`);
+      const res = await adminApi.get(`/admin/scheduled-notifications`);
       setScheduled(res.data || []);
     } catch (e) {
       console.error('Failed to fetch scheduled', e);
@@ -141,7 +139,7 @@ const NotificationManager = () => {
 
     setSending(true);
     try {
-      const res = await axios.post(`${API}/admin/onesignal/send`, {
+      const res = await adminApi.post(`/admin/onesignal/send`, {
         title,
         message: body,
         target
@@ -168,7 +166,7 @@ const NotificationManager = () => {
   const handleTestOneSignal = async () => {
     setSending(true);
     try {
-      const res = await axios.post(`${API}/admin/onesignal/test`);
+      const res = await adminApi.post(`/admin/onesignal/test`);
       if (res.data.success) {
         toast.success('✅ Test notification sent!');
       } else {
@@ -191,7 +189,7 @@ const NotificationManager = () => {
     const scheduleDateTime = `${scheduleDate}T${scheduleTime}:00`;
 
     try {
-      const res = await axios.post(`${API}/admin/schedule-notification`, {
+      const res = await adminApi.post(`/admin/schedule-notification`, {
         title,
         body,
         target,
@@ -213,7 +211,7 @@ const NotificationManager = () => {
 
   const handleCancelScheduled = async (id) => {
     try {
-      await axios.delete(`${API}/admin/scheduled-notification/${id}`);
+      await adminApi.delete(`/admin/scheduled-notification/${id}`);
       toast.success('Notification cancelled');
       fetchScheduled();
     } catch (e) {
@@ -235,7 +233,7 @@ const NotificationManager = () => {
     }
 
     try {
-      const res = await axios.post(`${API}/admin/notification-templates`, {
+      const res = await adminApi.post(`/admin/notification-templates`, {
         title: newTemplateTitle,
         body: newTemplateBody,
         category: newTemplateCategory
@@ -261,7 +259,7 @@ const NotificationManager = () => {
     }
 
     try {
-      const res = await axios.put(`${API}/admin/notification-templates/${editingTemplate.id}`, {
+      const res = await adminApi.put(`/admin/notification-templates/${editingTemplate.id}`, {
         title: newTemplateTitle,
         body: newTemplateBody,
         category: newTemplateCategory
@@ -284,7 +282,7 @@ const NotificationManager = () => {
     if (!window.confirm('Delete this template?')) return;
     
     try {
-      await axios.delete(`${API}/admin/notification-templates/${templateId}`);
+      await adminApi.delete(`/admin/notification-templates/${templateId}`);
       toast.success('Template deleted');
       fetchTemplates();
     } catch (e) {

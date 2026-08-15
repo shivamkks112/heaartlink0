@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import adminApi from '@/utils/adminApi';
 import { 
   UserCheck, UserX, RefreshCw, Clock, CheckCircle, 
   XCircle, Eye, ChevronDown, ChevronUp, Users,
@@ -8,7 +8,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
-import { BACKEND_URL, API } from '@/config/api';
 
 const ProfileApprovals = () => {
   const [pendingProfiles, setPendingProfiles] = useState([]);
@@ -31,8 +30,8 @@ const ProfileApprovals = () => {
   const fetchData = async (pageNum = 1, append = false) => {
     try {
       const [profilesRes, statsRes] = await Promise.all([
-        axios.get(`${API}/admin/pending-profiles?page=${pageNum}&limit=${ITEMS_PER_PAGE}`),
-        axios.get(`${API}/admin/profile-approval-stats`)
+        adminApi.get(`/admin/pending-profiles?page=${pageNum}&limit=${ITEMS_PER_PAGE}`),
+        adminApi.get(`/admin/profile-approval-stats`)
       ]);
       
       const newProfiles = profilesRes.data || [];
@@ -69,7 +68,7 @@ const ProfileApprovals = () => {
   const handleApprove = async (userId) => {
     setProcessingId(userId);
     try {
-      const res = await axios.post(`${API}/admin/approve-profile`, {
+      const res = await adminApi.post(`/admin/approve-profile`, {
         user_id: userId,
         action: 'approve'
       });
@@ -93,7 +92,7 @@ const ProfileApprovals = () => {
     
     setProcessingId(userId);
     try {
-      const res = await axios.post(`${API}/admin/approve-profile`, {
+      const res = await adminApi.post(`/admin/approve-profile`, {
         user_id: userId,
         action: 'reject',
         reason: rejectReason
@@ -119,7 +118,7 @@ const ProfileApprovals = () => {
     }
     
     try {
-      const res = await axios.post(`${API}/admin/bulk-approve-profiles`, selectedProfiles);
+      const res = await adminApi.post(`/admin/bulk-approve-profiles`, selectedProfiles);
       if (res.data.success) {
         toast.success(`✅ ${res.data.approved_count} profiles approved!`);
         setPendingProfiles(prev => prev.filter(p => !selectedProfiles.includes(p.id)));

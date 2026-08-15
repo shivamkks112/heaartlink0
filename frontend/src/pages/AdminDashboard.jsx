@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import adminApi from '@/utils/adminApi';
 import { 
   CheckCircle, XCircle, User, Search, Trash2, 
   Ban, Camera, Users, AlertTriangle, ChevronLeft, 
@@ -18,7 +18,7 @@ import TopBar from '@/components/TopBar';
 import NotificationManager from '@/components/admin/NotificationManager';
 import ProfileApprovals from '@/components/admin/ProfileApprovals';
 
-import { BACKEND_URL, API } from '@/config/api';
+import { BACKEND_URL } from '@/config/api';
 
 // Stats Card Component
 const StatCard = ({ icon: Icon, label, value, subValue, color, bgColor }) => (
@@ -313,7 +313,7 @@ const AdminDashboard = ({ user }) => {
   // Fetch feature flags
   const fetchFeatureFlags = useCallback(async () => {
     try {
-      const res = await axios.get(`${API}/admin/feature-flags`);
+      const res = await adminApi.get(`/admin/feature-flags`);
       setFeatureFlags(res.data);
     } catch (e) {
       console.error('Feature flags fetch error:', e);
@@ -323,7 +323,7 @@ const AdminDashboard = ({ user }) => {
   const toggleFeatureFlag = async (flagName, value) => {
     setFlagsLoading(true);
     try {
-      const res = await axios.put(`${API}/admin/feature-flags`, { [flagName]: value });
+      const res = await adminApi.put(`/admin/feature-flags`, { [flagName]: value });
       setFeatureFlags(res.data);
       toast.success(`${flagName.replace('_', ' ')} ${value ? 'enabled' : 'disabled'}!`);
     } catch (e) {
@@ -337,7 +337,7 @@ const AdminDashboard = ({ user }) => {
   const fetchAiProfiles = useCallback(async () => {
     setAiLoading(true);
     try {
-      const res = await axios.get(`${API}/admin/ai-profiles`);
+      const res = await adminApi.get(`/admin/ai-profiles`);
       setAiProfiles(res.data);
     } catch (e) {
       console.error('AI profiles fetch error:', e);
@@ -348,7 +348,7 @@ const AdminDashboard = ({ user }) => {
 
   const toggleAiProfile = async (profileId, isActive) => {
     try {
-      await axios.put(`${API}/admin/ai-profiles/${profileId}/toggle`, { is_active: isActive });
+      await adminApi.put(`/admin/ai-profiles/${profileId}/toggle`, { is_active: isActive });
       toast.success(`AI profile ${isActive ? 'activated' : 'deactivated'}`);
       fetchAiProfiles();
     } catch (e) {
@@ -359,7 +359,7 @@ const AdminDashboard = ({ user }) => {
   const deleteAiProfile = async (profileId, name) => {
     if (!window.confirm(`Kya aap "${name}" AI profile delete karna chahte ho? Iske saare matches aur messages bhi delete ho jayenge.`)) return;
     try {
-      await axios.delete(`${API}/admin/ai-profiles/${profileId}`);
+      await adminApi.delete(`/admin/ai-profiles/${profileId}`);
       toast.success(`${name} deleted successfully`);
       fetchAiProfiles();
     } catch (e) {
@@ -369,7 +369,7 @@ const AdminDashboard = ({ user }) => {
 
   const reseedAiProfiles = async () => {
     try {
-      await axios.post(`${API}/admin/ai-profiles/reseed`);
+      await adminApi.post(`/admin/ai-profiles/reseed`);
       toast.success('AI profiles re-seeded!');
       fetchAiProfiles();
     } catch (e) {
@@ -380,7 +380,7 @@ const AdminDashboard = ({ user }) => {
   // Fetch dashboard stats
   const fetchStats = useCallback(async () => {
     try {
-      const res = await axios.get(`${API}/admin/dashboard-stats`);
+      const res = await adminApi.get(`/admin/dashboard-stats`);
       setStats(res.data);
     } catch (e) {
       console.error('Stats fetch error:', e);
@@ -391,7 +391,7 @@ const AdminDashboard = ({ user }) => {
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API}/admin/all-users`, {
+      const response = await adminApi.get(`/admin/all-users`, {
         params: { 
           search: searchQuery, 
           page: currentPage, 
@@ -421,7 +421,7 @@ const AdminDashboard = ({ user }) => {
   const fetchPendingVerifications = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API}/admin/pending-verifications`);
+      const response = await adminApi.get(`/admin/pending-verifications`);
       setPendingVerifications(Array.isArray(response.data) ? response.data : []);
     } catch (err) {
       console.error('Failed to load verifications:', err);
@@ -433,7 +433,7 @@ const AdminDashboard = ({ user }) => {
 
   const fetchVerifiedUsers = useCallback(async () => {
     try {
-      const response = await axios.get(`${API}/admin/verified-users`);
+      const response = await adminApi.get(`/admin/verified-users`);
       setVerifiedUsers(Array.isArray(response.data) ? response.data : []);
     } catch (err) {
       console.error('Failed to load verified users:', err);
@@ -443,7 +443,7 @@ const AdminDashboard = ({ user }) => {
 
   const handleRequestReverify = async (userId) => {
     try {
-      const res = await axios.post(`${API}/admin/request-reverify`, {
+      const res = await adminApi.post(`/admin/request-reverify`, {
         user_id: userId,
         reason: reverifyReason
       });
@@ -478,7 +478,7 @@ const AdminDashboard = ({ user }) => {
   const handleDeleteUser = async () => {
     if (!selectedUser) return;
     try {
-      await axios.delete(`${API}/admin/user/${selectedUser.id}`);
+      await adminApi.delete(`/admin/user/${selectedUser.id}`);
       toast.success(`User ${selectedUser.name} deleted`);
       setShowDeleteModal(false);
       setSelectedUser(null);
@@ -492,7 +492,7 @@ const AdminDashboard = ({ user }) => {
   const handleBlockUser = async () => {
     if (!selectedUser) return;
     try {
-      await axios.post(`${API}/admin/user/${selectedUser.id}/block`, null, {
+      await adminApi.post(`/admin/user/${selectedUser.id}/block`, null, {
         params: { permanent: blockPermanent, reason: blockReason }
       });
       toast.success(`User ${selectedUser.name} ${blockPermanent ? 'permanently banned' : 'shadow banned'}`);
@@ -508,7 +508,7 @@ const AdminDashboard = ({ user }) => {
 
   const handleUnblockUser = async (userId, userName) => {
     try {
-      await axios.post(`${API}/admin/user/${userId}/unblock`);
+      await adminApi.post(`/admin/user/${userId}/unblock`);
       toast.success(`User ${userName} unblocked`);
       fetchUsers();
     } catch (err) {
@@ -518,7 +518,7 @@ const AdminDashboard = ({ user }) => {
 
   const handleVerifySelfie = async (userId, action, reason = '') => {
     try {
-      await axios.post(`${API}/admin/verify-selfie`, { user_id: userId, action, reason });
+      await adminApi.post(`/admin/verify-selfie`, { user_id: userId, action, reason });
       toast.success(`Verification ${action === 'approve' ? 'approved' : 'rejected'}`);
       fetchPendingVerifications();
     } catch (err) {
@@ -535,7 +535,7 @@ const AdminDashboard = ({ user }) => {
     if (!selectedUser || !resetNewPassword) return;
     setResetPasswordLoading(true);
     try {
-      await axios.post(`${API}/admin/reset-user-password`, {
+      await adminApi.post(`/admin/reset-user-password`, {
         user_id: selectedUser.id,
         new_password: resetNewPassword
       });

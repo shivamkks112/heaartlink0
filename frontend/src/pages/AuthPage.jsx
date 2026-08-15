@@ -107,6 +107,11 @@ const AuthPage = ({ onLogin }) => {
         throw new Error('Invalid response from server');
       }
       
+      // Store auth token for admin API access
+      if (response.data.access_token) {
+        localStorage.setItem('heartlink_token', response.data.access_token);
+      }
+      
       localStorage.setItem('user', JSON.stringify(userData));
       await onLogin(userData);
       toast.success(`Welcome back, ${userData.name}!`);
@@ -215,6 +220,11 @@ const AuthPage = ({ onLogin }) => {
       
       const response = await axios.post(`${API}/auth/signup`, submitData);
       const userData = response.data.user;
+      
+      // Store auth token for admin API access
+      if (response.data.access_token) {
+        localStorage.setItem('heartlink_token', response.data.access_token);
+      }
       
       localStorage.setItem('user', JSON.stringify(userData));
       await onLogin(userData);

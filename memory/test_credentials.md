@@ -10,6 +10,7 @@
 
 ## Test Accounts
 - testmale@heartlink.co.in (no password set - test account)
+- Shivamkks122@gmail.com / TestNonAdmin@2026 (non-admin test user, password reset by testing agent)
 
 ## AI Chat Profiles (auto-generated)
 - Riya Sharma (24, Delhi)

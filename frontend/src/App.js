@@ -16,6 +16,7 @@ const AuthPage = lazy(() => import('@/pages/AuthPage'));
 const ForgotPasswordPage = lazy(() => import('@/pages/ForgotPasswordPage'));
 const CompleteProfilePage = lazy(() => import('@/pages/CompleteProfilePage'));
 const AdminDashboard = lazy(() => import('@/pages/AdminDashboard'));
+const MandatoryPhotoPage = lazy(() => import('@/pages/MandatoryPhotoPage'));
 const DiscoverPage = lazy(() => import('@/pages/DiscoverPage'));
 const MatchesPage = lazy(() => import('@/pages/MatchesPage'));
 const LikesYouPage = lazy(() => import('@/pages/LikesYouPage'));
@@ -225,6 +226,7 @@ function App() {
     import('@/services/WebSocketService').then((mod) => mod.default.disconnect());
     setUser(null);
     localStorage.removeItem('user');
+    localStorage.removeItem('heartlink_token');
   };
 
   // Show loading state while checking authentication
@@ -251,24 +253,25 @@ function App() {
             <Route path="/auth" element={!user ? <AuthPage onLogin={handleLogin} /> : <Navigate to="/discover" />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/complete-profile" element={<CompleteProfilePage onLogin={handleLogin} />} />
+            <Route path="/mandatory-photo" element={user ? <MandatoryPhotoPage user={user} onComplete={handleLogin} /> : <Navigate to="/auth" />} />
             <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
             <Route path="/terms" element={<TermsPage />} />
             <Route path="/data-deletion" element={<DataDeletionPage />} />
             <Route path="/admin" element={user && user.is_admin ? <AdminDashboard user={user} /> : <Navigate to="/" />} />
-            <Route path="/discover" element={user ? <DiscoverPage user={user} /> : <Navigate to="/" />} />
-            <Route path="/matches" element={user ? <MatchesPage user={user} /> : <Navigate to="/" />} />
-            <Route path="/likes" element={user ? <LikesYouPage user={user} /> : <Navigate to="/" />} />
-            <Route path="/chat/:matchId" element={user ? <ErrorBoundary><ChatPage user={user} /></ErrorBoundary> : <Navigate to="/" />} />
-            <Route path="/profile" element={user ? <ProfilePage user={user} onUpdate={handleLogin} /> : <Navigate to="/" />} />
-            <Route path="/profile/:userId" element={user ? <UserProfilePage user={user} /> : <Navigate to="/" />} />
-            <Route path="/privacy" element={user ? <PrivacyPage user={user} onUpdate={handleLogin} /> : <Navigate to="/" />} />
-            <Route path="/settings" element={user ? <SettingsPage user={user} /> : <Navigate to="/" />} />
-            <Route path="/profile-viewers" element={user ? <ProfileViewersPage user={user} /> : <Navigate to="/" />} />
-            <Route path="/enhance-profile" element={user ? <ProfileEnhancementPage user={user} onUpdate={handleLogin} /> : <Navigate to="/" />} />
-            <Route path="/notifications" element={user ? <NotificationsPage user={user} /> : <Navigate to="/" />} />
-            <Route path="/referral" element={user ? <ReferralPage user={user} /> : <Navigate to="/" />} />
-            {/* Premium Route - HIDDEN FOR NOW */}
-            {/* <Route path="/premium" element={user ? <PremiumPage user={user} /> : <Navigate to="/" />} /> */}
+            
+            {/* All protected routes: redirect to photo upload if profile incomplete */}
+            <Route path="/discover" element={user ? (user.profile_incomplete ? <Navigate to="/mandatory-photo" /> : <DiscoverPage user={user} />) : <Navigate to="/" />} />
+            <Route path="/matches" element={user ? (user.profile_incomplete ? <Navigate to="/mandatory-photo" /> : <MatchesPage user={user} />) : <Navigate to="/" />} />
+            <Route path="/likes" element={user ? (user.profile_incomplete ? <Navigate to="/mandatory-photo" /> : <LikesYouPage user={user} />) : <Navigate to="/" />} />
+            <Route path="/chat/:matchId" element={user ? (user.profile_incomplete ? <Navigate to="/mandatory-photo" /> : <ErrorBoundary><ChatPage user={user} /></ErrorBoundary>) : <Navigate to="/" />} />
+            <Route path="/profile" element={user ? (user.profile_incomplete ? <Navigate to="/mandatory-photo" /> : <ProfilePage user={user} onUpdate={handleLogin} />) : <Navigate to="/" />} />
+            <Route path="/profile/:userId" element={user ? (user.profile_incomplete ? <Navigate to="/mandatory-photo" /> : <UserProfilePage user={user} />) : <Navigate to="/" />} />
+            <Route path="/privacy" element={user ? (user.profile_incomplete ? <Navigate to="/mandatory-photo" /> : <PrivacyPage user={user} onUpdate={handleLogin} />) : <Navigate to="/" />} />
+            <Route path="/settings" element={user ? (user.profile_incomplete ? <Navigate to="/mandatory-photo" /> : <SettingsPage user={user} />) : <Navigate to="/" />} />
+            <Route path="/profile-viewers" element={user ? (user.profile_incomplete ? <Navigate to="/mandatory-photo" /> : <ProfileViewersPage user={user} />) : <Navigate to="/" />} />
+            <Route path="/enhance-profile" element={user ? (user.profile_incomplete ? <Navigate to="/mandatory-photo" /> : <ProfileEnhancementPage user={user} onUpdate={handleLogin} />) : <Navigate to="/" />} />
+            <Route path="/notifications" element={user ? (user.profile_incomplete ? <Navigate to="/mandatory-photo" /> : <NotificationsPage user={user} />) : <Navigate to="/" />} />
+            <Route path="/referral" element={user ? (user.profile_incomplete ? <Navigate to="/mandatory-photo" /> : <ReferralPage user={user} />) : <Navigate to="/" />} />
             <Route path="/premium" element={<Navigate to="/discover" />} />
           </Routes>
           </Suspense>

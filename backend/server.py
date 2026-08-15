@@ -19,6 +19,43 @@ import asyncio
 import re
 import orjson  # Fast JSON serialization
 
+# Import shared database module
+from database import (
+    db, client,
+    user_cache, discover_cache, online_status_cache, likes_cache,
+    matches_cache, conversations_cache, admin_stats_cache,
+    get_cached_user, set_cached_user, invalidate_user_cache,
+    get_cached_online_status, set_cached_online_status,
+    create_indexes,
+)
+
+# Import Pydantic models from models package
+from models.schemas import (
+    User, Match, InAppNotification, Message,
+    UserSignup, UserLogin, PhoneLogin, PhoneSignup,
+    ForgotPasswordRequest, ResetPasswordRequest, RefreshTokenRequest, ChangePasswordRequest,
+    DeleteAccountRequest, LinkEmailRequest, LinkPhoneRequest, MergeAccountsRequest,
+    PrivacyUpdate, GenderLockUpdate, ProfileEnhancementUpdate, WomenSafetyUpdate,
+    LocationUpdate, DeviceBlock, SelfieVerificationRequest,
+    LikeAction, BlockUser, MuteUser, ReportUser, DiscoverFilters,
+    ScreenshotAlert, DeleteMessageRequest, MessageReaction,
+    AdminUserUpdate, AdminVerification, MakeAdminRequest, AdminResetPasswordRequest,
+    VerifySelfieRequest, ReVerifyRequest, ProfileApprovalRequest, DatabaseClearRequest,
+    BulkNotificationRequest, ScheduledNotificationRequest, AdminNotificationWithEmail,
+    NotificationTemplateCreate, PushNotificationRequest, FCMTokenRequest,
+    AdImpressionRequest, AdRewardRequest, SubscriptionCreateRequest,
+)
+
+# Import shared helper functions
+from services.helpers import (
+    is_indian_location, INDIAN_STATES, INDIAN_CITIES,
+    hash_password, verify_password,
+    clean_user_data, serialize_user_for_response,
+    sanitize_mongo_input,
+    mask_phone_email, check_money_scam,
+    create_in_app_notification,
+)
+
 # Load environment variables FIRST before importing firebase_config
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env', override=False)  # Don't override K8s environment variables
@@ -68,89 +105,10 @@ from security import (
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
-# ==================== INDIAN LOCATIONS FILTER ====================
-# List of Indian states and major cities for location filtering
-INDIAN_STATES = [
-    "andhra pradesh", "arunachal pradesh", "assam", "bihar", "chhattisgarh",
-    "goa", "gujarat", "haryana", "himachal pradesh", "jharkhand", "karnataka",
-    "kerala", "madhya pradesh", "maharashtra", "manipur", "meghalaya", "mizoram",
-    "nagaland", "odisha", "punjab", "rajasthan", "sikkim", "tamil nadu",
-    "telangana", "tripura", "uttar pradesh", "uttarakhand", "west bengal",
-    "delhi", "jammu and kashmir", "ladakh", "chandigarh", "puducherry",
-    "andaman and nicobar", "dadra and nagar haveli", "daman and diu", "lakshadweep"
-]
+# Indian location data and helpers imported from services.helpers
 
-INDIAN_CITIES = [
-    "mumbai", "delhi", "bangalore", "bengaluru", "hyderabad", "chennai", "kolkata",
-    "pune", "ahmedabad", "surat", "jaipur", "lucknow", "kanpur", "nagpur", "indore",
-    "thane", "bhopal", "visakhapatnam", "patna", "vadodara", "ghaziabad", "ludhiana",
-    "agra", "nashik", "faridabad", "meerut", "rajkot", "varanasi", "srinagar",
-    "aurangabad", "dhanbad", "amritsar", "navi mumbai", "allahabad", "prayagraj",
-    "ranchi", "howrah", "coimbatore", "jabalpur", "gwalior", "vijayawada", "jodhpur",
-    "madurai", "raipur", "kota", "chandigarh", "guwahati", "solapur", "hubli",
-    "mysore", "mysuru", "tiruchirappalli", "bareilly", "aligarh", "tiruppur",
-    "moradabad", "jalandhar", "bhubaneswar", "salem", "warangal", "guntur",
-    "bhiwandi", "saharanpur", "gorakhpur", "bikaner", "amravati", "noida",
-    "jamshedpur", "bhilai", "cuttack", "firozabad", "kochi", "cochin", "nellore",
-    "bhavnagar", "dehradun", "durgapur", "asansol", "rourkela", "nanded", "kolhapur",
-    "ajmer", "akola", "gulbarga", "jamnagar", "ujjain", "loni", "siliguri", "jhansi",
-    "ulhasnagar", "jammu", "sangli", "mangalore", "erode", "belgaum", "ambattur",
-    "tirunelveli", "malegaon", "gaya", "jalgaon", "udaipur", "maheshtala", "davanagere",
-    "kozhikode", "calicut", "kurnool", "bokaro", "rajahmundry", "ballari", "bellary",
-    "patiala", "gopalpur", "agartala", "bhagalpur", "muzaffarnagar", "bhatpara",
-    "panihati", "latur", "dhule", "rohtak", "korba", "bhilwara", "berhampur",
-    "muzaffarpur", "ahmednagar", "mathura", "kollam", "avadi", "kadapa", "anantapur",
-    "kamarhati", "bilaspur", "sambalpur", "shahjahanpur", "satara", "bijapur",
-    "rampur", "shimoga", "chandrapur", "junagadh", "thrissur", "alwar", "bardhaman",
-    "kulti", "nizamabad", "parbhani", "tumkur", "khammam", "ozhukarai", "bihar sharif",
-    "panipat", "darbhanga", "bally", "aizawl", "dewas", "ichalkaranji", "karnal",
-    "bathinda", "jalna", "eluru", "kirari suleman nagar", "barasat", "purnia",
-    "satna", "mau", "sonipat", "farrukhabad", "sagar", "rourkela", "durg", "imphal",
-    "ratlam", "hapur", "arrah", "karimnagar", "anantapur", "etawah", "ambernath",
-    "north dumdum", "bharatpur", "begusarai", "new delhi", "gandhidham", "baranagar",
-    "tiruvottiyur", "pondicherry", "sikar", "thoothukudi", "rewa", "mirzapur",
-    "raichur", "pali", "kharagpur", "vizianagaram", "katihar", "hardwar", "haridwar",
-    "sonepat", "vellore", "lalitpur", "ballia", "unnao", "kangra", "malda", "shimla",
-    "bharuch", "naihati", "hosur", "amroha", "bhind", "porbandar", "fatehpur"
-]
-
-def is_indian_location(location: str) -> bool:
-    """Check if a location is in India"""
-    if not location:
-        return False
-    
-    location_lower = location.lower().strip()
-    
-    # Check if it contains "india"
-    if "india" in location_lower:
-        return True
-    
-    # Check against states
-    for state in INDIAN_STATES:
-        if state in location_lower or location_lower in state:
-            return True
-    
-    # Check against cities
-    for city in INDIAN_CITIES:
-        if city in location_lower or location_lower in city:
-            return True
-    
-    return False
-
-# MongoDB connection with connection pooling for better performance
-mongo_url = os.environ.get('MONGO_URL', 'mongodb://localhost:27017')
-client = AsyncIOMotorClient(
-    mongo_url,
-    maxPoolSize=100,
-    minPoolSize=20,
-    maxIdleTimeMS=60000,
-    connectTimeoutMS=3000,
-    serverSelectionTimeoutMS=3000,
-    retryWrites=True,
-    retryReads=True,
-    compressors="zstd,snappy,zlib"
-)
-db = client[os.environ.get('DB_NAME', 'dating_app_db')]
+# MongoDB connection imported from database.py
+# db and client are shared across all modules
 
 # Create the main app with rate limiting and performance optimizations
 app = FastAPI(
@@ -178,6 +136,61 @@ class CacheMiddleware(BaseHTTPMiddleware):
             response.headers["Cache-Control"] = "no-cache"
         return response
 
+# === ADMIN AUTH MIDDLEWARE ===
+ADMIN_AUTH_SKIP_PATHS = {"/api/admin/make-me-admin-once"}
+
+class AdminAuthMiddleware(BaseHTTPMiddleware):
+    """Middleware to protect all /api/admin/* endpoints with JWT + admin check"""
+    async def dispatch(self, request, call_next):
+        path = request.url.path
+        
+        # Only intercept admin routes
+        if not path.startswith("/api/admin"):
+            return await call_next(request)
+        
+        # Skip bootstrap endpoint
+        if path in ADMIN_AUTH_SKIP_PATHS:
+            return await call_next(request)
+        
+        # Allow OPTIONS for CORS preflight
+        if request.method == "OPTIONS":
+            return await call_next(request)
+        
+        # Extract Bearer token
+        auth_header = request.headers.get("authorization", "")
+        if not auth_header.startswith("Bearer "):
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "Admin authentication required. Please login as admin."}
+            )
+        
+        token = auth_header.split("Bearer ")[1]
+        payload = verify_access_token(token)
+        if not payload:
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "Invalid or expired token. Please login again."}
+            )
+        
+        user_id = payload.get("user_id")
+        if not user_id:
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "Invalid token payload."}
+            )
+        
+        # Check admin status in DB
+        user = await db.users.find_one({"id": user_id}, {"_id": 0, "is_admin": 1})
+        if not user or not user.get("is_admin"):
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "Admin access required. You don't have permission."}
+            )
+        
+        # Attach admin user info to request state for downstream use
+        request.state.admin_user_id = user_id
+        return await call_next(request)
+
 # === SECURITY HEADERS MIDDLEWARE ===
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
@@ -199,6 +212,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(AdminAuthMiddleware)
 app.add_middleware(CacheMiddleware)
 
 # === REQUEST BODY SIZE LIMIT (5MB max) ===
@@ -212,19 +226,7 @@ async def limit_request_size(request: StarletteRequest, call_next):
         return JSONResponse({"detail": "Request too large"}, status_code=413)
     return await call_next(request)
 
-# === NoSQL INJECTION PREVENTION ===
-def sanitize_mongo_input(data):
-    """Remove MongoDB operators from user input to prevent injection"""
-    if isinstance(data, dict):
-        return {k: sanitize_mongo_input(v) for k, v in data.items() if not str(k).startswith('$')}
-    elif isinstance(data, list):
-        return [sanitize_mongo_input(item) for item in data]
-    elif isinstance(data, str):
-        # Remove potential injection patterns
-        if data.startswith('$'):
-            return ''
-        return data
-    return data
+# sanitize_mongo_input imported from services.helpers
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -291,149 +293,9 @@ async def get_init_data(user_id: str):
     except Exception as e:
         return {"error": str(e)}
 
-# Simple in-memory cache for frequently accessed data
+# Caches, cache helpers, and create_indexes are imported from database.py
 from functools import lru_cache
-from cachetools import TTLCache
 import time
-
-# Cache for user profiles (5 min TTL, max 1000 items)
-user_cache = TTLCache(maxsize=1000, ttl=300)
-# Cache for discover results (1 min TTL)
-discover_cache = TTLCache(maxsize=500, ttl=60)
-# Cache for online status (30 sec TTL, very short for real-time)
-online_status_cache = TTLCache(maxsize=2000, ttl=30)
-# Cache for likes count (2 min TTL)
-likes_cache = TTLCache(maxsize=1000, ttl=120)
-# Cache for matches (2 min TTL) - NEW
-matches_cache = TTLCache(maxsize=500, ttl=120)
-# Cache for conversations (1 min TTL) - NEW
-conversations_cache = TTLCache(maxsize=500, ttl=60)
-# Cache for admin stats (5 min TTL) - NEW
-admin_stats_cache = TTLCache(maxsize=10, ttl=300)
-
-def get_cached_user(user_id: str):
-    """Get user from cache"""
-    return user_cache.get(user_id)
-
-def set_cached_user(user_id: str, user_data: dict):
-    """Set user in cache"""
-    user_cache[user_id] = user_data
-
-def invalidate_user_cache(user_id: str):
-    """Invalidate user cache"""
-    user_cache.pop(user_id, None)
-
-def get_cached_online_status(user_id: str):
-    """Get online status from cache"""
-    return online_status_cache.get(user_id)
-
-def set_cached_online_status(user_id: str, is_online: bool, last_active: str):
-    """Set online status in cache"""
-    online_status_cache[user_id] = {"is_online": is_online, "last_active": last_active}
-
-# Database index creation on startup
-async def create_indexes():
-    """Create MongoDB indexes for better query performance"""
-    try:
-        # Users collection indexes
-        await db.users.create_index("id", unique=True, background=True)
-        # UNIQUE indexes for email and phone to prevent duplicates at DB level
-        # Use try-except to handle existing indexes
-        try:
-            await db.users.drop_index("email_1")
-        except:
-            pass
-        try:
-            await db.users.create_index(
-                "email", 
-                unique=True, 
-                sparse=True,  # Allow multiple null values
-                background=True,
-                name="email_unique"
-            )
-        except Exception as e:
-            if "already exists" not in str(e):
-                logging.warning(f"Email index: {e}")
-        
-        try:
-            await db.users.drop_index("phone_1")
-        except:
-            pass
-        try:
-            await db.users.create_index(
-                "phone", 
-                unique=True, 
-                sparse=True,  # Allow multiple null values
-                background=True,
-                name="phone_unique"
-            )
-        except Exception as e:
-            if "already exists" not in str(e):
-                logging.warning(f"Phone index: {e}")
-        
-        await db.users.create_index("gender", background=True)
-        await db.users.create_index("looking_for", background=True)
-        await db.users.create_index("location", background=True)
-        await db.users.create_index("is_online", background=True)
-        await db.users.create_index("last_active", background=True)
-        await db.users.create_index("verification_status", background=True)
-        await db.users.create_index("is_shadow_banned", background=True)
-        await db.users.create_index("is_permanently_banned", background=True)
-        await db.users.create_index("trust_badge_level", background=True)
-        await db.users.create_index("relationship_intent", background=True)
-        await db.users.create_index("profile_status", background=True)  # For admin approvals
-        await db.users.create_index("created_at", background=True)  # For sorting
-        # Compound index for discover queries
-        await db.users.create_index([
-            ("gender", 1), 
-            ("looking_for", 1), 
-            ("is_shadow_banned", 1),
-            ("is_permanently_banned", 1)
-        ], background=True)
-        # Compound index for admin pending profiles
-        await db.users.create_index([
-            ("profile_status", 1),
-            ("created_at", -1)
-        ], background=True)
-        
-        # Matches collection indexes
-        await db.matches.create_index("id", unique=True, background=True)
-        await db.matches.create_index("user1_id", background=True)
-        await db.matches.create_index("user2_id", background=True)
-        await db.matches.create_index("matched", background=True)
-        await db.matches.create_index([("user1_id", 1), ("user2_id", 1)], background=True)
-        await db.matches.create_index([("matched", 1), ("user1_id", 1)], background=True)
-        await db.matches.create_index([("matched", 1), ("user2_id", 1)], background=True)
-        
-        # Messages collection indexes
-        await db.messages.create_index("id", unique=True, background=True)
-        await db.messages.create_index("match_id", background=True)
-        await db.messages.create_index("sender_id", background=True)
-        await db.messages.create_index("receiver_id", background=True)
-        await db.messages.create_index([("match_id", 1), ("created_at", 1)], background=True)
-        
-        # Reports collection indexes
-        await db.reports.create_index("reporter_id", background=True)
-        await db.reports.create_index("reported_user_id", background=True)
-        await db.reports.create_index("status", background=True)
-        
-        # Profile views collection indexes
-        await db.profile_views.create_index("profile_id", background=True)
-        await db.profile_views.create_index("viewer_id", background=True)
-        await db.profile_views.create_index([("profile_id", 1), ("viewed_at", -1)], background=True)
-        
-        # Referrals collection indexes
-        await db.referrals.create_index("referrer_id", background=True)
-        await db.referrals.create_index("referred_user_id", unique=True, sparse=True, background=True)
-        await db.referrals.create_index("referral_code", background=True)
-        await db.users.create_index("referral_code", unique=True, sparse=True, background=True)
-        
-        # Daily rewards collection indexes
-        await db.daily_rewards.create_index("user_id", unique=True, background=True)
-        
-        logging.info("✅ MongoDB indexes created successfully")
-    except Exception as e:
-        logging.error(f"❌ Error creating indexes: {e}")
 
 @app.on_event("startup")
 async def startup_event():
@@ -822,304 +684,8 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
-# Models
-class User(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    email: Optional[EmailStr] = None
-    phone: Optional[str] = None
-    password_hash: str
-    name: str
-    age: int
-    gender: str  # male/female/non-binary
-    looking_for: str
-    bio: str = ""
-    location: str
-    latitude: Optional[float] = None  # For nearby matches
-    longitude: Optional[float] = None  # For nearby matches
-    photos: List[str] = []
-    interests: List[str] = []
-    verified: bool = False
-    verification_status: str = "pending"  # pending, verified, rejected
-    profile_status: str = "pending"  # pending, approved, rejected - Admin approval for new profiles
-    is_admin: bool = False  # Admin flag
-    fcm_token: Optional[str] = None  # Firebase Cloud Messaging token for push notifications
-    
-    # === NEW SAFETY & TRUST FIELDS ===
-    # Gender Lock Feature
-    show_to_gender: str = "both"  # male/female/both
-    gender_lock_enabled: bool = False
-    hide_profile_from_gender: str = "none"  # male/female/none
-    
-    # Profile Media
-    bio_voice_intro_url: Optional[str] = None  # 15 sec voice intro
-    intro_video_url: Optional[str] = None  # Optional intro video
-    
-    # Trust & Safety
-    trust_badge_level: str = "low"  # low/medium/high
-    risk_score: int = 0  # 0-100, admin only visible
-    is_verified_male: bool = False  # For women safety - verified male
-    
-    # In-App Notifications (Alternative to FCM)
-    unread_notifications: int = 0  # Count of unread notifications
-    
-    # Profile Enhancement
-    about_me: str = ""  # Extended bio
-    values: List[str] = []  # respect, family, ambition, spirituality, freedom
-    relationship_status: str = ""  # single, divorced, widowed, separated, complicated
-    relationship_intent: str = ""  # serious, casual, friendship, marriage
-    lifestyle_tags: List[str] = []  # non-smoker, vegetarian, fitness, travel
-    
-    # Profile Viewers
-    profile_viewers: List[Dict] = []  # Last 5 viewers [{user_id, viewed_at}]
-    
-    # Device Blocking
-    device_ids: List[str] = []  # User's device IDs
-    blocked_device_ids: List[str] = []  # Blocked device IDs
-    
-    # Women Safety Mode
-    women_safety_mode: bool = False  # Enable extra safety features
-    night_quiet_hours_enabled: bool = False  # 10pm-7am auto mute
-    first_message_delay_exempt: bool = False  # Exempted from 2 min delay
-    
-    # Banning
-    is_shadow_banned: bool = False
-    is_permanently_banned: bool = False
-    ban_reason: Optional[str] = None
-    
-    # Legacy fields
-    privacy_settings: Dict = Field(default_factory=lambda: {
-        "show_profile": True,
-        "show_photos": True,
-        "incognito_mode": False,
-        # Chat Privacy Settings
-        "hide_online_status": False,
-        "hide_read_receipts": False,
-        "hide_typing_indicator": False,
-        "hide_phone_number": True,  # Default hide phone
-        "blur_photos_for_non_matches": True,
-        "disappearing_messages": False,
-        "disappearing_messages_duration": 86400,  # 24 hours in seconds
-        "screenshot_alert": True
-    })
-    blocked_users: List[str] = []
-    muted_users: List[str] = []
-    profile_views: int = 0
-    is_online: bool = False
-    last_active: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
-        arbitrary_types_allowed = True
-
-class UserSignup(BaseModel):
-    email: Optional[EmailStr] = None
-    phone: Optional[str] = None
-    password: str
-    name: str
-    age: int
-    gender: str  # male/female/non-binary
-    looking_for: str
-    bio: str = ""
-    location: str
-    interests: List[str] = []
-    photos: List[str] = []  # Profile photos - at least 1 mandatory
-    # New optional fields during signup
-    show_to_gender: str = "both"
-    relationship_status: str = ""
-    relationship_intent: str = ""
-    values: List[str] = []
-    lifestyle_tags: List[str] = []
-
-class UserLogin(BaseModel):
-    email_or_phone: str
-    password: str
-
-class ForgotPasswordRequest(BaseModel):
-    email_or_phone: str
-
-class ResetPasswordRequest(BaseModel):
-    email_or_phone: str
-    reset_code: str
-    new_password: str
-
-class DeleteAccountRequest(BaseModel):
-    email: EmailStr
-    reason: Optional[str] = None
-
-class Match(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    user1_id: str
-    user2_id: str
-    user1_liked: bool = False
-    user2_liked: bool = False
-    matched: bool = False
-    is_superlike: bool = False
-    compatibility_score: Optional[float] = None
-    ai_analysis: str = ""
-    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-
-# In-App Notification Model
-class InAppNotification(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    user_id: str  # Recipient user
-    title: str
-    body: str
-    type: str = "general"  # general, match, like, message, admin, promotion
-    is_read: bool = False
-    data: dict = {}  # Additional data like match_id, sender_id
-    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    expires_at: Optional[str] = None  # Optional expiration
-
-class Message(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    match_id: str
-    sender_id: str
-    receiver_id: str
-    content: str
-    read: bool = False
-    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    # Privacy features
-    is_deleted_for_sender: bool = False
-    is_deleted_for_receiver: bool = False
-    is_deleted_for_all: bool = False
-    expires_at: Optional[str] = None  # For disappearing messages
-    message_type: str = "text"  # text, image, voice
-
-class ScreenshotAlert(BaseModel):
-    match_id: str
-    screenshot_by: str  # user_id who took screenshot
-
-class DeleteMessageRequest(BaseModel):
-    message_id: str
-    delete_for_all: bool = False
-
-class LikeAction(BaseModel):
-    target_user_id: str
-    action: str  # like, pass, superlike
-
-class BlockUser(BaseModel):
-    blocked_user_id: str
-
-class MuteUser(BaseModel):
-    muted_user_id: str
-
-class ReportUser(BaseModel):
-    reported_user_id: str
-    reason: str
-    
-class LocationUpdate(BaseModel):
-    latitude: float
-    longitude: float
-    location: str  # City name
-
-class PrivacyUpdate(BaseModel):
-    show_profile: Optional[bool] = None
-    show_photos: Optional[bool] = None
-    incognito_mode: Optional[bool] = None
-    # Chat Privacy Settings
-    hide_online_status: Optional[bool] = None
-    hide_read_receipts: Optional[bool] = None
-    hide_typing_indicator: Optional[bool] = None
-    hide_phone_number: Optional[bool] = None
-    blur_photos_for_non_matches: Optional[bool] = None
-    disappearing_messages: Optional[bool] = None
-    disappearing_messages_duration: Optional[int] = None  # seconds: 86400 (24h), 604800 (7d)
-    screenshot_alert: Optional[bool] = None
-
-# === NEW MODELS FOR SAFETY FEATURES ===
-
-class GenderLockUpdate(BaseModel):
-    gender_lock_enabled: Optional[bool] = None
-    show_to_gender: Optional[str] = None  # male/female/both
-    hide_profile_from_gender: Optional[str] = None  # male/female/none
-
-class ProfileEnhancementUpdate(BaseModel):
-    about_me: Optional[str] = None
-    bio_voice_intro_url: Optional[str] = None
-    intro_video_url: Optional[str] = None
-    values: Optional[List[str]] = None  # respect, family, ambition, spirituality, freedom
-    relationship_intent: Optional[str] = None  # serious, casual, friendship, marriage
-    lifestyle_tags: Optional[List[str]] = None  # non-smoker, vegetarian, fitness, travel
-
-class WomenSafetyUpdate(BaseModel):
-    women_safety_mode: Optional[bool] = None
-    night_quiet_hours_enabled: Optional[bool] = None
-
-class AdminUserUpdate(BaseModel):
-    user_id: str
-    gender_lock_enabled: Optional[bool] = None
-    is_verified_male: Optional[bool] = None
-    trust_badge_level: Optional[str] = None
-    risk_score: Optional[int] = None
-    is_shadow_banned: Optional[bool] = None
-    is_permanently_banned: Optional[bool] = None
-    ban_reason: Optional[str] = None
-
-class DeviceBlock(BaseModel):
-    device_id: str
-
-class DiscoverFilters(BaseModel):
-    relationship_intent: Optional[str] = None
-    values: Optional[List[str]] = None
-    lifestyle_tags: Optional[List[str]] = None
-    trust_badge_level: Optional[str] = None
-    last_active_within_hours: Optional[int] = None  # e.g., 24 = active in last 24 hours
-
-class AdminVerification(BaseModel):
-    user_id: str
-    action: str  # 'approve' or 'reject'
-    reason: Optional[str] = None
-    verified_by: str
-
-# Helper functions
-def hash_password(password: str) -> str:
-    return hashlib.sha256(password.encode()).hexdigest()
-
-def verify_password(password: str, password_hash: str) -> bool:
-    return hash_password(password) == password_hash
-
-def clean_user_data(user_data: dict) -> dict:
-    """Clean user data to prevent Pydantic validation errors with None values"""
-    cleaned_user = {}
-    for key, value in user_data.items():
-        if value is not None:
-            cleaned_user[key] = value
-        else:
-            # Set default values for None fields based on User model
-            if key in ["bio", "about_me"]:
-                cleaned_user[key] = ""
-            elif key in ["photos", "interests", "blocked_users", "muted_users", "values", "lifestyle_tags", "profile_viewers", "device_ids", "blocked_device_ids"]:
-                cleaned_user[key] = []
-            elif key in ["email", "phone", "fcm_token", "latitude", "longitude", "bio_voice_intro_url", "intro_video_url", "ban_reason"]:
-                cleaned_user[key] = None
-            elif key in ["profile_views", "risk_score"]:
-                cleaned_user[key] = 0
-            else:
-                cleaned_user[key] = value
-    return cleaned_user
-
-def serialize_user_for_response(user_dict: dict, exclude_password: bool = True) -> dict:
-    """
-    Serialize user data for API responses - PERMANENT FIX
-    Removes MongoDB _id and optionally password_hash
-    """
-    # Remove MongoDB's _id field
-    user_dict.pop('_id', None)
-    
-    # Remove password related fields if needed
-    if exclude_password:
-        user_dict.pop('password_hash', None)
-        user_dict.pop('password', None)  # Also remove plain password if exists
-        user_dict.pop('password_reset_code', None)  # Security - don't expose reset codes
-        user_dict.pop('password_reset_expires', None)
-    
-    # Clean None values
-    cleaned = clean_user_data(user_dict)
-    
-    return cleaned
+# Pydantic models imported from models.schemas
+# Helper functions imported from services.helpers
 
 async def calculate_ai_compatibility(user1: dict, user2: dict) -> tuple:
     """Calculate AI-powered compatibility score"""
@@ -1577,6 +1143,10 @@ async def login(request: Request, credentials: UserLogin):
     # Serialize for response (removes _id, password_hash, cleans None values)
     clean_user = serialize_user_for_response(user, exclude_password=True)
     
+    # Flag profile as incomplete if no profile photo
+    has_photo = bool(user.get("profile_picture") or (user.get("photos") and len(user.get("photos", [])) > 0))
+    clean_user["profile_incomplete"] = not has_photo
+    
     return {
         "message": "Login successful",
         "user": clean_user,
@@ -1585,9 +1155,6 @@ async def login(request: Request, credentials: UserLogin):
         "token_type": "bearer"
     }
 
-class PhoneLogin(BaseModel):
-    phone: str
-    firebase_uid: str
 
 @api_router.post("/auth/phone-login")
 async def phone_login(credentials: PhoneLogin):
@@ -1627,20 +1194,12 @@ async def phone_login(credentials: PhoneLogin):
     # Serialize for response
     clean_user = serialize_user_for_response(user, exclude_password=True)
     
+    has_photo = bool(user.get("profile_picture") or (user.get("photos") and len(user.get("photos", [])) > 0))
+    clean_user["profile_incomplete"] = not has_photo
+    
     return {"message": "Login successful", "user": clean_user}
 
-class PhoneSignup(BaseModel):
-    phone: str
-    firebase_uid: str
-    name: str
-    age: int
-    gender: str
-    looking_for: str
-    location: str
-    bio: str = ""
-    interests: List[str] = []
-    relationship_status: str = ""
-    photos: List[str] = []  # Profile photos - mandatory
+
 
 @api_router.post("/auth/phone-signup")
 async def phone_signup(data: PhoneSignup):
@@ -1914,8 +1473,7 @@ async def reset_password(request: Request, data: ResetPasswordRequest):
 # SECURE TOKEN & SESSION ENDPOINTS
 # ===========================================
 
-class RefreshTokenRequest(BaseModel):
-    refresh_token: str
+
 
 @api_router.post("/auth/refresh-token")
 async def refresh_token(request: RefreshTokenRequest):
@@ -1987,10 +1545,7 @@ async def revoke_all_user_sessions(user_id: str, current_session: Optional[str] 
     audit_log.log_event("all_sessions_revoked", user_id=user_id)
     return {"message": "All other sessions revoked"}
 
-class ChangePasswordRequest(BaseModel):
-    user_id: str
-    current_password: str
-    new_password: str
+
 
 @api_router.post("/security/change-password")
 async def change_password(request: ChangePasswordRequest):
@@ -2224,13 +1779,8 @@ async def update_profile(user_id: str, updates: dict):
 
 # ==================== EMAIL/PHONE LINKING ====================
 
-class LinkEmailRequest(BaseModel):
-    email: str
-    password: str  # Required to verify ownership
 
-class LinkPhoneRequest(BaseModel):
-    phone: str
-    otp_verified: bool = False  # Should be verified via Firebase OTP
+
 
 @api_router.post("/profile/{user_id}/link-email")
 async def link_email_to_profile(user_id: str, data: LinkEmailRequest):
@@ -2371,9 +1921,7 @@ async def link_phone_to_profile(user_id: str, data: LinkPhoneRequest):
     }
 
 
-class MergeAccountsRequest(BaseModel):
-    source_user_id: str  # Account to merge FROM (will be deleted)
-    password: Optional[str] = None  # Password of source account if email-based
+
 
 @api_router.post("/profile/{user_id}/merge-accounts")
 async def merge_accounts(user_id: str, data: MergeAccountsRequest):
@@ -3932,10 +3480,7 @@ async def mark_messages_as_read(match_id: str, user_id: str):
     return {"marked_read": result.modified_count}
 
 
-class MessageReaction(BaseModel):
-    message_id: str
-    user_id: str
-    reaction: str  # heart, laugh, thumbsup, sad, angry
+
 
 @api_router.post("/messages/{message_id}/react")
 async def react_to_message(message_id: str, data: MessageReaction):
@@ -4380,9 +3925,7 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
 # FCM PUSH NOTIFICATIONS ENDPOINTS
 # ============================================
 
-class FCMTokenRequest(BaseModel):
-    user_id: str
-    fcm_token: str
+
 
 @api_router.post("/fcm/register-token")
 async def register_fcm_token(request: FCMTokenRequest):
@@ -4464,9 +4007,7 @@ async def send_test_notification(user_id: str):
 
 # ONE-TIME ADMIN CREATION ENDPOINT
 # ⚠️ USE THIS ONCE AND THEN DISABLE IT FOR SECURITY
-class MakeAdminRequest(BaseModel):
-    secret_code: str
-    user_email: str
+
 
 @api_router.post("/admin/make-me-admin-once")
 async def make_me_admin_once(request: MakeAdminRequest):
@@ -5084,9 +4625,7 @@ async def admin_unblock_user(user_id: str):
     return {"message": f"User {user['name']} unblocked"}
 
 # === ADMIN: RESET USER PASSWORD ===
-class AdminResetPasswordRequest(BaseModel):
-    user_id: str
-    new_password: str
+
 
 @api_router.post("/admin/reset-user-password")
 async def admin_reset_user_password(request: AdminResetPasswordRequest):
@@ -5119,9 +4658,7 @@ async def admin_reset_user_password(request: AdminResetPasswordRequest):
     return {"message": f"Password reset successfully for {user.get('name', 'user')}"}
 
 # === PHOTO VERIFICATION SYSTEM ===
-class SelfieVerificationRequest(BaseModel):
-    user_id: str
-    selfie_url: str
+
 
 @api_router.post("/user/submit-selfie-verification")
 async def submit_selfie_verification(data: SelfieVerificationRequest):
@@ -5160,10 +4697,7 @@ async def get_pending_verifications():
         "photos": u.get("photos", [])
     } for u in users]
 
-class VerifySelfieRequest(BaseModel):
-    user_id: str
-    action: str  # approve or reject
-    reason: str = ""
+
 
 @api_router.post("/admin/verify-selfie")
 async def admin_verify_selfie(data: VerifySelfieRequest):
@@ -5242,9 +4776,6 @@ async def get_verified_users(page: int = 1, limit: int = 20):
     } for u in users]
 
 
-class ReVerifyRequest(BaseModel):
-    user_id: str
-    reason: str = ""
 
 
 @api_router.post("/admin/request-reverify")
@@ -5337,10 +4868,6 @@ async def get_profile_approval_stats():
     }
 
 
-class ProfileApprovalRequest(BaseModel):
-    user_id: str
-    action: str  # approve or reject
-    reason: str = ""
 
 
 @api_router.post("/admin/approve-profile")
@@ -5472,16 +4999,8 @@ def check_women_safety_restrictions(sender: dict, receiver: dict) -> tuple:
 
 # ==================== NOTIFICATION APIS ====================
 
-class BulkNotificationRequest(BaseModel):
-    title: str
-    body: str
-    target: str = "all"  # all, male, female, inactive
 
-class ScheduledNotificationRequest(BaseModel):
-    title: str
-    body: str
-    target: str = "all"
-    schedule_time: str  # ISO format datetime
+
 
 @api_router.post("/admin/send-notification")
 async def send_bulk_notification(data: BulkNotificationRequest):
@@ -5634,25 +5153,7 @@ async def send_test_to_specific_user(email: str):
 # IN-APP NOTIFICATIONS (Alternative to FCM)
 # ============================================
 
-async def create_in_app_notification(user_id: str, title: str, body: str, notification_type: str = "general", data: dict = None):
-    """Helper function to create in-app notification"""
-    notification = InAppNotification(
-        user_id=user_id,
-        title=title,
-        body=body,
-        type=notification_type,
-        data=data or {}
-    )
-    
-    await db.in_app_notifications.insert_one(notification.dict())
-    
-    # Update unread count
-    await db.users.update_one(
-        {"id": user_id},
-        {"$inc": {"unread_notifications": 1}}
-    )
-    
-    return notification
+# create_in_app_notification imported from services.helpers
 
 @api_router.get("/notifications/{user_id}")
 async def get_user_notifications(user_id: str, limit: int = 50, skip: int = 0):
@@ -5724,12 +5225,7 @@ async def delete_notification(notification_id: str, user_id: str):
     await db.in_app_notifications.delete_one({"id": notification_id, "user_id": user_id})
     return {"success": True}
 
-class AdminNotificationWithEmail(BaseModel):
-    title: str
-    body: str
-    target: str = "all"  # all, male, female, inactive
-    send_email: bool = True
-    send_in_app: bool = True
+
 
 @api_router.post("/admin/send-notification-all")
 async def send_notification_all_methods(data: AdminNotificationWithEmail):
@@ -5951,10 +5447,6 @@ async def get_notification_templates():
 
 
 # Custom Template CRUD
-class NotificationTemplateCreate(BaseModel):
-    title: str
-    body: str
-    category: str = "custom"
 
 
 @api_router.get("/admin/notification-templates")
@@ -6116,18 +5608,8 @@ async def cancel_scheduled_notification(notification_id: str):
 
 # ==================== ADS & MONETIZATION APIS ====================
 
-class AdImpressionRequest(BaseModel):
-    user_id: str
-    ad_type: str  # rewarded, interstitial, banner
-    reward_type: Optional[str] = None  # extra_swipes, profile_boost, priority_message
-    amount: Optional[int] = None
-    timestamp: str
 
-class AdRewardRequest(BaseModel):
-    user_id: str
-    reward_type: str  # extra_swipes, profile_boost, priority_message
-    amount: int
-    timestamp: str
+
 
 @api_router.post("/ads/impression")
 async def track_ad_impression(data: AdImpressionRequest):
@@ -6295,9 +5777,7 @@ async def check_frequency_cap(user_id: str):
 
 # ==================== PREMIUM SUBSCRIPTION APIS ====================
 
-class SubscriptionCreateRequest(BaseModel):
-    user_id: str
-    plan_id: str  # monthly, quarterly, yearly
+
 
 @api_router.post("/subscription/create")
 async def create_subscription(data: SubscriptionCreateRequest):
@@ -6449,9 +5929,7 @@ app.add_middleware(
 
 
 # ADMIN: Complete Database Cleanup Endpoint (DANGEROUS - USE WITH CAUTION)
-class DatabaseClearRequest(BaseModel):
-    confirm: str
-    admin_password: str
+
 
 @api_router.post("/admin/clear-all-data")
 async def clear_all_database_data(request: DatabaseClearRequest):
@@ -6805,11 +6283,7 @@ async def scheduled_notification_processor():
 
 # ==================== PUSH NOTIFICATION APIS (FCM Only) ====================
 
-class PushNotificationRequest(BaseModel):
-    title: str
-    message: str
-    target: str = "all"
-    user_ids: Optional[List[str]] = None
+
 
 @api_router.post("/admin/push/send")
 async def send_push_notification_api(data: PushNotificationRequest):
