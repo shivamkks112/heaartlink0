@@ -1,55 +1,122 @@
 import axios from 'axios';
 import { API } from '@/config/api';
+import { Capacitor } from '@capacitor/core';
+import { CapacitorHttp } from '@capacitor/core';
 import { toast } from 'sonner';
 
 /**
- * Get auth headers with JWT token
+ * Get auth token
  */
-function getAdminHeaders() {
-  const token = localStorage.getItem('heartlink_token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
+function getToken() {
+  return localStorage.getItem('heartlink_token') || '';
 }
 
 /**
- * Handle 401/403 errors from admin API
+ * Native HTTP call for Capacitor (bypasses XMLHttpRequest patching issues)
  */
-function handleAdminError(error) {
+async function nativeRequest(method, path, data = null, params = null) {
+  const token = getToken();
+  const url = new URL(`${API}${path}`, window.location.origin);
+
+  if (params) {
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null) url.searchParams.set(k, v);
+    });
+  }
+
+  const options = {
+    url: url.toString(),
+    method: method.toUpperCase(),
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    },
+  };
+
+  if (data && ['POST', 'PUT', 'PATCH'].includes(options.method)) {
+    options.data = data;
+  }
+
+  try {
+    const response = await CapacitorHttp.request(options);
+    if (response.status === 401) {
+      toast.error('Session expired. Please logout and login again.');
+      throw { response: { status: 401, data: response.data } };
+    }
+    if (response.status === 403) {
+      toast.error("You don't have admin access.");
+      throw { response: { status: 403, data: response.data } };
+    }
+    if (response.status >= 400) {
+      throw { response: { status: response.status, data: response.data } };
+    }
+    return { data: response.data, status: response.status };
+  } catch (err) {
+    if (err.response) throw err;
+    throw err;
+  }
+}
+
+/**
+ * Web HTTP call using axios
+ */
+function webRequest(method, path, data = null, config = {}) {
+  const token = getToken();
+  const headers = {
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...config.headers,
+  };
+
+  const axiosConfig = { ...config, headers };
+
+  switch (method) {
+    case 'get':
+      return axios.get(`${API}${path}`, axiosConfig).catch(handleWebError);
+    case 'post':
+      return axios.post(`${API}${path}`, data, axiosConfig).catch(handleWebError);
+    case 'put':
+      return axios.put(`${API}${path}`, data, axiosConfig).catch(handleWebError);
+    case 'delete':
+      return axios.delete(`${API}${path}`, axiosConfig).catch(handleWebError);
+    default:
+      return axios.get(`${API}${path}`, axiosConfig).catch(handleWebError);
+  }
+}
+
+function handleWebError(error) {
   if (error.response?.status === 401) {
-    toast.error('Session expired. Please logout and login again to access admin panel.');
+    toast.error('Session expired. Please logout and login again.');
   } else if (error.response?.status === 403) {
-    toast.error('You don\'t have admin access.');
+    toast.error("You don't have admin access.");
   }
   throw error;
 }
 
+const isNative = Capacitor.isNativePlatform();
+
 /**
- * Admin API wrapper - automatically attaches JWT auth header
- * Usage: adminApi.get('/admin/stats') — path is relative to API base
+ * Admin API - uses native HTTP on Android, axios on web
  */
 const adminApi = {
   get: (path, config = {}) =>
-    axios.get(`${API}${path}`, {
-      ...config,
-      headers: { ...getAdminHeaders(), ...config.headers },
-    }).catch(handleAdminError),
+    isNative
+      ? nativeRequest('get', path, null, config.params)
+      : webRequest('get', path, null, config),
 
   post: (path, data = null, config = {}) =>
-    axios.post(`${API}${path}`, data, {
-      ...config,
-      headers: { ...getAdminHeaders(), ...config.headers },
-    }).catch(handleAdminError),
+    isNative
+      ? nativeRequest('post', path, data, config.params)
+      : webRequest('post', path, data, config),
 
   put: (path, data = null, config = {}) =>
-    axios.put(`${API}${path}`, data, {
-      ...config,
-      headers: { ...getAdminHeaders(), ...config.headers },
-    }).catch(handleAdminError),
+    isNative
+      ? nativeRequest('put', path, data, config.params)
+      : webRequest('put', path, data, config),
 
   delete: (path, config = {}) =>
-    axios.delete(`${API}${path}`, {
-      ...config,
-      headers: { ...getAdminHeaders(), ...config.headers },
-    }).catch(handleAdminError),
+    isNative
+      ? nativeRequest('delete', path, null, config.params)
+      : webRequest('delete', path, null, config),
 };
 
 export default adminApi;
