@@ -266,6 +266,16 @@ const ChatPage = ({ user }) => {
           setMessages(prev => prev.map(msg => 
             msg.id === data.message_id ? {...msg, content: 'This message was deleted', is_deleted_for_all: true} : msg
           ));
+        } else if (data.type === 'messages_read' && data.match_id === matchId) {
+          // Sender's messages were read by receiver — update all own messages to read
+          setMessages(prev => prev.map(msg => 
+            msg.sender_id === user.id && !msg.read ? {...msg, read: true} : msg
+          ));
+        } else if (data.type === 'message_delivered' && data.match_id === matchId) {
+          // Message delivered to receiver
+          setMessages(prev => prev.map(msg => 
+            msg.id === data.message_id ? {...msg, delivered: true} : msg
+          ));
         }
       };
 
@@ -681,7 +691,9 @@ const ChatPage = ({ user }) => {
                           {/* Read receipts for own messages */}
                           {isOwn && !msg.is_deleted_for_all && (
                             msg.read ? (
-                              <CheckCheck className="w-3.5 h-3.5 text-blue-300" />
+                              <CheckCheck className="w-3.5 h-3.5 text-blue-400" />
+                            ) : msg.delivered ? (
+                              <CheckCheck className="w-3.5 h-3.5 text-white/50" />
                             ) : (
                               <Check className="w-3.5 h-3.5 text-white/50" />
                             )

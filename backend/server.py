@@ -3718,11 +3718,13 @@ async def get_messages(match_id: str, user_id: Optional[str] = None, limit: int 
             "receiver_id": msg.get("receiver_id"),
             "content": msg.get("content"),
             "read": msg.get("read", False),
+            "delivered": msg.get("delivered", False),
             "created_at": msg.get("created_at"),
             "message_type": msg.get("message_type", "text"),
             "personal_info_detected": msg.get("personal_info_detected", False),
             "expires_at": msg.get("expires_at"),
-            "is_deleted_for_all": msg.get("is_deleted_for_all", False)
+            "is_deleted_for_all": msg.get("is_deleted_for_all", False),
+            "reactions": msg.get("reactions", {})
         }
         valid_messages.append(clean_msg)
     
@@ -3767,6 +3769,23 @@ async def mark_messages_as_read(match_id: str, user_id: str):
         },
         {"$set": {"read": True, "read_at": datetime.now(timezone.utc).isoformat()}}
     )
+    
+    # Notify sender that messages were read via WebSocket
+    if result.modified_count > 0:
+        # Find the sender (other user in the match)
+        match = await db.matches.find_one({"id": match_id}, {"_id": 0, "user1_id": 1, "user2_id": 1})
+        if match:
+            sender_id = match["user1_id"] if match["user2_id"] == user_id else match["user2_id"]
+            try:
+                await manager.send_message(sender_id, {
+                    "type": "messages_read",
+                    "match_id": match_id,
+                    "read_by": user_id,
+                    "count": result.modified_count
+                })
+            except:
+                pass
+    
     return {"marked_read": result.modified_count}
 
 
@@ -4062,6 +4081,19 @@ async def send_message_http(message_data: Message):
     # Send via WebSocket to BOTH sender and receiver
     await manager.send_message(message_data.receiver_id, message_payload)
     await manager.send_message(message_data.sender_id, message_payload)
+    
+    # Mark as delivered if receiver is online (connected via WebSocket)
+    if message_data.receiver_id in manager.active_connections:
+        await db.messages.update_one(
+            {"id": message_dict["id"]},
+            {"$set": {"delivered": True, "delivered_at": datetime.now(timezone.utc).isoformat()}}
+        )
+        # Notify sender about delivery
+        await manager.send_message(message_data.sender_id, {
+            "type": "message_delivered",
+            "message_id": message_dict["id"],
+            "match_id": message_data.match_id
+        })
     
     # Check if sender is muted by receiver
     muted_users = receiver.get('muted_users', [])
