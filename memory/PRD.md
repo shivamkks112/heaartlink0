@@ -8,44 +8,38 @@
 
 ## Completed
 
-### Aug 16, 2026 — Growth & Monetization Features
-- **Anonymous Crush**: Users can secretly crush on someone. Target gets "Secret Crush!" notification. Mutual crush = instant reveal + notification to both. Reveal locked behind Premium.
-- **Who Viewed Profile**: Full viewer list with blurred names/photos for free users. Premium unlocks full details. Stats: total views + today views.
-- **Smart Re-engagement Notifications**: Personalized push to inactive users based on REAL data (view count, crush count, new nearby users). Runs every 6 hours.
-- **Crush Button on Discover**: Orange-red gradient button between Pass and Superlike.
-- **Crushes + Views Tabs**: Added to LikesYou page with full UI.
+### Aug 16, 2026 — Engagement & Match Quality Update (Phase 1)
+- **Chat Icebreakers**: 6 conversation starters shown when chat is empty. Tap fills composer (user edits before sending). Hides after first messages.
+- **Smarter Discovery**: Backend ranks profiles by shared interests, values, lifestyle, verification, online status, profile completeness, trust badge. No fake percentage shown.
+- **Profile Completeness Score**: /api/profile/{id}/completeness — 0-100% with weighted checks. Progress bar on Profile page with actionable suggestions.
+- **Enhanced Match Cards**: "Shared Interests" badge on Discover cards showing count of common interests.
+- **Crush Button on Discover**: Orange-red gradient between Pass and Superlike.
 
-### Aug 15-16, 2026 — Growth Features (Free)
-- WhatsApp Direct Share on Referral page
-- Profile Share Card page (/share-profile)
-- SEO City Landing Pages (15 cities: /dating/mumbai, /dating/delhi, etc.)
-- City links in Landing page footer
-- Share Profile button on Profile page
+### Aug 16, 2026 — Growth Features
+- Anonymous Crush system, Who Viewed Profile (premium paywall), Smart Re-engagement Notifications
+- WhatsApp Share, Profile Share Card, SEO City Pages (15 cities)
 
 ### Aug 15, 2026 — Admin & Refactoring
-- Admin Auth Middleware (temporarily disabled for CapacitorHttp compat)
-- server.py Refactoring: database.py, models/schemas.py, services/helpers.py
-- JWT_SECRET_KEY stabilized
+- Admin Auth Middleware (temporarily disabled), server.py refactoring, JWT_SECRET_KEY
 
-### Previous (July 2026)
-- Complete M3 UI/UX Redesign, Dark Mode, Safe Areas
-- Chat fixes, FCM notifications, Gender filtering
-- India-only registration, Mandatory Profile Photo
+### Previous — UI/UX & Safety
+- Complete M3 redesign, Dark Mode, Chat fixes, Gender notifications, India-only reg, Mandatory Photo
 
 ## Pending / Backlog
-### P1: Premium Subscription (Razorpay) — monetize Crush reveal + Viewer unlock
+### P0: Play With Match (Game System) — Phase 2
+### P1: Premium Subscription (Razorpay)
 ### P1: Re-enable admin auth middleware
+### P2: Analytics events, Game notifications
 ### P2: Continue server.py route extraction
-### P2: AI photo verification
 
-## Key API Endpoints (New)
-- POST /api/crush/{user_id}?target_user_id=X — Mark crush
-- GET /api/crushes/{user_id} — Get who crushed on you
-- GET /api/crushes/{user_id}/sent — Get your sent crushes
-- GET /api/profile-viewers/{user_id} — Who viewed profile (blurred for free)
-- Smart notifications: auto cron every 6 hours
+## Key API Endpoints
+- POST /api/crush/{user_id}?target_user_id=X
+- GET /api/crushes/{user_id}
+- GET /api/profile-viewers/{user_id}
+- GET /api/profile/{user_id}/completeness
+- GET /api/discover/{user_id} (now with smart ranking + shared_interests_count)
 
 ## Critical Notes
 - **Build**: Always `npx craco build`, NOT `npm run build`
 - **Admin Auth**: Middleware disabled for Android compat
-- **Premium Lock**: Crush reveal + Viewer unlock show "Coming Soon" / "Upgrade" buttons
+- **Discover ranking**: Verified + online + shared interests = top. No fake scores exposed.

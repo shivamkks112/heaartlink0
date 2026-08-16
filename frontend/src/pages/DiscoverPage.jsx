@@ -350,6 +350,11 @@ const DiscoverPage = ({ user }) => {
                 <p className="text-white/70 text-sm mt-2 line-clamp-2 leading-relaxed">{currentProfile.bio}</p>
               )}
               <div className="flex flex-wrap gap-1.5 mt-2.5">
+                {currentProfile.shared_interests_count > 0 && (
+                  <span className="bg-pink-500/25 backdrop-blur-md text-pink-200 text-[12px] font-bold px-3 py-1 rounded-lg border border-pink-400/30" data-testid="shared-interests-badge">
+                    {currentProfile.shared_interests_count} Shared Interest{currentProfile.shared_interests_count > 1 ? 's' : ''}
+                  </span>
+                )}
                 {currentProfile.relationship_intent && (
                   <span className="bg-white/15 backdrop-blur-md text-white text-[12px] font-medium px-3 py-1 rounded-lg border border-white/20">
                     {currentProfile.relationship_intent === 'serious' ? 'Serious' : currentProfile.relationship_intent === 'marriage' ? 'Marriage' : currentProfile.relationship_intent === 'casual' ? 'Casual' : 'Friends'}

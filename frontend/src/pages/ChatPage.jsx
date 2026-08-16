@@ -551,8 +551,32 @@ const ChatPage = ({ user }) => {
         data-testid="messages-container"
       >
         {messages.length === 0 ? (
-          <div className="text-center py-20">
-            <p style={{ color: 'var(--m3-on-surface-variant)' }}>Start the conversation!</p>
+          <div className="text-center py-8 px-4" data-testid="icebreakers-section">
+            <p style={{ color: 'var(--m3-on-surface-variant)' }} className="text-sm mb-5 font-medium">Start the conversation!</p>
+            <div className="space-y-2.5 max-w-xs mx-auto">
+              {[
+                "What's your dream travel destination? ✈️",
+                "Coffee or tea? ☕",
+                "What's your perfect weekend?",
+                "What's one thing that always makes you smile?",
+                "Beach or mountains?",
+                "What's the best show you've binged recently?",
+              ].map((icebreaker, i) => (
+                <button
+                  key={i}
+                  data-testid={`icebreaker-${i}`}
+                  onClick={() => setNewMessage(icebreaker)}
+                  className="w-full text-left px-4 py-3 rounded-2xl text-sm transition-all active:scale-[0.98]"
+                  style={{
+                    background: 'var(--m3-surface-container)',
+                    color: 'var(--m3-on-surface)',
+                    border: '1px solid var(--m3-outline-variant)',
+                  }}
+                >
+                  {icebreaker}
+                </button>
+              ))}
+            </div>
           </div>
         ) : (
           messages.map((msg, idx) => {

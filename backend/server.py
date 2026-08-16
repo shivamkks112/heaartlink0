@@ -2070,6 +2070,59 @@ async def get_user_stats(user_id: str):
         "profile_views": profile_views
     }
 
+@api_router.get("/profile/{user_id}/completeness")
+async def get_profile_completeness(user_id: str):
+    """Get profile completeness score and suggestions"""
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    checks = {
+        "profile_photo": bool(user.get("profile_picture")),
+        "bio": bool(user.get("bio") and len(user.get("bio", "")) > 10),
+        "interests": len(user.get("interests", [])) >= 3,
+        "location": bool(user.get("location")),
+        "relationship_intent": bool(user.get("relationship_intent")),
+        "values": len(user.get("values", [])) >= 1,
+        "lifestyle_tags": len(user.get("lifestyle_tags", [])) >= 1,
+        "about_me": bool(user.get("about_me") and len(user.get("about_me", "")) > 10),
+        "multiple_photos": len(user.get("photos", [])) >= 3,
+    }
+    
+    weights = {
+        "profile_photo": 20,
+        "bio": 15,
+        "interests": 15,
+        "location": 10,
+        "relationship_intent": 10,
+        "values": 8,
+        "lifestyle_tags": 7,
+        "about_me": 10,
+        "multiple_photos": 5,
+    }
+    
+    score = sum(weights[k] for k, v in checks.items() if v)
+    
+    suggestions = []
+    if not checks["bio"]:
+        suggestions.append({"field": "bio", "text": "Add a bio to tell others about yourself"})
+    if not checks["interests"]:
+        suggestions.append({"field": "interests", "text": "Add at least 3 interests for better matches"})
+    if not checks["relationship_intent"]:
+        suggestions.append({"field": "relationship_intent", "text": "Set your relationship preference"})
+    if not checks["multiple_photos"]:
+        suggestions.append({"field": "photos", "text": "Add more photos to get 3x more likes"})
+    if not checks["about_me"]:
+        suggestions.append({"field": "about_me", "text": "Write about yourself in About Me section"})
+    if not checks["values"]:
+        suggestions.append({"field": "values", "text": "Add your values for meaningful connections"})
+    
+    return {
+        "score": score,
+        "checks": checks,
+        "suggestions": suggestions[:3]
+    }
+
 @api_router.post("/profile/{user_id}/verify")
 async def request_verification(user_id: str):
     user = await db.users.find_one({"id": user_id})
@@ -2636,7 +2689,8 @@ async def discover_users(user_id: str, limit: int = 10, relationship_intent: str
         {
             "_id": 0, "id": 1, "gender": 1, "looking_for": 1,
             "blocked_users": 1, "blocked_device_ids": 1,
-            "gender_lock_enabled": 1, "show_to_gender": 1
+            "gender_lock_enabled": 1, "show_to_gender": 1,
+            "interests": 1, "values": 1, "lifestyle_tags": 1
         }
     )
     if not current_user:
@@ -2735,26 +2789,89 @@ async def discover_users(user_id: str, limit: int = 10, relationship_intent: str
                 continue
         
         filtered_users.append(u)
-        if len(filtered_users) >= limit:
+        if len(filtered_users) >= limit * 2:
             break
     
-    return [{
-        "id": u["id"], 
-        "name": u["name"], 
-        "age": u["age"], 
-        "bio": u.get("bio", ""), 
-        "photos": u.get("photos", []),
-        "interests": u.get("interests", []), 
-        "verified": u.get("verified", False),
-        "location": u.get("location", ""), 
-        "profile_picture": u.get("profile_picture"),
-        "is_online": u.get("is_online", False),
-        "last_active": u.get("last_active"),
-        "trust_badge_level": u.get("trust_badge_level", "low"),
-        "relationship_intent": u.get("relationship_intent", ""),
-        "values": u.get("values", []),
-        "lifestyle_tags": u.get("lifestyle_tags", [])
-    } for u in filtered_users]
+    # === SMART RANKING ===
+    current_interests = set(current_user.get("interests", []))
+    current_values = set(current_user.get("values", []))
+    current_lifestyle = set(current_user.get("lifestyle_tags", []))
+    
+    def rank_score(profile):
+        score = 0
+        # Shared interests (highest weight)
+        p_interests = set(profile.get("interests", []))
+        shared = len(current_interests & p_interests)
+        score += shared * 15
+        # Shared values
+        p_values = set(profile.get("values", []))
+        score += len(current_values & p_values) * 10
+        # Shared lifestyle
+        p_lifestyle = set(profile.get("lifestyle_tags", []))
+        score += len(current_lifestyle & p_lifestyle) * 8
+        # Verified profile bonus
+        if profile.get("verified"):
+            score += 20
+        # Online / recently active bonus
+        if profile.get("is_online"):
+            score += 25
+        elif profile.get("last_active"):
+            try:
+                la = datetime.fromisoformat(profile["last_active"].replace("Z", "+00:00"))
+                hours_ago = (datetime.now(timezone.utc) - la).total_seconds() / 3600
+                if hours_ago < 24:
+                    score += 15
+                elif hours_ago < 72:
+                    score += 5
+            except:
+                pass
+        # Profile completeness bonus
+        if profile.get("profile_picture"):
+            score += 10
+        if profile.get("bio"):
+            score += 5
+        if profile.get("relationship_intent"):
+            score += 5
+        # Trust badge
+        badge = profile.get("trust_badge_level", "low")
+        if badge == "high":
+            score += 15
+        elif badge == "medium":
+            score += 8
+        return score
+    
+    filtered_users.sort(key=rank_score, reverse=True)
+    ranked_users = filtered_users[:limit]
+    
+    # Build response with shared interest count
+    result = []
+    for u in ranked_users:
+        u_interests = set(u.get("interests", []))
+        shared_count = len(current_interests & u_interests)
+        shared_list = list(current_interests & u_interests)[:3]
+        
+        entry = {
+            "id": u["id"], 
+            "name": u["name"], 
+            "age": u["age"], 
+            "bio": u.get("bio", ""), 
+            "photos": u.get("photos", []),
+            "interests": u.get("interests", []), 
+            "verified": u.get("verified", False),
+            "location": u.get("location", ""), 
+            "profile_picture": u.get("profile_picture"),
+            "is_online": u.get("is_online", False),
+            "last_active": u.get("last_active"),
+            "trust_badge_level": u.get("trust_badge_level", "low"),
+            "relationship_intent": u.get("relationship_intent", ""),
+            "values": u.get("values", []),
+            "lifestyle_tags": u.get("lifestyle_tags", []),
+            "shared_interests_count": shared_count,
+            "shared_interests": shared_list,
+        }
+        result.append(entry)
+    
+    return result
 
 # ==================== LOCATION & NEARBY MATCHES ====================
 

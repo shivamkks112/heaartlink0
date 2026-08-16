@@ -46,14 +46,26 @@ const ProfilePage = ({ user, onUpdate }) => {
 
   // User Stats State
   const [userStats, setUserStats] = useState(null);
+  const [completeness, setCompleteness] = useState(null);
 
   useEffect(() => {
     if (user?.id) {
       fetchProfile();
       fetchUserStats();
+      fetchCompleteness();
     }
     // eslint-disable-next-line
   }, [user?.id]);
+
+  const fetchCompleteness = async () => {
+    if (!user?.id) return;
+    try {
+      const res = await axios.get(`${API}/profile/${user.id}/completeness`);
+      setCompleteness(res.data);
+    } catch (e) {
+      console.error('Failed to fetch completeness:', e);
+    }
+  };
 
   const fetchUserStats = async () => {
     if (!user?.id) return;
@@ -349,6 +361,40 @@ const ProfilePage = ({ user, onUpdate }) => {
               )}
             </div>
           </div>
+
+          {/* Profile Completeness */}
+          {completeness && completeness.score < 100 && (
+            <div className="px-6 py-5 border-b" style={{ background: 'var(--m3-surface-container-low)', borderColor: 'var(--m3-outline-variant)' }} data-testid="profile-completeness">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-bold flex items-center gap-2" style={{ color: 'var(--m3-on-surface)' }}>
+                  Profile Completeness
+                </h3>
+                <span className="text-lg font-bold" style={{ color: completeness.score >= 80 ? '#10B981' : completeness.score >= 50 ? '#F59E0B' : '#EF4444' }}>
+                  {completeness.score}%
+                </span>
+              </div>
+              <div className="w-full h-2.5 rounded-full bg-gray-200 overflow-hidden mb-3">
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: `${completeness.score}%`,
+                    background: completeness.score >= 80 ? 'linear-gradient(90deg, #10B981, #059669)' : completeness.score >= 50 ? 'linear-gradient(90deg, #F59E0B, #EAB308)' : 'linear-gradient(90deg, #EF4444, #F97316)',
+                  }}
+                />
+              </div>
+              {completeness.suggestions?.length > 0 && (
+                <div className="space-y-1.5">
+                  {completeness.suggestions.map((s, i) => (
+                    <p key={i} className="text-xs flex items-center gap-1.5" style={{ color: 'var(--m3-on-surface-variant)' }}>
+                      <span className="w-1.5 h-1.5 rounded-full bg-orange-400 flex-shrink-0" />
+                      {s.text}
+                    </p>
+                  ))}
+                </div>
+              )}
+              <p className="text-[10px] mt-2" style={{ color: 'var(--m3-on-surface-variant)' }}>Complete profile = better discovery visibility</p>
+            </div>
+          )}
 
           {/* Activity Stats Section */}
           {userStats && (
