@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import { BACKEND_URL, API, WS_URL } from '@/config/api';
+import { getCachedChatMessages, cacheChatMessages } from '@/utils/cacheManager';
 
 const ChatPage = ({ user }) => {
   const { matchId } = useParams();
@@ -53,6 +54,13 @@ const ChatPage = ({ user }) => {
         }
         if (!cancelled) setOtherUser(match.user);
 
+        // Show cached messages instantly while loading fresh
+        const cachedMsgs = getCachedChatMessages(matchId);
+        if (cachedMsgs && cachedMsgs.length > 0) {
+          setMessages(cachedMsgs);
+          setLoading(false);
+        }
+
         // Fetch messages + privacy in parallel
         const [msgRes, privRes] = await Promise.allSettled([
           axios.get(`${API}/messages/${matchId}?user_id=${user.id}&limit=100`),
@@ -61,7 +69,9 @@ const ChatPage = ({ user }) => {
 
         if (!cancelled) {
           if (msgRes.status === 'fulfilled') {
-            setMessages(msgRes.value.data || []);
+            const msgs = msgRes.value.data || [];
+            setMessages(msgs);
+            cacheChatMessages(matchId, msgs);
             setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'auto' }), 80);
             // Mark read (fire-and-forget)
             axios.post(`${API}/messages/${matchId}/mark-read/${user.id}`).catch(() => {});
@@ -98,11 +108,22 @@ const ChatPage = ({ user }) => {
   const sendTypingIndicator = async (typing) => {
     if (privacySettings.hide_typing_indicator) return;
     
+    // Try WebSocket first (instant), fall back to HTTP
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      try {
+        wsRef.current.send(JSON.stringify({
+          type: 'typing',
+          match_id: matchId,
+          user_id: user.id,
+          is_typing: typing
+        }));
+        return;
+      } catch (e) {}
+    }
+    // HTTP fallback
     try {
       await axios.post(`${API}/chat/${matchId}/typing?user_id=${user.id}&is_typing=${typing}`);
-    } catch (error) {
-      console.error('Failed to send typing indicator');
-    }
+    } catch (error) { /* silent */ }
   };
 
   const handleReaction = async (messageId, reaction) => {
@@ -257,7 +278,14 @@ const ChatPage = ({ user }) => {
             setOtherUser(prev => prev ? ({ ...prev, is_online: data.is_online, last_active: data.last_active }) : prev);
           }
         } else if (data.type === 'typing_indicator' && data.match_id === matchId) {
-          if (data.user_id !== user.id) setOtherUserTyping(data.is_typing);
+          if (data.user_id !== user.id) {
+            setOtherUserTyping(data.is_typing);
+            // Auto-hide after 4s if no stop event received
+            if (data.is_typing) {
+              if (window.__typingHideTimer) clearTimeout(window.__typingHideTimer);
+              window.__typingHideTimer = setTimeout(() => setOtherUserTyping(false), 4000);
+            }
+          }
         } else if (data.type === 'screenshot_alert' && data.match_id === matchId) {
           toast.warning(`${data.screenshot_by_name} took a screenshot!`, { duration: 5000 });
         } else if (data.type === 'system_warning') {

@@ -4173,6 +4173,19 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
             data = await websocket.receive_text()
             message_data = json.loads(data)
             
+            # Handle typing indicator via WS (fast path)
+            if message_data.get("type") == "typing":
+                match = await db.matches.find_one({"id": message_data.get("match_id")}, {"_id": 0, "user1_id": 1, "user2_id": 1})
+                if match:
+                    other_id = match["user2_id"] if user_id == match["user1_id"] else match["user1_id"]
+                    await manager.send_message(other_id, {
+                        "type": "typing_indicator",
+                        "match_id": message_data.get("match_id"),
+                        "user_id": user_id,
+                        "is_typing": message_data.get("is_typing", True)
+                    })
+                continue
+            
             # Save message
             message = Message(
                 match_id=message_data["match_id"],

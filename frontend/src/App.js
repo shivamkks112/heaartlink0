@@ -4,6 +4,7 @@ import '@/styles/material3.css';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { initSafeArea } from '@/utils/safeArea';
 import { useTheme } from '@/hooks/useTheme';
+import { API } from '@/config/api';
 import ErrorBoundary from '@/components/ErrorBoundary';
 
 // Critical pages - loaded immediately (lightweight)
@@ -178,6 +179,10 @@ function App() {
         // Connect WebSocket for real-time updates
         import('@/services/WebSocketService').then((mod) => {
           mod.default.connect(userData.id);
+        });
+        // Prefetch recent chats in background for instant open
+        import('@/utils/cacheManager').then(({ prefetchRecentChats }) => {
+          setTimeout(() => prefetchRecentChats(userData.id, API), 3000);
         });
       } catch (error) {
         console.error('Error parsing stored user:', error);

@@ -12,6 +12,7 @@ import { VerifiedBadge, OnlineStatus } from '@/components/badges/VerifiedBadge';
 import MatchAnimation from '@/components/MatchAnimation';
 
 import { BACKEND_URL, API } from '@/config/api';
+import { cacheDiscoverProfiles, getCachedDiscoverProfiles } from '@/utils/cacheManager';
 if (!BACKEND_URL) {
   console.error('REACT_APP_BACKEND_URL is not set!');
 }
@@ -41,11 +42,24 @@ const DiscoverPage = ({ user }) => {
 
   const fetchProfiles = async () => {
     try {
+      // Show cached profiles instantly while fetching fresh
+      const cached = getCachedDiscoverProfiles(user.id);
+      if (cached && cached.length > 0) {
+        setProfiles(cached);
+        setLoading(false);
+      }
       const response = await axios.get(`${API}/discover/${user.id}`);
       setProfiles(response.data);
+      cacheDiscoverProfiles(user.id, response.data);
       setLoading(false);
     } catch (error) {
-      toast.error('Failed to load profiles');
+      const cached = getCachedDiscoverProfiles(user.id);
+      if (cached && cached.length > 0) {
+        setProfiles(cached);
+        toast.info('Showing cached profiles (offline)');
+      } else {
+        toast.error('Failed to load profiles');
+      }
       setLoading(false);
     }
   };
@@ -271,6 +285,7 @@ const DiscoverPage = ({ user }) => {
                 alt={currentProfile.name}
                 className="w-full h-full object-cover"
                 loading="eager"
+                decoding="async"
                 draggable={false}
                 onError={() => setImgError(true)}
               />
