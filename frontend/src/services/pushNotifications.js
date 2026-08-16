@@ -150,18 +150,47 @@ async function registerTokenWithBackend(userId, token) {
 async function createNotificationChannel() {
   try {
     const { LocalNotifications } = await import('@capacitor/local-notifications');
+    
+    // Messages channel - warm chime
     await LocalNotifications.createChannel({
       id: 'heartlink_messages',
       name: 'HeartLink Messages',
-      description: 'Chat messages, matches, likes and alerts',
-      importance: 5, // MAX — heads-up popup
-      visibility: 1, // PUBLIC
-      sound: 'default',
+      description: 'Chat messages and conversations',
+      importance: 5,
+      visibility: 1,
+      sound: 'heartlink_message.wav',
       vibration: true,
       lights: true,
       lightColor: '#FF6B9D',
     });
-    console.log(TAG, 'Channel created: heartlink_messages');
+    
+    // Matches channel - exciting ascending chime
+    await LocalNotifications.createChannel({
+      id: 'heartlink_matches',
+      name: 'HeartLink Matches',
+      description: 'New matches and mutual crushes',
+      importance: 5,
+      visibility: 1,
+      sound: 'heartlink_match.wav',
+      vibration: true,
+      lights: true,
+      lightColor: '#FF6B9D',
+    });
+    
+    // Likes channel - soft chime
+    await LocalNotifications.createChannel({
+      id: 'heartlink_likes',
+      name: 'HeartLink Likes',
+      description: 'Likes, super likes and crushes',
+      importance: 4,
+      visibility: 1,
+      sound: 'heartlink_like.wav',
+      vibration: true,
+      lights: true,
+      lightColor: '#FF6B9D',
+    });
+    
+    console.log(TAG, 'Notification channels created with custom sounds');
   } catch (e) {
     console.log(TAG, 'Channel creation skipped:', e.message);
   }
@@ -172,18 +201,32 @@ async function createNotificationChannel() {
 async function showLocalNotification(notification) {
   try {
     const { LocalNotifications } = await import('@capacitor/local-notifications');
+    const data = notification.data || {};
+    
+    // Pick channel + sound based on notification type
+    let channelId = 'heartlink_messages';
+    let sound = 'heartlink_message.wav';
+    
+    if (data.type === 'match' || data.type === 'crush' && data.mutual) {
+      channelId = 'heartlink_matches';
+      sound = 'heartlink_match.wav';
+    } else if (data.type === 'like' || data.type === 'superlike' || data.type === 'crush') {
+      channelId = 'heartlink_likes';
+      sound = 'heartlink_like.wav';
+    }
+    
     await LocalNotifications.schedule({
       notifications: [{
         title: notification.title || 'HeartLink',
         body: notification.body || '',
         id: Math.floor(Math.random() * 100000),
         schedule: { at: new Date(Date.now() + 100) },
-        sound: 'default',
-        channelId: 'heartlink_messages',
-        extra: notification.data || {},
+        sound: sound,
+        channelId: channelId,
+        extra: data,
       }],
     });
-    console.log(TAG, 'Foreground notification shown locally');
+    console.log(TAG, `Foreground notification shown (channel: ${channelId})`);
   } catch (e) {
     console.log(TAG, 'Local notification fallback failed:', e.message);
   }

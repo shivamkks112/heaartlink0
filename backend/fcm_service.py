@@ -51,20 +51,31 @@ _init_firebase()
 
 # ─── Android Config ──────────────────────────────────────────────
 
-def _android_config() -> messaging.AndroidConfig:
-    """High-priority Android config with proper notification channel."""
+def _android_config(channel_id: str = 'heartlink_messages', sound: str = 'heartlink_message') -> messaging.AndroidConfig:
+    """High-priority Android config with custom notification channel and sound."""
     return messaging.AndroidConfig(
         priority='high',
         ttl=86400,
         notification=messaging.AndroidNotification(
-            channel_id='heartlink_messages',
+            channel_id=channel_id,
             priority='max',
-            default_sound=True,
+            sound=sound,
             default_vibrate_timings=True,
             visibility='public',
             color='#FF6B9D',
         ),
     )
+
+def _get_channel_for_type(data: Optional[Dict] = None) -> tuple:
+    """Return (channel_id, sound) based on notification type."""
+    if not data:
+        return 'heartlink_messages', 'heartlink_message'
+    ntype = data.get('type', '')
+    if ntype in ('match', 'mutual_crush'):
+        return 'heartlink_matches', 'heartlink_match'
+    elif ntype in ('like', 'superlike', 'crush'):
+        return 'heartlink_likes', 'heartlink_like'
+    return 'heartlink_messages', 'heartlink_message'
 
 
 # ─── Core Send Functions ─────────────────────────────────────────
@@ -77,11 +88,12 @@ def send_fcm(token: str, title: str, body: str, data: Optional[Dict] = None) -> 
         return {"success": False, "error": "No FCM token"}
     try:
         clean_data = {k: str(v) for k, v in (data or {}).items()}
+        channel_id, sound = _get_channel_for_type(data)
         msg = messaging.Message(
             notification=messaging.Notification(title=title, body=body),
             data=clean_data,
             token=token,
-            android=_android_config(),
+            android=_android_config(channel_id, sound),
         )
         resp = messaging.send(msg)
         logger.info(f"FCM OK → {resp}")
