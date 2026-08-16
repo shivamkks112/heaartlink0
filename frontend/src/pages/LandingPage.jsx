@@ -402,6 +402,17 @@ const LandingPage = () => {
               </ul>
             </div>
           </div>
+          {/* SEO City Links */}
+          <div className="border-t border-gray-800 pt-6 pb-4">
+            <h3 className="font-semibold text-sm text-gray-400 mb-3">Dating by City</h3>
+            <div className="flex flex-wrap gap-2">
+              {['Mumbai','Delhi','Bangalore','Hyderabad','Chennai','Pune','Kolkata','Jaipur','Lucknow','Ahmedabad','Noida','Gurgaon','Chandigarh','Indore'].map(c => (
+                <a key={c} href={`/dating/${c.toLowerCase()}`} className="text-xs text-gray-500 hover:text-pink-400 transition-colors">
+                  Dating in {c}
+                </a>
+              ))}
+            </div>
+          </div>
           <div className="border-t border-gray-800 pt-8 text-center">
             <p className="text-gray-400">
               © 2026 HeartLink India. Made with ❤️ in India for Indians.

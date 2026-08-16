@@ -611,6 +611,24 @@ const ProfilePage = ({ user, onUpdate }) => {
               <ChevronRight className="w-5 h-5 text-orange-500 group-hover:translate-x-1 transition-transform" />
             </button>
 
+            {/* Share Profile on WhatsApp */}
+            <button
+              onClick={() => navigate('/share-profile')}
+              className="w-full bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-4 flex items-center justify-between hover:shadow-md transition-all group"
+              data-testid="share-profile-btn"
+            >
+              <div className="flex items-center gap-3">
+                <div className="bg-[#25D366] p-2.5 rounded-xl">
+                  <Share2 className="w-5 h-5 text-white" />
+                </div>
+                <div className="text-left">
+                  <h4 className="font-bold text-gray-900">Share Profile</h4>
+                  <p className="text-sm text-gray-600">Share on WhatsApp & get more matches</p>
+                </div>
+              </div>
+              <ChevronRight className="w-5 h-5 text-green-500 group-hover:translate-x-1 transition-transform" />
+            </button>
+
             {/* Display Trust Badge */}
             {profile.trust_badge_level && (
               <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200">

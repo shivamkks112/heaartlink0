@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Share2, Copy, Users, Gift, Trophy, ChevronRight, Star, Check } from 'lucide-react';
+import { Share2, Copy, Users, Gift, Trophy, ChevronRight, Star, Check, MessageCircle, Phone } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
@@ -158,6 +158,23 @@ const ReferralPage = ({ user }) => {
           >
             <Share2 className="w-5 h-5" />
             Share with Friends
+          </Button>
+
+          {/* WhatsApp Direct Share */}
+          <Button
+            onClick={() => {
+              const msg = encodeURIComponent(
+                `🔥 HeartLink pe meri matches aa chuki hain! India ka safest dating app try karo.\n\n` +
+                `Mera code use karo: *${referralData?.referral_code}* — 2 FREE Superlikes milenge!\n\n` +
+                `👉 Download karo: https://play.google.com/store/apps/details?id=com.heartlink.app`
+              );
+              window.open(`https://wa.me/?text=${msg}`, '_blank');
+            }}
+            data-testid="whatsapp-share-btn"
+            className="w-full mt-2 bg-[#25D366] hover:bg-[#20BD5A] text-white rounded-xl py-3 font-semibold flex items-center justify-center gap-2"
+          >
+            <MessageCircle className="w-5 h-5" />
+            Share on WhatsApp
           </Button>
         </div>
 

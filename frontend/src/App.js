@@ -33,6 +33,8 @@ const ProfileEnhancementPage = lazy(() => import('@/pages/ProfileEnhancementPage
 const PremiumPage = lazy(() => import('@/pages/PremiumPage'));
 const NotificationsPage = lazy(() => import('@/pages/NotificationsPage'));
 const ReferralPage = lazy(() => import('@/pages/ReferralPage'));
+const ShareProfilePage = lazy(() => import('@/pages/ShareProfilePage'));
+const CityDatingPage = lazy(() => import('@/pages/CityDatingPage'));
 const DailyRewardModal = lazy(() => import('@/components/DailyRewardModal'));
 const InstallPrompt = lazy(() => import('@/components/InstallPrompt'));
 
@@ -257,6 +259,8 @@ function App() {
             <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
             <Route path="/terms" element={<TermsPage />} />
             <Route path="/data-deletion" element={<DataDeletionPage />} />
+            <Route path="/dating-in-:city" element={<CityDatingPage />} />
+            <Route path="/dating/:city" element={<CityDatingPage />} />
             <Route path="/admin" element={user && user.is_admin ? <AdminDashboard user={user} /> : <Navigate to="/" />} />
             
             {/* All protected routes: redirect to photo upload if profile incomplete */}
@@ -272,6 +276,7 @@ function App() {
             <Route path="/enhance-profile" element={user ? (user.profile_incomplete ? <Navigate to="/mandatory-photo" /> : <ProfileEnhancementPage user={user} onUpdate={handleLogin} />) : <Navigate to="/" />} />
             <Route path="/notifications" element={user ? (user.profile_incomplete ? <Navigate to="/mandatory-photo" /> : <NotificationsPage user={user} />) : <Navigate to="/" />} />
             <Route path="/referral" element={user ? (user.profile_incomplete ? <Navigate to="/mandatory-photo" /> : <ReferralPage user={user} />) : <Navigate to="/" />} />
+            <Route path="/share-profile" element={user ? (user.profile_incomplete ? <Navigate to="/mandatory-photo" /> : <ShareProfilePage user={user} />) : <Navigate to="/" />} />
             <Route path="/premium" element={<Navigate to="/discover" />} />
           </Routes>
           </Suspense>
