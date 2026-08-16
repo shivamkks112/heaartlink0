@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Heart, Sparkles, X, Check, User, Crown, Eye, Lock, Play } from 'lucide-react';
+import axios from 'axios';
 import Navbar from '@/components/Navbar';
 import SeeWhoLikedYouCard from '@/components/ads/SeeWhoLikedYouCard';
 import { useAds } from '@/context/AdContext';
@@ -16,6 +17,8 @@ const LikesYouPage = ({ user }) => {
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState(null);
   const [revealedProfiles, setRevealedProfiles] = useState([]);
+  const [crushes, setCrushes] = useState({ crushes: [], total: 0 });
+  const [viewers, setViewers] = useState({ viewers: [], total_views: 0, today_views: 0 });
   
   // Ad context
   const { isEligible } = useAds();
@@ -25,6 +28,8 @@ const LikesYouPage = ({ user }) => {
 
   useEffect(() => {
     fetchLikes();
+    fetchCrushes();
+    fetchViewers();
     // Load revealed profiles from localStorage
     const revealed = JSON.parse(localStorage.getItem('heartlink_revealed_likes') || '[]');
     setRevealedProfiles(revealed);
@@ -47,6 +52,24 @@ const LikesYouPage = ({ user }) => {
       console.error('Error fetching likes:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchCrushes = async () => {
+    try {
+      const res = await axios.get(`${API}/crushes/${user.id}`);
+      setCrushes(res.data);
+    } catch (e) {
+      console.error('Error fetching crushes:', e);
+    }
+  };
+
+  const fetchViewers = async () => {
+    try {
+      const res = await axios.get(`${API}/profile-viewers/${user.id}`);
+      setViewers(res.data);
+    } catch (e) {
+      console.error('Error fetching viewers:', e);
     }
   };
 
@@ -189,13 +212,154 @@ const LikesYouPage = ({ user }) => {
                 {likes.regular_likes.length}
               </span>
             </button>
+            
+            <button
+              onClick={() => setActiveTab('crushes')}
+              data-testid="crushes-tab"
+              className={`flex-1 py-3 px-4 rounded-2xl font-semibold text-sm transition-all duration-300 ${
+                activeTab === 'crushes'
+                  ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg shadow-orange-300'
+                  : 'bg-white/70 text-gray-600 hover:bg-white'
+              }`}
+            >
+              Crush
+              {crushes.total > 0 && <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-white/30">{crushes.total}</span>}
+            </button>
+            
+            <button
+              onClick={() => setActiveTab('viewers')}
+              data-testid="viewers-tab"
+              className={`flex-1 py-3 px-4 rounded-2xl font-semibold text-sm transition-all duration-300 ${
+                activeTab === 'viewers'
+                  ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg shadow-blue-300'
+                  : 'bg-white/70 text-gray-600 hover:bg-white'
+              }`}
+            >
+              <Eye className="inline w-4 h-4 mr-1" />
+              Views
+              {viewers.total_views > 0 && <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-white/30">{viewers.total_views}</span>}
+            </button>
           </div>
         </div>
       </div>
 
       {/* Content */}
       <div className="max-w-2xl mx-auto px-4 py-6">
-        {loading ? (
+        {/* Crushes Tab */}
+        {activeTab === 'crushes' ? (
+          <div className="space-y-4" data-testid="crushes-content">
+            {crushes.crushes.length === 0 ? (
+              <div className="text-center py-16">
+                <div className="w-24 h-24 mx-auto mb-4 bg-gradient-to-br from-orange-100 to-red-100 rounded-full flex items-center justify-center">
+                  <Heart className="w-12 h-12 text-orange-400" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-800 mb-2">No crushes yet</h3>
+                <p className="text-gray-600">Jab koi tumhe Crush karega, yahan dikhega!</p>
+              </div>
+            ) : (
+              crushes.crushes.map((crush) => (
+                <div key={crush.crush_id} className="bg-white rounded-2xl p-4 shadow-sm flex items-center gap-4" data-testid={`crush-card-${crush.crush_id}`}>
+                  <div className="relative w-16 h-16 rounded-full overflow-hidden bg-gradient-to-br from-orange-200 to-red-200 flex-shrink-0">
+                    {crush.is_mutual ? (
+                      <img src={crush.user.profile_picture} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        {crush.user.profile_picture ? (
+                          <img src={crush.user.profile_picture} alt="" className="w-full h-full object-cover" style={{ filter: 'blur(12px)' }} />
+                        ) : (
+                          <User className="w-8 h-8 text-orange-400" />
+                        )}
+                        {!crush.is_mutual && <Lock className="absolute bottom-0 right-0 w-5 h-5 text-white bg-orange-500 rounded-full p-0.5" />}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="font-bold text-gray-900">
+                        {crush.is_mutual ? crush.user.name : `${crush.user.name[0]}***`}
+                      </p>
+                      {crush.is_mutual && (
+                        <span className="px-2 py-0.5 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs rounded-full font-bold">Mutual!</span>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-500">
+                      {crush.is_mutual ? `${crush.user.age}, ${crush.user.location}` : 'Upgrade to Premium to reveal'}
+                    </p>
+                  </div>
+                  {!crush.is_mutual && (
+                    <button className="px-3 py-2 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-xl text-xs font-bold" data-testid="reveal-crush-btn">
+                      <Crown className="w-3 h-3 inline mr-1" /> Reveal
+                    </button>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        ) : activeTab === 'viewers' ? (
+          /* Viewers Tab */
+          <div className="space-y-4" data-testid="viewers-content">
+            {/* Stats */}
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div className="bg-white rounded-2xl p-4 text-center shadow-sm">
+                <p className="text-2xl font-bold text-blue-600">{viewers.total_views}</p>
+                <p className="text-xs text-gray-500">Total Views</p>
+              </div>
+              <div className="bg-white rounded-2xl p-4 text-center shadow-sm">
+                <p className="text-2xl font-bold text-green-600">{viewers.today_views}</p>
+                <p className="text-xs text-gray-500">Today</p>
+              </div>
+            </div>
+            {viewers.viewers.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="w-24 h-24 mx-auto mb-4 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center">
+                  <Eye className="w-12 h-12 text-blue-400" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-800 mb-2">No profile views yet</h3>
+                <p className="text-gray-600">Jaise hi koi tumhari profile dekhega, yahan dikhega!</p>
+              </div>
+            ) : (
+              viewers.viewers.map((v, i) => (
+                <div key={i} className="bg-white rounded-2xl p-4 shadow-sm flex items-center gap-4" data-testid={`viewer-card-${i}`}>
+                  <div className="relative w-14 h-14 rounded-full overflow-hidden bg-gradient-to-br from-blue-200 to-indigo-200 flex-shrink-0">
+                    {v.locked ? (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <User className="w-7 h-7 text-blue-400" />
+                        <Lock className="absolute bottom-0 right-0 w-4 h-4 text-white bg-blue-500 rounded-full p-0.5" />
+                      </div>
+                    ) : (
+                      v.user.profile_picture ? (
+                        <img src={v.user.profile_picture} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <User className="w-7 h-7 text-blue-400" />
+                        </div>
+                      )
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold text-gray-900">{v.user.name}{v.user.age ? `, ${v.user.age}` : ''}</p>
+                    <p className="text-xs text-gray-500">{v.user.location || ''}</p>
+                  </div>
+                  {v.locked && (
+                    <button className="px-3 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-xl text-xs font-bold" data-testid="unlock-viewer-btn">
+                      <Crown className="w-3 h-3 inline mr-1" /> Unlock
+                    </button>
+                  )}
+                </div>
+              ))
+            )}
+            {viewers.viewers.some(v => v.locked) && (
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-4 text-center">
+                <Crown className="w-6 h-6 text-blue-500 mx-auto mb-2" />
+                <p className="font-bold text-gray-900">Upgrade to Premium</p>
+                <p className="text-sm text-gray-600 mt-1">Dekho kisne tumhari profile dekhi — full names, photos & more!</p>
+                <button className="mt-3 px-6 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-xl font-bold text-sm" data-testid="premium-viewers-btn">
+                  Coming Soon
+                </button>
+              </div>
+            )}
+          </div>
+        ) : loading ? (
           <div className="flex justify-center items-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500"></div>
           </div>

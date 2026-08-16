@@ -138,6 +138,11 @@ async def create_indexes():
         await db.profile_views.create_index("viewed_user_id", background=True)
         await db.profile_views.create_index([("viewer_id", 1), ("viewed_user_id", 1)], background=True)
 
+        # Crushes indexes
+        await db.crushes.create_index("crusher_id", background=True)
+        await db.crushes.create_index("crushed_id", background=True)
+        await db.crushes.create_index([("crusher_id", 1), ("crushed_id", 1)], unique=True, background=True)
+
         logging.info("MongoDB indexes created successfully")
     except Exception as e:
         logging.error(f"Error creating indexes: {e}")

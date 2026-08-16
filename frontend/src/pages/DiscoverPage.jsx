@@ -79,6 +79,25 @@ const DiscoverPage = ({ user }) => {
   const handleAction = async (action) => {
     if (profiles.length === 0) return;
 
+    // Handle crush separately
+    if (action === 'crush') {
+      try {
+        const res = await axios.post(`${API}/crush/${user.id}?target_user_id=${profiles[currentIndex].id}`);
+        if (res.data.mutual) {
+          toast.success('Mutual Crush! Tum dono ne ek dusre ko crush kiya!');
+        } else {
+          toast.success('Secret Crush sent! Unhe pata chalega kisi ne crush kiya hai.');
+        }
+      } catch (err) {
+        if (err.response?.status === 400) {
+          toast.info('Already crushed!');
+        } else {
+          toast.error('Crush failed');
+        }
+      }
+      return;
+    }
+
     if (!user?.is_premium && !user?.isPremium && (action === 'like' || action === 'pass')) {
       const currentExtra = parseInt(localStorage.getItem('heartlink_extra_swipes') || '0');
       if (dailySwipeCount >= DAILY_SWIPE_LIMIT && currentExtra <= 0) {
@@ -362,6 +381,19 @@ const DiscoverPage = ({ user }) => {
                 }}
               >
                 <X className="w-6 h-6 text-[#D6336C]" strokeWidth={2.8} />
+              </button>
+              <button
+                data-testid="crush-btn"
+                onClick={() => handleAction('crush')}
+                className="rounded-full flex items-center justify-center active:scale-90 transition-all duration-200"
+                style={{
+                  width: 'var(--btn-sm, 44px)', height: 'var(--btn-sm, 44px)',
+                  background: 'linear-gradient(135deg, #F59E0B 0%, #EF4444 100%)',
+                  boxShadow: '0 4px 16px rgba(245,158,11,0.4), 0 0 0 1px rgba(255,255,255,0.15)',
+                }}
+                title="Secret Crush"
+              >
+                <Heart className="w-5 h-5 text-white" strokeWidth={2.5} />
               </button>
               <button
                 data-testid="superlike-btn"

@@ -532,6 +532,62 @@ async def _send_unread_message_reminders():
         logger.error(f"Unread message reminder error: {e}")
 
 
+async def _send_smart_reengagement_notifications():
+    """Smart re-engagement: personalized notifications based on real data"""
+    try:
+        now = datetime.now(timezone.utc)
+        cutoff_2day = (now - timedelta(days=2)).isoformat()
+        cutoff_7day = (now - timedelta(days=7)).isoformat()
+        
+        # Get inactive users (2-7 days)
+        inactive_users = await db.users.find({
+            "last_active": {"$lt": cutoff_2day, "$gt": cutoff_7day},
+            "fcm_token": {"$exists": True, "$ne": None},
+            "is_ai_profile": {"$ne": True}
+        }, {"_id": 0, "id": 1, "name": 1, "location": 1, "gender": 1}).to_list(200)
+        
+        for user in inactive_users:
+            uid = user["id"]
+            location = user.get("location", "your area")
+            
+            # Get real stats for this user
+            view_count = await db.profile_views.count_documents({
+                "viewed_user_id": uid,
+                "viewed_at": {"$gte": cutoff_2day}
+            })
+            crush_count = await db.crushes.count_documents({"crushed_id": uid})
+            new_users_nearby = await db.users.count_documents({
+                "location": {"$regex": location.split(",")[0] if location else "", "$options": "i"},
+                "created_at": {"$gte": cutoff_2day},
+                "is_ai_profile": {"$ne": True}
+            }) if location else 0
+            
+            # Pick the most compelling notification
+            if crush_count > 0:
+                title = "Secret Crush Alert!"
+                body = f"Kisi ne tumhe Crush mark kiya hai! Kholke dekho kaun hai."
+            elif view_count > 0:
+                title = f"{view_count} logon ne profile dekhi!"
+                body = f"Tumhari profile {view_count} logon ne dekhi. Wapas aao aur match karo!"
+            elif new_users_nearby > 0:
+                city = location.split(",")[0] if location else "your area"
+                title = f"{new_users_nearby} naye profiles!"
+                body = f"{city} mein {new_users_nearby} naye log aaye hain. Check karo!"
+            else:
+                title = "Naye matches tumhara wait kar rahe hain!"
+                body = "HeartLink pe bahut kuch naya hai. Aao dekho!"
+            
+            try:
+                await fcm_service.send_to_user(db, uid, title, body)
+            except:
+                pass
+        
+        if inactive_users:
+            logging.info(f"📬 Sent smart re-engagement to {len(inactive_users)} users")
+    except Exception as e:
+        logging.error(f"Smart re-engagement error: {e}")
+
+
 async def notification_scheduler():
     """Background task to send automated engagement notifications"""
     while True:
@@ -583,6 +639,9 @@ async def notification_scheduler():
                 
                 # Unread message reminders
                 await _send_unread_message_reminders()
+                
+                # === SMART RE-ENGAGEMENT NOTIFICATIONS ===
+                await _send_smart_reengagement_notifications()
         
         except Exception as e:
             logging.error(f"Notification scheduler error: {e}")
@@ -3109,6 +3168,157 @@ async def user_action(user_id: str, action: LikeAction):
         return {"action": "liked"}
     
     # Badge update runs after response via background task
+
+# ==================== ANONYMOUS CRUSH FEATURE ====================
+
+@api_router.post("/crush/{user_id}")
+async def mark_crush(user_id: str, target_user_id: str):
+    """Mark someone as anonymous crush"""
+    if user_id == target_user_id:
+        raise HTTPException(status_code=400, detail="Cannot crush yourself")
+    
+    # Check if already crushed
+    existing = await db.crushes.find_one({"crusher_id": user_id, "crushed_id": target_user_id})
+    if existing:
+        raise HTTPException(status_code=400, detail="Already marked as crush")
+    
+    crusher = await db.users.find_one({"id": user_id}, {"_id": 0, "name": 1, "gender": 1})
+    if not crusher:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Save crush
+    crush_doc = {
+        "id": str(uuid.uuid4()),
+        "crusher_id": user_id,
+        "crushed_id": target_user_id,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "revealed": False
+    }
+    await db.crushes.insert_one(crush_doc)
+    
+    # Check for mutual crush
+    mutual = await db.crushes.find_one({"crusher_id": target_user_id, "crushed_id": user_id})
+    if mutual:
+        # Mutual crush! Notify both
+        target = await db.users.find_one({"id": target_user_id}, {"_id": 0, "name": 1})
+        await create_in_app_notification(
+            user_id, "Mutual Crush!", f"You and {target['name'] if target else 'someone'} have a mutual crush!",
+            "crush", {"action": "open_matches", "route": "/matches", "mutual": True}
+        )
+        await create_in_app_notification(
+            target_user_id, "Mutual Crush!", f"You and {crusher['name']} have a mutual crush!",
+            "crush", {"action": "open_matches", "route": "/matches", "mutual": True}
+        )
+        # Send push
+        try:
+            await fcm_service.send_to_user(db, target_user_id, "Mutual Crush!", f"You and {crusher['name']} both crushed on each other!")
+            await fcm_service.send_to_user(db, user_id, "Mutual Crush!", f"You and {target['name'] if target else 'someone'} both crushed on each other!")
+        except:
+            pass
+        return {"action": "mutual_crush", "mutual": True}
+    
+    # Send anonymous notification to crushed user
+    await create_in_app_notification(
+        target_user_id, "Secret Crush!", "Someone has a crush on you! Upgrade to Premium to reveal who.",
+        "crush", {"action": "open_crushes", "route": "/likes", "anonymous": True}
+    )
+    try:
+        await fcm_service.send_to_user(db, target_user_id, "Secret Crush!", "Someone has a crush on you! Open HeartLink to find out.")
+    except:
+        pass
+    
+    return {"action": "crush_sent", "mutual": False}
+
+@api_router.get("/crushes/{user_id}")
+async def get_crushes(user_id: str):
+    """Get users who crushed on you"""
+    crushes = await db.crushes.find({"crushed_id": user_id}).sort("created_at", -1).limit(50).to_list(None)
+    
+    result = []
+    for c in crushes:
+        crusher = await db.users.find_one(
+            {"id": c["crusher_id"]},
+            {"_id": 0, "id": 1, "name": 1, "age": 1, "profile_picture": 1, "location": 1}
+        )
+        if crusher:
+            result.append({
+                "crush_id": c["id"],
+                "user": crusher,
+                "created_at": c["created_at"],
+                "revealed": c.get("revealed", False),
+                "is_premium_locked": not c.get("revealed", False)
+            })
+    
+    # Check mutual crushes
+    my_crushes = await db.crushes.find({"crusher_id": user_id}).to_list(None)
+    my_crush_ids = {c["crushed_id"] for c in my_crushes}
+    
+    for r in result:
+        r["is_mutual"] = r["user"]["id"] in my_crush_ids
+    
+    total = await db.crushes.count_documents({"crushed_id": user_id})
+    return {"crushes": result, "total": total}
+
+@api_router.get("/crushes/{user_id}/sent")
+async def get_sent_crushes(user_id: str):
+    """Get users you crushed on"""
+    crushes = await db.crushes.find({"crusher_id": user_id}).sort("created_at", -1).to_list(None)
+    crush_ids = [c["crushed_id"] for c in crushes]
+    return {"sent_crush_ids": crush_ids, "total": len(crush_ids)}
+
+# ==================== WHO VIEWED PROFILE (ENHANCED) ====================
+
+@api_router.get("/profile-viewers/{user_id}")
+async def get_profile_viewers_enhanced(user_id: str, is_premium: bool = False):
+    """Get who viewed your profile - blurred for free, full for premium"""
+    views = await db.profile_views.find(
+        {"viewed_user_id": user_id}
+    ).sort("viewed_at", -1).limit(50).to_list(None)
+    
+    total_views = await db.profile_views.count_documents({"viewed_user_id": user_id})
+    today_views = await db.profile_views.count_documents({
+        "viewed_user_id": user_id,
+        "viewed_at": {"$gte": (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()}
+    })
+    
+    viewers = []
+    for v in views:
+        viewer = await db.users.find_one(
+            {"id": v.get("viewer_id")},
+            {"_id": 0, "id": 1, "name": 1, "age": 1, "profile_picture": 1, "location": 1, "gender": 1}
+        )
+        if viewer:
+            # Check if user is premium
+            user = await db.users.find_one({"id": user_id}, {"_id": 0, "is_premium": 1})
+            is_user_premium = user.get("is_premium", False) if user else False
+            
+            if is_user_premium or is_premium:
+                viewers.append({
+                    "user": viewer,
+                    "viewed_at": v.get("viewed_at"),
+                    "locked": False
+                })
+            else:
+                # Blur for free users - show only first letter and age
+                viewers.append({
+                    "user": {
+                        "id": viewer["id"],
+                        "name": viewer["name"][0] + "***",
+                        "age": viewer.get("age"),
+                        "profile_picture": None,
+                        "location": viewer.get("location", "").split(",")[0] if viewer.get("location") else "",
+                        "gender": viewer.get("gender")
+                    },
+                    "viewed_at": v.get("viewed_at"),
+                    "locked": True
+                })
+    
+    return {
+        "viewers": viewers,
+        "total_views": total_views,
+        "today_views": today_views,
+        "is_premium": is_premium
+    }
 
 # Matches Routes
 @api_router.get("/matches/{user_id}")
