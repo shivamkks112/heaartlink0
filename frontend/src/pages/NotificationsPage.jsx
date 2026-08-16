@@ -147,7 +147,18 @@ const NotificationsPage = ({ user }) => {
         if (notification.data?.viewer_id) {
           navigate(`/profile/${notification.data.viewer_id}`);
         } else {
-          navigate('/profile-viewers');
+          navigate('/likes');
+        }
+        break;
+      case 'crush':
+        navigate('/likes');
+        break;
+      case 'game':
+      case 'game_result':
+        if (notification.data?.match_id) {
+          navigate(`/chat/${notification.data.match_id}`);
+        } else {
+          navigate('/matches');
         }
         break;
       case 'verification':

@@ -58,15 +58,16 @@ function NavigationHelper() {
   const location = useLocation();
   
   useEffect(() => {
-    // Expose navigation function to window for native app
+    // Expose navigation function to window for native app AND push notifications
     window.__HEARTLINK_NAVIGATE__ = (path) => {
       if (path && path !== location.pathname) {
         console.log('[HeartLink] Navigating to:', path);
         navigate(path);
-        // Clear pending nav after successful navigation
         localStorage.removeItem('heartlink_pending_nav');
       }
     };
+    // Also expose as __heartlink_navigate for pushNotifications.js
+    window.__heartlink_navigate = window.__HEARTLINK_NAVIGATE__;
     
     // Check for pending navigation from notification click
     const checkPendingNavigation = () => {
@@ -129,7 +130,9 @@ function PendingNavigationHandler({ user }) {
 // Loading spinner for lazy components
 const PageLoader = () => (
   <div className="flex items-center justify-center min-h-screen" style={{ backgroundColor: 'var(--m3-surface-container-low)' }}>
-    <div className="w-8 h-8 m3-skeleton rounded-full"></div>
+    <div className="flex flex-col items-center gap-3">
+      <div className="w-10 h-10 rounded-full border-3 border-pink-500 border-t-transparent animate-spin"></div>
+    </div>
   </div>
 );
 

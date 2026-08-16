@@ -195,36 +195,67 @@ function navigateToScreen(data) {
   if (!data) return;
   console.log(TAG, 'Navigating for data:', JSON.stringify(data));
 
+  let route = null;
+
+  // Direct route from notification data
   if (data.route) {
-    window.location.href = data.route;
-    return;
+    route = data.route;
+  } else {
+    // Determine route from notification type
+    switch (data.type) {
+      case 'message':
+        route = data.match_id ? `/chat/${data.match_id}` : '/matches';
+        break;
+      case 'match':
+        route = data.match_id ? `/chat/${data.match_id}` : '/matches';
+        break;
+      case 'like':
+      case 'superlike':
+        route = '/likes';
+        break;
+      case 'crush':
+        route = '/likes';
+        break;
+      case 'game':
+      case 'game_result':
+        route = data.match_id ? `/chat/${data.match_id}` : '/matches';
+        break;
+      case 'profile_view':
+        route = data.viewer_id ? `/profile/${data.viewer_id}` : '/likes';
+        break;
+      case 'verification':
+      case 'photo_approved':
+      case 'photo_rejected':
+        route = '/profile';
+        break;
+      case 'online_status':
+      case 'unread_reminder':
+        route = '/matches';
+        break;
+      default:
+        route = '/discover';
+        break;
+    }
   }
 
-  switch (data.type) {
-    case 'message':
-      window.location.href = data.match_id ? `/chat/${data.match_id}` : '/matches';
-      break;
-    case 'match':
-      window.location.href = data.match_id ? `/chat/${data.match_id}` : '/matches';
-      break;
-    case 'like':
-    case 'superlike':
-      window.location.href = '/likes';
-      break;
-    case 'profile_view':
-      window.location.href = data.viewer_id ? `/profile/${data.viewer_id}` : '/profile-viewers';
-      break;
-    case 'verification':
-    case 'photo_approved':
-    case 'photo_rejected':
-      window.location.href = '/profile';
-      break;
-    case 'online_status':
-    case 'unread_reminder':
-      window.location.href = '/matches';
-      break;
-    default:
-      window.location.href = '/discover';
-      break;
+  if (route) {
+    // Use localStorage pending nav for SPA-friendly instant navigation
+    // App.js picks this up and uses React Router (no full reload)
+    localStorage.setItem('heartlink_pending_nav', route);
+    
+    // If app is already loaded, try React Router navigation
+    if (window.__heartlink_navigate) {
+      window.__heartlink_navigate(route);
+      localStorage.removeItem('heartlink_pending_nav');
+    } else {
+      // App not yet loaded (cold start) — pending nav will be picked up on load
+      // Only use full reload as last resort if SPA nav fails after 500ms
+      setTimeout(() => {
+        const stillPending = localStorage.getItem('heartlink_pending_nav');
+        if (stillPending === route) {
+          window.location.href = route;
+        }
+      }, 500);
+    }
   }
 }
