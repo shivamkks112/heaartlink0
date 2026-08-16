@@ -35,6 +35,7 @@ const NotificationsPage = lazy(() => import('@/pages/NotificationsPage'));
 const ReferralPage = lazy(() => import('@/pages/ReferralPage'));
 const ShareProfilePage = lazy(() => import('@/pages/ShareProfilePage'));
 const CityDatingPage = lazy(() => import('@/pages/CityDatingPage'));
+const MatchShareCard = lazy(() => import('@/pages/MatchShareCard'));
 const DailyRewardModal = lazy(() => import('@/components/DailyRewardModal'));
 const InstallPrompt = lazy(() => import('@/components/InstallPrompt'));
 
@@ -277,6 +278,7 @@ function App() {
             <Route path="/notifications" element={user ? (user.profile_incomplete ? <Navigate to="/mandatory-photo" /> : <NotificationsPage user={user} />) : <Navigate to="/" />} />
             <Route path="/referral" element={user ? (user.profile_incomplete ? <Navigate to="/mandatory-photo" /> : <ReferralPage user={user} />) : <Navigate to="/" />} />
             <Route path="/share-profile" element={user ? (user.profile_incomplete ? <Navigate to="/mandatory-photo" /> : <ShareProfilePage user={user} />) : <Navigate to="/" />} />
+            <Route path="/share-match" element={user ? (user.profile_incomplete ? <Navigate to="/mandatory-photo" /> : <MatchShareCard user={user} />) : <Navigate to="/" />} />
             <Route path="/premium" element={<Navigate to="/discover" />} />
           </Routes>
           </Suspense>

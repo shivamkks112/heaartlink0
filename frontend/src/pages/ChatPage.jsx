@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Send, ArrowLeft, Shield, Flag, BellOff, Bell, MoreVertical, Trash2, AlertTriangle, Camera, Clock, Check, CheckCheck, Heart as HeartIcon, SmilePlus } from 'lucide-react';
+import { Send, ArrowLeft, Shield, Flag, BellOff, Bell, MoreVertical, Trash2, AlertTriangle, Camera, Clock, Check, CheckCheck, Heart as HeartIcon, SmilePlus, Gamepad2 } from 'lucide-react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
+import PlayWithMatch, { GameInviteBubble } from '@/components/PlayWithMatch';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,6 +29,7 @@ const ChatPage = ({ user }) => {
   const [isMuted, setIsMuted] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [otherUserTyping, setOtherUserTyping] = useState(false);
+  const [showGameMenu, setShowGameMenu] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(null);
   const [privacySettings, setPrivacySettings] = useState({});
   const messagesEndRef = useRef(null);
@@ -598,6 +600,20 @@ const ChatPage = ({ user }) => {
                       {msg.content}
                     </p>
                   </div>
+                ) : msg.message_type === 'game_invite' ? (
+                  /* Game Invite Messages */
+                  <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
+                    <GameInviteBubble
+                      gameId={msg.content?.match(/__GAME_INVITE__(.+?)__/)?.[1] || ''}
+                      gameType={msg.content?.match(/__GAME_INVITE__.+?__(.+?)__/)?.[1] || 'match_quiz'}
+                      isOwn={isOwn}
+                      userId={user.id}
+                      otherUserName={otherUser?.name || 'Match'}
+                      onAccept={(gId, questions) => {
+                        setShowGameMenu(true);
+                      }}
+                    />
+                  </div>
                 ) : (
                   /* Regular Messages */
                   <div className={`flex items-end gap-1.5 ${isOwn ? 'flex-row-reverse' : ''}`} style={{ maxWidth: '80%' }}>
@@ -751,9 +767,31 @@ const ChatPage = ({ user }) => {
         </div>
       )}
 
+      {/* Game Overlay */}
+      {showGameMenu && (
+        <div className="absolute inset-0 z-[60] bg-black/40 flex items-center justify-center p-4" data-testid="game-overlay">
+          <PlayWithMatch
+            matchId={matchId}
+            userId={user.id}
+            otherUserName={otherUser?.name || 'Match'}
+            onClose={() => setShowGameMenu(false)}
+          />
+        </div>
+      )}
+
       {/* Input area - flex-shrink-0 stays at bottom */}
       <div className="flex-shrink-0 z-50" style={{ paddingBottom: 'max(var(--safe-bottom, 8px), env(safe-area-inset-bottom, 0px), 8px)', backgroundColor: surfaceLowest, borderTop: '1px solid var(--m3-outline-variant)' }}>
         <form onSubmit={sendMessage} className="flex items-center gap-2 px-3 py-2.5">
+          <button
+            type="button"
+            onClick={() => setShowGameMenu(true)}
+            className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 active:scale-90 transition-transform"
+            style={{ background: 'linear-gradient(135deg, #8B5CF6, #6366F1)' }}
+            data-testid="play-together-btn"
+            title="Play Together"
+          >
+            <Gamepad2 className="w-5 h-5 text-white" />
+          </button>
           <Input
             data-testid="message-input"
             type="text"

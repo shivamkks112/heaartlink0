@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Heart, MessageCircle, Sparkles, Users, Zap, Mail, Shield, AlertTriangle, X, CheckCircle } from 'lucide-react';
+import { Heart, MessageCircle, Sparkles, Users, Zap, Mail, Shield, AlertTriangle, X, CheckCircle, Share2 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
@@ -531,15 +531,26 @@ const MatchesPage = ({ user }) => {
                         </p>
                       )}
 
-                      <button
-                        data-testid="chat-btn"
-                        onClick={() => handleChatClick(match.match_id)}
-                        className="w-full text-white py-2.5 rounded-full font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
-                        style={{ background: 'linear-gradient(135deg, #D6336C 0%, #E8590C 100%)', boxShadow: '0 2px 8px rgba(214,51,108,0.3)' }}
-                      >
-                        <MessageCircle className="w-4 h-4" />
-                        Chat
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          data-testid="chat-btn"
+                          onClick={() => handleChatClick(match.match_id)}
+                          className="flex-1 text-white py-2.5 rounded-full font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
+                          style={{ background: 'linear-gradient(135deg, #D6336C 0%, #E8590C 100%)', boxShadow: '0 2px 8px rgba(214,51,108,0.3)' }}
+                        >
+                          <MessageCircle className="w-4 h-4" />
+                          Chat
+                        </button>
+                        <button
+                          data-testid="share-match-btn"
+                          onClick={() => navigate('/share-match', { state: { matchData: match.user } })}
+                          className="w-10 h-10 rounded-full flex items-center justify-center active:scale-90 transition-transform"
+                          style={{ background: 'linear-gradient(135deg, #8B5CF6, #EC4899)' }}
+                          title="Share Match"
+                        >
+                          <Share2 className="w-4 h-4 text-white" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}

@@ -2764,7 +2764,8 @@ async def discover_users(user_id: str, limit: int = 10, relationship_intent: str
         "profile_picture": 1, "is_online": 1, "last_active": 1,
         "trust_badge_level": 1, "relationship_intent": 1,
         "values": 1, "lifestyle_tags": 1,
-        "gender_lock_enabled": 1, "show_to_gender": 1, "hide_profile_from_gender": 1
+        "gender_lock_enabled": 1, "show_to_gender": 1, "hide_profile_from_gender": 1,
+        "boost_active": 1, "boost_end": 1
     }
     
     users = await db.users.find(query, discover_projection).limit(limit * 3).to_list(None)
@@ -2799,6 +2800,14 @@ async def discover_users(user_id: str, limit: int = 10, relationship_intent: str
     
     def rank_score(profile):
         score = 0
+        # BOOSTED profile gets massive priority
+        if profile.get("boost_active"):
+            try:
+                end = datetime.fromisoformat(profile.get("boost_end", "").replace("Z", "+00:00"))
+                if datetime.now(timezone.utc) < end:
+                    score += 500
+            except:
+                pass
         # Shared interests (highest weight)
         p_interests = set(profile.get("interests", []))
         shared = len(current_interests & p_interests)
@@ -7226,6 +7235,262 @@ async def update_feature_flags(data: dict):
     
     flags = await db.app_settings.find_one({"type": "feature_flags"}, {"_id": 0})
     return {k: v for k, v in flags.items() if k != "type"}
+
+
+# ==========================================
+# PLAY WITH MATCH — GAME SYSTEM
+# ==========================================
+
+MATCH_QUIZ_QUESTIONS = [
+    {"id": "q1", "question": "What's your idea of a perfect date?", "options": ["Candlelight dinner", "Movie night", "Adventure trip", "Cooking together"]},
+    {"id": "q2", "question": "What's your love language?", "options": ["Words of affirmation", "Quality time", "Physical touch", "Acts of service"]},
+    {"id": "q3", "question": "How do you handle disagreements?", "options": ["Talk it out calmly", "Take space first", "Humor & lighten up", "Compromise quickly"]},
+    {"id": "q4", "question": "What matters most in a partner?", "options": ["Honesty", "Sense of humor", "Ambition", "Kindness"]},
+    {"id": "q5", "question": "Ideal weekend together?", "options": ["Explore a new city", "Binge-watch shows", "Outdoor adventure", "Stay in & cook"]},
+]
+
+COMPATIBILITY_CHALLENGE_QUESTIONS = [
+    {"id": "c1", "question": "Morning person or night owl?", "options": ["Early bird", "Night owl", "Depends on mood", "Both!"]},
+    {"id": "c2", "question": "Travel style?", "options": ["Backpacking", "Luxury resort", "Road trips", "Spontaneous"]},
+    {"id": "c3", "question": "Favorite cuisine?", "options": ["Indian", "Italian", "Chinese", "Street food"]},
+    {"id": "c4", "question": "How do you relax?", "options": ["Music & chill", "Gym & fitness", "Reading", "Gaming"]},
+    {"id": "c5", "question": "What's your dream?", "options": ["Travel the world", "Build a business", "Happy family", "Creative career"]},
+]
+
+@api_router.post("/game/create")
+async def create_game_session(match_id: str, game_type: str, sender_id: str):
+    """Create a game invitation"""
+    # Validate match
+    match = await db.matches.find_one({"id": match_id, "matched": True})
+    if not match:
+        raise HTTPException(status_code=404, detail="Match not found")
+    
+    # Verify sender is part of the match
+    if sender_id not in [match["user1_id"], match["user2_id"]]:
+        raise HTTPException(status_code=403, detail="Not part of this match")
+    
+    receiver_id = match["user2_id"] if sender_id == match["user1_id"] else match["user1_id"]
+    
+    # Prevent duplicate active sessions
+    existing = await db.game_sessions.find_one({
+        "match_id": match_id,
+        "status": {"$in": ["pending", "active"]},
+        "game_type": game_type
+    })
+    if existing:
+        raise HTTPException(status_code=400, detail="Game already in progress")
+    
+    questions = MATCH_QUIZ_QUESTIONS if game_type == "match_quiz" else COMPATIBILITY_CHALLENGE_QUESTIONS
+    
+    session = {
+        "id": str(uuid.uuid4()),
+        "match_id": match_id,
+        "game_type": game_type,
+        "sender_id": sender_id,
+        "receiver_id": receiver_id,
+        "status": "pending",  # pending, active, completed, declined
+        "questions": questions,
+        "answers": {},  # {user_id: {q1: "option", q2: "option"...}}
+        "score": None,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.game_sessions.insert_one(session)
+    
+    # Send game invite as chat message
+    invite_msg = {
+        "id": str(uuid.uuid4()),
+        "match_id": match_id,
+        "sender_id": sender_id,
+        "receiver_id": receiver_id,
+        "content": f"__GAME_INVITE__{session['id']}__{game_type}__",
+        "message_type": "game_invite",
+        "read": False,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.messages.insert_one(invite_msg)
+    
+    # Push notification
+    sender = await db.users.find_one({"id": sender_id}, {"_id": 0, "name": 1})
+    game_label = "Match Quiz" if game_type == "match_quiz" else "Compatibility Challenge"
+    await create_in_app_notification(
+        receiver_id, "Game Invitation!",
+        f"{sender['name'] if sender else 'Someone'} invited you to {game_label}!",
+        "game", {"action": "open_chat", "match_id": match_id, "game_id": session["id"]}
+    )
+    try:
+        await fcm_service.send_to_user(db, receiver_id, "Game Invitation!", f"{sender['name'] if sender else 'Someone'} wants to play {game_label}!")
+    except:
+        pass
+    
+    return {"game_id": session["id"], "status": "pending", "message": invite_msg}
+
+@api_router.post("/game/{game_id}/respond")
+async def respond_to_game(game_id: str, user_id: str, action: str):
+    """Accept or decline a game invitation"""
+    session = await db.game_sessions.find_one({"id": game_id})
+    if not session:
+        raise HTTPException(status_code=404, detail="Game not found")
+    
+    if user_id != session["receiver_id"]:
+        raise HTTPException(status_code=403, detail="Only the invited user can respond")
+    
+    if session["status"] != "pending":
+        raise HTTPException(status_code=400, detail="Game already responded to")
+    
+    if action == "accept":
+        await db.game_sessions.update_one({"id": game_id}, {"$set": {"status": "active"}})
+        return {"status": "active", "questions": session["questions"]}
+    else:
+        await db.game_sessions.update_one({"id": game_id}, {"$set": {"status": "declined"}})
+        return {"status": "declined"}
+
+@api_router.post("/game/{game_id}/answer")
+async def submit_game_answers(game_id: str, user_id: str, answers: dict):
+    """Submit answers for a game session"""
+    session = await db.game_sessions.find_one({"id": game_id})
+    if not session:
+        raise HTTPException(status_code=404, detail="Game not found")
+    
+    if session["status"] not in ["active", "pending"]:
+        raise HTTPException(status_code=400, detail="Game not active")
+    
+    if user_id not in [session["sender_id"], session["receiver_id"]]:
+        raise HTTPException(status_code=403, detail="Not a participant")
+    
+    # Prevent duplicate submissions
+    existing_answers = session.get("answers", {})
+    if user_id in existing_answers:
+        raise HTTPException(status_code=400, detail="Already submitted answers")
+    
+    existing_answers[user_id] = answers
+    update = {"$set": {f"answers.{user_id}": answers, "status": "active"}}
+    
+    # Check if both answered
+    other_id = session["receiver_id"] if user_id == session["sender_id"] else session["sender_id"]
+    if other_id in existing_answers:
+        # Calculate score
+        matching = 0
+        total = len(session["questions"])
+        for q in session["questions"]:
+            qid = q["id"]
+            if existing_answers.get(other_id, {}).get(qid) == answers.get(qid):
+                matching += 1
+        
+        score = int((matching / total) * 100) if total > 0 else 0
+        
+        # Fun messages
+        if score >= 80:
+            msg = "You two have an amazing vibe!"
+        elif score >= 60:
+            msg = "Great compatibility! You think alike."
+        elif score >= 40:
+            msg = "Interesting mix! Opposites attract."
+        else:
+            msg = "Different perspectives make great conversations!"
+        
+        update["$set"]["status"] = "completed"
+        update["$set"]["score"] = score
+        update["$set"]["result_message"] = msg
+        update["$set"]["completed_at"] = datetime.now(timezone.utc).isoformat()
+        
+        # Notify both
+        for uid in [session["sender_id"], session["receiver_id"]]:
+            await create_in_app_notification(
+                uid, "Game Complete!", f"You scored {score}% compatibility! {msg}",
+                "game_result", {"match_id": session["match_id"], "game_id": game_id, "score": score}
+            )
+            try:
+                await fcm_service.send_to_user(db, uid, "Game Complete!", f"{score}% compatibility! {msg}")
+            except:
+                pass
+    
+    await db.game_sessions.update_one({"id": game_id}, update)
+    
+    result = await db.game_sessions.find_one({"id": game_id}, {"_id": 0})
+    result.pop("_id", None)
+    return result
+
+@api_router.get("/game/{game_id}")
+async def get_game_session(game_id: str):
+    """Get game session details"""
+    session = await db.game_sessions.find_one({"id": game_id}, {"_id": 0})
+    if not session:
+        raise HTTPException(status_code=404, detail="Game not found")
+    return session
+
+@api_router.get("/game/match/{match_id}")
+async def get_match_games(match_id: str):
+    """Get all games for a match"""
+    games = await db.game_sessions.find(
+        {"match_id": match_id},
+        {"_id": 0}
+    ).sort("created_at", -1).limit(10).to_list(None)
+    return games
+
+# ==========================================
+# PROFILE BOOST
+# ==========================================
+
+@api_router.post("/boost/{user_id}")
+async def activate_boost(user_id: str):
+    """Activate a 30-minute profile boost (1 free per day)"""
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "id": 1, "last_boost": 1, "name": 1})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Check last boost (1 free per day)
+    last_boost = user.get("last_boost")
+    if last_boost:
+        try:
+            lb = datetime.fromisoformat(last_boost.replace("Z", "+00:00"))
+            if (datetime.now(timezone.utc) - lb).total_seconds() < 86400:
+                raise HTTPException(status_code=429, detail="Daily boost already used. Try again tomorrow or upgrade to Premium.")
+        except (ValueError, TypeError):
+            pass
+    
+    boost_end = (datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat()
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {
+            "boost_active": True,
+            "boost_end": boost_end,
+            "last_boost": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    invalidate_user_cache(user_id)
+    
+    return {"message": "Boost activated! Your profile will appear first for 30 minutes.", "boost_end": boost_end}
+
+@api_router.get("/boost/{user_id}/status")
+async def get_boost_status(user_id: str):
+    """Check if user's boost is active"""
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "boost_active": 1, "boost_end": 1, "last_boost": 1})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    is_active = False
+    remaining = 0
+    can_boost = True
+    
+    if user.get("boost_active") and user.get("boost_end"):
+        try:
+            end = datetime.fromisoformat(user["boost_end"].replace("Z", "+00:00"))
+            remaining = max(0, int((end - datetime.now(timezone.utc)).total_seconds()))
+            is_active = remaining > 0
+            if not is_active:
+                await db.users.update_one({"id": user_id}, {"$set": {"boost_active": False}})
+        except:
+            pass
+    
+    if user.get("last_boost"):
+        try:
+            lb = datetime.fromisoformat(user["last_boost"].replace("Z", "+00:00"))
+            can_boost = (datetime.now(timezone.utc) - lb).total_seconds() >= 86400
+        except:
+            pass
+    
+    return {"is_active": is_active, "remaining_seconds": remaining, "can_boost": can_boost}
+
 
 
 # Include router - MUST be at the very end after all route definitions

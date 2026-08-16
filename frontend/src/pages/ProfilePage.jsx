@@ -13,6 +13,71 @@ import { INDIAN_STATES, CITIES_BY_STATE, POPULAR_CITIES } from '@/data/indianCit
 
 import { BACKEND_URL, API } from '@/config/api';
 
+// Boost Button Component
+const BoostButton = ({ userId }) => {
+  const [boostStatus, setBoostStatus] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (userId) fetchBoostStatus();
+  }, [userId]);
+
+  const fetchBoostStatus = async () => {
+    try {
+      const res = await axios.get(`${API}/boost/${userId}/status`);
+      setBoostStatus(res.data);
+    } catch (e) {}
+  };
+
+  const activateBoost = async () => {
+    setLoading(true);
+    try {
+      await axios.post(`${API}/boost/${userId}`);
+      toast.success('Boost activated! 30 min tak sabse pehle dikhoge.');
+      fetchBoostStatus();
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Boost failed');
+    }
+    setLoading(false);
+  };
+
+  const remaining = boostStatus?.remaining_seconds || 0;
+  const mins = Math.floor(remaining / 60);
+
+  return (
+    <button
+      onClick={boostStatus?.is_active ? undefined : activateBoost}
+      disabled={loading || boostStatus?.is_active}
+      className={`w-full rounded-xl p-4 flex items-center justify-between transition-all group ${
+        boostStatus?.is_active
+          ? 'bg-gradient-to-r from-purple-100 to-indigo-100 border-2 border-purple-300'
+          : boostStatus?.can_boost !== false
+          ? 'bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-200 hover:shadow-md'
+          : 'bg-gray-50 border-2 border-gray-200 opacity-60'
+      }`}
+      data-testid="boost-btn"
+    >
+      <div className="flex items-center gap-3">
+        <div className="bg-gradient-to-br from-purple-500 to-indigo-500 p-2.5 rounded-xl">
+          <Sparkles className="w-5 h-5 text-white" />
+        </div>
+        <div className="text-left">
+          <h4 className="font-bold text-gray-900">
+            {boostStatus?.is_active ? `Boost Active (${mins}m left)` : 'Boost Profile'}
+          </h4>
+          <p className="text-sm text-gray-600">
+            {boostStatus?.is_active ? 'You appear first in Discover!' :
+             boostStatus?.can_boost !== false ? '1 free daily — appear first for 30 min' : 'Used today. Try again tomorrow!'}
+          </p>
+        </div>
+      </div>
+      {!boostStatus?.is_active && boostStatus?.can_boost !== false && (
+        <ChevronRight className="w-5 h-5 text-purple-500 group-hover:translate-x-1 transition-transform" />
+      )}
+    </button>
+  );
+};
+
 const ProfilePage = ({ user, onUpdate }) => {
   const navigate = useNavigate();
   const [profile, setProfile] = useState(user || {});
@@ -674,6 +739,9 @@ const ProfilePage = ({ user, onUpdate }) => {
               </div>
               <ChevronRight className="w-5 h-5 text-green-500 group-hover:translate-x-1 transition-transform" />
             </button>
+
+            {/* Boost Profile */}
+            <BoostButton userId={user?.id} />
 
             {/* Display Trust Badge */}
             {profile.trust_badge_level && (
