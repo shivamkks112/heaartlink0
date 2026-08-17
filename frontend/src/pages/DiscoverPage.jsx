@@ -257,9 +257,9 @@ const DiscoverPage = ({ user }) => {
 
   if (loading) {
     return (
-      <div className="fixed inset-0 bg-[#0a0a0a] flex flex-col overflow-hidden">
+      <div className="h-[100%] bg-[#0a0a0a] flex flex-col" style={{ height: 'calc(100vh - var(--nav-total, 86px))' }}>
         {shellTop}
-        <div className="discover-card-area flex items-center justify-center p-2">
+        <div className="flex-1 min-h-0 flex items-center justify-center p-2">
           <div className="w-full h-full max-w-md rounded-xl overflow-hidden bg-gray-800/60 animate-pulse" />
         </div>
       </div>
@@ -268,9 +268,9 @@ const DiscoverPage = ({ user }) => {
 
   if (!currentProfile) {
     return (
-      <div className="fixed inset-0 bg-[#0a0a0a] flex flex-col overflow-hidden">
+      <div className="h-[100%] bg-[#0a0a0a] flex flex-col" style={{ height: 'calc(100vh - var(--nav-total, 86px))' }}>
         {shellTop}
-        <div className="discover-card-area flex items-center justify-center px-8">
+        <div className="flex-1 min-h-0 flex items-center justify-center px-8">
           <div className="text-center m3-animate-in" data-testid="no-profiles">
             <div className="w-24 h-24 mx-auto mb-6 rounded-[28px] flex items-center justify-center" style={{ background: 'var(--m3-surface-container-high)' }}>
               <Heart className="w-10 h-10" style={{ color: 'var(--m3-outline)' }} />
@@ -302,7 +302,7 @@ const DiscoverPage = ({ user }) => {
   }
 
   return (
-    <div className="fixed inset-0 bg-[#0a0a0a] flex flex-col overflow-hidden">
+    <div className="h-[100%] bg-[#0a0a0a] flex flex-col" style={{ height: 'calc(100vh - var(--nav-total, 86px))' }}>
       {shellTop}
       
       {/* City Filter Bottom Sheet */}
@@ -336,7 +336,7 @@ const DiscoverPage = ({ user }) => {
       )}
       
       {/* Card area */}
-      <div className="discover-card-area p-1.5 pb-0">
+      <div className="flex-1 min-h-0 p-1.5 pb-0">
         <div
           className={`relative w-full h-full max-w-md mx-auto rounded-xl overflow-hidden transition-transform duration-200 ease-out ${
             swipeDirection === 'left' ? '-translate-x-6 -rotate-3 opacity-70' :
@@ -373,13 +373,13 @@ const DiscoverPage = ({ user }) => {
           <button
             onClick={() => setShowFilter(true)}
             data-testid="city-filter-btn"
-            className="absolute top-3 right-3 z-10 w-9 h-9 rounded-full flex items-center justify-center backdrop-blur-md transition-all active:scale-90"
+            className="absolute top-4 right-3 z-10 w-9 h-9 rounded-full flex items-center justify-center backdrop-blur-md transition-all active:scale-90"
             style={{ background: cityFilter ? 'rgba(236,72,153,0.8)' : 'rgba(255,255,255,0.15)' }}
           >
             <SlidersHorizontal className="w-4 h-4 text-white" />
           </button>
           {cityFilter && (
-            <div className="absolute top-3 right-14 z-10 px-2.5 py-1 rounded-full text-[11px] font-bold text-white backdrop-blur-md" style={{ background: 'rgba(236,72,153,0.7)' }}>
+            <div className="absolute top-5 right-14 z-10 px-2.5 py-1 rounded-full text-[11px] font-bold text-white backdrop-blur-md" style={{ background: 'rgba(236,72,153,0.7)' }}>
               {cityFilter}
             </div>
           )}
@@ -403,14 +403,14 @@ const DiscoverPage = ({ user }) => {
 
           {/* Swipe counter */}
           {!user?.is_premium && !user?.isPremium && (
-            <div className="absolute top-3 right-3 bg-black/50 backdrop-blur-sm text-white text-[11px] px-2.5 py-1 rounded-full z-10 font-medium" data-testid="swipe-counter">
+            <div className="absolute top-3 left-3 bg-black/50 backdrop-blur-sm text-white text-[11px] px-2.5 py-1 rounded-full z-10 font-medium" data-testid="swipe-counter">
               {Math.max(0, DAILY_SWIPE_LIMIT - dailySwipeCount)}{extraSwipes > 0 && <span className="text-emerald-400"> +{extraSwipes}</span>}
             </div>
           )}
 
           {/* Verified badge */}
           {currentProfile.verified && (
-            <div className="absolute top-3 left-3 z-10"><VerifiedBadge size="md" showText={false} /></div>
+            <div className="absolute top-12 left-3 z-10"><VerifiedBadge size="md" showText={false} /></div>
           )}
 
           {/* Swipe labels */}

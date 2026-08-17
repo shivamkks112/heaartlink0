@@ -1,0 +1,29 @@
+{
+  "summary": "Iter-28: Verified Discover page layout fix (bottom nav / action buttons no longer hidden by full-screen card on Android/mobile). Backend: 7/7 pytest tests pass — /api/health, /api/auth/login (email_or_phone), /api/discover/{uid}, ?city=Mumbai, ?city=Delhi all correct. Frontend: launched mobile viewport 390x844 and injected review user into localStorage to bypass mandatory-photo (admin user has no photos). On /discover: profile-card (y=6, h=777), pass-btn/like-btn/crush-btn/superlike-btn (y=705-714), action-buttons (y=684, h=99), city-filter-btn (top-right), bottom-nav (y=783, h=61) — ALL visible AND fully within 844px viewport, confirming the fix. File-level asserts confirm DiscoverPage wrapper uses calc(100vh - var(--nav-total,86px)) with no fixed inset-0, and App.css .discover-card-area uses flex:1 1 0% with no dvh/calc height.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Discover (fresh login)", "issues": ["Daily Reward modal overlays action buttons on first entry — expected UX but blocks city-filter interaction until closed. Consider z-order or auto-dismiss when interacting with card."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_discover_layout_iter28.py",
+    "/app/test_reports/pytest/iter28_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "review@heartlink.co.in admin user has profile_incomplete state (no photos) causing redirect to /mandatory-photo — makes it hard to E2E-test as this reviewer via UI. Consider seeding a photo for this reviewer account.",
+    "server.py remains ~7600+ lines; still recommended to modularise (carried from iter-27).",
+    "City filter regex on 'location' field could over-match substrings across state names; would benefit from a dedicated indexed 'city' field (carried from iter-27)."
+  ],
+  "updated_files": ["/app/backend/tests/test_discover_layout_iter28.py"],
+  "success_rate": {"backend": "100% (7/7)", "frontend": "100% for layout fix (all key elements visible in viewport)"},
+  "test_credentials": "Admin: review@heartlink.co.in / HeartLink@2026 (redirects to /mandatory-photo — no photos). For UI testing of /discover, inject synthetic user with profile_incomplete=false into localStorage['user'].",
+  "seed_data_creation": "None; used existing test user cca39b3f-9f7e-485d-9ae3-d6b210d424fb.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Discover layout fix verified end-to-end at 390x844 (mobile) — profile card, all 4 action buttons, city-filter icon and bottom nav are all inside the viewport. Backend city filter works for Mumbai/Delhi. To E2E-test /discover in browser as admin, inject a synthetic localStorage user (see test_credentials note), or seed a photo for review@heartlink.co.in so it clears the mandatory-photo gate.",
+  "rca of the issue": "Root cause: DiscoverPage previously used 'fixed inset-0' which pinned the wrapper to the full viewport, causing the card to overlap the bottom nav on Android (100dvh unreliable with Capacitor). Fix: wrapper now uses relative flex column with height:calc(100vh - var(--nav-total, 86px)); .discover-card-area uses flex:1 min-h:0. City filter moved to bottom-sheet overlay avoiding status-bar overlap. Verified in mobile viewport that bottom-nav (y=783, h=61) fits inside 844px viewport."
+}

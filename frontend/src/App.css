@@ -146,14 +146,8 @@ img {
 .discover-card-area {
   flex: 1 1 0%;
   min-height: 0;
-  height: calc(100dvh - var(--nav-total, 86px) - var(--card-pad, 26px));
-  max-height: calc(100dvh - var(--nav-total, 86px) - var(--card-pad, 26px));
-}
-@supports not (height: 100dvh) {
-  .discover-card-area {
-    height: calc(var(--vh, 1vh) * 100 - var(--nav-total, 86px) - var(--card-pad, 26px));
-    max-height: calc(var(--vh, 1vh) * 100 - var(--nav-total, 86px) - var(--card-pad, 26px));
-  }
+  overflow: hidden;
+  position: relative;
 }
 
 /* Page bottom padding for content pages with navbar */
