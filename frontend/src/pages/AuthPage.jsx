@@ -10,6 +10,7 @@ import { Toaster } from '@/components/ui/sonner';
 import { getStorage, ref, uploadBytes, getDownloadURL } from '@/firebase/config';
 
 import { BACKEND_URL, API } from '@/config/api';
+import { INDIAN_STATES, CITIES_BY_STATE, POPULAR_CITIES } from '@/data/indianCities';
 
 const AuthPage = ({ onLogin }) => {
   const navigate = useNavigate();
@@ -46,6 +47,9 @@ const AuthPage = ({ onLogin }) => {
   const [profilePicturePreview, setProfilePicturePreview] = useState('');
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const fileInputRef = useRef(null);
+  const [selectedState, setSelectedState] = useState('');
+  const [citySearch, setCitySearch] = useState('');
+  const [showCityDropdown, setShowCityDropdown] = useState(false);
 
   // Handle profile picture selection
   const handlePhotoSelect = (e) => {
@@ -500,18 +504,68 @@ const AuthPage = ({ onLogin }) => {
 
               <div>
                 <Label className="text-gray-700 font-semibold">Location *</Label>
+                {/* State selector */}
+                <select
+                  data-testid="signup-state-select"
+                  value={selectedState}
+                  onChange={(e) => {
+                    setSelectedState(e.target.value);
+                    setSignupData({...signupData, location: ''});
+                    setCitySearch('');
+                  }}
+                  className="w-full mt-2 py-3 px-3 rounded-xl border-2 border-gray-200 focus:border-pink-500 text-sm bg-white"
+                >
+                  <option value="">Select State</option>
+                  {INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+                {/* City selector with search */}
                 <div className="relative mt-2">
-                  <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 z-10" />
                   <Input
                     data-testid="signup-location-input"
                     type="text"
-                    placeholder="Your city"
-                    value={signupData.location}
-                    onChange={(e) => setSignupData({...signupData, location: e.target.value})}
+                    placeholder={selectedState ? "Search city..." : "Select state first"}
+                    value={signupData.location || citySearch}
+                    onChange={(e) => {
+                      setCitySearch(e.target.value);
+                      setSignupData({...signupData, location: ''});
+                      setShowCityDropdown(true);
+                    }}
+                    onFocus={() => setShowCityDropdown(true)}
                     className="pl-10 py-5 rounded-xl border-2 border-gray-200 focus:border-pink-500"
+                    disabled={!selectedState}
                     required
                   />
+                  {showCityDropdown && selectedState && (
+                    <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                      {(citySearch
+                        ? (CITIES_BY_STATE[selectedState] || []).filter(c => c.toLowerCase().includes(citySearch.toLowerCase()))
+                        : (CITIES_BY_STATE[selectedState] || [])
+                      ).slice(0, 15).map(city => (
+                        <button
+                          key={city}
+                          type="button"
+                          onClick={() => {
+                            setSignupData({...signupData, location: `${city}, ${selectedState}, India`});
+                            setCitySearch('');
+                            setShowCityDropdown(false);
+                          }}
+                          className="w-full text-left px-4 py-2.5 hover:bg-pink-50 text-sm text-gray-700 border-b border-gray-50 last:border-0"
+                        >
+                          {city}
+                        </button>
+                      ))}
+                      {(CITIES_BY_STATE[selectedState] || []).filter(c => citySearch ? c.toLowerCase().includes(citySearch.toLowerCase()) : true).length === 0 && (
+                        <p className="px-4 py-3 text-sm text-gray-400">No cities found</p>
+                      )}
+                    </div>
+                  )}
                 </div>
+                {signupData.location && (
+                  <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                    <MapPin className="w-3 h-3" /> {signupData.location}
+                  </p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
