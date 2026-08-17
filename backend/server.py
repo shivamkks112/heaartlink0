@@ -588,6 +588,86 @@ async def _send_smart_reengagement_notifications():
         logging.error(f"Smart re-engagement error: {e}")
 
 
+async def _send_daily_picks():
+    """Send 5 personalized match suggestions to each active user every morning"""
+    try:
+        # Get all active users with FCM tokens (active in last 7 days)
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+        active_users = await db.users.find({
+            "last_active": {"$gte": cutoff},
+            "fcm_token": {"$exists": True, "$ne": None},
+            "is_ai_profile": {"$ne": True},
+            "is_permanently_banned": {"$ne": True}
+        }, {"_id": 0, "id": 1, "name": 1, "gender": 1, "looking_for": 1,
+            "interests": 1, "location": 1, "blocked_users": 1}).to_list(500)
+        
+        sent = 0
+        for user in active_users:
+            uid = user["id"]
+            blocked = set(user.get("blocked_users", []))
+            user_interests = set(user.get("interests", []))
+            user_city = user.get("location", "").split(",")[0].strip().lower()
+            
+            # Find top 5 matches for this user
+            target_gender = user.get("looking_for", "both")
+            gender_filter = {}
+            if target_gender != "both":
+                gender_filter["gender"] = target_gender
+            
+            candidates = await db.users.find({
+                "id": {"$ne": uid, "$nin": list(blocked)},
+                "is_ai_profile": {"$ne": True},
+                "is_permanently_banned": {"$ne": True},
+                "is_shadow_banned": {"$ne": True},
+                "profile_picture": {"$exists": True, "$ne": None},
+                **gender_filter
+            }, {"_id": 0, "id": 1, "name": 1, "interests": 1, "location": 1,
+                "is_online": 1, "verified": 1, "profile_picture": 1}).to_list(50)
+            
+            # Score and pick top 5
+            def pick_score(c):
+                s = 0
+                c_interests = set(c.get("interests", []))
+                s += len(user_interests & c_interests) * 10
+                c_city = c.get("location", "").split(",")[0].strip().lower()
+                if user_city and c_city == user_city:
+                    s += 30
+                if c.get("is_online"):
+                    s += 15
+                if c.get("verified"):
+                    s += 10
+                if c.get("profile_picture"):
+                    s += 5
+                return s
+            
+            candidates.sort(key=pick_score, reverse=True)
+            top5 = candidates[:5]
+            
+            if not top5:
+                continue
+            
+            names = ", ".join(c["name"] for c in top5[:3])
+            count = len(top5)
+            
+            title = f"Good Morning! {count} picks for you"
+            body = f"{names} and more are waiting. Open HeartLink!"
+            
+            await create_in_app_notification(
+                uid, title, body, "daily_picks",
+                {"action": "open_discover", "route": "/discover", "picks": [c["id"] for c in top5]}
+            )
+            try:
+                await fcm_service.send_to_user(db, uid, title, body)
+                sent += 1
+            except:
+                pass
+        
+        if sent:
+            logging.info(f"☀️ Sent daily picks to {sent} users")
+    except Exception as e:
+        logging.error(f"Daily picks error: {e}")
+
+
 async def notification_scheduler():
     """Background task to send automated engagement notifications"""
     while True:
@@ -642,6 +722,10 @@ async def notification_scheduler():
                 
                 # === SMART RE-ENGAGEMENT NOTIFICATIONS ===
                 await _send_smart_reengagement_notifications()
+                
+                # === SMART DAILY PICKS (morning 9 AM IST = 3:30 UTC) ===
+                if 3 <= current_hour <= 4:
+                    await _send_daily_picks()
         
         except Exception as e:
             logging.error(f"Notification scheduler error: {e}")
@@ -2676,7 +2760,7 @@ async def report_user(user_id: str, report_data: ReportUser):
 
 # Discovery Routes
 @api_router.get("/discover/{user_id}")
-async def discover_users(user_id: str, limit: int = 10, relationship_intent: str = None, trust_badge_level: str = None, last_active_hours: int = None):
+async def discover_users(user_id: str, limit: int = 10, relationship_intent: str = None, trust_badge_level: str = None, last_active_hours: int = None, city: str = None):
     """
     Discover users with safety filters - OPTIMIZED
     - Uses projection to fetch only needed fields
@@ -2757,6 +2841,10 @@ async def discover_users(user_id: str, limit: int = 10, relationship_intent: str
         query["last_active"] = {"$gte": cutoff_time}
     if blocked_device_ids:
         query["device_ids"] = {"$nin": blocked_device_ids}
+    
+    # City filter
+    if city:
+        query["location"] = {"$regex": city, "$options": "i"}
     
     # Projection for discover - only fields needed for cards
     discover_projection = {

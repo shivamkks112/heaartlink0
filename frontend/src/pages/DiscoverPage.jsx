@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Heart, X, MapPin, Play, Star } from 'lucide-react';
+import { Heart, X, MapPin, Play, Star, SlidersHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
@@ -13,6 +13,7 @@ import MatchAnimation from '@/components/MatchAnimation';
 
 import { BACKEND_URL, API } from '@/config/api';
 import { cacheDiscoverProfiles, getCachedDiscoverProfiles } from '@/utils/cacheManager';
+import { POPULAR_CITIES } from '@/data/indianCities';
 if (!BACKEND_URL) {
   console.error('REACT_APP_BACKEND_URL is not set!');
 }
@@ -31,6 +32,8 @@ const DiscoverPage = ({ user }) => {
   const [extraSwipes, setExtraSwipes] = useState(0);
   const [swipesUntilAd, setSwipesUntilAd] = useState(SWIPES_BEFORE_AD);
   const [showingAd, setShowingAd] = useState(false);
+  const [cityFilter, setCityFilter] = useState('');
+  const [showFilter, setShowFilter] = useState(false);
 
   const [showMatchAnimation, setShowMatchAnimation] = useState(false);
   const [matchedUserData, setMatchedUserData] = useState(null);
@@ -47,7 +50,7 @@ const DiscoverPage = ({ user }) => {
         setProfiles(cached);
         setLoading(false);
       }
-      const response = await axios.get(`${API}/discover/${user.id}`);
+      const response = await axios.get(`${API}/discover/${user.id}${cityFilter ? `?city=${encodeURIComponent(cityFilter)}` : ''}`);
       setProfiles(response.data);
       cacheDiscoverProfiles(user.id, response.data);
       setLoading(false);
@@ -82,6 +85,9 @@ const DiscoverPage = ({ user }) => {
 
   useEffect(() => {
     fetchProfiles();
+  }, [cityFilter]);
+
+  useEffect(() => {
     updateGPSLocation();
     if (shouldShowAds) adsService.initialize();
 
@@ -282,7 +288,29 @@ const DiscoverPage = ({ user }) => {
   return (
     <div className="fixed inset-0 bg-[#0a0a0a] flex flex-col overflow-hidden">
       {shellTop}
-      {/* Card area — dynamically sized between top edge and navbar+gap */}
+      {/* City Filter Bar */}
+      <div className="flex-shrink-0 px-2 pb-1.5">
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+          <button
+            onClick={() => { setCityFilter(''); setCurrentIndex(0); }}
+            data-testid="filter-all"
+            className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+              !cityFilter ? 'bg-pink-500 text-white' : 'bg-white/10 text-white/60'
+            }`}
+          >All</button>
+          {POPULAR_CITIES.slice(0, 8).map(c => (
+            <button
+              key={c}
+              onClick={() => { setCityFilter(c); setCurrentIndex(0); }}
+              data-testid={`filter-${c.toLowerCase()}`}
+              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap ${
+                cityFilter === c ? 'bg-pink-500 text-white' : 'bg-white/10 text-white/60'
+              }`}
+            >{c}</button>
+          ))}
+        </div>
+      </div>
+      {/* Card area */}
       <div className="discover-card-area p-1.5 pb-0">
         <div
           className={`relative w-full h-full max-w-md mx-auto rounded-xl overflow-hidden transition-transform duration-200 ease-out ${
