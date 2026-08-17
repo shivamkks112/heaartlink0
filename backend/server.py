@@ -2690,7 +2690,8 @@ async def discover_users(user_id: str, limit: int = 10, relationship_intent: str
             "_id": 0, "id": 1, "gender": 1, "looking_for": 1,
             "blocked_users": 1, "blocked_device_ids": 1,
             "gender_lock_enabled": 1, "show_to_gender": 1,
-            "interests": 1, "values": 1, "lifestyle_tags": 1
+            "interests": 1, "values": 1, "lifestyle_tags": 1,
+            "latitude": 1, "longitude": 1, "location": 1
         }
     )
     if not current_user:
@@ -2765,7 +2766,8 @@ async def discover_users(user_id: str, limit: int = 10, relationship_intent: str
         "trust_badge_level": 1, "relationship_intent": 1,
         "values": 1, "lifestyle_tags": 1,
         "gender_lock_enabled": 1, "show_to_gender": 1, "hide_profile_from_gender": 1,
-        "boost_active": 1, "boost_end": 1
+        "boost_active": 1, "boost_end": 1,
+        "latitude": 1, "longitude": 1
     }
     
     users = await db.users.find(query, discover_projection).limit(limit * 3).to_list(None)
@@ -2797,6 +2799,10 @@ async def discover_users(user_id: str, limit: int = 10, relationship_intent: str
     current_interests = set(current_user.get("interests", []))
     current_values = set(current_user.get("values", []))
     current_lifestyle = set(current_user.get("lifestyle_tags", []))
+    current_location = current_user.get("location", "")
+    current_city = current_location.split(",")[0].strip().lower() if current_location else ""
+    current_lat = current_user.get("latitude")
+    current_lng = current_user.get("longitude")
     
     def rank_score(profile):
         score = 0
@@ -2847,6 +2853,22 @@ async def discover_users(user_id: str, limit: int = 10, relationship_intent: str
             score += 15
         elif badge == "medium":
             score += 8
+        # Same city bonus (big impact)
+        p_location = profile.get("location", "")
+        p_city = p_location.split(",")[0].strip().lower() if p_location else ""
+        if current_city and p_city and current_city == p_city:
+            score += 50
+        # Nearby distance bonus
+        p_lat = profile.get("latitude")
+        p_lng = profile.get("longitude")
+        if current_lat and current_lng and p_lat and p_lng:
+            dist = calculate_distance(current_lat, current_lng, p_lat, p_lng)
+            if dist < 5:
+                score += 40
+            elif dist < 15:
+                score += 25
+            elif dist < 50:
+                score += 10
         return score
     
     filtered_users.sort(key=rank_score, reverse=True)
@@ -2878,6 +2900,12 @@ async def discover_users(user_id: str, limit: int = 10, relationship_intent: str
             "shared_interests_count": shared_count,
             "shared_interests": shared_list,
         }
+        # Calculate distance if both have coordinates
+        u_lat = u.get("latitude")
+        u_lng = u.get("longitude")
+        if current_lat and current_lng and u_lat and u_lng:
+            entry["distance_km"] = calculate_distance(current_lat, current_lng, u_lat, u_lng)
+        
         result.append(entry)
     
     return result

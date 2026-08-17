@@ -42,7 +42,6 @@ const DiscoverPage = ({ user }) => {
 
   const fetchProfiles = async () => {
     try {
-      // Show cached profiles instantly while fetching fresh
       const cached = getCachedDiscoverProfiles(user.id);
       if (cached && cached.length > 0) {
         setProfiles(cached);
@@ -64,8 +63,26 @@ const DiscoverPage = ({ user }) => {
     }
   };
 
+  const updateGPSLocation = () => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          await axios.post(`${API}/user/${user.id}/update-location`, {
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+            location: user.location || ''
+          });
+        } catch (e) { /* silent */ }
+      },
+      () => { /* permission denied — silent */ },
+      { enableHighAccuracy: false, timeout: 5000 }
+    );
+  };
+
   useEffect(() => {
     fetchProfiles();
+    updateGPSLocation();
     if (shouldShowAds) adsService.initialize();
 
     const today = new Date().toDateString();
@@ -358,7 +375,14 @@ const DiscoverPage = ({ user }) => {
               {currentProfile.location && (
                 <div className="flex items-center gap-1.5 mt-1.5">
                   <MapPin className="w-3.5 h-3.5 text-white/50" />
-                  <span className="text-white/60 text-sm">{currentProfile.location}</span>
+                  <span className="text-white/60 text-sm">
+                    {currentProfile.location.split(',')[0]}
+                    {currentProfile.distance_km != null && (
+                      <span className="ml-1 text-white/80 font-medium">
+                        · {currentProfile.distance_km < 1 ? '<1' : Math.round(currentProfile.distance_km)} km
+                      </span>
+                    )}
+                  </span>
                 </div>
               )}
               {currentProfile.bio && (
