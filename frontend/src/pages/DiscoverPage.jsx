@@ -304,28 +304,37 @@ const DiscoverPage = ({ user }) => {
   return (
     <div className="fixed inset-0 bg-[#0a0a0a] flex flex-col overflow-hidden">
       {shellTop}
-      {/* City Filter Bar */}
-      <div className="flex-shrink-0 px-2 pb-1.5">
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-          <button
-            onClick={() => { setCityFilter(''); setCurrentIndex(0); }}
-            data-testid="filter-all"
-            className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
-              !cityFilter ? 'bg-pink-500 text-white' : 'bg-white/10 text-white/60'
-            }`}
-          >All</button>
-          {POPULAR_CITIES.slice(0, 8).map(c => (
-            <button
-              key={c}
-              onClick={() => { setCityFilter(c); setCurrentIndex(0); }}
-              data-testid={`filter-${c.toLowerCase()}`}
-              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap ${
-                cityFilter === c ? 'bg-pink-500 text-white' : 'bg-white/10 text-white/60'
-              }`}
-            >{c}</button>
-          ))}
+      
+      {/* City Filter Bottom Sheet */}
+      {showFilter && (
+        <div className="fixed inset-0 z-[80]" data-testid="city-filter-sheet">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowFilter(false)} />
+          <div className="absolute bottom-0 left-0 right-0 bg-[#1a1a1a] rounded-t-3xl p-5 pb-8 animate-in slide-in-from-bottom duration-300" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 24px)' }}>
+            <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mb-5" />
+            <h3 className="text-white font-bold text-base mb-4">Filter by City</h3>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => { setCityFilter(''); setCurrentIndex(0); setShowFilter(false); }}
+                data-testid="filter-all"
+                className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                  !cityFilter ? 'bg-pink-500 text-white shadow-lg shadow-pink-500/30' : 'bg-white/8 text-white/60 border border-white/10'
+                }`}
+              >All Cities</button>
+              {POPULAR_CITIES.map(c => (
+                <button
+                  key={c}
+                  onClick={() => { setCityFilter(c); setCurrentIndex(0); setShowFilter(false); }}
+                  data-testid={`filter-${c.toLowerCase()}`}
+                  className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                    cityFilter === c ? 'bg-pink-500 text-white shadow-lg shadow-pink-500/30' : 'bg-white/8 text-white/60 border border-white/10'
+                  }`}
+                >{c}</button>
+              ))}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
+      
       {/* Card area */}
       <div className="discover-card-area p-1.5 pb-0">
         <div
@@ -359,6 +368,21 @@ const DiscoverPage = ({ user }) => {
 
           {/* Top gradient */}
           <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/50 to-transparent z-[3]" />
+
+          {/* Filter button — top right */}
+          <button
+            onClick={() => setShowFilter(true)}
+            data-testid="city-filter-btn"
+            className="absolute top-3 right-3 z-10 w-9 h-9 rounded-full flex items-center justify-center backdrop-blur-md transition-all active:scale-90"
+            style={{ background: cityFilter ? 'rgba(236,72,153,0.8)' : 'rgba(255,255,255,0.15)' }}
+          >
+            <SlidersHorizontal className="w-4 h-4 text-white" />
+          </button>
+          {cityFilter && (
+            <div className="absolute top-3 right-14 z-10 px-2.5 py-1 rounded-full text-[11px] font-bold text-white backdrop-blur-md" style={{ background: 'rgba(236,72,153,0.7)' }}>
+              {cityFilter}
+            </div>
+          )}
 
           {/* Photo indicators */}
           {hasMultiplePhotos && (
