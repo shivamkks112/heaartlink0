@@ -66,21 +66,37 @@ const DiscoverPage = ({ user }) => {
     }
   };
 
-  const updateGPSLocation = () => {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        try {
-          await axios.post(`${API}/user/${user.id}/update-location`, {
-            latitude: pos.coords.latitude,
-            longitude: pos.coords.longitude,
-            location: user.location || ''
-          });
-        } catch (e) { /* silent */ }
-      },
-      () => { /* permission denied — silent */ },
-      { enableHighAccuracy: false, timeout: 5000 }
-    );
+  const updateGPSLocation = async () => {
+    try {
+      const { Geolocation } = await import('@capacitor/geolocation');
+      // Request permission first
+      const perm = await Geolocation.requestPermissions();
+      if (perm.location === 'denied') return;
+      
+      const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 10000 });
+      await axios.post(`${API}/user/${user.id}/update-location`, {
+        latitude: pos.coords.latitude,
+        longitude: pos.coords.longitude,
+        location: user.location || ''
+      });
+    } catch (e) {
+      // Fallback to browser API for web
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          async (pos) => {
+            try {
+              await axios.post(`${API}/user/${user.id}/update-location`, {
+                latitude: pos.coords.latitude,
+                longitude: pos.coords.longitude,
+                location: user.location || ''
+              });
+            } catch (_) {}
+          },
+          () => {},
+          { enableHighAccuracy: false, timeout: 5000 }
+        );
+      }
+    }
   };
 
   useEffect(() => {
