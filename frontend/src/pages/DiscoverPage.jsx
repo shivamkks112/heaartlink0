@@ -369,24 +369,29 @@ const DiscoverPage = ({ user }) => {
           {/* Top gradient */}
           <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/50 to-transparent z-[3]" />
 
-          {/* Filter button — top right */}
+          {/* Filter button — top right, below safe area */}
           <button
-            onClick={() => setShowFilter(true)}
+            onClick={(e) => { e.stopPropagation(); setShowFilter(true); }}
             data-testid="city-filter-btn"
-            className="absolute top-4 right-3 z-10 w-9 h-9 rounded-full flex items-center justify-center backdrop-blur-md transition-all active:scale-90"
-            style={{ background: cityFilter ? 'rgba(236,72,153,0.8)' : 'rgba(255,255,255,0.15)' }}
+            className="absolute right-3 z-[15] w-10 h-10 rounded-full flex items-center justify-center backdrop-blur-md transition-all active:scale-90"
+            style={{ 
+              top: 'calc(var(--safe-top, 24px) + 8px)',
+              background: cityFilter ? 'rgba(236,72,153,0.9)' : 'rgba(0,0,0,0.4)',
+              border: '1.5px solid rgba(255,255,255,0.2)',
+            }}
           >
-            <SlidersHorizontal className="w-4 h-4 text-white" />
+            <SlidersHorizontal className="w-4.5 h-4.5 text-white" />
           </button>
           {cityFilter && (
-            <div className="absolute top-5 right-14 z-10 px-2.5 py-1 rounded-full text-[11px] font-bold text-white backdrop-blur-md" style={{ background: 'rgba(236,72,153,0.7)' }}>
+            <div className="absolute right-14 z-[15] px-2.5 py-1 rounded-full text-[11px] font-bold text-white backdrop-blur-md" 
+              style={{ top: 'calc(var(--safe-top, 24px) + 12px)', background: 'rgba(236,72,153,0.8)' }}>
               {cityFilter}
             </div>
           )}
 
           {/* Photo indicators */}
           {hasMultiplePhotos && (
-            <div className="absolute top-2 left-3 right-3 flex gap-1 z-10">
+            <div className="absolute left-3 right-3 flex gap-1 z-[15]" style={{ top: 'calc(var(--safe-top, 24px) + 2px)' }}>
               {allPhotos.map((_, i) => (
                 <div key={i} className={`h-[3px] flex-1 rounded-full transition-colors ${i === photoIndex ? 'bg-white' : 'bg-white/30'}`} />
               ))}
@@ -403,14 +408,16 @@ const DiscoverPage = ({ user }) => {
 
           {/* Swipe counter */}
           {!user?.is_premium && !user?.isPremium && (
-            <div className="absolute top-3 left-3 bg-black/50 backdrop-blur-sm text-white text-[11px] px-2.5 py-1 rounded-full z-10 font-medium" data-testid="swipe-counter">
+            <div className="absolute left-3 bg-black/50 backdrop-blur-sm text-white text-[11px] px-2.5 py-1 rounded-full z-[15] font-medium" 
+              data-testid="swipe-counter"
+              style={{ top: 'calc(var(--safe-top, 24px) + 8px)' }}>
               {Math.max(0, DAILY_SWIPE_LIMIT - dailySwipeCount)}{extraSwipes > 0 && <span className="text-emerald-400"> +{extraSwipes}</span>}
             </div>
           )}
 
           {/* Verified badge */}
           {currentProfile.verified && (
-            <div className="absolute top-12 left-3 z-10"><VerifiedBadge size="md" showText={false} /></div>
+            <div className="absolute left-3 z-[15]" style={{ top: 'calc(var(--safe-top, 24px) + 36px)' }}><VerifiedBadge size="md" showText={false} /></div>
           )}
 
           {/* Swipe labels */}
