@@ -1690,6 +1690,33 @@ async def user_action(user_id: str, action: LikeAction):
             "user": {"id": user_id, "name": user1["name"]}
         })
         
+        # Store match notification in database for both users
+        match_notification_base = {
+            "type": "match",
+            "read": False,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        
+        # Notification for user1 (current user)
+        await db.notifications.insert_one({
+            **match_notification_base,
+            "id": str(uuid.uuid4()),
+            "user_id": user_id,
+            "title": "💕 It's a Match!",
+            "message": f"You and {user2['name']} liked each other!",
+            "data": {"match_user_id": action.target_user_id, "match_user_name": user2['name'], "compatibility_score": score}
+        })
+        
+        # Notification for user2 (matched user)
+        await db.notifications.insert_one({
+            **match_notification_base,
+            "id": str(uuid.uuid4()),
+            "user_id": action.target_user_id,
+            "title": "💕 It's a Match!",
+            "message": f"You and {user1['name']} liked each other!",
+            "data": {"match_user_id": user_id, "match_user_name": user1['name'], "compatibility_score": score}
+        })
+        
         # Send push notification to matched user
         if user2.get('fcm_token'):
             send_match_notification(
@@ -1726,6 +1753,18 @@ async def user_action(user_id: str, action: LikeAction):
                 "user_id": user_id
             })
             
+            # Store notification in database
+            await db.notifications.insert_one({
+                "id": str(uuid.uuid4()),
+                "user_id": action.target_user_id,
+                "type": "superlike",
+                "title": "⭐ Super Like!",
+                "message": f"{user1['name']} super liked your profile!",
+                "read": False,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "data": {"from_user_id": user_id, "from_user_name": user1['name']}
+            })
+            
             # Send push notification
             if user2 and user2.get('fcm_token'):
                 send_like_notification(
@@ -1733,6 +1772,18 @@ async def user_action(user_id: str, action: LikeAction):
                     user_name=user1['name']
                 )
         elif action.action == "like":
+            # Store notification in database
+            await db.notifications.insert_one({
+                "id": str(uuid.uuid4()),
+                "user_id": action.target_user_id,
+                "type": "like",
+                "title": "❤️ Someone liked you!",
+                "message": f"{user1['name']} liked your profile!",
+                "read": False,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "data": {"from_user_id": user_id, "from_user_name": user1['name']}
+            })
+            
             # Send like notification for regular likes too
             if user2 and user2.get('fcm_token'):
                 send_like_notification(
@@ -2858,58 +2909,68 @@ async def send_bulk_notification(data: BulkNotificationRequest):
     Send notification to all users or specific group
     Target options: all, male, female, inactive
     """
-    # Build query based on target
-    query = {"fcm_token": {"$exists": True, "$nin": [None, ""]}}
-    
+    # Build query for target users (regardless of FCM token)
+    user_query = {}
     if data.target == "male":
-        query["gender"] = {"$regex": "^male$", "$options": "i"}
+        user_query["gender"] = {"$regex": "^male$", "$options": "i"}
     elif data.target == "female":
-        query["gender"] = {"$regex": "^female$", "$options": "i"}
+        user_query["gender"] = {"$regex": "^female$", "$options": "i"}
     elif data.target == "inactive":
-        # Users not active in last 7 days
         week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
-        query["last_active"] = {"$lt": week_ago}
+        user_query["last_active"] = {"$lt": week_ago}
     
-    # Get all FCM tokens
-    users = await db.users.find(query, {"fcm_token": 1, "name": 1}).to_list(None)
-    tokens = [u["fcm_token"] for u in users if u.get("fcm_token")]
+    # Get ALL target users (for in-app notifications)
+    all_target_users = await db.users.find(user_query, {"id": 1, "fcm_token": 1, "name": 1}).to_list(None)
     
-    if not tokens:
-        return {
-            "success": False, 
-            "message": "No users with FCM tokens found. Users need to login from the Android app and allow notifications first.",
-            "total_users_checked": len(users),
-            "users_with_tokens": 0
-        }
+    # Store notification in db.notifications for ALL target users (for in-app display)
+    notification_time = datetime.now(timezone.utc).isoformat()
+    for user in all_target_users:
+        await db.notifications.insert_one({
+            "id": str(uuid.uuid4()),
+            "user_id": user["id"],
+            "type": "admin",
+            "title": data.title,
+            "message": data.body,
+            "read": False,
+            "created_at": notification_time,
+            "data": {"target": data.target, "from": "admin"}
+        })
     
-    # Send notifications in batches of 500 (FCM limit)
+    # Get users WITH FCM tokens for push notification
+    tokens = [u["fcm_token"] for u in all_target_users if u.get("fcm_token") and str(u.get("fcm_token")).strip()]
+    
+    # Send push notifications in batches of 500 (FCM limit)
     total_success = 0
     total_failure = 0
     
-    for i in range(0, len(tokens), 500):
-        batch_tokens = tokens[i:i+500]
-        result = send_notification_to_multiple(batch_tokens, data.title, data.body)
-        if result.get("success"):
-            total_success += result.get("success_count", 0)
-            total_failure += result.get("failure_count", 0)
+    if tokens:
+        for i in range(0, len(tokens), 500):
+            batch_tokens = tokens[i:i+500]
+            result = send_notification_to_multiple(batch_tokens, data.title, data.body)
+            if result.get("success"):
+                total_success += result.get("success_count", 0)
+                total_failure += result.get("failure_count", 0)
     
-    # Log notification
+    # ALWAYS log notification (even with 0 tokens)
     await db.notification_logs.insert_one({
         "id": str(uuid.uuid4()),
         "title": data.title,
         "body": data.body,
         "target": data.target,
-        "total_sent": len(tokens),
+        "total_target_users": len(all_target_users),
+        "total_with_fcm_token": len(tokens),
         "success_count": total_success,
         "failure_count": total_failure,
-        "sent_at": datetime.now(timezone.utc).isoformat()
+        "sent_at": notification_time
     })
     
     return {
         "success": True,
-        "total_users": len(tokens),
-        "success_count": total_success,
-        "failure_count": total_failure
+        "message": f"Notification stored for {len(all_target_users)} users. Push sent to {len(tokens)} users with FCM tokens.",
+        "total_target_users": len(all_target_users),
+        "users_with_fcm_token": len(tokens),
+        "push_success_count": total_success,
+        "push_failure_count": total_failure
     }
 
 @api_router.get("/admin/fcm-status")

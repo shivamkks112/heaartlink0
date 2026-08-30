@@ -1,0 +1,72 @@
+{
+  "summary": "Tested HeartLink Admin Panel + notification flow end-to-end on the preview URL. Backend: 19/19 tests pass for every endpoint listed in the request (health, dashboard-stats, fcm-status, pending-verifications, all-users w/ pagination+search, notifications GET/read, send-notification, notification-history, schedule CRUD, discover). Frontend: Admin Panel DOES load and work (admin login -> /admin -> Overview stats, All Users, Verifications, Notifications tabs all render with live data). E2E verified: user likes a profile from Discover -> POST /api/action returns 200 -> notification IS stored in db.notifications for the target ('Referral Tester liked your profile!', unread_count=1). ROOT CAUSE of 'custom/admin notifications not received/displayed' identified: (a) there is NO in-app notification UI anywhere in the frontend - GET /api/notifications/{user_id} has zero consumers, (b) POST /api/admin/send-notification never writes to db.notifications so admin messages exist only as FCM push, (c) NotificationManager silently swallows the success:false response so the admin gets no feedback at all. Added 6 extra tests that intentionally fail to document these + security/filter defects. Also added missing data-testid attributes to AdminDashboard.jsx and NotificationManager.jsx.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/admin/send-notification", "issue": "Does not persist a per-user record in db.notifications. Admin/custom notifications are FCM-push-only, so any user without an FCM token (all 10 users in preview) or who dismisses the push can never see the message in-app. This is the primary cause of 'custom notifications not received'.", "priority": "CRITICAL"},
+      {"endpoint": "GET /api/admin/* (all)", "issue": "No authentication/authorization on ANY admin endpoint. Verified with plain anonymous curl: /api/admin/all-users returns full PII (emails, phones, locations) and /api/admin/user/{id} DELETE, /api/admin/send-notification, /api/admin/clear-all-data are publicly callable. Server-side admin check missing (only frontend route guard on user.is_admin).", "priority": "CRITICAL"}
+    ],
+    "minor": [
+      {"endpoint": "GET /api/admin/all-users", "issue": "Ignores the gender/status/sort query params that AdminDashboard.jsx sends -> the Gender, Status and Sort dropdowns in All Users tab are non-functional (gender=female still returns males; status=banned returns all 10 users)."},
+      {"endpoint": "POST /api/admin/send-notification", "issue": "When 0 FCM tokens exist it returns early WITHOUT writing to notification_logs, so the admin Notification History stays permanently empty ('No notifications sent yet') even after send attempts. Failed/zero-token attempts should be logged."},
+      {"endpoint": "POST /api/admin/schedule-notification", "issue": "No background worker consumes db.scheduled_notifications. A past-due scheduled notification stays 'pending' forever and is never sent. Only daily_notification_scheduler() exists and it does not read this collection. Schedule tab is a dead feature."},
+      {"endpoint": "GET /api/notifications/{user_id}, POST /api/notifications/{user_id}/read", "issue": "Broad try/except returns HTTP 200 with an empty list on any DB error, masking failures from the client. Should return 5xx or a structured error."},
+      {"endpoint": "GET /api/notifications/{user_id}", "issue": "No user existence check and no auth - any caller can read any user_id's notifications (IDOR)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "NotificationManager (handleSendNow)", "issue": "Silent failure: only handles res.data.success === true. When backend returns {success:false, message:'No users with FCM tokens found...'} nothing happens - no toast, no error, fields not cleared. Reproduced in browser: clicked Send Notification, 0 toasts appeared, title stayed 'TEST_QA Title'. Admin concludes 'notifications are broken'. Must show toast.error(res.data.message).", "selector": "[data-testid=\"notif-send-btn\"]", "priority": "HIGH"},
+      {"component": "App.js routing / global nav", "issue": "There is NO in-app notification screen: no /notifications route, no bell icon in TopBar/Navbar, and no component calls GET /api/notifications/{user_id}. Stored like/match/superlike notifications are therefore never displayed to the user. Navigating to /notifications renders a blank white page (no catch-all route either).", "selector": "n/a", "priority": "CRITICAL"},
+      {"component": "AdminDashboard - All Users filters", "issue": "Gender / Status / Sort dropdowns change state and refetch but backend ignores the params, so the list never changes. Non-functional controls.", "selector": "select (All Genders / All Status / Newest First)", "priority": "MEDIUM"},
+      {"component": "AdminDashboard header Refresh", "issue": "Refresh button always calls fetchUsers() even on Overview/Notifications tabs, causing a wasted /admin/all-users request; it never refreshes pending verifications.", "selector": "[data-testid=\"admin-refresh-btn\"]", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Admin sends custom notification -> user receives", "issue": "Chain is broken at two points: (1) no in-app storage of admin notifications, (2) no in-app notification list UI. In preview FCM tokens = 0 so nothing is delivered and admin gets no error. Notification History also stays empty because the zero-token path skips notification_logs.", "affected_selectors": ["[data-testid=\"notif-send-btn\"]", "[data-testid=\"notif-tab-history\"]"]},
+      {"flow": "Like -> notification stored (E2E)", "issue": "WORKING. Verified via UI click on [data-testid=\"like-btn\"]: POST /api/action -> 200, and GET /api/notifications/{target} returns type='like', title='❤️ Someone liked you!', read=false, unread_count=1. Only the display side is missing.", "affected_selectors": ["[data-testid=\"like-btn\"]"]}
+    ],
+    "design_issues": [
+      {"screen": "Admin Dashboard > Notifications > Schedule tab", "issues": ["Uses raw browser-native <input type=\"date\"> and <input type=\"time\"> pickers instead of the shadcn Calendar component (2 native inputs detected)", "No validation that the chosen schedule time is in the future"]},
+      {"screen": "Admin Dashboard > All Users", "issues": ["Action buttons (view/block/delete) are icon-only with no tooltip or aria-label - destructive delete is easy to hit by mistake", "Gender badge falls back to pink styling for 'Unknown'/other genders"]},
+      {"screen": "Discover", "issues": ["The 'Like'/'Pass'/'Super' text labels under the circular buttons are not clickable (only the icon circle is), so tapping the label does nothing - increase the tap target"]},
+      {"screen": "Global console", "issues": ["Repeated console error on every page: 'Error initializing push notifications: CapacitorException: PushNotifications plugin is not implemented on web'. Should be guarded with Capacitor.isNativePlatform() to keep the web console clean"]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_admin_notifications.py",
+    "/app/test_reports/pytest/admin_notif_results.xml"
+  ],
+  "action_items": [
+    "CRITICAL: Build an in-app notification UI (bell icon in TopBar/Navbar with unread badge + /notifications route/panel) that calls GET /api/notifications/{user_id} and POST /api/notifications/{user_id}/read. Without this, stored notifications are invisible - this is the real cause of issue #1.",
+    "CRITICAL: In POST /api/admin/send-notification, insert a db.notifications document for every targeted user (type='admin'/'custom') BEFORE/independently of the FCM send, so the message is visible in-app regardless of FCM token availability.",
+    "HIGH: Fix NotificationManager.handleSendNow to show toast.error(res.data.message) when res.data.success === false (currently a completely silent no-op).",
+    "HIGH: Add server-side admin authentication/authorization to every /api/admin/* endpoint (currently fully public, leaking PII and exposing destructive delete/clear-all-data).",
+    "MEDIUM: Implement gender/status/sort filtering in GET /api/admin/all-users (params are already sent by the UI) or remove the dropdowns.",
+    "MEDIUM: Always write to notification_logs (including failure/zero-token attempts) so Notification History reflects reality.",
+    "MEDIUM: Add a background dispatcher for db.scheduled_notifications, or hide the Schedule tab - scheduled notifications are never sent today.",
+    "LOW: Guard Capacitor PushNotifications init with Capacitor.isNativePlatform(); make Refresh tab-aware; add aria-labels to admin icon buttons; replace native date/time inputs with shadcn Calendar."
+  ],
+  "critical_code_review_comments": [
+    "/app/backend/server.py is 4029 lines - split into routers (admin, notifications, discover, auth, referral). Same for AdminDashboard.jsx (803 lines).",
+    "Admin endpoints have zero auth dependency; introduce a FastAPI dependency (e.g. require_admin) and apply it to the whole admin router.",
+    "get_user_notifications / mark_notifications_read swallow all exceptions and return 200 - callers cannot distinguish 'no notifications' from 'DB down'.",
+    "send_bulk_notification duplicates the FCM-token query logic used by fcm-status; extract a shared helper. Also it does not deduplicate tokens.",
+    "Notification creation logic in /action/{user_id} is duplicated 4 times (like/superlike/match x2) - extract a create_notification() helper.",
+    "/action/{user_id} inserts a new match document on every call with no duplicate/idempotency check, so repeated likes create duplicate rows and duplicate notifications.",
+    "AdminDashboard state has an unused `error`/ErrorFallback path that is never populated (setError is never called), so API failures only surface as toasts."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_admin_notifications.py",
+    "/app/frontend/src/pages/AdminDashboard.jsx",
+    "/app/frontend/src/components/admin/NotificationManager.jsx"
+  ],
+  "success_rate": {
+    "backend": "100% (19/19) on the requested endpoints; 76% (19/25) including the 6 defect-documenting tests",
+    "frontend": "Admin Panel 100% loads/navigates/renders; notification delivery-to-user flow 0% (no UI to display notifications, silent send failure)"
+  },
+  "seed_data_creation": "No new users created. Used existing referraltest@heartlink.com (id c70f6979-b2c3-4a97-b413-a77d21032c3a) and admin@heartlink.com. Created and cancelled TEST_QA scheduled notifications (cleaned up). One real 'like' notification created for Female Test User (1f7b6d01-1678-4a1c-ba61-70ba31f1d447) as part of the E2E test.",
+  "should_call_test_agent_after_fix": true,
+  "should_main_agent_self_test": false,
+  "test_credentials": "referraltest@heartlink.com / Test@123 and admin@heartlink.com / Admin@123 - both valid. NOTE: /api/auth/login expects field `email_or_phone`, not `email`.",
+  "context_for_next_testing_agent": "Regression suite: /app/backend/tests/test_admin_notifications.py (run: cd /app/backend && python -m pytest tests/test_admin_notifications.py -p no:randomly -v). Classes TestHealth/TestAuth/TestAdminPanel/TestUserNotifications/TestLikeCreatesNotification/TestAdminSendNotification/TestDiscover must stay 100% green. TestKnownDefects contains 6 tests that currently FAIL by design - they should turn green once the developer fixes admin auth, all-users gender/status filters, admin-notification persistence, notification_logs on zero-token sends, and the scheduled-notification dispatcher. data-testids now available: admin-dashboard-title, admin-refresh-btn, admin-tab-{overview,users,verifications,notifications}, admin-stat-<label-slug>, admin-user-card, admin-user-name, notif-tab-{send,schedule,history}, notif-title-input, notif-body-input, notif-target-select, notif-send-btn, notif-schedule-btn. Preview env has 0 FCM tokens so real push delivery cannot be tested here; verify push only on production (11 tokens). Admin Panel loads fine - the reported 'Admin Panel not working' could NOT be reproduced in the preview environment.",
+  "rca_of_the_issue": "Issue 1 (custom/admin notifications not received/displayed): three independent gaps. (a) POST /api/admin/send-notification only calls FCM and never inserts into db.notifications, so admin messages have no in-app representation. (b) There is no frontend consumer of GET /api/notifications/{user_id} at all - no /notifications route, no bell icon, no component - so even the like/match notifications that ARE now stored correctly are never rendered. (c) NotificationManager.handleSendNow only branches on res.data.success === true; with 0 FCM tokens the backend returns success:false and the UI shows nothing, so the admin sees a silent no-op and also an empty History (the zero-token path returns before writing notification_logs). Issue 2 (Admin Panel not working): NOT reproducible on the preview URL - admin@heartlink.com logs in, /admin renders, 24 stat cards populate from /api/admin/dashboard-stats, All Users renders 10 user cards from /api/admin/all-users, Verifications and Notifications tabs load. If the user hit this in production it is most likely the heartlink.co.in -> www.heartlink.co.in redirect dropping the API calls (their .env must use the www host), or user.is_admin being false in their cached localStorage session which makes the /admin route guard redirect to /."
+}

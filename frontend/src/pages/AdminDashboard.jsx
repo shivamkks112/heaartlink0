@@ -21,11 +21,11 @@ const API = `${BACKEND_URL}/api`;
 
 // Stats Card Component
 const StatCard = ({ icon: Icon, label, value, subValue, color, bgColor }) => (
-  <div className={`${bgColor} rounded-xl p-4 shadow-sm`}>
+  <div data-testid={`admin-stat-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`} className={`${bgColor} rounded-xl p-4 shadow-sm`}>
     <div className="flex items-center justify-between">
       <div>
         <p className="text-sm text-gray-600">{label}</p>
-        <p className="text-2xl font-bold text-gray-900">{value}</p>
+        <p data-testid="admin-stat-value" className="text-2xl font-bold text-gray-900">{value}</p>
         {subValue && <p className="text-xs text-gray-500 mt-1">{subValue}</p>}
       </div>
       <div className={`p-3 ${color} rounded-full`}>
@@ -44,7 +44,7 @@ const UserCard = ({ u, onBlock, onUnblock, onDelete, onView }) => {
   const daysSinceActive = lastActive ? Math.floor((Date.now() - lastActive.getTime()) / (1000 * 60 * 60 * 24)) : null;
   
   return (
-    <div className="bg-white rounded-xl shadow-md p-4 flex items-start gap-4">
+    <div data-testid="admin-user-card" className="bg-white rounded-xl shadow-md p-4 flex items-start gap-4">
       <div className="relative">
         <div className="w-16 h-16 rounded-full bg-gradient-to-br from-pink-400 to-orange-400 flex items-center justify-center overflow-hidden flex-shrink-0">
           {u.profile_picture ? (
@@ -60,7 +60,7 @@ const UserCard = ({ u, onBlock, onUnblock, onDelete, onView }) => {
       
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <h3 className="font-bold text-gray-900">{u.name || 'Unknown'}</h3>
+          <h3 data-testid="admin-user-name" className="font-bold text-gray-900">{u.name || 'Unknown'}</h3>
           {u.verified && <CheckCircle className="w-4 h-4 text-blue-500" />}
           {u.is_premium && <Crown className="w-4 h-4 text-amber-500" />}
           {u.is_admin && <Shield className="w-4 h-4 text-purple-500" />}
@@ -432,10 +432,10 @@ const AdminDashboard = ({ user }) => {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+            <h1 data-testid="admin-dashboard-title" className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
             <p className="text-gray-600">Manage users, verifications & notifications</p>
           </div>
-          <Button onClick={() => { fetchStats(); fetchUsers(); }}>
+          <Button data-testid="admin-refresh-btn" onClick={() => { fetchStats(); fetchUsers(); }}>
             <RefreshCw className="w-4 h-4 mr-2" /> Refresh
           </Button>
         </div>
@@ -443,18 +443,21 @@ const AdminDashboard = ({ user }) => {
         {/* Tabs */}
         <div className="flex gap-2 mb-6 flex-wrap">
           <Button
+            data-testid="admin-tab-overview"
             onClick={() => setActiveTab('overview')}
             className={activeTab === 'overview' ? 'bg-pink-500' : 'bg-gray-200 text-gray-700'}
           >
             <BarChart3 className="w-4 h-4 mr-2" /> Overview
           </Button>
           <Button
+            data-testid="admin-tab-users"
             onClick={() => setActiveTab('users')}
             className={activeTab === 'users' ? 'bg-pink-500' : 'bg-gray-200 text-gray-700'}
           >
             <Users className="w-4 h-4 mr-2" /> All Users
           </Button>
           <Button
+            data-testid="admin-tab-verifications"
             onClick={() => setActiveTab('verifications')}
             className={activeTab === 'verifications' ? 'bg-pink-500' : 'bg-gray-200 text-gray-700'}
           >
@@ -466,6 +469,7 @@ const AdminDashboard = ({ user }) => {
             )}
           </Button>
           <Button
+            data-testid="admin-tab-notifications"
             onClick={() => setActiveTab('notifications')}
             className={activeTab === 'notifications' ? 'bg-pink-500' : 'bg-gray-200 text-gray-700'}
           >

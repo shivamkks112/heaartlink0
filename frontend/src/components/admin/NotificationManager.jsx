@@ -83,13 +83,15 @@ const NotificationManager = () => {
       });
       
       if (res.data.success) {
-        toast.success(`✅ ${res.data.success_count} users ko notification bheja!`);
+        toast.success(`✅ ${res.data.message || 'Notification sent!'}`);
         setTitle('');
         setBody('');
         fetchHistory();
+      } else {
+        toast.error(`❌ ${res.data.message || 'Notification send failed'}`);
       }
     } catch (e) {
-      toast.error('Notification send failed');
+      toast.error('Notification send failed: ' + (e.response?.data?.detail || e.message));
     } finally {
       setSending(false);
     }
@@ -191,6 +193,7 @@ const NotificationManager = () => {
       {/* Tabs */}
       <div className="flex gap-2 mb-6 border-b border-gray-200">
         <button
+          data-testid="notif-tab-send"
           onClick={() => setActiveTab('send')}
           className={`px-4 py-2 font-medium ${activeTab === 'send' 
             ? 'text-pink-500 border-b-2 border-pink-500' 
@@ -200,6 +203,7 @@ const NotificationManager = () => {
           Send Now
         </button>
         <button
+          data-testid="notif-tab-schedule"
           onClick={() => setActiveTab('schedule')}
           className={`px-4 py-2 font-medium ${activeTab === 'schedule' 
             ? 'text-pink-500 border-b-2 border-pink-500' 
@@ -209,6 +213,7 @@ const NotificationManager = () => {
           Schedule
         </button>
         <button
+          data-testid="notif-tab-history"
           onClick={() => setActiveTab('history')}
           className={`px-4 py-2 font-medium ${activeTab === 'history' 
             ? 'text-pink-500 border-b-2 border-pink-500' 
@@ -242,6 +247,7 @@ const NotificationManager = () => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
             <Input
+              data-testid="notif-title-input"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="💕 Notification title..."
@@ -253,6 +259,7 @@ const NotificationManager = () => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
             <textarea
+              data-testid="notif-body-input"
               value={body}
               onChange={(e) => setBody(e.target.value)}
               placeholder="Notification message..."
@@ -267,6 +274,7 @@ const NotificationManager = () => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Target Users</label>
             <select
+              data-testid="notif-target-select"
               value={target}
               onChange={(e) => setTarget(e.target.value)}
               className="w-full p-3 border border-gray-300 rounded-lg"
@@ -280,6 +288,7 @@ const NotificationManager = () => {
 
           {/* Send Button */}
           <Button
+            data-testid="notif-send-btn"
             onClick={handleSendNow}
             disabled={loading || !title || !body}
             className="w-full bg-pink-500 hover:bg-pink-600"
@@ -356,6 +365,7 @@ const NotificationManager = () => {
 
           {/* Schedule Button */}
           <Button
+            data-testid="notif-schedule-btn"
             onClick={handleSchedule}
             className="w-full bg-blue-500 hover:bg-blue-600"
           >

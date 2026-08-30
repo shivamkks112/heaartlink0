@@ -1,4 +1,4 @@
-import { Heart, Compass, MessageSquare, User, Settings, Shield, LogOut } from 'lucide-react';
+import { Heart, Compass, MessageSquare, User, Settings, Shield, LogOut, Bell } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 
@@ -6,13 +6,18 @@ const Navbar = ({ user }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [likesCount, setLikesCount] = useState(0);
+  const [notifCount, setNotifCount] = useState(0);
 
   const isActive = (path) => location.pathname === path;
 
   useEffect(() => {
     fetchLikesCount();
+    fetchNotificationCount();
     // Poll every 30 seconds for updates
-    const interval = setInterval(fetchLikesCount, 30000);
+    const interval = setInterval(() => {
+      fetchLikesCount();
+      fetchNotificationCount();
+    }, 30000);
     return () => clearInterval(interval);
   }, [user.id]);
 
@@ -24,6 +29,17 @@ const Navbar = ({ user }) => {
       setLikesCount(data.total_count || 0);
     } catch (error) {
       console.error('Error fetching likes count:', error);
+    }
+  };
+
+  const fetchNotificationCount = async () => {
+    try {
+      const API = process.env.REACT_APP_BACKEND_URL + '/api';
+      const response = await fetch(`${API}/notifications/${user.id}`);
+      const data = await response.json();
+      setNotifCount(data.unread_count || 0);
+    } catch (error) {
+      console.error('Error fetching notification count:', error);
     }
   };
 
@@ -100,6 +116,31 @@ const Navbar = ({ user }) => {
             >
               <MessageSquare className={`w-6 h-6 ${isActive('/matches') || location.pathname.startsWith('/chat') ? 'animate-pulse' : ''}`} />
               <span className="text-xs">Matches</span>
+            </button>
+
+            <button
+              data-testid="nav-notifications"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                navigate('/notifications');
+              }}
+              className={`relative flex flex-col items-center justify-center gap-1 px-2 sm:px-4 py-2 rounded-xl font-medium transition-all duration-300 min-w-[60px] touch-manipulation ${
+                isActive('/notifications')
+                  ? 'bg-gradient-to-r from-pink-500 to-orange-500 text-white shadow-glow'
+                  : 'text-gray-600 hover:bg-gray-100 hover:text-pink-600'
+              }`}
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              <div className="relative">
+                <Bell className={`w-6 h-6 ${isActive('/notifications') ? 'animate-pulse' : ''}`} />
+                {notifCount > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-lg animate-pulse">
+                    {notifCount > 99 ? '99+' : notifCount}
+                  </span>
+                )}
+              </div>
+              <span className="text-xs">Alerts</span>
             </button>
 
             <button
