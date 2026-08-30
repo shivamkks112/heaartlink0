@@ -5991,7 +5991,37 @@ async def delete_notification_template(template_id: str):
         raise HTTPException(status_code=404, detail="Template not found")
     
     return {"success": True, "message": "Template deleted"}
+==================== USER NOTIFICATIONS ====================
 
+@api_router.get("/notifications/{user_id}")
+async def get_user_notifications(user_id: str, limit: int = 50):
+    """Get notifications for a specific user"""
+    try:
+        notifications = await db.notifications.find(
+            {"user_id": user_id}
+        ).sort("created_at", -1).limit(limit).to_list(None)
+        
+        formatted = []
+        for n in notifications:
+            formatted.append({
+                "id": n.get("id", str(n.get("_id", ""))),
+                "type": n.get("type", "general"),
+                "title": n.get("title", ""),
+                "message": n.get("message", ""),
+                "read": n.get("read", False),
+                "created_at": n.get("created_at", ""),
+                "data": n.get("data", {})
+            })
+        
+        return {"notifications": formatted, "unread_count": len([n for n in formatted if not n["read"]])}
+    except Exception as e:
+        return {"notifications": [], "unread_count": 0}
+
+@api_router.post("/notifications/{user_id}/read")
+async def mark_notifications_read(user_id: str):
+    """Mark all notifications as read"""
+    await db.notifications.update_many({"user_id": user_id, "read": False}, {"$set": {"read": True}})
+    return {"success": True}
 @api_router.get("/admin/notification-history")
 async def get_notification_history(limit: int = 20):
     """Get history of sent notifications"""
