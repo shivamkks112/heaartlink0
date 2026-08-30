@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { ArrowLeft, UserX, BellOff } from 'lucide-react';
+import { ArrowLeft, UserX, BellOff, Gift, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -119,6 +119,26 @@ const SettingsPage = ({ user }) => {
 
       {/* Content */}
       <div className="p-4 space-y-4">
+        {/* Invite Friends - Referral */}
+        <div className="bg-gradient-to-r from-pink-500 to-orange-500 rounded-xl p-4 shadow-lg">
+          <button
+            onClick={() => navigate('/referral')}
+            className="w-full flex items-center justify-between"
+            data-testid="referral-settings-btn"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                <Gift className="w-6 h-6 text-white" />
+              </div>
+              <div className="text-left">
+                <p className="font-bold text-white text-lg">Invite Friends 🎁</p>
+                <p className="text-sm text-white/80">Get FREE Super Likes & Premium!</p>
+              </div>
+            </div>
+            <ChevronRight className="w-6 h-6 text-white" />
+          </button>
+        </div>
+
         {/* Privacy Options */}
         <div className="bg-white rounded-xl p-4 shadow-sm">
           <h2 className="text-lg font-bold text-gray-900 mb-3">Privacy Options</h2>

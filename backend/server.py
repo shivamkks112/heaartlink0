@@ -175,7 +175,7 @@ class ConnectionManager:
         if user_id in self.active_connections:
             try:
                 await self.active_connections[user_id].send_json(message)
-            except:
+            except Exception:
                 self.disconnect(user_id)
     
     async def broadcast_status_update(self, user_id: str, is_online: bool):
@@ -395,6 +395,20 @@ class AdminVerification(BaseModel):
     reason: Optional[str] = None
     verified_by: str
 
+# === REFERRAL SYSTEM MODELS ===
+class ReferralCodeCreate(BaseModel):
+    user_id: str
+
+class ReferralApply(BaseModel):
+    referral_code: str
+    new_user_id: str
+
+class ReferralStats(BaseModel):
+    total_referrals: int = 0
+    successful_referrals: int = 0
+    pending_referrals: int = 0
+    rewards_earned: dict = {}
+
 # Helper functions
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
@@ -479,7 +493,7 @@ async def calculate_ai_compatibility(user1: dict, user2: dict) -> tuple:
             try:
                 score_str = response.split("SCORE:")[1].split("\n")[0].strip()
                 score = float(''.join(filter(str.isdigit, score_str[:3])))
-            except:
+            except Exception:
                 pass
         
         if "ANALYSIS:" in response:
@@ -2845,7 +2859,7 @@ async def send_bulk_notification(data: BulkNotificationRequest):
     Target options: all, male, female, inactive
     """
     # Build query based on target
-    query = {"fcm_token": {"$exists": True, "$ne": None, "$ne": ""}}
+    query = {"fcm_token": {"$exists": True, "$nin": [None, ""]}}
     
     if data.target == "male":
         query["gender"] = {"$regex": "^male$", "$options": "i"}
@@ -3427,7 +3441,7 @@ async def send_daily_notifications():
     try:
         # Get all users with FCM tokens
         users_with_tokens = await db.users.find({
-            "fcm_token": {"$exists": True, "$ne": None, "$ne": ""}
+            "fcm_token": {"$exists": True, "$nin": [None, ""]}
         }).to_list(None)
         
         if not users_with_tokens:
@@ -3485,7 +3499,7 @@ async def send_inactive_user_notifications():
         
         # Find inactive users with FCM tokens
         inactive_users = await db.users.find({
-            "fcm_token": {"$exists": True, "$ne": None, "$ne": ""},
+            "fcm_token": {"$exists": True, "$nin": [None, ""]},
             "last_active": {"$lt": three_days_ago.isoformat()}
         }).to_list(100)
         
@@ -3585,13 +3599,13 @@ async def get_daily_notification_status():
     
     # Count users with FCM tokens
     users_with_tokens = await db.users.count_documents({
-        "fcm_token": {"$exists": True, "$ne": None, "$ne": ""}
+        "fcm_token": {"$exists": True, "$nin": [None, ""]}
     })
     
     # Count inactive users
     three_days_ago = datetime.now(timezone.utc) - timedelta(days=3)
     inactive_count = await db.users.count_documents({
-        "fcm_token": {"$exists": True, "$ne": None, "$ne": ""},
+        "fcm_token": {"$exists": True, "$nin": [None, ""]},
         "last_active": {"$lt": three_days_ago.isoformat()}
     })
     
@@ -3608,8 +3622,290 @@ async def get_daily_notification_status():
         "next_scheduled": "10:00 AM IST daily"
     }
 
+# ==================== REFERRAL SYSTEM ====================
+
+def generate_referral_code(user_id: str, name: str) -> str:
+    """Generate unique referral code"""
+    import random
+    import string
+    # Create code from name + random chars
+    name_part = ''.join(c.upper() for c in name[:3] if c.isalpha()) or "HRT"
+    random_part = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
+    return f"{name_part}{random_part}"
+
+# Referral Rewards Configuration
+REFERRAL_REWARDS = {
+    1: {"super_likes": 5, "description": "5 Super Likes"},
+    3: {"super_likes": 10, "extra_swipes": 20, "description": "10 Super Likes + 20 Extra Swipes"},
+    5: {"premium_days": 3, "description": "3 Days FREE Premium"},
+    10: {"premium_days": 7, "description": "1 Week FREE Premium"},
+}
+
+@api_router.get("/referral/{user_id}/code")
+async def get_or_create_referral_code(user_id: str):
+    """Get or create referral code for user"""
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Check if user already has a referral code
+    if user.get("referral_code"):
+        return {
+            "referral_code": user["referral_code"],
+            "share_link": f"https://heartlink.co.in/invite/{user['referral_code']}",
+            "share_text": f"HeartLink pe aao! Use my code {user['referral_code']} and get FREE Super Likes! 💕"
+        }
+    
+    # Generate new code
+    referral_code = generate_referral_code(user_id, user.get("name", "User"))
+    
+    # Ensure uniqueness
+    while await db.users.find_one({"referral_code": referral_code}):
+        referral_code = generate_referral_code(user_id, user.get("name", "User"))
+    
+    # Save to user
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {
+            "referral_code": referral_code,
+            "referral_stats": {
+                "total_referrals": 0,
+                "successful_referrals": 0,
+                "rewards_claimed": []
+            }
+        }}
+    )
+    
+    return {
+        "referral_code": referral_code,
+        "share_link": f"https://heartlink.co.in/invite/{referral_code}",
+        "share_text": f"HeartLink pe aao! Use my code {referral_code} and get FREE Super Likes! 💕"
+    }
+
+@api_router.post("/referral/apply")
+async def apply_referral_code(data: ReferralApply):
+    """Apply referral code for new user"""
+    # Find referrer by code
+    referrer = await db.users.find_one({"referral_code": data.referral_code.upper()})
+    if not referrer:
+        raise HTTPException(status_code=404, detail="Invalid referral code")
+    
+    # Check if new user exists
+    new_user = await db.users.find_one({"id": data.new_user_id})
+    if not new_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Check if already used a referral code
+    if new_user.get("referred_by"):
+        raise HTTPException(status_code=400, detail="You have already used a referral code")
+    
+    # Can't use own code
+    if referrer["id"] == data.new_user_id:
+        raise HTTPException(status_code=400, detail="Cannot use your own referral code")
+    
+    # Record the referral
+    referral_doc = {
+        "id": str(uuid.uuid4()),
+        "referrer_id": referrer["id"],
+        "referred_id": data.new_user_id,
+        "referral_code": data.referral_code.upper(),
+        "status": "pending",  # pending -> successful (after profile complete)
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "rewarded_at": None
+    }
+    await db.referrals.insert_one(referral_doc)
+    
+    # Update new user
+    await db.users.update_one(
+        {"id": data.new_user_id},
+        {"$set": {
+            "referred_by": referrer["id"],
+            "referral_code_used": data.referral_code.upper()
+        }}
+    )
+    
+    # Update referrer stats
+    await db.users.update_one(
+        {"id": referrer["id"]},
+        {"$inc": {"referral_stats.total_referrals": 1}}
+    )
+    
+    # Give welcome bonus to new user (3 Super Likes)
+    current_super_likes = new_user.get("super_likes", 0)
+    await db.users.update_one(
+        {"id": data.new_user_id},
+        {"$set": {"super_likes": current_super_likes + 3}}
+    )
+    
+    return {
+        "success": True,
+        "message": "Referral code applied! You got 3 FREE Super Likes! 🎉",
+        "bonus": {"super_likes": 3}
+    }
+
+@api_router.post("/referral/complete/{new_user_id}")
+async def complete_referral(new_user_id: str):
+    """Mark referral as complete (called after profile completion) and reward referrer"""
+    # Find pending referral
+    referral = await db.referrals.find_one({
+        "referred_id": new_user_id,
+        "status": "pending"
+    })
+    
+    if not referral:
+        return {"success": True, "message": "No pending referral"}
+    
+    # Mark as successful
+    await db.referrals.update_one(
+        {"id": referral["id"]},
+        {"$set": {
+            "status": "successful",
+            "completed_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    # Update referrer's successful count
+    await db.users.update_one(
+        {"id": referral["referrer_id"]},
+        {"$inc": {"referral_stats.successful_referrals": 1}}
+    )
+    
+    # Get updated referrer stats
+    referrer = await db.users.find_one({"id": referral["referrer_id"]})
+    successful_count = referrer.get("referral_stats", {}).get("successful_referrals", 0)
+    
+    # Check and give milestone rewards
+    rewards_claimed = referrer.get("referral_stats", {}).get("rewards_claimed", [])
+    
+    for milestone, reward in REFERRAL_REWARDS.items():
+        if successful_count >= milestone and milestone not in rewards_claimed:
+            # Give reward
+            update_fields = {}
+            
+            if "super_likes" in reward:
+                current = referrer.get("super_likes", 0)
+                update_fields["super_likes"] = current + reward["super_likes"]
+            
+            if "extra_swipes" in reward:
+                current = referrer.get("extra_swipes", 0)
+                update_fields["extra_swipes"] = current + reward["extra_swipes"]
+            
+            if "premium_days" in reward:
+                # Add premium days
+                current_premium_until = referrer.get("premium_until")
+                if current_premium_until:
+                    try:
+                        premium_date = datetime.fromisoformat(current_premium_until.replace('Z', '+00:00'))
+                    except Exception:
+                        premium_date = datetime.now(timezone.utc)
+                else:
+                    premium_date = datetime.now(timezone.utc)
+                
+                new_premium_until = premium_date + timedelta(days=reward["premium_days"])
+                update_fields["premium_until"] = new_premium_until.isoformat()
+                update_fields["is_premium"] = True
+            
+            if update_fields:
+                await db.users.update_one(
+                    {"id": referral["referrer_id"]},
+                    {"$set": update_fields}
+                )
+            
+            # Mark reward as claimed
+            await db.users.update_one(
+                {"id": referral["referrer_id"]},
+                {"$push": {"referral_stats.rewards_claimed": milestone}}
+            )
+            
+            # Send notification to referrer
+            try:
+                await send_notification_to_multiple(
+                    [referrer.get("fcm_token")],
+                    "🎁 Referral Reward!",
+                    f"Your friend joined! You earned: {reward['description']}",
+                    {"type": "referral_reward", "milestone": milestone}
+                )
+            except Exception as e:
+                logger.error(f"Failed to send referral notification: {e}")
+    
+    return {"success": True, "message": "Referral completed"}
+
+@api_router.get("/referral/{user_id}/stats")
+async def get_referral_stats(user_id: str):
+    """Get user's referral statistics"""
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    stats = user.get("referral_stats", {
+        "total_referrals": 0,
+        "successful_referrals": 0,
+        "rewards_claimed": []
+    })
+    
+    # Get list of referred users
+    referrals = await db.referrals.find(
+        {"referrer_id": user_id}
+    ).sort("created_at", -1).to_list(50)
+    
+    # Get referred users' names
+    referred_users = []
+    for ref in referrals:
+        referred_user = await db.users.find_one(
+            {"id": ref["referred_id"]},
+            {"name": 1, "profile_picture": 1}
+        )
+        if referred_user:
+            referred_users.append({
+                "name": referred_user.get("name", "User"),
+                "profile_picture": referred_user.get("profile_picture"),
+                "status": ref["status"],
+                "date": ref["created_at"]
+            })
+    
+    # Calculate next milestone
+    successful = stats.get("successful_referrals", 0)
+    next_milestone = None
+    next_reward = None
+    
+    for milestone, reward in sorted(REFERRAL_REWARDS.items()):
+        if successful < milestone:
+            next_milestone = milestone
+            next_reward = reward["description"]
+            break
+    
+    return {
+        "referral_code": user.get("referral_code"),
+        "total_referrals": stats.get("total_referrals", 0),
+        "successful_referrals": stats.get("successful_referrals", 0),
+        "rewards_claimed": stats.get("rewards_claimed", []),
+        "referred_users": referred_users,
+        "next_milestone": next_milestone,
+        "next_reward": next_reward,
+        "referrals_until_next": (next_milestone - successful) if next_milestone else 0,
+        "all_rewards": REFERRAL_REWARDS
+    }
+
+@api_router.get("/referral/validate/{code}")
+async def validate_referral_code(code: str):
+    """Validate if a referral code exists"""
+    referrer = await db.users.find_one(
+        {"referral_code": code.upper()},
+        {"name": 1, "profile_picture": 1}
+    )
+    
+    if not referrer:
+        return {"valid": False, "message": "Invalid referral code"}
+    
+    return {
+        "valid": True,
+        "referrer_name": referrer.get("name", "A HeartLink user"),
+        "referrer_photo": referrer.get("profile_picture"),
+        "bonus": "3 FREE Super Likes"
+    }
+
 @app.on_event("startup")
-async def startup_event():
+async def startup_event_scheduler():
     """Start background tasks on app startup"""
     # Start daily notification scheduler
     asyncio.create_task(daily_notification_scheduler())

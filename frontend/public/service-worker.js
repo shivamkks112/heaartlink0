@@ -1,3 +1,5 @@
+/* eslint-disable no-restricted-globals */
+/* eslint-disable no-undef */
 // Enhanced service worker for HeartLink PWA
 const CACHE_NAME = 'heartlink-v2';
 const RUNTIME_CACHE = 'heartlink-runtime';

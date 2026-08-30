@@ -83,7 +83,7 @@ zipalign -v 4 app/build/outputs/apk/release/app-release-unsigned.apk HeartLink-v
 
 ### Using Online APK Generator (Fastest)
 1. **Visit:** https://appmaker.xyz/pwa-to-apk
-2. **Enter PWA URL:** `https://desi-match-4.preview.emergentagent.com`
+2. **Enter PWA URL:** `https://india-dating-app.preview.emergentagent.com`
 3. **Fill App Details:**
    - App Name: HeartLink
    - Package Name: com.heartlink.dating
@@ -94,7 +94,7 @@ zipalign -v 4 app/build/outputs/apk/release/app-release-unsigned.apk HeartLink-v
 
 ### Or Use PWABuilder (Microsoft)
 1. **Visit:** https://www.pwabuilder.com
-2. **Enter URL:** `https://desi-match-4.preview.emergentagent.com`
+2. **Enter URL:** `https://india-dating-app.preview.emergentagent.com`
 3. **Click:** "Start"  
 4. **Choose:** Android package
 5. **Download** generated APK

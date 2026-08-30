@@ -20,6 +20,7 @@ import TermsPage from '@/pages/TermsPage';
 import ProfileViewersPage from '@/pages/ProfileViewersPage';
 import ProfileEnhancementPage from '@/pages/ProfileEnhancementPage';
 import PremiumPage from '@/pages/PremiumPage';
+import ReferralPage from '@/pages/ReferralPage';
 import InstallPrompt from '@/components/InstallPrompt';
 import { AdProvider } from '@/context/AdContext';
 import { requestNotificationPermission, setupForegroundMessageListener } from '@/firebase/messaging';
@@ -128,6 +129,7 @@ function App() {
             {/* Premium Route - HIDDEN FOR NOW */}
             {/* <Route path="/premium" element={user ? <PremiumPage user={user} /> : <Navigate to="/" />} /> */}
             <Route path="/premium" element={<Navigate to="/discover" />} />
+            <Route path="/referral" element={user ? <ReferralPage user={user} /> : <Navigate to="/" />} />
           </Routes>
         </BrowserRouter>
       </AdProvider>

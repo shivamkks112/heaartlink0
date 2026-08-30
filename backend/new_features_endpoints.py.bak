@@ -1,8 +1,43 @@
 # New Features Endpoints to be added to server.py
+# NOTE: This is a DRAFT file containing endpoint templates to be integrated into server.py
+# These are NOT active endpoints - they serve as reference code for future implementation
+
+"""
+To integrate these endpoints into server.py:
+1. Copy the relevant endpoint code
+2. Ensure required imports are present in server.py (uuid, datetime, timezone, HTTPException)
+3. Ensure Pydantic models (BlockUser, MuteUser, ReportUser, LocationUpdate) are defined
+4. The db connection and api_router are already available in server.py
+"""
+
+# Required imports (already present in server.py):
+# from fastapi import APIRouter, HTTPException
+# from pydantic import BaseModel
+# import uuid
+# from datetime import datetime, timezone
+# db = ... (MongoDB async connection)
+# api_router = APIRouter()
+
+# Required Pydantic models to add to server.py:
+# class BlockUser(BaseModel):
+#     blocked_user_id: str
+#
+# class MuteUser(BaseModel):
+#     muted_user_id: str
+#
+# class ReportUser(BaseModel):
+#     reported_user_id: str
+#     reason: str
+#
+# class LocationUpdate(BaseModel):
+#     latitude: float
+#     longitude: float
+#     location: str = ""
 
 # ==================== BLOCK/MUTE/REPORT FEATURES ====================
-
-@api_router.post("/user/{user_id}/block")
+# Example endpoint (to be copied into server.py with proper context):
+#
+# @api_router.post("/user/{user_id}/block")
 async def block_user(user_id: str, block_data: BlockUser):
     """Block a user"""
     user = await db.users.find_one({"id": user_id})

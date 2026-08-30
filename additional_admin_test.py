@@ -6,7 +6,7 @@ Additional test to verify making existing users admin
 import requests
 import json
 
-BACKEND_URL = "https://desi-match-4.preview.emergentagent.com/api"
+BACKEND_URL = "https://india-dating-app.preview.emergentagent.com/api"
 
 def test_make_existing_user_admin():
     """Test making an existing non-admin user into admin"""

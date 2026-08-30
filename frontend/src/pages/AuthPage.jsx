@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Heart, Mail, Phone, Lock, User, MapPin, Calendar, Hash, ArrowRight, Shield } from 'lucide-react';
+import { Heart, Mail, Phone, Lock, User, MapPin, Calendar, Hash, ArrowRight, Shield, Gift, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -40,8 +40,12 @@ const AuthPage = ({ onLogin }) => {
     bio: '',
     location: '',
     interests: '',
-    ageVerified: false
+    ageVerified: false,
+    referral_code: ''
   });
+  
+  const [referralValid, setReferralValid] = useState(null);
+  const [referralInfo, setReferralInfo] = useState(null);
 
   // Countdown timer for OTP resend
   useEffect(() => {
@@ -306,6 +310,21 @@ const AuthPage = ({ onLogin }) => {
       const response = await axios.post(`${API}/auth/signup`, submitData);
       const userData = response.data.user;
       
+      // Apply referral code if provided and valid
+      if (signupData.referral_code && referralValid) {
+        try {
+          const referralRes = await axios.post(`${API}/referral/apply`, {
+            referral_code: signupData.referral_code,
+            new_user_id: userData.id
+          });
+          if (referralRes.data.success) {
+            toast.success(referralRes.data.message);
+          }
+        } catch (refError) {
+          console.log('Referral apply failed:', refError);
+        }
+      }
+      
       localStorage.setItem('user', JSON.stringify(userData));
       await onLogin(userData);
       toast.success(`Welcome to HeartLink, ${userData.name}!`);
@@ -319,6 +338,24 @@ const AuthPage = ({ onLogin }) => {
       toast.error(errorMessage);
     } finally {
       setLoading(false);
+    }
+  };
+  
+  // Validate referral code
+  const validateReferralCode = async (code) => {
+    if (!code || code.length < 4) {
+      setReferralValid(null);
+      setReferralInfo(null);
+      return;
+    }
+    
+    try {
+      const res = await axios.get(`${API}/referral/validate/${code}`);
+      setReferralValid(res.data.valid);
+      setReferralInfo(res.data);
+    } catch (error) {
+      setReferralValid(false);
+      setReferralInfo(null);
     }
   };
 
@@ -699,6 +736,50 @@ const AuthPage = ({ onLogin }) => {
                     I understand that HeartLink is an adult dating platform and users under 18 are strictly prohibited.
                   </label>
                 </div>
+              </div>
+
+              {/* Referral Code - Optional */}
+              <div className="bg-gradient-to-r from-pink-50 to-orange-50 border-2 border-pink-200 rounded-xl p-4">
+                <Label className="text-gray-700 font-semibold flex items-center gap-2">
+                  <Gift className="w-4 h-4 text-pink-500" />
+                  Have a Referral Code? (Optional)
+                </Label>
+                <div className="relative mt-2">
+                  <Input
+                    data-testid="signup-referral-input"
+                    type="text"
+                    placeholder="Enter referral code"
+                    value={signupData.referral_code}
+                    onChange={(e) => {
+                      const code = e.target.value.toUpperCase();
+                      setSignupData({...signupData, referral_code: code});
+                      validateReferralCode(code);
+                    }}
+                    className={`py-4 rounded-xl border-2 pr-10 ${
+                      referralValid === true ? 'border-green-500 bg-green-50' : 
+                      referralValid === false ? 'border-red-500 bg-red-50' : 
+                      'border-gray-200'
+                    } focus:border-pink-500`}
+                    maxLength={10}
+                  />
+                  {referralValid === true && (
+                    <Check className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-green-500" />
+                  )}
+                  {referralValid === false && (
+                    <X className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-red-500" />
+                  )}
+                </div>
+                {referralValid && referralInfo && (
+                  <div className="mt-2 flex items-center gap-2 text-sm text-green-600">
+                    <span>✅ Referred by {referralInfo.referrer_name}</span>
+                    <span className="bg-green-100 px-2 py-0.5 rounded-full text-xs font-bold">
+                      +{referralInfo.bonus}
+                    </span>
+                  </div>
+                )}
+                {referralValid === false && (
+                  <p className="mt-1 text-sm text-red-500">Invalid referral code</p>
+                )}
               </div>
 
               <div>

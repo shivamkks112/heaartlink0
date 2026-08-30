@@ -12,7 +12,7 @@ Maine aapke liye ek **special endpoint** bana diya hai jo **bina database access
 
 #### Step 1: Signup (If not already done)
 ```
-Go to: https://desi-match-4.preview.emergentagent.com/auth
+Go to: https://india-dating-app.preview.emergentagent.com/auth
 - Create account with your email
 - Complete profile
 - Remember your password
@@ -20,7 +20,7 @@ Go to: https://desi-match-4.preview.emergentagent.com/auth
 
 #### Step 2: Make Yourself Admin
 ```bash
-curl -X POST https://desi-match-4.preview.emergentagent.com/api/admin/make-me-admin-once \
+curl -X POST https://india-dating-app.preview.emergentagent.com/api/admin/make-me-admin-once \
   -H "Content-Type: application/json" \
   -d '{
     "secret_code": "HeartLink@Admin#2024",
@@ -32,7 +32,7 @@ curl -X POST https://desi-match-4.preview.emergentagent.com/api/admin/make-me-ad
 
 #### Step 3: Login as Admin
 ```
-1. Go to: https://desi-match-4.preview.emergentagent.com/auth
+1. Go to: https://india-dating-app.preview.emergentagent.com/auth
 2. Login with your email and password
 3. Admin tab will appear in bottom navigation
 4. Click on it to access admin dashboard
@@ -117,13 +117,13 @@ ADMIN_SETUP_COMPLETE=true
 ## 📱 Using Browser (Easy Method)
 
 ### Preview Site:
-1. Go to: https://desi-match-4.preview.emergentagent.com/auth
+1. Go to: https://india-dating-app.preview.emergentagent.com/auth
 2. Signup/Login
 3. Open browser console (F12)
 4. Paste this code:
 
 ```javascript
-fetch('https://desi-match-4.preview.emergentagent.com/api/admin/make-me-admin-once', {
+fetch('https://india-dating-app.preview.emergentagent.com/api/admin/make-me-admin-once', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
@@ -192,7 +192,7 @@ After setup:
 
 ```bash
 # Login
-curl -X POST https://desi-match-4.preview.emergentagent.com/api/auth/login \
+curl -X POST https://india-dating-app.preview.emergentagent.com/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "email_or_phone": "YOUR_EMAIL@example.com",
@@ -253,7 +253,7 @@ curl -X POST https://desi-match-4.preview.emergentagent.com/api/auth/login \
 ### Debug Command:
 ```bash
 # Check if user exists
-curl "https://desi-match-4.preview.emergentagent.com/api/profile/YOUR_USER_ID"
+curl "https://india-dating-app.preview.emergentagent.com/api/profile/YOUR_USER_ID"
 ```
 
 ---
@@ -264,7 +264,7 @@ curl "https://desi-match-4.preview.emergentagent.com/api/profile/YOUR_USER_ID"
 # 1. Already signed up on website ✅
 
 # 2. Make admin via curl
-curl -X POST https://desi-match-4.preview.emergentagent.com/api/admin/make-me-admin-once \
+curl -X POST https://india-dating-app.preview.emergentagent.com/api/admin/make-me-admin-once \
   -H "Content-Type: application/json" \
   -d '{
     "secret_code": "HeartLink@Admin#2024",

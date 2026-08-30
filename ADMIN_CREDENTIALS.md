@@ -10,7 +10,7 @@ Password: Admin@HeartLink2024
 
 ### Admin Dashboard URL:
 ```
-https://desi-match-4.preview.emergentagent.com/admin
+https://india-dating-app.preview.emergentagent.com/admin
 ```
 
 ---
@@ -18,7 +18,7 @@ https://desi-match-4.preview.emergentagent.com/admin
 ## How to Access Admin Dashboard
 
 ### Step 1: Login
-1. Go to: https://desi-match-4.preview.emergentagent.com/auth
+1. Go to: https://india-dating-app.preview.emergentagent.com/auth
 2. Enter credentials above
 3. Click "Login"
 
@@ -129,7 +129,7 @@ asyncio.run(make_admin("new_admin@heartlink.com"))
 ### Quick Test:
 ```bash
 # Login
-curl -X POST https://desi-match-4.preview.emergentagent.com/api/auth/login \
+curl -X POST https://india-dating-app.preview.emergentagent.com/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email_or_phone":"admin@heartlink.com","password":"Admin@HeartLink2024"}'
 
