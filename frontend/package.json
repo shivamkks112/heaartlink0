@@ -4,6 +4,7 @@
   "private": true,
   "dependencies": {
     "@capacitor-community/admob": "6.0.0",
+    "@capacitor-community/facebook-login": "5.0.0",
     "@capacitor/android": "^7.4.3",
     "@capacitor/cli": "^7.4.3",
     "@capacitor/core": "^7.4.3",

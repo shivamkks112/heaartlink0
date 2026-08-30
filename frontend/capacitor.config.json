@@ -21,6 +21,12 @@
       "appId": "ca-app-pub-3735972538807236~9004238866",
       "requestTrackingAuthorization": true,
       "initializeForTesting": false
+    },
+    "FacebookLogin": {
+      "appId": "1667563904230292",
+      "clientToken": "",
+      "displayName": "Heartlink",
+      "permissions": ["email", "public_profile"]
     }
   },
   "server": {

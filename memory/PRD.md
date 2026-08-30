@@ -132,23 +132,50 @@ Build a modern, safe, trust-based dating app for Android called "HeartLink" for 
 ## Upcoming Tasks
 
 ### P0 - High Priority
-- [ ] Razorpay/Stripe payment integration for subscriptions
 - [ ] Screenshot detection native implementation
 - [ ] AI Trust Score algorithm
+- [ ] Fix GitHub Actions workflow
 
 ### P1 - Medium Priority
 - [ ] Chat without match functionality
 - [ ] Typing indicators and read receipts
-- [ ] Native Android app build with AdMob
+- [ ] AI-based photo verification
 
 ### P2 - Lower Priority
 - [ ] Advanced reporting system
-- [ ] AI-based photo verification
 - [ ] Redis caching for scalability
+- [ ] Refactor `server.py` into modules (currently 3900+ lines)
+
+## Completed in This Session (August 2025)
+
+### Referral System ✅
+- Backend APIs for referral code generation, validation, and tracking
+- Milestone rewards: 1 friend = 5 Super Likes, 3 friends = 10 Super Likes + 20 Swipes, 5 friends = 3 Days Premium, 10 friends = 1 Week Premium
+- Frontend ReferralPage with WhatsApp/Native share buttons
+- Signup page has optional referral code input with real-time validation
+- Settings page has "Invite Friends" button
+
+**New Files:**
+- `/app/frontend/src/pages/ReferralPage.jsx`
+- `/app/frontend/src/services/FacebookService.js`
+- `/app/frontend/FACEBOOK_SDK_SETUP.md`
+
+**Modified Files:**
+- `/app/backend/server.py` - Added referral endpoints
+- `/app/frontend/src/App.js` - Added referral route, Facebook SDK init
+- `/app/frontend/src/pages/AuthPage.jsx` - Added referral code input
+- `/app/frontend/src/pages/SettingsPage.jsx` - Added Invite Friends button
+
+### Facebook/Meta SDK Integration ✅
+- App ID: 1667563904230292
+- Capacitor plugin installed: @capacitor-community/facebook-login
+- FacebookService.js for app event tracking
+- User needs to complete Android-side configuration locally
 
 ## Test Credentials
-- Admin Email: shivamkks112@gmail.com
-- Admin Password: Test@123
+- Preview Test User: referraltest@heartlink.com / Test@123
+- Preview Admin: admin@heartlink.com / Admin@123
+- Production Play Console Reviewer: googleplay@heartlink.com / Google@123
 
 ## Files Modified/Created (This Session)
 - `/app/frontend/src/services/adMobService.js` - NEW

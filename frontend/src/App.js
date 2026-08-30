@@ -27,6 +27,7 @@ import { requestNotificationPermission, setupForegroundMessageListener } from '@
 import { initGoogleAuth } from '@/utils/nativeGoogleAuth';
 import { initPushNotifications } from '@/services/pushNotifications';
 import adsService from '@/services/AdsService';
+import facebookService from '@/services/FacebookService';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -46,6 +47,17 @@ function App() {
       }
     };
     initializeAds();
+    
+    // Initialize Facebook SDK for app event tracking
+    const initializeFacebook = async () => {
+      try {
+        await facebookService.initialize();
+        console.log('Facebook SDK initialized on app start');
+      } catch (error) {
+        console.log('Facebook SDK init skipped:', error.message);
+      }
+    };
+    initializeFacebook();
     
     // Check for stored user
     const storedUser = localStorage.getItem('user');
