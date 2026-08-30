@@ -3,9 +3,50 @@
 ## Original Problem Statement
 Build a modern, safe, trust-based dating app for Android called "HeartLink" for Indian users. The app focuses on creating a premium, respectful, safe dating experience with emphasis on genuine users and female safety.
 
-## Latest Update (January 2025)
+## Latest Update (August 2025)
 
-### Ad Logic Refactor - Complete ✅ (Updated Jan 28, 2025)
+### Notifications & Admin Panel Fix - Complete ✅ (Aug 30, 2025)
+
+**Issues Fixed:**
+1. **Notifications not displayed** - Created `/notifications` page with bell icon in navbar
+2. **Admin notifications not stored** - Now stored in `db.notifications` for all target users
+3. **Like/Match/Superlike notifications** - Now stored in database for in-app viewing
+4. **Admin Panel URL issue** - Production uses `www.heartlink.co.in` (WITH www)
+
+**Files Changed:**
+- `/backend/server.py` - Added notification storage for all user events, fixed admin send-notification
+- `/frontend/src/pages/NotificationsPage.jsx` - NEW - In-app notifications page
+- `/frontend/src/components/Navbar.jsx` - Added bell icon with unread badge
+- `/frontend/src/components/admin/NotificationManager.jsx` - Improved error handling
+- `/frontend/src/App.js` - Added notifications route
+
+**Notification Flow:**
+```
+Admin/Like/Match → Stored in db.notifications → User sees in /notifications page
+                → FCM push sent (if user has token) → Android notification
+```
+
+### Referral System - Complete ✅ (Aug 30, 2025)
+
+**Features:**
+- Unique referral codes for each user
+- Share via WhatsApp/Native share
+- Milestone rewards: 1 friend = 5 Super Likes, 3 = 10+20 swipes, 5 = 3 days Premium, 10 = 1 week Premium
+- New users get 3 FREE Super Likes on signup with referral code
+
+**Files:**
+- `/backend/server.py` - Referral APIs
+- `/frontend/src/pages/ReferralPage.jsx` - Referral page
+- `/frontend/src/pages/SettingsPage.jsx` - Invite Friends button
+
+### Facebook/Meta SDK Integration ✅ (Aug 30, 2025)
+
+**Setup:**
+- App ID: 1667563904230292
+- Package installed: @capacitor-community/facebook-login
+- User needs to complete Android-side config in `strings.xml` and `AndroidManifest.xml`
+
+## Ad Logic Refactor - Complete ✅ (Updated Jan 28, 2025)
 
 **Changes Made:**
 1. **Removed ALL Banner Ads** - No banner ads anywhere in the app
