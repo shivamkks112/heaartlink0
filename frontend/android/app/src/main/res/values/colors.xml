@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- HeartLink App Colors -->
+    <color name="colorPrimary">#EC4899</color>
+    <color name="colorPrimaryDark">#DB2777</color>
+    <color name="colorAccent">#F97316</color>
+    
+    <!-- Splash Screen Colors -->
+    <color name="splash_background">#FDF2F8</color>
+    
+    <!-- Notification Colors -->
+    <color name="notification_color">#EC4899</color>
+</resources>
