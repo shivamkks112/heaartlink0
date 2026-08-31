@@ -1,0 +1,55 @@
+{
+  "summary": "Verified the 3 pending HeartLink features end-to-end on the public preview URL. (1) Show-password toggles on login+signup: PASS. (2) Chat filter (Recent/Oldest/Unread) on Messages tab: PASS - pills render, active state highlights, ordering verified with 2 seeded conversations. (3) badge_update WebSocket: PASS - verified over a real WS connection (badge increments on new message, unread cleared after mark-read) and in the UI navbar (Chats badge 2->3 on live incoming message, back to 2 after opening chat). Login flow with admin credentials reaches /discover. Backend: 10 passed, 1 skipped (no badge-counts REST endpoint). Found 3 non-blocking defects (404 prefetch endpoint, stale matches cache, Alerts badge double-counting).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/matches/{user_id}/conversations", "issue": "Endpoint does not exist (404). frontend/src/utils/cacheManager.js:70 prefetchRecentChats() calls it on every app load -> 2 console 404 errors per session and chat prefetch/cache never works. Either add the endpoint or point prefetch at /api/matches/{user_id} + /api/messages/{match_id}/last."},
+      {"endpoint": "GET /api/matches/{user_id}", "issue": "matches_cache (TTLCache ttl=120s, database.py:39) is never invalidated when a new match is created (server.py ~3300 mutual-like path). Reproduced: mutual like returned {action: matched, match_id: ...} but GET /api/matches/{user_id} kept returning the old list for ~2 min, so a brand-new match / its chat is invisible to the user for up to 2 minutes."},
+      {"endpoint": "POST /api/messages/{match_id}/mark-read/{user_id}", "issue": "send_badge_update is only fired when modified_count > 0 (server.py:3890-3904). If a client badge is stale but nothing needs updating, the badge never self-heals. Consider always sending the badge update."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Navbar", "issue": "Alerts badge = notification_count + unread_messages (Navbar.jsx:34) while each new message ALSO creates an in-app notification, so one incoming message increments Alerts by 2 (observed 14 -> 16) and only drops by 1 after reading (16 -> 15). Double counting makes the Alerts badge permanently inflated.", "selector": "nav button (Alerts)", "priority": "MEDIUM"},
+      {"component": "Navbar", "issue": "Visiting /matches or /chat/* hard-resets unreadMessages to 0 locally (Navbar.jsx:29) even when other conversations still have unread messages; the correct count only reappears after the next badge_update or page reload.", "selector": "nav button (Chats)", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "App load prefetch", "issue": "prefetchRecentChats hits non-existent /api/matches/{id}/conversations -> 404 console errors, silent failure (caught by empty catch)", "affected_selectors": []}
+    ],
+    "design_issues": [
+      {"screen": "Messages tab (chat filter)", "issues": ["No issues: pills have adequate contrast (active = #D6336C on white text), correct spacing above the list", "'Unread' pill only re-sorts by unread count; read conversations are still listed. Label suggests filtering - consider renaming to 'Unread first' or actually filtering (product decision)"]},
+      {"screen": "Discover", "issues": ["Unlabeled '50' chip at top-left overlaps the card header area - unclear meaning to users", "Users without photos render a giant single-letter placeholder ('F') filling the whole card"]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter30_features.py",
+    "/app/backend/tests/test_iter30_ws_badge.py",
+    "/app/backend/tests/seed_iter30.py",
+    "/app/backend/tests/seed_iter30_second.py",
+    "/app/test_reports/pytest/iter30.xml"
+  ],
+  "action_items": [
+    "Fix cacheManager.prefetchRecentChats to use existing endpoints (or add GET /api/matches/{user_id}/conversations) - currently 404 on every load",
+    "Invalidate matches_cache for both users when a new match is created (mutual-like path) so new matches appear immediately",
+    "Stop double-counting unread messages in the Alerts badge (Navbar.jsx:34) since messages also create in-app notifications",
+    "Optional: always send badge_update from mark-read even when modified_count == 0"
+  ],
+  "critical_code_review_comments": [
+    "server.py is 7663 lines - should be split into routers (auth/matches/messages/admin) per the 700-line guideline",
+    "GET /api/matches caches results for 120s with no write-through invalidation on match creation; any endpoint that mutates db.matches should pop matches_cache for both user ids",
+    "MatchesPage.fetchConversations issues 2 extra HTTP calls per match (last + unread-count) in a Promise.all fan-out; a single aggregated conversations endpoint would cut N*2 requests"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter30_features.py",
+    "/app/backend/tests/test_iter30_ws_badge.py",
+    "/app/backend/tests/seed_iter30.py",
+    "/app/backend/tests/seed_iter30_second.py"
+  ],
+  "success_rate": {"backend": "100% (10 passed, 1 skipped)", "frontend": "100% of the 3 requested features pass; 3 unrelated defects found"},
+  "seed_data_creation": "Mutual match + messages between shivamkks112 (89a6e3b5...) and review (cca39b3f...) -> match 5f5b1722-cc69-4e4c-bde5-f41e21ed0747; second mutual match with AI profile Shuba (537e6f5e...) -> match 0f93fc08-c72f-44de-bcb1-87836dc53459. Messages prefixed TEST_ (not deleted, needed for future chat-filter regression).",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "shivamkks112@gmail.com / Shivam@2026 (login field: email_or_phone). Both accounts have photos, no mandatory-photo redirect observed.",
+  "context_for_next_testing_agent": "Login via data-testid login-email-input / login-password-input / login-submit-btn (do NOT use text=Login, it matches the Login tab). A 'Reward Claimed!' modal appears after login - dismiss with the Done button. Admin now has 2 conversations with TEST_ messages so the chat-filter strip is visible on /matches -> tab-messages. WS badge test lives in tests/test_iter30_ws_badge.py (uses websockets lib + asyncio.run, no pytest-asyncio installed). Note matches_cache 120s TTL: newly created matches take up to 2 min to appear in GET /api/matches.",
+  "rca_of_the_issue": "All 3 features were implemented correctly. The 404s in console come from cacheManager.js:70 calling a route that was never implemented in server.py; the 'new match not visible' behaviour is the un-invalidated 120s matches_cache; the inflated Alerts badge comes from summing notification_count + unread_messages while message events also create in-app notifications."
+}

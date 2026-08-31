@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-import { Heart, MessageCircle, Sparkles, Users, Zap, Mail, Shield, AlertTriangle, X, CheckCircle, Share2 } from 'lucide-react';
+import { Heart, MessageCircle, Sparkles, Users, Zap, Mail, Shield, AlertTriangle, X, CheckCircle, Share2, ArrowUpDown, Clock, Filter } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
@@ -121,6 +121,7 @@ const MatchesPage = ({ user }) => {
   const location = useLocation();
   const [matches, setMatches] = useState([]);
   const [conversations, setConversations] = useState([]);
+  const [chatFilter, setChatFilter] = useState('recent');
   const [activeUsers, setActiveUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   // Auto-switch to messages tab if navigated back from chat
@@ -128,6 +129,28 @@ const MatchesPage = ({ user }) => {
   const [unreadCounts, setUnreadCounts] = useState({});
   const [showSafetyModal, setShowSafetyModal] = useState(false);
   const [pendingChatId, setPendingChatId] = useState(null);
+
+  // Filtered & sorted conversations based on chatFilter
+  const filteredConversations = useMemo(() => {
+    let list = [...conversations];
+    switch (chatFilter) {
+      case 'oldest':
+        list.sort((a, b) => {
+          const tA = a.lastMessage?.created_at ? new Date(a.lastMessage.created_at) : new Date(0);
+          const tB = b.lastMessage?.created_at ? new Date(b.lastMessage.created_at) : new Date(0);
+          return tA - tB;
+        });
+        break;
+      case 'unread':
+        list.sort((a, b) => (b.unreadCount || 0) - (a.unreadCount || 0));
+        break;
+      case 'recent':
+      default:
+        // Already sorted newest-first from fetch
+        break;
+    }
+    return list;
+  }, [conversations, chatFilter]);
 
   // Check if user has seen safety message
   const hasSeenSafetyMessage = () => {
@@ -576,8 +599,32 @@ const MatchesPage = ({ user }) => {
                 </div>
               </div>
             ) : (
-              <div className="space-y-2 m3-stagger">
-                {conversations.map((conv, index) => {
+              <>
+                {/* Chat Filter Strip */}
+                <div className="flex items-center gap-2 mb-3" data-testid="chat-filter-strip">
+                  {[
+                    { key: 'recent', label: 'Recent', icon: <Clock className="w-3.5 h-3.5" /> },
+                    { key: 'oldest', label: 'Oldest', icon: <ArrowUpDown className="w-3.5 h-3.5" /> },
+                    { key: 'unread', label: 'Unread', icon: <Filter className="w-3.5 h-3.5" /> },
+                  ].map((f) => (
+                    <button
+                      key={f.key}
+                      data-testid={`chat-filter-${f.key}`}
+                      onClick={() => setChatFilter(f.key)}
+                      className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 active:scale-95"
+                      style={{
+                        background: chatFilter === f.key ? 'var(--m3-primary)' : 'var(--m3-surface-container-highest)',
+                        color: chatFilter === f.key ? 'var(--m3-on-primary)' : 'var(--m3-on-surface-variant)',
+                      }}
+                    >
+                      {f.icon}
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="space-y-2 m3-stagger">
+                  {filteredConversations.map((conv, index) => {
                   const statusInfo = getOnlineStatusInfo(conv.user.is_online, conv.user.last_active);
                   
                   return (
@@ -654,6 +701,7 @@ const MatchesPage = ({ user }) => {
                   );
                 })}
               </div>
+              </>
             )}
           </>
         )}

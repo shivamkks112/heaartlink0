@@ -1,6 +1,16 @@
 # HeartLink — CHANGELOG (What's Already Built)
 
-## ⚠️ FOR NEW AGENT: DO NOT REBUILD THESE FEATURES — THEY ARE ALL DONE AND WORKING
+## FOR NEW AGENT: DO NOT REBUILD THESE FEATURES — THEY ARE ALL DONE AND WORKING
+
+---
+
+## Aug 31, 2026 — Latest Session
+- [x] Show Password toggle (Eye/EyeOff) on Login + Signup forms (AuthPage.jsx)
+- [x] Chat Filter strip (Recent / Oldest / Unread) on Messages tab (MatchesPage.jsx)
+- [x] Notification badge WebSocket fix — mark-read always sends badge_update, self-heals stale counts
+- [x] Fixed prefetchRecentChats 404 — was calling non-existent /conversations endpoint, now uses /matches
+- [x] Fixed matches_cache invalidation on new match creation — new matches appear instantly
+- [x] Fixed Navbar Alerts badge double-counting — was summing notification_count + unread_messages
 
 ---
 
@@ -21,19 +31,20 @@
 ### Chat
 - [x] Real-time WebSocket messaging
 - [x] Icebreakers (6 conversation starters on empty chat)
-- [x] Read receipts: ✓ sent, ✓✓ delivered (grey), ✓✓ read (blue)
+- [x] Read receipts: single/double/blue ticks
 - [x] Typing indicator (via WebSocket, 4s auto-hide)
 - [x] Play With Match game button (purple gamepad)
 - [x] Game invite bubbles (Accept/Decline in chat)
 - [x] Phone/email masking, money scam warnings
 - [x] Message deletion
+- [x] Chat Filter (Recent / Oldest / Unread) on Messages tab
 
 ### Play With Match (Game System)
 - [x] Match Quiz (5 relationship questions)
 - [x] Compatibility Challenge (5 lifestyle questions)
 - [x] Game session management (create, respond, answer)
 - [x] Score calculation + fun compatibility message
-- [x] Game overlay UI (menu → playing → waiting → result)
+- [x] Game overlay UI (menu -> playing -> waiting -> result)
 - [x] Push + in-app notifications for invites and results
 
 ### Anonymous Crush
@@ -51,7 +62,7 @@
 
 ### Profile
 - [x] Completeness score (0-100%) with progress bar + suggestions
-- [x] State → City dropdown picker (signup + profile edit)
+- [x] State -> City dropdown picker (signup + profile edit)
 - [x] Profile Boost button with timer
 - [x] Share Profile button (WhatsApp)
 - [x] Invite Friends (referral)
@@ -62,7 +73,8 @@
 - [x] Smart re-engagement (personalized push for inactive users)
 - [x] Daily morning picks (5 match suggestions, 9 AM IST)
 - [x] Gender-based notification filtering
-- [x] Notification tap → direct page navigation (SPA-friendly)
+- [x] Notification tap -> direct page navigation (SPA-friendly)
+- [x] Badge counts via WebSocket (self-healing on mark-read)
 
 ### Growth Features
 - [x] Referral system with WhatsApp share
@@ -76,6 +88,7 @@
 - [x] Dark mode support (Light/Dark/System toggle)
 - [x] Safe area handling on ALL pages (var(--safe-top), var(--nav-total))
 - [x] Android Capacitor API 36 + CapacitorHttp
+- [x] Show Password toggle on auth forms
 
 ### Auth & Safety
 - [x] India-only registration (backend block)
@@ -95,15 +108,15 @@
 2. CapacitorHttp on Android doesn't forward Authorization headers properly
 3. Build MUST use `npx craco build` — NOT `npm run build` or `react-scripts build`
 4. Avoid `100dvh` and `position: fixed` for Android WebView layouts
-5. server.py is still ~7660 lines — needs further route extraction
+5. server.py is still ~7669 lines — needs further route extraction
 
 ---
 
 ## WHAT IS NOT BUILT YET (BACKLOG)
-- Razorpay Premium subscription
-- Age filter on Discover
+- Video Intro (15 sec profile recording)
 - Chat media sharing (photos)
-- Video profile intro
+- Age filter on Discover
+- Razorpay Premium subscription
 - AI photo verification
 - AI Trust Score
 - server.py route extraction into routes/*.py

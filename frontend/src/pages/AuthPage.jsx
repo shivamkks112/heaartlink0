@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Heart, Mail, Phone, Lock, User, MapPin, Calendar, ArrowRight, Shield, Camera, Upload, X } from 'lucide-react';
+import { Heart, Mail, Phone, Lock, User, MapPin, Calendar, ArrowRight, Shield, Camera, Upload, X, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -50,6 +50,8 @@ const AuthPage = ({ onLogin }) => {
   const [selectedState, setSelectedState] = useState('');
   const [citySearch, setCitySearch] = useState('');
   const [showCityDropdown, setShowCityDropdown] = useState(false);
+  const [showLoginPwd, setShowLoginPwd] = useState(false);
+  const [showSignupPwd, setShowSignupPwd] = useState(false);
 
   // Handle profile picture selection
   const handlePhotoSelect = (e) => {
@@ -331,13 +333,16 @@ const AuthPage = ({ onLogin }) => {
                     <Input
                       id="login-password"
                       data-testid="login-password-input"
-                      type="password"
+                      type={showLoginPwd ? "text" : "password"}
                       placeholder="Enter password"
                       value={loginData.password}
                       onChange={(e) => setLoginData({...loginData, password: e.target.value})}
-                      className="pl-10 py-6 rounded-xl border-2 border-gray-200 focus:border-pink-500"
+                      className="pl-10 pr-12 py-6 rounded-xl border-2 border-gray-200 focus:border-pink-500"
                       required
                     />
+                    <button type="button" onClick={() => setShowLoginPwd(!showLoginPwd)} className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1" data-testid="login-toggle-pwd">
+                      {showLoginPwd ? <EyeOff className="w-5 h-5 text-gray-400" /> : <Eye className="w-5 h-5 text-gray-400" />}
+                    </button>
                   </div>
                 </div>
 
@@ -491,14 +496,17 @@ const AuthPage = ({ onLogin }) => {
                   <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <Input
                     data-testid="signup-password-input"
-                    type="password"
+                    type={showSignupPwd ? "text" : "password"}
                     placeholder="Min 6 characters"
                     value={signupData.password}
                     onChange={(e) => setSignupData({...signupData, password: e.target.value})}
-                    className="pl-10 py-5 rounded-xl border-2 border-gray-200 focus:border-pink-500"
+                    className="pl-10 pr-12 py-5 rounded-xl border-2 border-gray-200 focus:border-pink-500"
                     required
                     minLength={6}
                   />
+                  <button type="button" onClick={() => setShowSignupPwd(!showSignupPwd)} className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1" data-testid="signup-toggle-pwd">
+                    {showSignupPwd ? <EyeOff className="w-5 h-5 text-gray-400" /> : <Eye className="w-5 h-5 text-gray-400" />}
+                  </button>
                 </div>
               </div>
 

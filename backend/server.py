@@ -3308,6 +3308,11 @@ async def user_action(user_id: str, action: LikeAction):
             }}
         )
         
+        # Invalidate matches cache for both users
+        for uid in [user_id, action.target_user_id]:
+            cache_key = f"matches_{uid}"
+            matches_cache.pop(cache_key, None)
+        
         # Send real-time notification to BOTH users
         await manager.send_message(action.target_user_id, {
             "type": "new_match",
@@ -3888,7 +3893,6 @@ async def mark_messages_as_read(match_id: str, user_id: str):
     
     # Notify sender that messages were read via WebSocket
     if result.modified_count > 0:
-        # Find the sender (other user in the match)
         match = await db.matches.find_one({"id": match_id}, {"_id": 0, "user1_id": 1, "user2_id": 1})
         if match:
             sender_id = match["user1_id"] if match["user2_id"] == user_id else match["user2_id"]
@@ -3901,6 +3905,9 @@ async def mark_messages_as_read(match_id: str, user_id: str):
                 })
             except Exception:
                 pass
+    
+    # Always send badge update to self-heal stale counts
+    asyncio.create_task(manager.send_badge_update(user_id))
     
     return {"marked_read": result.modified_count}
 
@@ -5638,11 +5645,11 @@ async def mark_notification_read(notification_id: str, user_id: str):
     )
     
     if result.modified_count > 0:
-        # Decrease unread count
         await db.users.update_one(
             {"id": user_id, "unread_notifications": {"$gt": 0}},
             {"$inc": {"unread_notifications": -1}}
         )
+        asyncio.create_task(manager.send_badge_update(user_id))
     
     return {"success": True}
 
@@ -5654,12 +5661,12 @@ async def mark_all_notifications_read(user_id: str):
         {"$set": {"is_read": True}}
     )
     
-    # Reset unread count
     await db.users.update_one(
         {"id": user_id},
         {"$set": {"unread_notifications": 0}}
     )
     
+    asyncio.create_task(manager.send_badge_update(user_id))
     return {"success": True, "marked_count": result.modified_count}
 
 @api_router.delete("/notifications/{notification_id}")

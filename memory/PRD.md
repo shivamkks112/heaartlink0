@@ -13,7 +13,7 @@ Modern, safe, trust-based dating app for Indian users. React frontend + FastAPI 
 ## Architecture
 ```
 /app/backend/
-├── server.py           (~7660 lines - main app, ALL routes, middleware)
+├── server.py           (~7669 lines - main app, ALL routes, middleware)
 ├── database.py         (MongoDB connection, caches, index creation)
 ├── models/schemas.py   (All Pydantic request/response models)
 ├── services/helpers.py (Shared utilities: password, serialization, notifications)
@@ -51,11 +51,13 @@ Modern, safe, trust-based dating app for Indian users. React frontend + FastAPI 
 - City filter (bottom sheet), GPS distance on cards
 - Profile completeness score (0-100%)
 - Chat icebreakers (6 conversation starters)
-- Read receipts: ✓ sent, ✓✓ delivered, ✓✓ read (blue)
+- Read receipts: single/double/blue ticks
 - Typing indicator (via WebSocket, 4s auto-hide)
 - Play With Match (Match Quiz + Compatibility Challenge in chat)
 - Profile Boost (1 free/day, 30 min top priority)
 - Instagram Story match share card
+- Chat Filter (Recent / Oldest / Unread) on Messages tab
+- Show Password toggle on Login + Signup forms
 
 ### Safety & Admin
 - India-only registration, mandatory profile photo
@@ -76,6 +78,7 @@ Modern, safe, trust-based dating app for Indian users. React frontend + FastAPI 
 - Offline caching (Discover profiles, chat messages)
 - Chat prefetch (top 3 conversations on login)
 - Image lazy loading + async decoding
+- Matches cache with write-through invalidation on new match
 
 ## API Endpoints (Key)
 - POST /api/auth/signup, /api/auth/login
@@ -93,13 +96,13 @@ Modern, safe, trust-based dating app for Indian users. React frontend + FastAPI 
 - All /api/admin/* (no auth currently)
 
 ## Pending / Backlog
-- P1: Razorpay Premium subscription (monetize crush/viewer/boost)
-- P1: Re-enable admin auth (fix CapacitorHttp header forwarding)
-- P1: server.py route extraction (routes/*.py modules)
-- P2: Age filter on Discover
+- P1: Video Intro (15 sec profile recording)
 - P2: Chat media sharing (photos)
-- P2: Video profile intro
-- P3: AI photo verification, AI Trust Score
+- P2: Age filter on Discover
+- P3: Razorpay Premium subscription (monetize crush/viewer/boost)
+- P3: Re-enable admin auth (fix CapacitorHttp header forwarding)
+- P3: server.py route extraction (routes/*.py modules)
+- P4: AI photo verification, AI Trust Score
 
 ## Production
 - Web: https://dating-app-debug-1.emergent.host

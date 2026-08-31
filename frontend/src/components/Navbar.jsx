@@ -31,7 +31,7 @@ const Navbar = ({ user }) => {
     if (location.pathname === '/notifications') setNotificationCount(0);
   }, [location.pathname]);
 
-  const totalAlerts = notificationCount + unreadMessages;
+  const totalAlerts = notificationCount;
 
   const tabs = [
     { id: 'discover', path: '/discover', icon: Compass, label: 'Discover', badge: 0 },

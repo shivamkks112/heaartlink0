@@ -67,19 +67,18 @@ export function getCachedChatMessages(matchId) {
 // Prefetch recent chats in background
 export async function prefetchRecentChats(userId, apiBase) {
   try {
-    const res = await fetch(`${apiBase}/matches/${userId}/conversations`);
+    const res = await fetch(`${apiBase}/matches/${userId}`);
     if (!res.ok) return;
-    const convos = await res.json();
-    cacheConversations(userId, convos);
+    const allMatches = await res.json();
     
-    // Prefetch first 3 chat messages
-    const top3 = (convos || []).slice(0, 3);
-    for (const c of top3) {
+    // Prefetch first 3 match conversations
+    const top3 = (allMatches || []).slice(0, 3);
+    for (const m of top3) {
       try {
-        const msgRes = await fetch(`${apiBase}/messages/${c.match_id}?user_id=${userId}&limit=20`);
+        const msgRes = await fetch(`${apiBase}/messages/${m.match_id}?user_id=${userId}&limit=20`);
         if (msgRes.ok) {
           const msgs = await msgRes.json();
-          cacheChatMessages(c.match_id, msgs);
+          cacheChatMessages(m.match_id, msgs);
         }
       } catch (_) {}
     }
