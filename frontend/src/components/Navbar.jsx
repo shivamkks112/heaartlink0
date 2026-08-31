@@ -1,6 +1,6 @@
 import { Heart, Compass, MessageSquare, User, Bell } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import wsService from '@/services/WebSocketService';
 
 const Navbar = ({ user }) => {
@@ -9,8 +9,22 @@ const Navbar = ({ user }) => {
   const [likesCount, setLikesCount] = useState(0);
   const [notificationCount, setNotificationCount] = useState(0);
   const [unreadMessages, setUnreadMessages] = useState(0);
+  const pathRef = useRef(location.pathname);
 
   const isActive = (path) => location.pathname === path;
+
+  // Keep pathRef in sync
+  useEffect(() => {
+    pathRef.current = location.pathname;
+  }, [location.pathname]);
+
+  const handleBadgeUpdate = useCallback((d) => {
+    const p = pathRef.current;
+    // Don't restore counts for the section user is currently viewing
+    if (p !== '/likes') setLikesCount(d.likes_count || 0);
+    if (p !== '/matches' && !p.startsWith('/chat')) setUnreadMessages(d.unread_messages || 0);
+    if (p !== '/notifications') setNotificationCount(d.notification_count || 0);
+  }, []);
 
   useEffect(() => {
     if (user?.id && !wsService.isConnected) wsService.connect(user.id);
@@ -19,11 +33,11 @@ const Navbar = ({ user }) => {
     if (cached.notification_count) setNotificationCount(cached.notification_count);
     if (cached.unread_messages) setUnreadMessages(cached.unread_messages);
 
-    const u1 = wsService.on('badge_update', (d) => { setLikesCount(d.likes_count||0); setNotificationCount(d.notification_count||0); setUnreadMessages(d.unread_messages||0); });
-    const u2 = wsService.on('new_like', () => setLikesCount(p => p + 1));
+    const u1 = wsService.on('badge_update', handleBadgeUpdate);
+    const u2 = wsService.on('new_like', () => { if (pathRef.current !== '/likes') setLikesCount(p => p + 1); });
     const u3 = wsService.on('new_match', () => setNotificationCount(p => p + 1));
     return () => { u1(); u2(); u3(); };
-  }, [user?.id]);
+  }, [user?.id, handleBadgeUpdate]);
 
   useEffect(() => {
     if (location.pathname === '/matches' || location.pathname.startsWith('/chat')) setUnreadMessages(0);
