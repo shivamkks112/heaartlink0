@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
-import { Send, ArrowLeft, Shield, Flag, BellOff, Bell, MoreVertical } from 'lucide-react';
+import { Send, ArrowLeft, Shield, Flag, BellOff, Bell, MoreVertical, Check, CheckCheck } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,8 +26,11 @@ const ChatPage = ({ user }) => {
   const [otherUser, setOtherUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isMuted, setIsMuted] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);  // Other user typing
+  const [typingTimeout, setTypingTimeout] = useState(null);
   const messagesEndRef = useRef(null);
   const wsRef = useRef(null);
+  const lastTypingSent = useRef(0);
 
   useEffect(() => {
     fetchMatch();
@@ -39,11 +42,19 @@ const ChatPage = ({ user }) => {
       if (wsRef.current) {
         wsRef.current.close();
       }
+      // Clear typing timeout on unmount
+      if (typingTimeout) {
+        clearTimeout(typingTimeout);
+      }
     };
   }, [matchId]);
 
   useEffect(() => {
     scrollToBottom();
+    // Mark messages as read when new messages arrive
+    if (messages.length > 0 && wsRef.current?.readyState === WebSocket.OPEN) {
+      markMessagesAsRead();
+    }
   }, [messages]);
 
   const scrollToBottom = () => {
@@ -114,6 +125,11 @@ const ChatPage = ({ user }) => {
             if (exists) return prev;
             return [...withoutTemp, data.message];
           });
+          
+          // Auto mark as read if message is from other user
+          if (data.message.sender_id !== user.id) {
+            markMessagesAsRead();
+          }
         } else if (data.type === 'status_update') {
           // Update other user's online status in real-time
           if (otherUser && data.user_id === otherUser.id) {
@@ -123,6 +139,26 @@ const ChatPage = ({ user }) => {
               last_active: data.last_active
             }));
           }
+        } else if (data.type === 'typing' && data.match_id === matchId) {
+          // Handle typing indicator from other user
+          if (data.user_id !== user.id) {
+            setIsTyping(data.is_typing);
+            
+            // Auto-hide typing indicator after 3 seconds
+            if (data.is_typing) {
+              if (typingTimeout) clearTimeout(typingTimeout);
+              const timeout = setTimeout(() => setIsTyping(false), 3000);
+              setTypingTimeout(timeout);
+            }
+          }
+        } else if (data.type === 'messages_read' && data.match_id === matchId) {
+          // Update read status of messages
+          setMessages(prev => prev.map(msg => {
+            if (msg.sender_id === user.id && !msg.read) {
+              return { ...msg, read: true, read_at: data.read_at };
+            }
+            return msg;
+          }));
         }
       };
 
@@ -139,9 +175,50 @@ const ChatPage = ({ user }) => {
     }
   };
 
+  // Mark messages as read
+  const markMessagesAsRead = useCallback(() => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({
+        type: 'mark_read',
+        match_id: matchId
+      }));
+    }
+  }, [matchId]);
+
+  // Send typing indicator
+  const sendTypingIndicator = useCallback((isTyping) => {
+    const now = Date.now();
+    // Throttle typing events to max once per second
+    if (now - lastTypingSent.current < 1000 && isTyping) return;
+    lastTypingSent.current = now;
+    
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN && otherUser) {
+      wsRef.current.send(JSON.stringify({
+        type: 'typing',
+        match_id: matchId,
+        receiver_id: otherUser.id,
+        is_typing: isTyping
+      }));
+    }
+  }, [matchId, otherUser]);
+
+  // Handle input change with typing indicator
+  const handleInputChange = (e) => {
+    setNewMessage(e.target.value);
+    
+    if (e.target.value.trim()) {
+      sendTypingIndicator(true);
+    } else {
+      sendTypingIndicator(false);
+    }
+  };
+
   const sendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || !otherUser) return;
+
+    // Stop typing indicator when sending
+    sendTypingIndicator(false);
 
     const messageContent = newMessage.trim();
     const tempMessage = {
@@ -150,6 +227,7 @@ const ChatPage = ({ user }) => {
       receiver_id: otherUser.id,
       content: messageContent,
       timestamp: new Date().toISOString(),
+      read: false,
       _temp: true
     };
 
@@ -378,32 +456,58 @@ const ChatPage = ({ user }) => {
             <p className="text-gray-500">Start the conversation!</p>
           </div>
         ) : (
-          messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`flex ${msg.sender_id === user.id ? 'justify-end' : 'justify-start'}`}
-            >
+          <>
+            {messages.map((msg) => (
               <div
-                className={`max-w-[70%] px-5 py-3 rounded-3xl ${
-                  msg.sender_id === user.id
-                    ? 'bg-gradient-to-r from-pink-500 to-orange-500 text-white'
-                    : 'bg-white text-gray-800 shadow-md'
-                }`}
+                key={msg.id || `${msg.sender_id}-${msg.created_at}`}
+                className={`flex ${msg.sender_id === user.id ? 'justify-end' : 'justify-start'}`}
               >
-                <p className="break-words">{msg.content}</p>
-                <p
-                  className={`text-xs mt-1 ${
-                    msg.sender_id === user.id ? 'text-white/80' : 'text-gray-500'
+                <div
+                  className={`max-w-[70%] px-5 py-3 rounded-3xl ${
+                    msg.sender_id === user.id
+                      ? 'bg-gradient-to-r from-pink-500 to-orange-500 text-white'
+                      : 'bg-white text-gray-800 shadow-md'
                   }`}
                 >
-                  {new Date(msg.created_at).toLocaleTimeString('en-IN', {
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
-                </p>
+                  <p className="break-words">{msg.content}</p>
+                  <div className={`flex items-center justify-end gap-1 mt-1 ${
+                    msg.sender_id === user.id ? 'text-white/80' : 'text-gray-500'
+                  }`}>
+                    <span className="text-xs">
+                      {new Date(msg.created_at).toLocaleTimeString('en-IN', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </span>
+                    {/* Read Receipts - Only show for sender's messages */}
+                    {msg.sender_id === user.id && (
+                      <span className="ml-1">
+                        {msg.read ? (
+                          <CheckCheck className="w-4 h-4 text-blue-300" data-testid="read-receipt" />
+                        ) : (
+                          <Check className="w-4 h-4" data-testid="sent-receipt" />
+                        )}
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
-          ))
+            ))}
+            
+            {/* Typing Indicator */}
+            {isTyping && otherUser && (
+              <div className="flex justify-start" data-testid="typing-indicator">
+                <div className="bg-white px-5 py-3 rounded-3xl shadow-md">
+                  <div className="flex items-center gap-1">
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">{otherUser.name} is typing...</p>
+                </div>
+              </div>
+            )}
+          </>
         )}
         <div ref={messagesEndRef} />
       </div>
@@ -415,7 +519,8 @@ const ChatPage = ({ user }) => {
             data-testid="message-input"
             type="text"
             value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
+            onChange={handleInputChange}
+            onBlur={() => sendTypingIndicator(false)}
             placeholder="Type a message..."
             className="flex-1 py-6 px-5 rounded-full border-2 border-gray-200 focus:border-pink-500"
           />

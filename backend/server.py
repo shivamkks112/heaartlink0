@@ -324,6 +324,7 @@ class Message(BaseModel):
     receiver_id: str
     content: str
     read: bool = False
+    read_at: Optional[str] = None  # Timestamp when message was read
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 class LikeAction(BaseModel):
@@ -2078,6 +2079,77 @@ async def send_message_http(message_data: Message):
     
     return clean_message
 
+# ==================== READ RECEIPTS & TYPING INDICATORS ====================
+
+@api_router.post("/messages/{match_id}/read")
+async def mark_messages_as_read(match_id: str, reader_id: str):
+    """Mark all messages in a match as read by the reader"""
+    now = datetime.now(timezone.utc).isoformat()
+    
+    # Update all unread messages sent to the reader
+    result = await db.messages.update_many(
+        {
+            "match_id": match_id,
+            "receiver_id": reader_id,
+            "read": False
+        },
+        {
+            "$set": {
+                "read": True,
+                "read_at": now
+            }
+        }
+    )
+    
+    # Get the sender_id to notify them
+    if result.modified_count > 0:
+        # Find a message to get sender_id
+        sample_msg = await db.messages.find_one({
+            "match_id": match_id,
+            "receiver_id": reader_id
+        })
+        
+        if sample_msg:
+            sender_id = sample_msg.get("sender_id")
+            
+            # Notify sender via WebSocket that messages were read
+            await manager.send_message(sender_id, {
+                "type": "messages_read",
+                "match_id": match_id,
+                "read_by": reader_id,
+                "read_at": now
+            })
+    
+    return {
+        "message": "Messages marked as read",
+        "count": result.modified_count
+    }
+
+@api_router.post("/messages/{match_id}/typing")
+async def send_typing_status(match_id: str, user_id: str, is_typing: bool = True):
+    """Send typing indicator to the other user in the chat"""
+    # Find the match to get the other user
+    match = await db.matches.find_one({"id": match_id})
+    
+    if not match:
+        raise HTTPException(status_code=404, detail="Match not found")
+    
+    # Determine the other user
+    if match["user1_id"] == user_id:
+        other_user_id = match["user2_id"]
+    else:
+        other_user_id = match["user1_id"]
+    
+    # Send typing status via WebSocket
+    await manager.send_message(other_user_id, {
+        "type": "typing",
+        "match_id": match_id,
+        "user_id": user_id,
+        "is_typing": is_typing
+    })
+    
+    return {"message": "Typing status sent"}
+
 # WebSocket for real-time chat
 @api_router.websocket("/ws/{user_id}")
 async def websocket_endpoint(websocket: WebSocket, user_id: str):
@@ -2100,7 +2172,62 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
     try:
         while True:
             data = await websocket.receive_text()
-            message_data = json.loads(data)
+            
+            try:
+                message_data = json.loads(data)
+            except json.JSONDecodeError:
+                logging.warning(f"Invalid JSON received from user {user_id}")
+                continue
+            
+            # Handle typing indicator events
+            if message_data.get("type") == "typing":
+                receiver_id = message_data.get("receiver_id")
+                if receiver_id:
+                    # Send typing status to the other user
+                    await manager.send_message(receiver_id, {
+                        "type": "typing",
+                        "match_id": message_data.get("match_id"),
+                        "user_id": user_id,
+                        "is_typing": message_data.get("is_typing", True)
+                    })
+                continue
+            
+            # Handle read receipt events
+            if message_data.get("type") == "mark_read":
+                match_id = message_data.get("match_id")
+                if not match_id:
+                    continue
+                    
+                now = datetime.now(timezone.utc).isoformat()
+                
+                # Mark messages as read
+                await db.messages.update_many(
+                    {
+                        "match_id": match_id,
+                        "receiver_id": user_id,
+                        "read": False
+                    },
+                    {"$set": {"read": True, "read_at": now}}
+                )
+                
+                # Notify sender that messages were read
+                sender_msg = await db.messages.find_one({
+                    "match_id": match_id,
+                    "receiver_id": user_id
+                })
+                if sender_msg:
+                    await manager.send_message(sender_msg["sender_id"], {
+                        "type": "messages_read",
+                        "match_id": match_id,
+                        "read_by": user_id,
+                        "read_at": now
+                    })
+                continue
+            
+            # Validate required fields for message
+            if not message_data.get("match_id") or not message_data.get("receiver_id") or not message_data.get("content"):
+                logging.warning(f"Missing required fields in message from user {user_id}")
+                continue
             
             # Save message
             message = Message(

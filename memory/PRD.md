@@ -179,15 +179,33 @@ Admin/Like/Match → Stored in db.notifications → User sees in /notifications 
 
 ### P1 - Medium Priority
 - [ ] Chat without match functionality
-- [ ] Typing indicators and read receipts
+- [x] Typing indicators and read receipts ✅ (Aug 31, 2025)
 - [ ] AI-based photo verification
 
 ### P2 - Lower Priority
 - [ ] Advanced reporting system
 - [ ] Redis caching for scalability
-- [ ] Refactor `server.py` into modules (currently 3900+ lines)
+- [ ] Refactor `server.py` into modules (currently 4150+ lines)
 
 ## Completed in This Session (August 2025)
+
+### Typing Indicators & Read Receipts ✅ (Aug 31, 2025)
+- **Typing Indicators**: Real-time "typing..." animation when other user is typing
+- **Read Receipts**: Double blue ticks (✓✓) when message is read
+- **Message Schema**: Added `read_at` field for tracking read timestamp
+- **WebSocket Events**: `typing`, `mark_read`, `messages_read` events
+- **API Endpoints**: 
+  - `POST /api/messages/{match_id}/read` - Mark messages as read
+  - `POST /api/messages/{match_id}/typing` - Send typing status
+
+**Files Modified:**
+- `/app/backend/server.py` - Added typing/read receipt endpoints and WebSocket handlers
+- `/app/frontend/src/pages/ChatPage.jsx` - Added typing indicator UI, read receipts (blue double ticks)
+
+**Testing Results:**
+- 14/15 backend tests passed
+- WebSocket events working correctly
+- Read receipts persisting in MongoDB
 
 ### Referral System ✅
 - Backend APIs for referral code generation, validation, and tracking
