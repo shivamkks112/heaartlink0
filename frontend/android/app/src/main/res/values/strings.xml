@@ -4,4 +4,6 @@
     <string name="title_activity_main">HeartLink</string>
     <string name="package_name">com.heartlink.dating</string>
     <string name="custom_url_scheme">com.heartlink.dating</string>
+    <string name="facebook_app_id">1667563904230292</string>
+    <string name="fb_login_protocol_scheme">fb1667563904230292</string>
 </resources>

@@ -160,7 +160,7 @@ async def send_to_users(db, user_ids: List[str], title: str, body: str, data: Op
     if not user_ids:
         return {"success": False, "error": "no_users"}
     users = await db.users.find(
-        {"id": {"$in": user_ids}, "fcm_token": {"$exists": True, "$ne": None, "$ne": ""}},
+        {"id": {"$in": user_ids}, "fcm_token": {"$exists": True, "$nin": [None, ""]}},
         {"_id": 0, "fcm_token": 1}
     ).to_list(None)
     tokens = [u["fcm_token"] for u in users if u.get("fcm_token")]
@@ -180,7 +180,7 @@ async def send_to_users(db, user_ids: List[str], title: str, body: str, data: Op
 async def send_to_all(db, title: str, body: str, data: Optional[Dict] = None) -> Dict:
     """Send to ALL users with FCM tokens."""
     users = await db.users.find(
-        {"fcm_token": {"$exists": True, "$ne": None, "$ne": ""}, "is_ai_profile": {"$ne": True}},
+        {"fcm_token": {"$exists": True, "$nin": [None, ""]}, "is_ai_profile": {"$ne": True}},
         {"_id": 0, "fcm_token": 1}
     ).to_list(None)
     tokens = [u["fcm_token"] for u in users if u.get("fcm_token")]
@@ -330,7 +330,7 @@ async def notify_screenshot(db, user_id: str, who_name: str, match_id: str):
 
 async def admin_broadcast(db, title: str, body: str, target: str = "all") -> Dict:
     """Admin broadcast: all / male / female / inactive."""
-    query = {"fcm_token": {"$exists": True, "$ne": None, "$ne": ""}, "is_ai_profile": {"$ne": True}}
+    query = {"fcm_token": {"$exists": True, "$nin": [None, ""]}, "is_ai_profile": {"$ne": True}}
     if target == "male":
         query["gender"] = {"$regex": "^male$", "$options": "i"}
     elif target == "female":

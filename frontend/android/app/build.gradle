@@ -63,6 +63,9 @@ dependencies {
     // Google AdMob
     implementation 'com.google.android.gms:play-services-ads:23.6.0'
     
+    // Facebook SDK — Meta Ads install attribution
+    implementation 'com.facebook.android:facebook-android-sdk:18.0.2'
+    
     // Multi-dex support
     implementation 'androidx.multidex:multidex:2.0.1'
     

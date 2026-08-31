@@ -90,6 +90,29 @@
             android:name="com.google.android.gms.ads.flag.OPTIMIZE_AD_LOADING"
             android:value="true"/>
 
+        <!-- Facebook SDK — Meta Ads Install Attribution -->
+        <meta-data
+            android:name="com.facebook.sdk.ApplicationId"
+            android:value="@string/facebook_app_id"/>
+        <meta-data
+            android:name="com.facebook.sdk.ClientToken"
+            android:value="11a3bfa79ab4dfbcc13fdff6449d0b10"/>
+        <meta-data
+            android:name="com.facebook.sdk.AutoLogAppEventsEnabled"
+            android:value="true"/>
+        <meta-data
+            android:name="com.facebook.sdk.AdvertiserIDCollectionEnabled"
+            android:value="true"/>
+        <meta-data
+            android:name="com.facebook.sdk.AutoInitEnabled"
+            android:value="true"/>
+
+        <!-- Facebook Content Provider (required) -->
+        <provider
+            android:authorities="com.facebook.app.FacebookContentProvider1667563904230292"
+            android:name="com.facebook.FacebookContentProvider"
+            android:exported="true" />
+
     </application>
 
 </manifest>

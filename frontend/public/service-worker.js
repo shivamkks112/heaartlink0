@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 /* global importScripts, firebase, clients */
 const CACHE_NAME = 'heartlink-v2';
 const STATIC_CACHE = 'heartlink-static-v2';

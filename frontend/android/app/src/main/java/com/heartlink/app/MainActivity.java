@@ -14,6 +14,8 @@ import android.os.Build;
 import com.getcapacitor.BridgeActivity;
 import com.google.android.gms.ads.MobileAds;
 import com.google.android.gms.ads.RequestConfiguration;
+import com.facebook.FacebookSdk;
+import com.facebook.appevents.AppEventsLogger;
 
 import org.json.JSONObject;
 
@@ -36,6 +38,9 @@ public class MainActivity extends BridgeActivity {
         // Initialize AdMob
         initializeAdMob();
         
+        // Initialize Facebook SDK for Meta Ads attribution
+        initializeFacebookSDK();
+        
         // Create notification channels (FCM handles push)
         createNotificationChannel();
         
@@ -56,6 +61,16 @@ public class MainActivity extends BridgeActivity {
             });
         } catch (Exception e) {
             Log.e(TAG, "AdMob error: " + e.getMessage());
+        }
+    }
+    
+    private void initializeFacebookSDK() {
+        try {
+            FacebookSdk.sdkInitialize(getApplicationContext());
+            AppEventsLogger.activateApp(getApplication());
+            Log.d(TAG, "Facebook SDK initialized — Meta Ads attribution active");
+        } catch (Exception e) {
+            Log.e(TAG, "Facebook SDK error: " + e.getMessage());
         }
     }
     
