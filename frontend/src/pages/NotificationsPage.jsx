@@ -19,6 +19,8 @@ const NotificationsPage = ({ user }) => {
 
   useEffect(() => {
     fetchNotifications();
+    // Auto mark all notifications as read on visit
+    axios.post(`${API}/notifications/${user.id}/read-all`).catch(() => {});
     
     // Real-time notification listeners
     const unsubMatch = wsService.on('new_match', () => fetchNotifications());

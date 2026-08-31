@@ -754,7 +754,12 @@ class ConnectionManager:
     async def send_badge_update(self, user_id: str):
         """Send updated badge counts to a user"""
         try:
-            likes_count = await db.matches.count_documents({"user2_id": user_id, "user1_liked": True, "matched": False})
+            # Get user's likes_seen_at to only count new likes
+            user_doc = await db.users.find_one({"id": user_id}, {"_id": 0, "likes_seen_at": 1})
+            likes_query = {"user2_id": user_id, "user1_liked": True, "matched": False}
+            if user_doc and user_doc.get("likes_seen_at"):
+                likes_query["created_at"] = {"$gt": user_doc["likes_seen_at"]}
+            likes_count = await db.matches.count_documents(likes_query)
             unread_msgs = await db.messages.count_documents({"receiver_id": user_id, "read": False})
             notif_count = await db.in_app_notifications.count_documents({"user_id": user_id, "is_read": False})
             await self.send_message(user_id, {
@@ -3665,6 +3670,16 @@ async def get_matches(user_id: str):
     # Cache result
     matches_cache[cache_key] = result
     return result
+
+@api_router.post("/likes/{user_id}/mark-seen")
+async def mark_likes_seen(user_id: str):
+    """Mark all current likes as seen - resets the likes badge count"""
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {"likes_seen_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    asyncio.create_task(manager.send_badge_update(user_id))
+    return {"success": True}
 
 @api_router.get("/likes/{user_id}")
 async def get_likes(user_id: str):

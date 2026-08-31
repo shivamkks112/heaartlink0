@@ -30,6 +30,8 @@ const LikesYouPage = ({ user }) => {
     fetchLikes();
     fetchCrushes();
     fetchViewers();
+    // Mark likes as seen to clear the badge
+    fetch(`${API}/likes/${user.id}/mark-seen`, { method: 'POST' }).catch(() => {});
     // Load revealed profiles from localStorage
     const revealed = JSON.parse(localStorage.getItem('heartlink_revealed_likes') || '[]');
     setRevealedProfiles(revealed);
