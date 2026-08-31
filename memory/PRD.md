@@ -13,7 +13,7 @@ Modern, safe, trust-based dating app for Indian users. React frontend + FastAPI 
 ## Architecture
 ```
 /app/backend/
-├── server.py           (~7669 lines - main app, ALL routes, middleware)
+├── server.py           (~7670 lines - main app, ALL routes, middleware)
 ├── database.py         (MongoDB connection, caches, index creation)
 ├── models/schemas.py   (All Pydantic request/response models)
 ├── services/helpers.py (Shared utilities: password, serialization, notifications)
@@ -57,7 +57,9 @@ Modern, safe, trust-based dating app for Indian users. React frontend + FastAPI 
 - Profile Boost (1 free/day, 30 min top priority)
 - Instagram Story match share card
 - Chat Filter (Recent / Oldest / Unread) on Messages tab
+- Match Filter (Recent / Oldest / Best Match / Online) on Matches tab
 - Show Password toggle on Login + Signup forms
+- Smart Nudge (24h no-reply icebreaker prompt in chat + pill on conversation cards)
 
 ### Safety & Admin
 - India-only registration, mandatory profile photo

@@ -518,7 +518,7 @@ const MatchesPage = ({ user }) => {
             ) : (
               <>
                 {/* Match Filter Strip */}
-                <div className="flex items-center gap-2 mb-3" data-testid="match-filter-strip">
+                <div className="flex items-center gap-2 mb-3 overflow-x-auto no-scrollbar" data-testid="match-filter-strip">
                   {[
                     { key: 'recent', label: 'Recent', icon: <Clock className="w-3.5 h-3.5" /> },
                     { key: 'oldest', label: 'Oldest', icon: <ArrowUpDown className="w-3.5 h-3.5" /> },
@@ -744,12 +744,18 @@ const MatchesPage = ({ user }) => {
                               {conv.lastMessage?.content || 'Start chatting...'}
                             </p>
                             
-                            {conv.unreadCount > 0 && (
+                            {conv.unreadCount > 0 ? (
                               <span className="ml-2 text-white text-[10px] font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center flex-shrink-0 px-1.5"
                                 style={{ background: 'var(--m3-primary)' }}>
                                 {conv.unreadCount > 9 ? '9+' : conv.unreadCount}
                               </span>
-                            )}
+                            ) : conv.lastMessage?.sender_id === user.id && conv.lastMessage?.created_at && (Date.now() - new Date(conv.lastMessage.created_at).getTime()) > 86400000 ? (
+                              <span className="ml-2 text-[9px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0"
+                                data-testid="nudge-indicator"
+                                style={{ background: 'linear-gradient(135deg, rgba(214,51,108,0.12), rgba(139,92,246,0.12))', color: '#D6336C' }}>
+                                Nudge
+                              </span>
+                            ) : null}
                           </div>
                         </div>
 

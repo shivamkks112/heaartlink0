@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
-import { Send, ArrowLeft, Shield, Flag, BellOff, Bell, MoreVertical, Trash2, AlertTriangle, Camera, Clock, Check, CheckCheck, Heart as HeartIcon, SmilePlus, Gamepad2 } from 'lucide-react';
+import { Send, ArrowLeft, Shield, Flag, BellOff, Bell, MoreVertical, Trash2, AlertTriangle, Camera, Clock, Check, CheckCheck, Heart as HeartIcon, SmilePlus, Gamepad2, Sparkles } from 'lucide-react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,15 @@ import {
 
 import { BACKEND_URL, API, WS_URL } from '@/config/api';
 import { getCachedChatMessages, cacheChatMessages } from '@/utils/cacheManager';
+
+const NUDGE_ICEBREAKERS = [
+  "What's the best thing that happened to you this week? 😊",
+  "If we could go on a date right now, where would you pick?",
+  "What song are you obsessed with lately? 🎵",
+  "Tell me your top 3 comfort foods!",
+  "What's something random that made you smile today?",
+  "If you could learn any skill instantly, what would it be?",
+];
 
 const ChatPage = ({ user }) => {
   const { matchId } = useParams();
@@ -33,12 +42,37 @@ const ChatPage = ({ user }) => {
   const [showGameMenu, setShowGameMenu] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(null);
   const [privacySettings, setPrivacySettings] = useState({});
+  const [nudgeDismissed, setNudgeDismissed] = useState(() => {
+    try {
+      const d = JSON.parse(localStorage.getItem('heartlink_nudge_dismissed') || '{}');
+      const ts = d[matchId];
+      // Dismiss lasts 48 hours, then nudge can reappear
+      return ts && (Date.now() - ts) < 172800000;
+    } catch { return false; }
+  });
   const messagesEndRef = useRef(null);
   const wsRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const wsRetryCount = useRef(0);
   const wsRetryTimer = useRef(null);
   const maxWsRetries = 5;
+
+  // Smart Nudge: show when last msg was sent by user 24h+ ago with no reply
+  const nudgeData = useMemo(() => {
+    if (nudgeDismissed || messages.length === 0) return null;
+    const realMsgs = messages.filter(m => m.sender_id !== 'system' && m.message_type !== 'system_warning');
+    if (realMsgs.length === 0) return null;
+    const lastMsg = realMsgs[realMsgs.length - 1];
+    if (lastMsg.sender_id !== user.id) return null;
+    const sentAt = new Date(lastMsg.created_at || lastMsg.timestamp);
+    const hoursSince = (Date.now() - sentAt.getTime()) / 3600000;
+    if (hoursSince < 24) return null;
+    // Deterministic icebreaker based on matchId
+    let hash = 0;
+    for (let i = 0; i < matchId.length; i++) hash = ((hash << 5) - hash + matchId.charCodeAt(i)) | 0;
+    const suggestion = NUDGE_ICEBREAKERS[Math.abs(hash) % NUDGE_ICEBREAKERS.length];
+    return { hoursSince: Math.floor(hoursSince), suggestion };
+  }, [messages, nudgeDismissed, user.id, matchId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -821,6 +855,43 @@ const ChatPage = ({ user }) => {
 
       {/* Input area - flex-shrink-0 stays at bottom */}
       <div className="flex-shrink-0 z-50" style={{ paddingBottom: 'max(var(--safe-bottom, 8px), env(safe-area-inset-bottom, 0px), 8px)', backgroundColor: surfaceLowest, borderTop: '1px solid var(--m3-outline-variant)' }}>
+        {/* Smart Nudge Banner */}
+        {nudgeData && (
+          <div className="px-3 pt-2.5 pb-1" data-testid="smart-nudge-banner">
+            <div className="rounded-2xl p-3 relative" style={{ background: 'linear-gradient(135deg, rgba(214,51,108,0.08), rgba(139,92,246,0.08))', border: '1px solid rgba(214,51,108,0.15)' }}>
+              <button
+                onClick={() => {
+                  setNudgeDismissed(true);
+                  try {
+                    const d = JSON.parse(localStorage.getItem('heartlink_nudge_dismissed') || '{}');
+                    d[matchId] = Date.now();
+                    localStorage.setItem('heartlink_nudge_dismissed', JSON.stringify(d));
+                  } catch {}
+                }}
+                className="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center text-xs"
+                style={{ color: 'var(--m3-outline)', background: 'var(--m3-surface-container)' }}
+                data-testid="nudge-dismiss"
+                aria-label="Dismiss nudge"
+              >
+                ✕
+              </button>
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <Sparkles className="w-3.5 h-3.5" style={{ color: '#D6336C' }} />
+                <span className="text-[11px] font-semibold" style={{ color: '#D6336C' }}>
+                  {nudgeData.hoursSince < 48 ? 'No reply yet' : `${Math.floor(nudgeData.hoursSince / 24)}d since last reply`} — try this!
+                </span>
+              </div>
+              <button
+                onClick={() => setNewMessage(nudgeData.suggestion)}
+                className="w-full text-left text-xs px-3 py-2 rounded-xl transition-all active:scale-[0.98]"
+                style={{ background: 'var(--m3-surface-container-lowest)', color: 'var(--m3-on-surface)', border: '1px solid var(--m3-outline-variant)' }}
+                data-testid="nudge-suggestion"
+              >
+                {nudgeData.suggestion}
+              </button>
+            </div>
+          </div>
+        )}
         <form onSubmit={sendMessage} className="flex items-center gap-2 px-3 py-2.5">
           <button
             type="button"

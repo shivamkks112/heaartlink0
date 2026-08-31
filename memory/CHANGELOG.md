@@ -7,10 +7,16 @@
 ## Aug 31, 2026 — Latest Session
 - [x] Show Password toggle (Eye/EyeOff) on Login + Signup forms (AuthPage.jsx)
 - [x] Chat Filter strip (Recent / Oldest / Unread) on Messages tab (MatchesPage.jsx)
+- [x] Match Filter strip (Recent / Oldest / Best Match / Online) on Matches tab (MatchesPage.jsx)
 - [x] Notification badge WebSocket fix — mark-read always sends badge_update, self-heals stale counts
-- [x] Fixed prefetchRecentChats 404 — was calling non-existent /conversations endpoint, now uses /matches
-- [x] Fixed matches_cache invalidation on new match creation — new matches appear instantly
-- [x] Fixed Navbar Alerts badge double-counting — was summing notification_count + unread_messages
+- [x] Badge suppression — badges show 0 when user is viewing that section (pathRef approach)
+- [x] Fixed prefetchRecentChats 404 — was calling non-existent /conversations endpoint
+- [x] Fixed matches_cache invalidation on new match creation
+- [x] Fixed Navbar Alerts badge double-counting
+- [x] Smart Nudge — gentle icebreaker prompt in ChatPage when match hasn't replied 24h+
+- [x] Nudge indicator pill on MatchesPage conversation cards
+- [x] Nudge dismiss persisted per match in localStorage (48h cooldown)
+- [x] Deterministic icebreaker selection (hash of matchId, not random)
 
 ---
 
@@ -38,6 +44,7 @@
 - [x] Phone/email masking, money scam warnings
 - [x] Message deletion
 - [x] Chat Filter (Recent / Oldest / Unread) on Messages tab
+- [x] Smart Nudge (24h no-reply icebreaker prompt)
 
 ### Play With Match (Game System)
 - [x] Match Quiz (5 relationship questions)
@@ -89,6 +96,7 @@
 - [x] Safe area handling on ALL pages (var(--safe-top), var(--nav-total))
 - [x] Android Capacitor API 36 + CapacitorHttp
 - [x] Show Password toggle on auth forms
+- [x] Filter strips on Matches + Messages tabs
 
 ### Auth & Safety
 - [x] India-only registration (backend block)
@@ -108,7 +116,7 @@
 2. CapacitorHttp on Android doesn't forward Authorization headers properly
 3. Build MUST use `npx craco build` — NOT `npm run build` or `react-scripts build`
 4. Avoid `100dvh` and `position: fixed` for Android WebView layouts
-5. server.py is still ~7669 lines — needs further route extraction
+5. server.py is still ~7670 lines — needs further route extraction
 
 ---
 

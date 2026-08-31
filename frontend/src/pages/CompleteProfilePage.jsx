@@ -143,6 +143,7 @@ const CompleteProfilePage = ({ onLogin }) => {
       const tempId = `temp_${Date.now()}`;
       let photoURL = null;
       try {
+        const storage = getStorage();
         const storageRef = ref(storage, `profile_pictures/${tempId}/${Date.now()}_${profilePicture.name}`);
         await uploadBytes(storageRef, profilePicture);
         photoURL = await getDownloadURL(storageRef);
