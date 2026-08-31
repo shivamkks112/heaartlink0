@@ -122,6 +122,7 @@ const MatchesPage = ({ user }) => {
   const [matches, setMatches] = useState([]);
   const [conversations, setConversations] = useState([]);
   const [chatFilter, setChatFilter] = useState('recent');
+  const [matchFilter, setMatchFilter] = useState('recent');
   const [activeUsers, setActiveUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   // Auto-switch to messages tab if navigated back from chat
@@ -151,6 +152,39 @@ const MatchesPage = ({ user }) => {
     }
     return list;
   }, [conversations, chatFilter]);
+
+  // Filtered & sorted matches based on matchFilter
+  const filteredMatches = useMemo(() => {
+    let list = [...matches];
+    switch (matchFilter) {
+      case 'oldest':
+        list.sort((a, b) => {
+          const tA = a.created_at ? new Date(a.created_at) : new Date(0);
+          const tB = b.created_at ? new Date(b.created_at) : new Date(0);
+          return tA - tB;
+        });
+        break;
+      case 'compatible':
+        list.sort((a, b) => (b.compatibility_score || 0) - (a.compatibility_score || 0));
+        break;
+      case 'online':
+        list.sort((a, b) => {
+          const aOnline = a.user?.is_online ? 1 : 0;
+          const bOnline = b.user?.is_online ? 1 : 0;
+          return bOnline - aOnline;
+        });
+        break;
+      case 'recent':
+      default:
+        list.sort((a, b) => {
+          const tA = a.created_at ? new Date(a.created_at) : new Date(0);
+          const tB = b.created_at ? new Date(b.created_at) : new Date(0);
+          return tB - tA;
+        });
+        break;
+    }
+    return list;
+  }, [matches, matchFilter]);
 
   // Check if user has seen safety message
   const hasSeenSafetyMessage = () => {
@@ -482,8 +516,33 @@ const MatchesPage = ({ user }) => {
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 m3-stagger">
-                {matches.map((match, index) => (
+              <>
+                {/* Match Filter Strip */}
+                <div className="flex items-center gap-2 mb-3" data-testid="match-filter-strip">
+                  {[
+                    { key: 'recent', label: 'Recent', icon: <Clock className="w-3.5 h-3.5" /> },
+                    { key: 'oldest', label: 'Oldest', icon: <ArrowUpDown className="w-3.5 h-3.5" /> },
+                    { key: 'compatible', label: 'Best Match', icon: <Sparkles className="w-3.5 h-3.5" /> },
+                    { key: 'online', label: 'Online', icon: <Zap className="w-3.5 h-3.5" /> },
+                  ].map((f) => (
+                    <button
+                      key={f.key}
+                      data-testid={`match-filter-${f.key}`}
+                      onClick={() => setMatchFilter(f.key)}
+                      className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 active:scale-95"
+                      style={{
+                        background: matchFilter === f.key ? 'var(--m3-primary)' : 'var(--m3-surface-container-highest)',
+                        color: matchFilter === f.key ? 'var(--m3-on-primary)' : 'var(--m3-on-surface-variant)',
+                      }}
+                    >
+                      {f.icon}
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 m3-stagger">
+                  {filteredMatches.map((match, index) => (
                   <div
                     key={match.match_id}
                     data-testid="match-card"
@@ -578,6 +637,7 @@ const MatchesPage = ({ user }) => {
                   </div>
                 ))}
               </div>
+              </>
             )}
           </>
         )}
