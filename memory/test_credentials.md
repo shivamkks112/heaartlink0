@@ -1,19 +1,24 @@
 # HeartLink Test Credentials
 
-## Admin Account
+## Admin Account (Primary)
 - Email: shivamkks112@gmail.com
 - Password: Shivam@2026
 - is_admin: true
 
-## Secondary Admin (Preview only)
+## Admin Account (Preview only)
 - Email: review@heartlink.co.in
 - Password: HeartLink@2026
+- is_admin: true
 
-## Test Accounts
-- testmale@heartlink.co.in (no password set - test account)
-- Shivamkks122@gmail.com / TestNonAdmin@2026 (non-admin test user)
+## Test User (Non-admin)
+- Email: Shivamkks122@gmail.com
+- Password: TestNonAdmin@2026
 
-## AI Chat Profiles (auto-generated)
+## Test User IDs (Preview DB)
+- review@heartlink.co.in → cca39b3f-9f7e-485d-9ae3-d6b210d424fb
+- shivamkks112@gmail.com → 89a6e3b5-f911-4246-b5a6-9e6dbf9dc22c
+
+## AI Chat Profiles (auto-generated, no login)
 - Riya Sharma (24, Delhi)
 - Priya Patel (22, Mumbai)
 - Ananya Singh (25, Bangalore)

@@ -74,7 +74,7 @@ def verify_password_secure(plain_password: str, hashed_password: str) -> bool:
     """Verify password against bcrypt hash"""
     try:
         return pwd_context.verify(plain_password, hashed_password)
-    except:
+    except Exception:
         # Fallback for old SHA256 hashes during migration
         sha256_hash = hashlib.sha256(plain_password.encode()).hexdigest()
         return sha256_hash == hashed_password

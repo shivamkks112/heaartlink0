@@ -579,7 +579,7 @@ async def _send_smart_reengagement_notifications():
             
             try:
                 await fcm_service.send_to_user(db, uid, title, body)
-            except:
+            except Exception:
                 pass
         
         if inactive_users:
@@ -659,7 +659,7 @@ async def _send_daily_picks():
             try:
                 await fcm_service.send_to_user(db, uid, title, body)
                 sent += 1
-            except:
+            except Exception:
                 pass
         
         if sent:
@@ -748,7 +748,7 @@ class ConnectionManager:
         if user_id in self.active_connections:
             try:
                 await self.active_connections[user_id].send_json(message)
-            except:
+            except Exception:
                 self.disconnect(user_id)
     
     async def send_badge_update(self, user_id: str):
@@ -824,7 +824,7 @@ async def calculate_ai_compatibility(user1: dict, user2: dict) -> tuple:
             try:
                 score_str = response.split("SCORE:")[1].split("\n")[0].strip()
                 score = float(''.join(filter(str.isdigit, score_str[:3])))
-            except:
+            except Exception:
                 pass
         
         if "ANALYSIS:" in response:
@@ -2900,7 +2900,7 @@ async def discover_users(user_id: str, limit: int = 10, relationship_intent: str
                 end = datetime.fromisoformat(profile.get("boost_end", "").replace("Z", "+00:00"))
                 if datetime.now(timezone.utc) < end:
                     score += 500
-            except:
+            except Exception:
                 pass
         # Shared interests (highest weight)
         p_interests = set(profile.get("interests", []))
@@ -2926,7 +2926,7 @@ async def discover_users(user_id: str, limit: int = 10, relationship_intent: str
                     score += 15
                 elif hours_ago < 72:
                     score += 5
-            except:
+            except Exception:
                 pass
         # Profile completeness bonus
         if profile.get("profile_picture"):
@@ -3455,7 +3455,7 @@ async def mark_crush(user_id: str, target_user_id: str):
         try:
             await fcm_service.send_to_user(db, target_user_id, "Mutual Crush!", f"You and {crusher['name']} both crushed on each other!")
             await fcm_service.send_to_user(db, user_id, "Mutual Crush!", f"You and {target['name'] if target else 'someone'} both crushed on each other!")
-        except:
+        except Exception:
             pass
         return {"action": "mutual_crush", "mutual": True}
     
@@ -3466,7 +3466,7 @@ async def mark_crush(user_id: str, target_user_id: str):
     )
     try:
         await fcm_service.send_to_user(db, target_user_id, "Secret Crush!", "Someone has a crush on you! Open HeartLink to find out.")
-    except:
+    except Exception:
         pass
     
     return {"action": "crush_sent", "mutual": False}
@@ -3823,7 +3823,7 @@ async def get_messages(match_id: str, user_id: Optional[str] = None, limit: int 
                         {"$set": {"is_deleted_for_all": True, "content": "Message expired"}}
                     )
                     continue
-            except:
+            except Exception:
                 pass
         
         # Clean the message for response
@@ -3899,7 +3899,7 @@ async def mark_messages_as_read(match_id: str, user_id: str):
                     "read_by": user_id,
                     "count": result.modified_count
                 })
-            except:
+            except Exception:
                 pass
     
     return {"marked_read": result.modified_count}
@@ -5460,7 +5460,7 @@ async def send_bulk_notification(data: BulkNotificationRequest):
     Target options: all, male, female, inactive
     """
     # Build query based on target
-    query = {"fcm_token": {"$exists": True, "$ne": None, "$ne": ""}}
+    query = {"fcm_token": {"$exists": True, "$nin": [None, ""]}}
     
     if data.target == "male":
         query["gender"] = {"$regex": "^male$", "$options": "i"}
@@ -6454,7 +6454,7 @@ async def send_daily_notifications():
     try:
         # Get all users with FCM tokens
         users_with_tokens = await db.users.find({
-            "fcm_token": {"$exists": True, "$ne": None, "$ne": ""}
+            "fcm_token": {"$exists": True, "$nin": [None, ""]}
         }).to_list(None)
         
         if not users_with_tokens:
@@ -6512,7 +6512,7 @@ async def send_inactive_user_notifications():
         
         # Find inactive users with FCM tokens
         inactive_users = await db.users.find({
-            "fcm_token": {"$exists": True, "$ne": None, "$ne": ""},
+            "fcm_token": {"$exists": True, "$nin": [None, ""]},
             "last_active": {"$lt": three_days_ago.isoformat()}
         }).to_list(100)
         
@@ -6612,13 +6612,13 @@ async def get_daily_notification_status():
     
     # Count users with FCM tokens
     users_with_tokens = await db.users.count_documents({
-        "fcm_token": {"$exists": True, "$ne": None, "$ne": ""}
+        "fcm_token": {"$exists": True, "$nin": [None, ""]}
     })
     
     # Count inactive users
     three_days_ago = datetime.now(timezone.utc) - timedelta(days=3)
     inactive_count = await db.users.count_documents({
-        "fcm_token": {"$exists": True, "$ne": None, "$ne": ""},
+        "fcm_token": {"$exists": True, "$nin": [None, ""]},
         "last_active": {"$lt": three_days_ago.isoformat()}
     })
     
@@ -6635,16 +6635,15 @@ async def get_daily_notification_status():
         "next_scheduled": "10:00 AM IST daily"
     }
 
+# Merge additional startup tasks into existing startup event
+# (startup_event is already defined at line ~255)
 @app.on_event("startup")
-async def startup_event():
-    """Start background tasks on app startup"""
-    # Start daily notification scheduler
+async def startup_daily_tasks():
+    """Start daily notification tasks"""
     asyncio.create_task(daily_notification_scheduler())
-    logger.info("✅ Daily notification scheduler started")
-    
-    # Start scheduled notification processor
+    logger.info("Daily notification scheduler started")
     asyncio.create_task(scheduled_notification_processor())
-    logger.info("✅ Scheduled notification processor started")
+    logger.info("Scheduled notification processor started")
 
 
 # ==================== SCHEDULED NOTIFICATION PROCESSOR ====================
@@ -6775,7 +6774,7 @@ async def send_push_to_single_user_compat(user_id: str, title: str = "HeartLink"
 async def get_push_status():
     """Check FCM push notification status."""
     total = await db.users.count_documents({})
-    with_fcm = await db.users.count_documents({"fcm_token": {"$exists": True, "$ne": None, "$ne": ""}})
+    with_fcm = await db.users.count_documents({"fcm_token": {"$exists": True, "$nin": [None, ""]}})
     return {
         "provider": "fcm",
         "configured": fcm_service.is_fcm_ready(),
@@ -6804,7 +6803,7 @@ async def test_push_compat():
 # ==================== ENGAGEMENT NOTIFICATION ENDPOINTS ====================
 
 @api_router.get("/admin/notifications/templates")
-async def get_notification_templates():
+async def get_engagement_notification_templates():
     """Get all available engagement notification templates"""
     return {
         "templates": fcm_service.ENGAGEMENT_TEMPLATES,
@@ -6893,7 +6892,8 @@ async def send_notification_to_inactive_users(days: int = 3):
     else:
         template_key = "inactive_7days"
     
-    result = await fcm_service.send_to_users(db, user_ids, template.get("title",""), template.get("body",""))
+    template = fcm_service.ENGAGEMENT_TEMPLATES.get(template_key, {})
+    result = await fcm_service.send_to_users(db, user_ids, template.get("title","Come back!"), template.get("body","We miss you!"))
     
     # Log
     await db.admin_notifications.insert_one({
@@ -7480,10 +7480,10 @@ async def create_game_session(match_id: str, game_type: str, sender_id: str):
     )
     try:
         await fcm_service.send_to_user(db, receiver_id, "Game Invitation!", f"{sender['name'] if sender else 'Someone'} wants to play {game_label}!")
-    except:
+    except Exception:
         pass
     
-    return {"game_id": session["id"], "status": "pending", "message": invite_msg}
+    return {"game_id": session["id"], "status": "pending", "message_id": invite_msg.get("id")}
 
 @api_router.post("/game/{game_id}/respond")
 async def respond_to_game(game_id: str, user_id: str, action: str):
@@ -7562,7 +7562,7 @@ async def submit_game_answers(game_id: str, user_id: str, answers: dict):
             )
             try:
                 await fcm_service.send_to_user(db, uid, "Game Complete!", f"{score}% compatibility! {msg}")
-            except:
+            except Exception:
                 pass
     
     await db.game_sessions.update_one({"id": game_id}, update)
@@ -7640,14 +7640,14 @@ async def get_boost_status(user_id: str):
             is_active = remaining > 0
             if not is_active:
                 await db.users.update_one({"id": user_id}, {"$set": {"boost_active": False}})
-        except:
+        except Exception:
             pass
     
     if user.get("last_boost"):
         try:
             lb = datetime.fromisoformat(user["last_boost"].replace("Z", "+00:00"))
             can_boost = (datetime.now(timezone.utc) - lb).total_seconds() >= 86400
-        except:
+        except Exception:
             pass
     
     return {"is_active": is_active, "remaining_seconds": remaining, "can_boost": can_boost}

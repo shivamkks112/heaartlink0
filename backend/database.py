@@ -64,7 +64,7 @@ async def create_indexes():
         await db.users.create_index("id", unique=True, background=True)
         try:
             await db.users.drop_index("email_1")
-        except:
+        except Exception:
             pass
         try:
             await db.users.create_index(
@@ -75,7 +75,7 @@ async def create_indexes():
                 logging.warning(f"Email index: {e}")
         try:
             await db.users.drop_index("phone_1")
-        except:
+        except Exception:
             pass
         try:
             await db.users.create_index(

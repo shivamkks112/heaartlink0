@@ -1,61 +1,107 @@
-# HeartLink - India's Safe Dating App
+# HeartLink - India's #1 Safe Dating App — PRD
+
+## Overview
+Modern, safe, trust-based dating app for Indian users. React frontend + FastAPI backend + MongoDB + Capacitor Android.
 
 ## Tech Stack
-- Frontend: React + Tailwind + Shadcn/UI + Material 3
-- Backend: FastAPI (Python) + MongoDB
-- Mobile: Capacitor 7 (Android)
-- Notifications: Firebase Cloud Messaging (FCM)
+- **Frontend**: React 18 + Tailwind + Shadcn/UI + Material 3 CSS tokens
+- **Backend**: FastAPI (Python 3.11) + MongoDB (motor async)
+- **Mobile**: Capacitor 7 (Android API 36) with CapacitorHttp, safe-area plugin, geolocation plugin
+- **Push**: Firebase Cloud Messaging (FCM) via `fcm_service.py`
+- **AI**: emergentintegrations (Gemini/Claude) for AI chatbot
 
-## Completed
+## Architecture
+```
+/app/backend/
+├── server.py           (~7660 lines - main app, ALL routes, middleware)
+├── database.py         (MongoDB connection, caches, index creation)
+├── models/schemas.py   (All Pydantic request/response models)
+├── services/helpers.py (Shared utilities: password, serialization, notifications)
+├── security.py         (JWT tokens, rate limiting, brute force)
+├── fcm_service.py      (Firebase push notifications + engagement templates)
+├── ai_chatbot.py       (AI girl chatbot)
+├── firebase_config.py  (Firebase Admin SDK init)
+├── email_service.py    (Email sending)
+└── .env                (MONGO_URL, DB_NAME, JWT_SECRET_KEY, FIREBASE keys)
 
-### Aug 16, 2026 — Phase 2: Play With Match + Boost + Share
-- **Play With Match Game System**:
-  - "Play Together" button (purple gamepad) in Chat input area
-  - Match Quiz (5 fun relationship questions) + Compatibility Challenge (5 lifestyle questions)
-  - Game invite sent as special chat message with Accept/Decline buttons
-  - Score calculation on both answers submitted, fun compatibility % with message
-  - Game overlay UI: menu → playing (with progress bar) → waiting → result
-  - Push + in-app notifications for invites and results
-  - Backend: /api/game/create, /api/game/{id}/respond, /api/game/{id}/answer, /api/game/{id}
-  
-- **Profile Boost**:
-  - 1 free boost per day, 30 minute duration
-  - Boosted profiles get +500 ranking score in Discover (appear first)
-  - Boost button on Profile page with status indicator
-  - Backend: /api/boost/{user_id}, /api/boost/{user_id}/status
+/app/frontend/
+├── src/App.js          (Routing, auth guard, lazy loading, prefetch)
+├── src/pages/          (All page components)
+├── src/components/     (Reusable components incl PlayWithMatch game)
+├── src/utils/          (adminApi.js, cacheManager.js)
+├── src/config/api.js   (API URL config - PRODUCTION_URL for Capacitor)
+├── src/data/indianCities.js (States + cities data)
+├── src/styles/material3.css (M3 design tokens)
+├── android/            (Capacitor Android project)
+└── .env                (REACT_APP_BACKEND_URL)
+```
 
-- **Instagram Story Match Card**:
-  - Canvas-generated 1080x1920 story card with gradient background
-  - "We Matched!" + names + HeartLink branding + CTA
-  - Share to Instagram Stories, WhatsApp, or Download
-  - Share button on each Match card in Matches page
-  - Route: /share-match
+## Critical Build Notes
+- **ALWAYS use `npx craco build`** — NOT `npm run build` or `react-scripts build`
+- **Cap sync**: `npx cap sync android` after every build
+- **Admin Auth Middleware**: DISABLED in server.py (CapacitorHttp doesn't forward Authorization headers)
+- **Avoid**: `100dvh`, `position: fixed` for full-screen Android layouts (use flexbox)
+- **Safe areas**: Use `var(--safe-top)`, `var(--nav-total)` CSS variables
 
-### Aug 16, 2026 — Phase 1: Engagement & Match Quality
-- Chat Icebreakers, Smarter Discovery, Profile Completeness, Enhanced Match Cards
+## Key Features (All Implemented)
+### Core Dating
+- Discover (smart ranked), Likes, Matches, Chat (WebSocket real-time)
+- Anonymous Crush system, Who Viewed Profile (premium paywall)
+- Smart Discovery: ranked by shared interests, city, distance, verification, boost, online status
+- City filter (bottom sheet), GPS distance on cards
+- Profile completeness score (0-100%)
+- Chat icebreakers (6 conversation starters)
+- Read receipts: ✓ sent, ✓✓ delivered, ✓✓ read (blue)
+- Typing indicator (via WebSocket, 4s auto-hide)
+- Play With Match (Match Quiz + Compatibility Challenge in chat)
+- Profile Boost (1 free/day, 30 min top priority)
+- Instagram Story match share card
 
-### Aug 16, 2026 — Growth Features
-- Anonymous Crush, Who Viewed Profile, Smart Re-engagement Notifications
-- WhatsApp Share, Profile Share Card, SEO City Pages
+### Safety & Admin
+- India-only registration, mandatory profile photo
+- Phone/email masking in chat, money scam warnings
+- Gender-based notification filtering
+- Admin dashboard (temporarily without auth)
+- Profile verification, ban/shadow-ban system
 
-### Aug 15, 2026 — Admin & Refactoring
-- Admin Auth Middleware (temporarily disabled), server.py refactoring, JWT_SECRET_KEY
+### Growth
+- Referral system with WhatsApp share
+- Smart re-engagement notifications (personalized, data-based)
+- Daily morning picks (5 match suggestions push)
+- SEO city landing pages (/dating/mumbai, /dating/delhi, etc.)
+- Profile share card, match share card
+- Custom notification sounds (message, match, like)
+
+### Performance
+- Offline caching (Discover profiles, chat messages)
+- Chat prefetch (top 3 conversations on login)
+- Image lazy loading + async decoding
+
+## API Endpoints (Key)
+- POST /api/auth/signup, /api/auth/login
+- GET /api/discover/{user_id}?city=X&limit=N
+- POST /api/action/{user_id} (like/pass/superlike)
+- POST /api/crush/{user_id}?target_user_id=X
+- GET /api/crushes/{user_id}
+- GET /api/profile-viewers/{user_id}
+- GET /api/profile/{user_id}/completeness
+- POST /api/boost/{user_id}
+- POST /api/game/create?match_id=X&game_type=X&sender_id=X
+- POST /api/game/{id}/respond, /api/game/{id}/answer
+- GET /api/messages/{match_id}
+- POST /api/messages/{match_id}/mark-read/{user_id}
+- All /api/admin/* (no auth currently)
 
 ## Pending / Backlog
-### P1: Razorpay Premium Subscription (monetize crush reveal, viewer unlock, extra boosts)
-### P1: Re-enable admin auth (needs CapacitorHttp fix)
-### P2: Analytics events
-### P2: AI photo verification
+- P1: Razorpay Premium subscription (monetize crush/viewer/boost)
+- P1: Re-enable admin auth (fix CapacitorHttp header forwarding)
+- P1: server.py route extraction (routes/*.py modules)
+- P2: Age filter on Discover
+- P2: Chat media sharing (photos)
+- P2: Video profile intro
+- P3: AI photo verification, AI Trust Score
 
-## Key API Endpoints
-- POST /api/game/create?match_id=X&game_type=match_quiz&sender_id=X
-- POST /api/game/{id}/respond?user_id=X&action=accept
-- POST /api/game/{id}/answer?user_id=X (body: {q1: "opt", q2: "opt"...})
-- GET /api/game/{id}
-- POST /api/boost/{user_id}
-- GET /api/boost/{user_id}/status
-- GET /api/profile/{id}/completeness
-
-## Build
-- Always `npx craco build`, NOT `npm run build`
-- `npx cap sync android` after build for APK
+## Production
+- Web: https://dating-app-debug-1.emergent.host
+- Android: Capacitor APK (Play Store)
+- Backend API: Same domain /api/*
