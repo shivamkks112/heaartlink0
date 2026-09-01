@@ -309,6 +309,9 @@ const AdminDashboard = ({ user }) => {
   const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
   const [resetNewPassword, setResetNewPassword] = useState('');
   const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
+  const [lastRefreshed, setLastRefreshed] = useState(null);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [statsError, setStatsError] = useState(null);
 
   // Fetch feature flags
   const fetchFeatureFlags = useCallback(async () => {
@@ -377,13 +380,23 @@ const AdminDashboard = ({ user }) => {
     }
   };
 
-  // Fetch dashboard stats
+  // Fetch dashboard stats — always fresh
   const fetchStats = useCallback(async () => {
+    setStatsLoading(true);
+    setStatsError(null);
     try {
-      const res = await adminApi.get(`/admin/dashboard-stats`);
+      const res = await adminApi.get(`/admin/dashboard-stats`, {
+        params: { _t: Date.now() },
+        headers: { 'Cache-Control': 'no-cache' }
+      });
       setStats(res.data);
+      setLastRefreshed(new Date());
     } catch (e) {
       console.error('Stats fetch error:', e);
+      setStatsError(e.response?.data?.detail || e.message || 'Failed to load stats');
+      toast.error('Failed to load dashboard stats: ' + (e.response?.data?.detail || e.message));
+    } finally {
+      setStatsLoading(false);
     }
   }, []);
 
@@ -398,8 +411,10 @@ const AdminDashboard = ({ user }) => {
           limit: 15,
           gender: genderFilter !== 'all' ? genderFilter : undefined,
           status: statusFilter !== 'all' ? statusFilter : undefined,
-          sort: sortBy
-        }
+          sort: sortBy,
+          _t: Date.now()
+        },
+        headers: { 'Cache-Control': 'no-cache' }
       });
       
       if (Array.isArray(response.data)) {
@@ -460,6 +475,9 @@ const AdminDashboard = ({ user }) => {
 
   useEffect(() => {
     fetchStats();
+    // Auto-refresh stats every 30 seconds
+    const interval = setInterval(fetchStats, 30000);
+    return () => clearInterval(interval);
   }, [fetchStats]);
 
   useEffect(() => {
@@ -567,9 +585,21 @@ const AdminDashboard = ({ user }) => {
             <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
             <p className="text-gray-600">Manage users, verifications & notifications</p>
           </div>
-          <Button onClick={() => { fetchStats(); fetchUsers(); }}>
-            <RefreshCw className="w-4 h-4 mr-2" /> Refresh
-          </Button>
+          <div className="flex items-center gap-3">
+            {lastRefreshed && (
+              <span className="text-xs text-gray-400">
+                Last: {lastRefreshed.toLocaleTimeString('en-IN')}
+              </span>
+            )}
+            <Button 
+              onClick={() => { fetchStats(); if (activeTab === 'users') fetchUsers(); }}
+              disabled={statsLoading}
+              data-testid="admin-refresh-btn"
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${statsLoading ? 'animate-spin' : ''}`} /> 
+              {statsLoading ? 'Loading...' : 'Refresh'}
+            </Button>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -628,6 +658,17 @@ const AdminDashboard = ({ user }) => {
         {/* Overview Tab */}
         {activeTab === 'overview' && (
           <div className="space-y-6">
+            {/* Error Banner */}
+            {statsError && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3" data-testid="stats-error-banner">
+                <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-red-800">Failed to load stats</p>
+                  <p className="text-xs text-red-600">{statsError}</p>
+                </div>
+                <Button size="sm" className="ml-auto bg-red-500 hover:bg-red-600" onClick={fetchStats}>Retry</Button>
+              </div>
+            )}
             {/* Stats Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <StatCard 

@@ -10,103 +10,45 @@ Modern, safe, trust-based dating app for Indian users. React frontend + FastAPI 
 - **Push**: Firebase Cloud Messaging (FCM) via `fcm_service.py`
 - **AI**: emergentintegrations (Gemini/Claude) for AI chatbot
 
-## Architecture
-```
-/app/backend/
-├── server.py           (~7670 lines - main app, ALL routes, middleware)
-├── database.py         (MongoDB connection, caches, index creation)
-├── models/schemas.py   (All Pydantic request/response models)
-├── services/helpers.py (Shared utilities: password, serialization, notifications)
-├── security.py         (JWT tokens, rate limiting, brute force)
-├── fcm_service.py      (Firebase push notifications + engagement templates)
-├── ai_chatbot.py       (AI girl chatbot)
-├── firebase_config.py  (Firebase Admin SDK init)
-├── email_service.py    (Email sending)
-└── .env                (MONGO_URL, DB_NAME, JWT_SECRET_KEY, FIREBASE keys)
-
-/app/frontend/
-├── src/App.js          (Routing, auth guard, lazy loading, prefetch)
-├── src/pages/          (All page components)
-├── src/components/     (Reusable components incl PlayWithMatch game)
-├── src/utils/          (adminApi.js, cacheManager.js)
-├── src/config/api.js   (API URL config - PRODUCTION_URL for Capacitor)
-├── src/data/indianCities.js (States + cities data)
-├── src/styles/material3.css (M3 design tokens)
-├── android/            (Capacitor Android project)
-└── .env                (REACT_APP_BACKEND_URL)
-```
+## Production Architecture
+- **Mobile App (Capacitor)**: Connects to `https://www.heartlink.co.in`
+- **Web Production**: `https://dating-app-debug-1.emergent.host` (SAME database as heartlink.co.in)
+- **Preview**: `https://trust-based-deploy.preview.emergentagent.com` (SEPARATE local DB)
+- Both production URLs share the SAME MongoDB — verified via dashboard-stats comparison
 
 ## Critical Build Notes
 - **ALWAYS use `npx craco build`** — NOT `npm run build` or `react-scripts build`
 - **Cap sync**: `npx cap sync android` after every build
-- **Admin Auth Middleware**: DISABLED in server.py (CapacitorHttp doesn't forward Authorization headers)
+- **Admin Auth Middleware**: DISABLED (CapacitorHttp doesn't forward Authorization headers)
 - **Avoid**: `100dvh`, `position: fixed` for full-screen Android layouts (use flexbox)
 - **Safe areas**: Use `var(--safe-top)`, `var(--nav-total)` CSS variables
 
 ## Key Features (All Implemented)
 ### Core Dating
-- Discover (smart ranked), Likes, Matches, Chat (WebSocket real-time)
-- Anonymous Crush system, Who Viewed Profile (premium paywall)
-- Smart Discovery: ranked by shared interests, city, distance, verification, boost, online status
-- City filter (bottom sheet), GPS distance on cards
-- Profile completeness score (0-100%)
-- Chat icebreakers (6 conversation starters)
-- Read receipts: single/double/blue ticks
-- Typing indicator (via WebSocket, 4s auto-hide)
-- Play With Match (Match Quiz + Compatibility Challenge in chat)
-- Profile Boost (1 free/day, 30 min top priority)
-- Instagram Story match share card
-- Chat Filter (Recent / Oldest / Unread) on Messages tab
-- Match Filter (Recent / Oldest / Best Match / Online) on Matches tab
-- Show Password toggle on Login + Signup forms
-- Smart Nudge (24h no-reply icebreaker prompt in chat + pill on conversation cards)
+- Discover, Likes, Matches, Chat (WebSocket real-time)
+- Anonymous Crush, Who Viewed Profile, Smart Discovery
+- City filter, GPS distance, Profile completeness score
+- Chat icebreakers, Read receipts, Typing indicator
+- Play With Match games, Profile Boost, Instagram Story share
+- Chat Filter (Recent/Oldest/Unread), Match Filter (Recent/Oldest/Best Match/Online)
+- Show Password toggle, Smart Nudge (24h no-reply icebreaker)
 
-### Safety & Admin
-- India-only registration, mandatory profile photo
-- Phone/email masking in chat, money scam warnings
-- Gender-based notification filtering
-- Admin dashboard (temporarily without auth)
-- Profile verification, ban/shadow-ban system
+### Admin Dashboard (FIXED Sep 1, 2026)
+- Real-time stats from production DB (IST timezone for "today")
+- Auto-refresh every 30 seconds
+- No-cache headers on all admin endpoints
+- Error banner with retry on failure
+- Last-refreshed timestamp on Refresh button
+- New signups appear immediately in Recent Signups
+- Active Today uses IST midnight boundary
 
-### Growth
-- Referral system with WhatsApp share
-- Smart re-engagement notifications (personalized, data-based)
-- Daily morning picks (5 match suggestions push)
-- SEO city landing pages (/dating/mumbai, /dating/delhi, etc.)
-- Profile share card, match share card
-- Custom notification sounds (message, match, like)
-
-### Performance
-- Offline caching (Discover profiles, chat messages)
-- Chat prefetch (top 3 conversations on login)
-- Image lazy loading + async decoding
-- Matches cache with write-through invalidation on new match
-
-## API Endpoints (Key)
-- POST /api/auth/signup, /api/auth/login
-- GET /api/discover/{user_id}?city=X&limit=N
-- POST /api/action/{user_id} (like/pass/superlike)
-- POST /api/crush/{user_id}?target_user_id=X
-- GET /api/crushes/{user_id}
-- GET /api/profile-viewers/{user_id}
-- GET /api/profile/{user_id}/completeness
-- POST /api/boost/{user_id}
-- POST /api/game/create?match_id=X&game_type=X&sender_id=X
-- POST /api/game/{id}/respond, /api/game/{id}/answer
-- GET /api/messages/{match_id}
-- POST /api/messages/{match_id}/mark-read/{user_id}
-- All /api/admin/* (no auth currently)
+### Safety, Growth, Performance, Notifications
+- All previously built features preserved (see CHANGELOG.md)
 
 ## Pending / Backlog
 - P1: Video Intro (15 sec profile recording)
 - P2: Chat media sharing (photos)
 - P2: Age filter on Discover
-- P3: Razorpay Premium subscription (monetize crush/viewer/boost)
-- P3: Re-enable admin auth (fix CapacitorHttp header forwarding)
-- P3: server.py route extraction (routes/*.py modules)
+- P3: Razorpay Premium subscription
+- P3: server.py route extraction
 - P4: AI photo verification, AI Trust Score
-
-## Production
-- Web: https://dating-app-debug-1.emergent.host
-- Android: Capacitor APK (Play Store)
-- Backend API: Same domain /api/*

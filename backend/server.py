@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, WebSocket, WebSocketDisconnect, HTTPException, UploadFile, File, Form, Request, Depends
+from fastapi import FastAPI, APIRouter, WebSocket, WebSocketDisconnect, HTTPException, UploadFile, File, Form, Request, Depends, Response
 from fastapi.responses import JSONResponse, ORJSONResponse
 from fastapi.middleware.gzip import GZipMiddleware
 from dotenv import load_dotenv
@@ -4817,6 +4817,7 @@ async def get_high_risk_users():
 # === ADMIN: ALL USERS LIST ===
 @api_router.get("/admin/all-users")
 async def get_all_users(
+    response: Response,
     search: str = "", 
     page: int = 1, 
     limit: int = 20,
@@ -4825,6 +4826,7 @@ async def get_all_users(
     sort: str = "newest"
 ):
     """Get all users with search, filters, sorting and pagination for admin"""
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     skip = (page - 1) * limit
     
     # Build search query (exclude AI profiles)
@@ -4922,101 +4924,114 @@ async def get_all_users(
 
 # === ADMIN: DASHBOARD STATS ===
 @api_router.get("/admin/dashboard-stats")
-async def get_dashboard_stats():
-    """Get comprehensive dashboard statistics"""
-    now = datetime.now(timezone.utc)
-    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    week_ago = now - timedelta(days=7)
+async def get_dashboard_stats(response: Response):
+    """Get comprehensive dashboard statistics - always fresh, no cache"""
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
     
-    # Total users (exclude AI profiles)
-    total_users = await db.users.count_documents({"is_ai_profile": {"$ne": True}})
+    try:
+        now = datetime.now(timezone.utc)
+        # Use IST (UTC+5:30) for "today" since this is an Indian app
+        ist_offset = timedelta(hours=5, minutes=30)
+        now_ist = now + ist_offset
+        today_start_ist = now_ist.replace(hour=0, minute=0, second=0, microsecond=0)
+        today_start_utc = today_start_ist - ist_offset  # Convert back to UTC
+        today_start = today_start_utc
+        week_ago = now - timedelta(days=7)
     
-    # Gender breakdown (exclude AI)
-    male_users = await db.users.count_documents({"gender": {"$regex": "^male$", "$options": "i"}, "is_ai_profile": {"$ne": True}})
-    female_users = await db.users.count_documents({"gender": {"$regex": "^female$", "$options": "i"}, "is_ai_profile": {"$ne": True}})
+        # Total users (exclude AI profiles)
+        total_users = await db.users.count_documents({"is_ai_profile": {"$ne": True}})
     
-    # New users today
-    new_today = await db.users.count_documents({
-        "created_at": {"$gte": today_start.isoformat()}
-    })
-    
-    # New users this week
-    new_this_week = await db.users.count_documents({
-        "created_at": {"$gte": week_ago.isoformat()}
-    })
-    
-    # Active users today
-    active_today = await db.users.count_documents({
-        "last_active": {"$gte": today_start.isoformat()}
-    })
-    
-    # Online NOW (last 5 minutes) - Real-time online count
-    five_min_ago = (now - timedelta(minutes=5)).isoformat()
-    online_now = await db.users.count_documents({
-        "last_active": {"$gte": five_min_ago}
-    })
-    
-    # Inactive users (7+ days)
-    inactive_users = await db.users.count_documents({
-        "$or": [
-            {"last_active": {"$lt": week_ago.isoformat()}},
-            {"last_active": {"$exists": False}}
-        ]
-    })
-    
-    # Premium users
-    premium_users = await db.users.count_documents({"is_premium": True})
-    
-    # Verified users
-    verified_users = await db.users.count_documents({"verified": True})
-    
-    # Banned users
-    banned_users = await db.users.count_documents({
-        "$or": [
-            {"is_shadow_banned": True},
-            {"is_permanently_banned": True}
-        ]
-    })
-    
-    # Pending verifications
-    pending_verifications = await db.users.count_documents({
-        "selfie_verification_status": "pending"
-    })
-    
-    # Total matches
-    total_matches = await db.matches.count_documents({})
-    
-    # Total messages
-    total_messages = await db.messages.count_documents({})
-    
-    # Recent signups (last 10)
-    recent_signups_cursor = db.users.find({}).sort("created_at", -1).limit(10)
-    recent_signups = await recent_signups_cursor.to_list(None)
-    
-    return {
-        "total_users": total_users,
-        "male_users": male_users,
-        "female_users": female_users,
-        "new_today": new_today,
-        "new_this_week": new_this_week,
-        "active_today": active_today,
-        "online_now": online_now,
-        "inactive_users": inactive_users,
-        "premium_users": premium_users,
-        "verified_users": verified_users,
-        "banned_users": banned_users,
-        "pending_verifications": pending_verifications,
-        "total_matches": total_matches,
-        "total_messages": total_messages,
-        "recent_signups": [{
-            "id": u["id"],
-            "name": u["name"],
-            "email": u.get("email"),
-            "gender": u.get("gender"),
-            "profile_picture": u.get("profile_picture"),
-            "created_at": u.get("created_at")
-        } for u in recent_signups]
-    }
+        # Gender breakdown (exclude AI)
+        male_users = await db.users.count_documents({"gender": {"$regex": "^male$", "$options": "i"}, "is_ai_profile": {"$ne": True}})
+        female_users = await db.users.count_documents({"gender": {"$regex": "^female$", "$options": "i"}, "is_ai_profile": {"$ne": True}})
+        
+        # New users today
+        new_today = await db.users.count_documents({
+            "created_at": {"$gte": today_start.isoformat()}
+        })
+        
+        # New users this week
+        new_this_week = await db.users.count_documents({
+            "created_at": {"$gte": week_ago.isoformat()}
+        })
+        
+        # Active users today
+        active_today = await db.users.count_documents({
+            "last_active": {"$gte": today_start.isoformat()}
+        })
+        
+        # Online NOW (last 5 minutes) - Real-time online count
+        five_min_ago = (now - timedelta(minutes=5)).isoformat()
+        online_now = await db.users.count_documents({
+            "last_active": {"$gte": five_min_ago}
+        })
+        
+        # Inactive users (7+ days)
+        inactive_users = await db.users.count_documents({
+            "$or": [
+                {"last_active": {"$lt": week_ago.isoformat()}},
+                {"last_active": {"$exists": False}}
+            ]
+        })
+        
+        # Premium users
+        premium_users = await db.users.count_documents({"is_premium": True})
+        
+        # Verified users
+        verified_users = await db.users.count_documents({"verified": True})
+        
+        # Banned users
+        banned_users = await db.users.count_documents({
+            "$or": [
+                {"is_shadow_banned": True},
+                {"is_permanently_banned": True}
+            ]
+        })
+        
+        # Pending verifications
+        pending_verifications = await db.users.count_documents({
+            "selfie_verification_status": "pending"
+        })
+        
+        # Total matches
+        total_matches = await db.matches.count_documents({})
+        
+        # Total messages
+        total_messages = await db.messages.count_documents({})
+        
+        # Recent signups (last 10)
+        recent_signups_cursor = db.users.find({}).sort("created_at", -1).limit(10)
+        recent_signups = await recent_signups_cursor.to_list(None)
+        
+        return {
+            "total_users": total_users,
+            "male_users": male_users,
+            "female_users": female_users,
+            "new_today": new_today,
+            "new_this_week": new_this_week,
+            "active_today": active_today,
+            "online_now": online_now,
+            "inactive_users": inactive_users,
+            "premium_users": premium_users,
+            "verified_users": verified_users,
+            "banned_users": banned_users,
+            "pending_verifications": pending_verifications,
+            "total_matches": total_matches,
+            "total_messages": total_messages,
+            "recent_signups": [{
+                "id": u["id"],
+                "name": u["name"],
+                "email": u.get("email"),
+                "gender": u.get("gender"),
+                "profile_picture": u.get("profile_picture"),
+                "created_at": u.get("created_at")
+            } for u in recent_signups],
+            "fetched_at": datetime.now(timezone.utc).isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Dashboard stats error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch dashboard stats: {str(e)}")
 
 # === ADMIN: DELETE USER ===
 @api_router.delete("/admin/user/{user_id}")
