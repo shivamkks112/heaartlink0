@@ -143,6 +143,14 @@ async def create_indexes():
         await db.crushes.create_index("crushed_id", background=True)
         await db.crushes.create_index([("crusher_id", 1), ("crushed_id", 1)], unique=True, background=True)
 
+        # Install tracking indexes
+        await db.installs.create_index("installation_id", unique=True, background=True)
+        await db.installs.create_index("first_open_at", background=True)
+        await db.installs.create_index("signup_status", background=True)
+        await db.installs.create_index("acquisition_source", background=True)
+        await db.installs.create_index("user_id", sparse=True, background=True)
+        await db.installs.create_index([("first_open_at", -1)], background=True)
+
         logging.info("MongoDB indexes created successfully")
     except Exception as e:
         logging.error(f"Error creating indexes: {e}")

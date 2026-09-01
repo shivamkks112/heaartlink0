@@ -1113,6 +1113,29 @@ async def signup(request: Request, user_data: UserSignup):
         # Audit log
         audit_log.log_event("signup_success", user_id=user.id, ip=client_ip)
         
+        # Link install record if installation_id provided
+        installation_id = user_data.dict().get("installation_id") if hasattr(user_data, 'installation_id') else None
+        if not installation_id:
+            # Try from request body directly
+            try:
+                body = await request.body()
+                import json as _json
+                raw = _json.loads(body)
+                installation_id = raw.get("installation_id")
+            except Exception:
+                pass
+        if installation_id:
+            await db.installs.update_one(
+                {"installation_id": installation_id},
+                {"$set": {
+                    "signup_status": "registered",
+                    "signup_at": datetime.now(timezone.utc).isoformat(),
+                    "user_id": user.id
+                },
+                "$push": {"events": {"type": "signup_completed", "timestamp": datetime.now(timezone.utc).isoformat()}}},
+                upsert=False
+            )
+        
         # === AUTOMATIC NOTIFICATIONS ===
         # Notify all users about new user joining
         asyncio.create_task(_notify_new_user_joined(user.id, sanitized_name, user_dict.get("gender", ""), user_dict.get("location", "")))
@@ -7692,6 +7715,261 @@ async def get_boost_status(user_id: str):
 
 
 # Include router - MUST be at the very end after all route definitions
+# ==================== ANALYTICS & INSTALL TRACKING ====================
+
+@api_router.post("/analytics/track-install")
+async def track_install(request: Request):
+    """Track a first-open / install event. Idempotent per installation_id."""
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body")
+    
+    installation_id = data.get("installation_id")
+    if not installation_id:
+        raise HTTPException(status_code=400, detail="installation_id required")
+    
+    # Check if already tracked — idempotent
+    existing = await db.installs.find_one({"installation_id": installation_id})
+    if existing:
+        # Update last_active only
+        await db.installs.update_one(
+            {"installation_id": installation_id},
+            {"$set": {"last_active_at": datetime.now(timezone.utc).isoformat()}}
+        )
+        return {"status": "already_tracked", "installation_id": installation_id}
+    
+    now = datetime.now(timezone.utc).isoformat()
+    install_doc = {
+        "installation_id": installation_id,
+        "first_open_at": now,
+        "last_active_at": now,
+        "platform": data.get("platform", "unknown"),
+        "app_version": data.get("app_version", "unknown"),
+        "signup_status": "not_registered",
+        "user_id": None,
+        "acquisition_source": data.get("acquisition_source", "direct"),
+        "utm_source": data.get("utm_source"),
+        "utm_medium": data.get("utm_medium"),
+        "utm_campaign": data.get("utm_campaign"),
+        "signup_at": None,
+        "first_login_at": None,
+        "events": [{"type": "first_open", "timestamp": now}]
+    }
+    
+    await db.installs.insert_one(install_doc)
+    return {"status": "tracked", "installation_id": installation_id}
+
+
+@api_router.post("/analytics/track-event")
+async def track_event(request: Request):
+    """Track a funnel event for an installation."""
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body")
+    
+    installation_id = data.get("installation_id")
+    event_type = data.get("event_type")
+    if not installation_id or not event_type:
+        raise HTTPException(status_code=400, detail="installation_id and event_type required")
+    
+    now = datetime.now(timezone.utc).isoformat()
+    update = {
+        "$push": {"events": {"type": event_type, "timestamp": now}},
+        "$set": {"last_active_at": now}
+    }
+    
+    # Special handling for signup and login events
+    if event_type == "signup_completed":
+        update["$set"]["signup_status"] = "registered"
+        update["$set"]["signup_at"] = now
+        if data.get("user_id"):
+            update["$set"]["user_id"] = data["user_id"]
+    elif event_type == "first_login":
+        update["$set"]["first_login_at"] = now
+    
+    result = await db.installs.update_one(
+        {"installation_id": installation_id},
+        update,
+        upsert=True
+    )
+    return {"status": "ok", "matched": result.matched_count}
+
+
+@api_router.get("/admin/growth-stats")
+async def get_growth_stats(response: Response, period: str = "today"):
+    """Get growth & acquisition stats for admin dashboard."""
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    
+    try:
+        now = datetime.now(timezone.utc)
+        ist_offset = timedelta(hours=5, minutes=30)
+        now_ist = now + ist_offset
+        today_start_ist = now_ist.replace(hour=0, minute=0, second=0, microsecond=0)
+        today_start_utc = (today_start_ist - ist_offset).isoformat()
+        
+        yesterday_start_ist = today_start_ist - timedelta(days=1)
+        yesterday_start_utc = (yesterday_start_ist - ist_offset).isoformat()
+        yesterday_end_utc = today_start_utc
+        
+        week_ago_utc = (now - timedelta(days=7)).isoformat()
+        month_ago_utc = (now - timedelta(days=30)).isoformat()
+        
+        # Determine date filter
+        if period == "yesterday":
+            date_gte = yesterday_start_utc
+            date_lt = yesterday_end_utc
+        elif period == "week":
+            date_gte = week_ago_utc
+            date_lt = None
+        elif period == "month":
+            date_gte = month_ago_utc
+            date_lt = None
+        else:  # today
+            date_gte = today_start_utc
+            date_lt = None
+        
+        date_q = {"$gte": date_gte}
+        if date_lt:
+            date_q["$lt"] = date_lt
+        
+        # ===== INSTALL METRICS =====
+        total_installs = await db.installs.count_documents({})
+        installs_today = await db.installs.count_documents({"first_open_at": {"$gte": today_start_utc}})
+        installs_week = await db.installs.count_documents({"first_open_at": {"$gte": week_ago_utc}})
+        installs_month = await db.installs.count_documents({"first_open_at": {"$gte": month_ago_utc}})
+        installs_period = await db.installs.count_documents({"first_open_at": date_q})
+        
+        # ===== SIGNUP METRICS (from users collection — source of truth) =====
+        signups_today = await db.users.count_documents({"created_at": {"$gte": today_start_utc}, "is_ai_profile": {"$ne": True}})
+        signups_week = await db.users.count_documents({"created_at": {"$gte": week_ago_utc}, "is_ai_profile": {"$ne": True}})
+        signups_month = await db.users.count_documents({"created_at": {"$gte": month_ago_utc}, "is_ai_profile": {"$ne": True}})
+        signups_period = await db.users.count_documents({"created_at": date_q, "is_ai_profile": {"$ne": True}})
+        
+        # Not registered installs
+        not_registered = await db.installs.count_documents({"signup_status": "not_registered"})
+        
+        # Conversion rate
+        conversion_rate = round((signups_period / installs_period * 100), 1) if installs_period > 0 else 0
+        
+        # ===== ACQUISITION SOURCE BREAKDOWN =====
+        sources = ["meta_ads", "google_ads", "organic", "referral", "direct"]
+        source_stats = {}
+        for src in sources:
+            src_installs = await db.installs.count_documents({"acquisition_source": src, "first_open_at": date_q})
+            src_signups = await db.installs.count_documents({"acquisition_source": src, "signup_status": "registered", "signup_at": date_q})
+            src_conv = round((src_signups / src_installs * 100), 1) if src_installs > 0 else 0
+            source_stats[src] = {"installs": src_installs, "signups": src_signups, "conversion_rate": src_conv}
+        
+        # ===== GENDER BREAKDOWN (registered users only) =====
+        male_signups = await db.users.count_documents({"created_at": date_q, "gender": {"$regex": "^male$", "$options": "i"}, "is_ai_profile": {"$ne": True}})
+        female_signups = await db.users.count_documents({"created_at": date_q, "gender": {"$regex": "^female$", "$options": "i"}, "is_ai_profile": {"$ne": True}})
+        other_signups = signups_period - male_signups - female_signups
+        
+        # ===== FUNNEL =====
+        funnel_installs = installs_period
+        funnel_app_opened = await db.installs.count_documents({"first_open_at": date_q})
+        funnel_signup_started = await db.installs.count_documents({
+            "first_open_at": date_q,
+            "events.type": "signup_started"
+        })
+        funnel_signup_completed = signups_period
+        funnel_first_login = await db.users.count_documents({
+            "last_login": {"$gte": date_gte if isinstance(date_gte, str) else date_gte},
+            "created_at": date_q,
+            "is_ai_profile": {"$ne": True}
+        })
+        funnel_active = await db.users.count_documents({
+            "last_active": {"$gte": today_start_utc},
+            "is_ai_profile": {"$ne": True}
+        })
+        
+        # ===== ACTIVE USER METRICS =====
+        active_today = await db.users.count_documents({"last_active": {"$gte": today_start_utc}, "is_ai_profile": {"$ne": True}})
+        active_week = await db.users.count_documents({"last_active": {"$gte": week_ago_utc}, "is_ai_profile": {"$ne": True}})
+        
+        return {
+            "period": period,
+            "installs": {
+                "total": total_installs,
+                "today": installs_today,
+                "this_week": installs_week,
+                "this_month": installs_month,
+                "period": installs_period
+            },
+            "signups": {
+                "today": signups_today,
+                "this_week": signups_week,
+                "this_month": signups_month,
+                "period": signups_period
+            },
+            "not_registered": not_registered,
+            "conversion_rate": conversion_rate,
+            "source_breakdown": source_stats,
+            "gender_breakdown": {
+                "male": male_signups,
+                "female": female_signups,
+                "other": max(0, other_signups)
+            },
+            "funnel": {
+                "app_install": funnel_installs,
+                "app_opened": funnel_app_opened,
+                "signup_started": funnel_signup_started,
+                "signup_completed": funnel_signup_completed,
+                "first_login": funnel_first_login,
+                "active_user": funnel_active
+            },
+            "active_users": {
+                "today": active_today,
+                "this_week": active_week
+            },
+            "fetched_at": datetime.now(timezone.utc).isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Growth stats error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch growth stats: {str(e)}")
+
+
+@api_router.get("/admin/acquisition-table")
+async def get_acquisition_table(response: Response, page: int = 1, limit: int = 20):
+    """Get recent acquisition records for admin table."""
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    
+    try:
+        skip = (page - 1) * limit
+        cursor = db.installs.find({}).sort("first_open_at", -1).skip(skip).limit(limit)
+        records = await cursor.to_list(None)
+        total = await db.installs.count_documents({})
+        
+        result = []
+        for r in records:
+            # If user_id exists, fetch user info
+            user_info = None
+            if r.get("user_id"):
+                u = await db.users.find_one({"id": r["user_id"]}, {"_id": 0, "name": 1, "email": 1, "gender": 1, "profile_picture": 1})
+                if u:
+                    user_info = u
+            
+            result.append({
+                "installation_id": r.get("installation_id", "")[:12] + "...",
+                "first_open": r.get("first_open_at"),
+                "source": r.get("acquisition_source", "direct"),
+                "signup_status": r.get("signup_status", "not_registered"),
+                "signup_date": r.get("signup_at"),
+                "first_login": r.get("first_login_at"),
+                "last_active": r.get("last_active_at"),
+                "app_version": r.get("app_version", "unknown"),
+                "platform": r.get("platform", "unknown"),
+                "user": user_info
+            })
+        
+        return {"records": result, "total": total, "page": page, "pages": max(1, -(-total // limit))}
+    except Exception as e:
+        logger.error(f"Acquisition table error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch acquisition data: {str(e)}")
+
+
 app.include_router(api_router)
 
 @app.on_event("shutdown")

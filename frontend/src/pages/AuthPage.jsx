@@ -11,6 +11,7 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from '@/firebase/config'
 
 import { BACKEND_URL, API } from '@/config/api';
 import { INDIAN_STATES, CITIES_BY_STATE, POPULAR_CITIES } from '@/data/indianCities';
+import { trackEvent, getStoredInstallId } from '@/utils/installTracker';
 
 const AuthPage = ({ onLogin }) => {
   const navigate = useNavigate();
@@ -122,6 +123,9 @@ const AuthPage = ({ onLogin }) => {
       await onLogin(userData);
       toast.success(`Welcome back, ${userData.name}!`);
       
+      // Track login event
+      trackEvent('login', { user_id: userData.id });
+      
       setTimeout(() => {
         navigate('/discover');
       }, 100);
@@ -203,6 +207,9 @@ const AuthPage = ({ onLogin }) => {
     
     setLoading(true);
     
+    // Track signup started
+    trackEvent('signup_started');
+    
     try {
       // Upload photo FIRST to Firebase
       toast.loading('Uploading photo...');
@@ -221,11 +228,15 @@ const AuthPage = ({ onLogin }) => {
         age: parseInt(signupData.age),
         interests: signupData.interests ? signupData.interests.split(',').map(i => i.trim()) : [],
         photos: [photoURL],
-        profile_picture: photoURL
+        profile_picture: photoURL,
+        installation_id: getStoredInstallId()
       };
       
       const response = await axios.post(`${API}/auth/signup`, submitData);
       const userData = response.data.user;
+      
+      // Track signup completed
+      trackEvent('signup_completed', { user_id: userData.id });
       
       // Store auth token for admin API access
       if (response.data.access_token) {

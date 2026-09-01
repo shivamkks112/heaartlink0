@@ -17,6 +17,7 @@ import Navbar from '@/components/Navbar';
 import TopBar from '@/components/TopBar';
 import NotificationManager from '@/components/admin/NotificationManager';
 import ProfileApprovals from '@/components/admin/ProfileApprovals';
+import GrowthAcquisition from '@/components/admin/GrowthAcquisition';
 
 import { BACKEND_URL } from '@/config/api';
 
@@ -653,6 +654,13 @@ const AdminDashboard = ({ user }) => {
           >
             <Bot className="w-4 h-4 mr-2" /> AI Girls
           </Button>
+          <Button
+            onClick={() => setActiveTab('growth')}
+            className={activeTab === 'growth' ? 'bg-green-600' : 'bg-gray-200 text-gray-700'}
+            data-testid="admin-growth-tab"
+          >
+            <TrendingUp className="w-4 h-4 mr-2" /> Growth
+          </Button>
         </div>
 
         {/* Overview Tab */}
@@ -1207,6 +1215,11 @@ const AdminDashboard = ({ user }) => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Growth & Acquisition Tab */}
+      {activeTab === 'growth' && (
+        <GrowthAcquisition />
       )}
 
       {/* Settings Tab - Feature Toggles */}
