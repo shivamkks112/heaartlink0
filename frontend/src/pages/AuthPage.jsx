@@ -141,12 +141,6 @@ const AuthPage = ({ onLogin }) => {
   const handleSignup = async (e) => {
     e.preventDefault();
     
-    // Profile picture is MANDATORY
-    if (!profilePicture) {
-      toast.error('Profile photo is required! Please upload your photo.');
-      return;
-    }
-    
     // Email is compulsory
     if (!signupData.email || !signupData.email.includes('@')) {
       toast.error('Please enter a valid email address');
@@ -211,24 +205,21 @@ const AuthPage = ({ onLogin }) => {
     trackEvent('signup_started');
     
     try {
-      // Upload photo FIRST to Firebase
-      toast.loading('Uploading photo...');
-      const tempUserId = `temp_${Date.now()}`;
-      const photoURL = await uploadProfilePicture(tempUserId);
-      toast.dismiss();
-      
-      if (!photoURL) {
-        toast.error('Photo upload failed. Please try again.');
-        setLoading(false);
-        return;
+      // Upload photo if provided
+      let photoURL = null;
+      if (profilePicture) {
+        toast.loading('Uploading photo...');
+        const tempUserId = `temp_${Date.now()}`;
+        photoURL = await uploadProfilePicture(tempUserId);
+        toast.dismiss();
       }
 
       const submitData = {
         ...signupData,
         age: parseInt(signupData.age),
         interests: signupData.interests ? signupData.interests.split(',').map(i => i.trim()) : [],
-        photos: [photoURL],
-        profile_picture: photoURL,
+        photos: photoURL ? [photoURL] : [],
+        profile_picture: photoURL || '',
         installation_id: getStoredInstallId()
       };
       
@@ -262,7 +253,7 @@ const AuthPage = ({ onLogin }) => {
       }
       
       setTimeout(() => {
-        navigate('/discover');
+        navigate('/mandatory-photo');  // Go to photo upload step after signup
       }, 100);
     } catch (error) {
       console.error('Signup error:', error);
@@ -426,8 +417,8 @@ const AuthPage = ({ onLogin }) => {
                   )}
                   
                   {!profilePicturePreview && (
-                    <p className="text-xs text-orange-600 mt-2 flex items-center gap-1">
-                      <span className="text-red-500">⚠</span> Photo is required for registration
+                    <p className="text-xs mt-2" style={{ color: 'var(--m3-on-surface-variant)' }}>
+                      Optional — you can add photos after signup
                     </p>
                   )}
                 </div>

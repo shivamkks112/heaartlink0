@@ -319,20 +319,20 @@ function App() {
             <Route path="/admin" element={user && user.is_admin ? <AdminDashboard user={user} /> : <Navigate to="/" />} />
             
             {/* All protected routes: redirect to photo upload if profile incomplete */}
-            <Route path="/discover" element={user ? (user.profile_incomplete ? <Navigate to="/mandatory-photo" /> : <DiscoverPage user={user} />) : <Navigate to="/" />} />
-            <Route path="/matches" element={user ? (user.profile_incomplete ? <Navigate to="/mandatory-photo" /> : <MatchesPage user={user} />) : <Navigate to="/" />} />
-            <Route path="/likes" element={user ? (user.profile_incomplete ? <Navigate to="/mandatory-photo" /> : <LikesYouPage user={user} />) : <Navigate to="/" />} />
-            <Route path="/chat/:matchId" element={user ? (user.profile_incomplete ? <Navigate to="/mandatory-photo" /> : <ErrorBoundary><ChatPage user={user} /></ErrorBoundary>) : <Navigate to="/" />} />
-            <Route path="/profile" element={user ? (user.profile_incomplete ? <Navigate to="/mandatory-photo" /> : <ProfilePage user={user} onUpdate={handleLogin} />) : <Navigate to="/" />} />
-            <Route path="/profile/:userId" element={user ? (user.profile_incomplete ? <Navigate to="/mandatory-photo" /> : <UserProfilePage user={user} />) : <Navigate to="/" />} />
-            <Route path="/privacy" element={user ? (user.profile_incomplete ? <Navigate to="/mandatory-photo" /> : <PrivacyPage user={user} onUpdate={handleLogin} />) : <Navigate to="/" />} />
-            <Route path="/settings" element={user ? (user.profile_incomplete ? <Navigate to="/mandatory-photo" /> : <SettingsPage user={user} />) : <Navigate to="/" />} />
-            <Route path="/profile-viewers" element={user ? (user.profile_incomplete ? <Navigate to="/mandatory-photo" /> : <ProfileViewersPage user={user} />) : <Navigate to="/" />} />
-            <Route path="/enhance-profile" element={user ? (user.profile_incomplete ? <Navigate to="/mandatory-photo" /> : <ProfileEnhancementPage user={user} onUpdate={handleLogin} />) : <Navigate to="/" />} />
-            <Route path="/notifications" element={user ? (user.profile_incomplete ? <Navigate to="/mandatory-photo" /> : <NotificationsPage user={user} />) : <Navigate to="/" />} />
-            <Route path="/referral" element={user ? (user.profile_incomplete ? <Navigate to="/mandatory-photo" /> : <ReferralPage user={user} />) : <Navigate to="/" />} />
-            <Route path="/share-profile" element={user ? (user.profile_incomplete ? <Navigate to="/mandatory-photo" /> : <ShareProfilePage user={user} />) : <Navigate to="/" />} />
-            <Route path="/share-match" element={user ? (user.profile_incomplete ? <Navigate to="/mandatory-photo" /> : <MatchShareCard user={user} />) : <Navigate to="/" />} />
+            <Route path="/discover" element={user ? <DiscoverPage user={user} /> : <Navigate to="/" />} />
+            <Route path="/matches" element={user ? <MatchesPage user={user} /> : <Navigate to="/" />} />
+            <Route path="/likes" element={user ? <LikesYouPage user={user} /> : <Navigate to="/" />} />
+            <Route path="/chat/:matchId" element={user ? <ErrorBoundary><ChatPage user={user} /></ErrorBoundary> : <Navigate to="/" />} />
+            <Route path="/profile" element={user ? <ProfilePage user={user} onUpdate={handleLogin} /> : <Navigate to="/" />} />
+            <Route path="/profile/:userId" element={user ? <UserProfilePage user={user} /> : <Navigate to="/" />} />
+            <Route path="/privacy" element={user ? <PrivacyPage user={user} onUpdate={handleLogin} /> : <Navigate to="/" />} />
+            <Route path="/settings" element={user ? <SettingsPage user={user} /> : <Navigate to="/" />} />
+            <Route path="/profile-viewers" element={user ? <ProfileViewersPage user={user} /> : <Navigate to="/" />} />
+            <Route path="/enhance-profile" element={user ? <ProfileEnhancementPage user={user} onUpdate={handleLogin} /> : <Navigate to="/" />} />
+            <Route path="/notifications" element={user ? <NotificationsPage user={user} /> : <Navigate to="/" />} />
+            <Route path="/referral" element={user ? <ReferralPage user={user} /> : <Navigate to="/" />} />
+            <Route path="/share-profile" element={user ? <ShareProfilePage user={user} /> : <Navigate to="/" />} />
+            <Route path="/share-match" element={user ? <MatchShareCard user={user} /> : <Navigate to="/" />} />
             <Route path="/premium" element={<Navigate to="/discover" />} />
           </Routes>
           </Suspense>

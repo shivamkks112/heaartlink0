@@ -360,8 +360,11 @@ const DiscoverPage = ({ user }) => {
                 onError={() => setImgError(true)}
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-pink-500/80 to-rose-600/80">
-                <span className="text-8xl font-bold text-white/30">{currentProfile.name?.charAt(0)}</span>
+              <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-700 to-gray-800">
+                <div className="w-24 h-24 rounded-full bg-gray-600 flex items-center justify-center mb-3">
+                  <span className="text-5xl font-bold text-gray-400">{currentProfile.name?.charAt(0)}</span>
+                </div>
+                <span className="text-xs text-gray-400 bg-black/40 px-3 py-1 rounded-full">No profile photo added</span>
               </div>
             )}
           </div>

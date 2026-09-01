@@ -376,6 +376,14 @@ const ProfilePage = ({ user, onUpdate }) => {
               />
             </div>
             <h2 className="text-3xl font-bold mt-4">{profile.name}</h2>
+            
+            {/* No photo warning */}
+            {!profile.profile_picture && (!profile.photos || profile.photos.length === 0) && (
+              <div className="mt-2 bg-amber-500/20 border border-amber-400/40 backdrop-blur-sm px-4 py-2 rounded-full inline-flex items-center gap-2" data-testid="no-photo-warning">
+                <span className="text-sm">Add a profile photo to build trust</span>
+              </div>
+            )}
+            
             <p className="text-white/90 mt-2">{profile.email || profile.phone}</p>
             
             {/* Online Status / Last Seen */}

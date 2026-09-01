@@ -1139,11 +1139,7 @@ async def signup(request: Request, user_data: UserSignup):
     if not user_data.email and not user_data.phone:
         raise HTTPException(status_code=400, detail="Email ya Mobile Number mein se ek dena zaroori hai")
     
-    # 2. Profile photo is mandatory
-    if not user_data.photos or len(user_data.photos) == 0:
-        raise HTTPException(status_code=400, detail="Profile photo upload karna zaroori hai")
-    
-    # 3. Block social media handles, telegram, whatsapp mentions in name/bio
+    # 2. Block social media handles, telegram, whatsapp mentions in name/bio
     blocked_patterns = [
         r'\btelegram\b', r'\btele\s*gram\b', r'\bt\.me\b', r'\b@\w+',
         r'\bwhatsapp\b', r'\bwhats\s*app\b', r'\bwa\.me\b',
