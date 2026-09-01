@@ -72,9 +72,14 @@ const GrowthAcquisition = () => {
       });
       setStats(res.data);
     } catch (e) {
-      const msg = e.response?.data?.detail || e.message || 'Failed to load growth stats';
-      setError(msg);
-      toast.error(msg);
+      if (e.response?.status === 404) {
+        // Endpoint not deployed yet — show empty state
+        setStats({ installs: { total: 0, today: 0, this_week: 0, this_month: 0, period: 0 }, signups: { today: 0, this_week: 0, this_month: 0, period: 0 }, not_registered: 0, conversion_rate: 0, source_breakdown: {}, gender_breakdown: { male: 0, female: 0, other: 0 }, funnel: { app_install: 0, app_opened: 0, signup_started: 0, signup_completed: 0, first_login: 0, active_user: 0 }, active_users: { today: 0, this_week: 0 } });
+      } else {
+        const msg = e.response?.data?.detail || e.message || 'Failed to load growth stats';
+        setError(msg);
+        toast.error(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -98,7 +103,7 @@ const GrowthAcquisition = () => {
       });
       setRetention(res.data?.retention || []);
     } catch (e) {
-      console.error('Retention chart error:', e);
+      if (e.response?.status !== 404) console.error('Retention chart error:', e);
     }
   }, []);
 

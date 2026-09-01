@@ -68,7 +68,19 @@ const WelcomeSettings = () => {
       setSettings(res.data.settings);
       setAnalytics(res.data.analytics || {});
     } catch (e) {
-      toast.error('Failed to load welcome settings');
+      if (e.response?.status === 404) {
+        // Endpoint not deployed yet — use defaults silently
+        setSettings({
+          new_user_enabled: true, new_user_title: 'Welcome to HeartLink',
+          new_user_message: "We're happy to have you here. Complete your profile, discover interesting people and start making meaningful connections.",
+          new_user_cta: 'Explore HeartLink', returning_user_enabled: true,
+          returning_user_title: 'Welcome back, {firstName}!',
+          returning_user_message: "We've missed you. See who's new, check your matches and continue your conversations.",
+          returning_user_cta: 'Continue Exploring', returning_inactivity_days: 7
+        });
+      } else {
+        toast.error('Failed to load welcome settings');
+      }
     }
   }, []);
 

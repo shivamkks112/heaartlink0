@@ -230,7 +230,6 @@ function App() {
         if (data.show) {
           setWelcomeData(data);
           welcomeRef.current = data;
-          // Mark as shown immediately to prevent duplicates
           fetch(`${API}/welcome-shown/${userId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -238,6 +237,7 @@ function App() {
           }).catch(() => {});
         }
       }
+      // 404 = endpoint not deployed yet, silently skip
     } catch (_) {}
   };
 
