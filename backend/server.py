@@ -271,6 +271,64 @@ async def startup_event():
     # Start weekly growth email scheduler
     asyncio.create_task(weekly_growth_email_scheduler())
     logging.info("📧 Weekly growth email scheduler started")
+    
+    # Auto-send update notification if app version changed
+    asyncio.create_task(auto_update_notification())
+
+
+APP_VERSION = "3.2.5"  # Increment this on each release
+
+
+async def auto_update_notification():
+    """On deploy, check if version changed and auto-send push notification to all users."""
+    try:
+        # Small delay to let FCM service initialize
+        await asyncio.sleep(10)
+        
+        last_version = await db.app_settings.find_one({"type": "app_version"})
+        stored_version = last_version.get("version") if last_version else None
+        
+        if stored_version == APP_VERSION:
+            logging.info(f"📱 App version unchanged ({APP_VERSION}), skipping update push")
+            return
+        
+        # Version changed — update DB and send notification
+        await db.app_settings.update_one(
+            {"type": "app_version"},
+            {"$set": {"version": APP_VERSION, "updated_at": datetime.now(timezone.utc).isoformat()}},
+            upsert=True
+        )
+        
+        if stored_version is None:
+            # First deploy — don't spam users
+            logging.info(f"📱 First version recorded: {APP_VERSION}, skipping initial push")
+            return
+        
+        logging.info(f"📱 Version changed: {stored_version} → {APP_VERSION}, sending update push!")
+        
+        result = await fcm_service.send_to_all(
+            db,
+            "HeartLink Update Available! 🎉",
+            f"New version {APP_VERSION} is here with exciting features! Update now from Play Store.",
+            data={"type": "app_update", "url": "https://play.google.com/store/apps/details?id=com.heartlink.app", "click_action": "OPEN_PLAY_STORE"}
+        )
+        
+        # Log it
+        await db.app_settings.update_one(
+            {"type": "update_notifications"},
+            {"$push": {"history": {
+                "title": f"Auto: v{stored_version} → v{APP_VERSION}",
+                "sent_at": datetime.now(timezone.utc).isoformat(),
+                "auto": True,
+                "result": str(result)
+            }}, "$inc": {"total_sent": 1}},
+            upsert=True
+        )
+        
+        logging.info(f"📱 Update notification sent: {result}")
+        
+    except Exception as e:
+        logging.error(f"Auto update notification error: {e}")
 
 
 async def keep_ai_profiles_online(db_ref):
