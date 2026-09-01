@@ -267,6 +267,10 @@ async def startup_event():
     # Start background notification scheduler
     asyncio.create_task(notification_scheduler())
     logging.info("📬 Notification scheduler started")
+    
+    # Start weekly growth email scheduler
+    asyncio.create_task(weekly_growth_email_scheduler())
+    logging.info("📧 Weekly growth email scheduler started")
 
 
 async def keep_ai_profiles_online(db_ref):
@@ -666,6 +670,140 @@ async def _send_daily_picks():
             logging.info(f"☀️ Sent daily picks to {sent} users")
     except Exception as e:
         logging.error(f"Daily picks error: {e}")
+
+
+async def weekly_growth_email_scheduler():
+    """Send weekly growth digest email every Monday 9 AM IST"""
+    while True:
+        try:
+            now = datetime.now(timezone.utc)
+            ist_offset = timedelta(hours=5, minutes=30)
+            now_ist = now + ist_offset
+            
+            # Calculate next Monday 9 AM IST
+            days_until_monday = (7 - now_ist.weekday()) % 7
+            if days_until_monday == 0 and now_ist.hour >= 9:
+                days_until_monday = 7
+            
+            next_monday = now_ist.replace(hour=9, minute=0, second=0, microsecond=0) + timedelta(days=days_until_monday)
+            sleep_seconds = (next_monday - now_ist).total_seconds()
+            
+            logging.info(f"📧 Weekly email: sleeping {sleep_seconds/3600:.1f}h until next Monday 9AM IST")
+            await asyncio.sleep(max(sleep_seconds, 60))
+            
+            # Generate and send the digest
+            await _send_weekly_growth_digest()
+            
+        except Exception as e:
+            logging.error(f"Weekly email scheduler error: {e}")
+            await asyncio.sleep(3600)  # Retry in 1 hour
+
+
+async def _send_weekly_growth_digest():
+    """Generate and send the weekly growth email digest"""
+    try:
+        from email_service import send_email
+        
+        now = datetime.now(timezone.utc)
+        week_ago = (now - timedelta(days=7)).isoformat()
+        prev_week_ago = (now - timedelta(days=14)).isoformat()
+        
+        # This week stats
+        installs_week = await db.installs.count_documents({"first_open_at": {"$gte": week_ago}})
+        signups_week = await db.users.count_documents({"created_at": {"$gte": week_ago}, "is_ai_profile": {"$ne": True}})
+        active_week = await db.users.count_documents({"last_active": {"$gte": week_ago}, "is_ai_profile": {"$ne": True}})
+        total_users = await db.users.count_documents({"is_ai_profile": {"$ne": True}})
+        total_installs = await db.installs.count_documents({})
+        male_signups = await db.users.count_documents({"created_at": {"$gte": week_ago}, "gender": {"$regex": "^male$", "$options": "i"}, "is_ai_profile": {"$ne": True}})
+        female_signups = await db.users.count_documents({"created_at": {"$gte": week_ago}, "gender": {"$regex": "^female$", "$options": "i"}, "is_ai_profile": {"$ne": True}})
+        not_registered = await db.installs.count_documents({"signup_status": "not_registered"})
+        conversion = round((signups_week / installs_week * 100), 1) if installs_week > 0 else 0
+        
+        # Previous week for comparison
+        prev_installs = await db.installs.count_documents({"first_open_at": {"$gte": prev_week_ago, "$lt": week_ago}})
+        prev_signups = await db.users.count_documents({"created_at": {"$gte": prev_week_ago, "$lt": week_ago}, "is_ai_profile": {"$ne": True}})
+        
+        # Source breakdown
+        sources = {}
+        for src in ["meta_ads", "google_ads", "organic", "referral", "direct"]:
+            cnt = await db.installs.count_documents({"acquisition_source": src, "first_open_at": {"$gte": week_ago}})
+            if cnt > 0:
+                sources[src] = cnt
+        
+        def trend(current, previous):
+            if previous == 0:
+                return "🆕" if current > 0 else "—"
+            diff = current - previous
+            pct = round((diff / previous) * 100)
+            return f"{'📈' if diff >= 0 else '📉'} {'+' if diff >= 0 else ''}{pct}%"
+        
+        source_rows = ""
+        for src, cnt in sources.items():
+            source_rows += f"""<tr><td style="padding:8px 16px;border-bottom:1px solid #f0f0f0;">{src.replace('_',' ').title()}</td><td style="padding:8px 16px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:bold;">{cnt}</td></tr>"""
+        
+        html = f"""
+        <!DOCTYPE html><html><head><meta charset="UTF-8"></head>
+        <body style="margin:0;padding:0;font-family:Arial,sans-serif;background:#f9fafb;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="padding:20px;"><tr><td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.08);">
+        
+        <tr><td style="background:linear-gradient(135deg,#ec4899,#f97316);padding:32px 24px;text-align:center;">
+            <h1 style="color:#fff;margin:0;font-size:28px;">💕 HeartLink Weekly Growth</h1>
+            <p style="color:rgba(255,255,255,0.9);margin:8px 0 0;">Week of {(now - timedelta(days=7)).strftime('%d %b')} — {now.strftime('%d %b %Y')}</p>
+        </td></tr>
+        
+        <tr><td style="padding:24px;">
+            <table width="100%" cellspacing="0" cellpadding="0">
+            <tr>
+                <td style="padding:12px;background:#eef2ff;border-radius:12px;text-align:center;width:33%;">
+                    <p style="margin:0;font-size:28px;font-weight:bold;color:#4f46e5;">{installs_week}</p>
+                    <p style="margin:4px 0 0;font-size:12px;color:#6b7280;">Installs {trend(installs_week, prev_installs)}</p>
+                </td>
+                <td style="width:8px;"></td>
+                <td style="padding:12px;background:#ecfdf5;border-radius:12px;text-align:center;width:33%;">
+                    <p style="margin:0;font-size:28px;font-weight:bold;color:#059669;">{signups_week}</p>
+                    <p style="margin:4px 0 0;font-size:12px;color:#6b7280;">Signups {trend(signups_week, prev_signups)}</p>
+                </td>
+                <td style="width:8px;"></td>
+                <td style="padding:12px;background:#fdf2f8;border-radius:12px;text-align:center;width:33%;">
+                    <p style="margin:0;font-size:28px;font-weight:bold;color:#db2777;">{conversion}%</p>
+                    <p style="margin:4px 0 0;font-size:12px;color:#6b7280;">Conversion Rate</p>
+                </td>
+            </tr>
+            </table>
+        </td></tr>
+        
+        <tr><td style="padding:0 24px 24px;">
+            <table width="100%" cellspacing="0" cellpadding="0" style="border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
+            <tr style="background:#f9fafb;"><td style="padding:10px 16px;font-weight:bold;font-size:13px;">Metric</td><td style="padding:10px 16px;font-weight:bold;font-size:13px;text-align:right;">Value</td></tr>
+            <tr><td style="padding:8px 16px;border-bottom:1px solid #f0f0f0;">Total Users</td><td style="padding:8px 16px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:bold;">{total_users}</td></tr>
+            <tr><td style="padding:8px 16px;border-bottom:1px solid #f0f0f0;">Total Installs</td><td style="padding:8px 16px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:bold;">{total_installs}</td></tr>
+            <tr><td style="padding:8px 16px;border-bottom:1px solid #f0f0f0;">Active This Week</td><td style="padding:8px 16px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:bold;">{active_week}</td></tr>
+            <tr><td style="padding:8px 16px;border-bottom:1px solid #f0f0f0;">Male Signups</td><td style="padding:8px 16px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:bold;">{male_signups}</td></tr>
+            <tr><td style="padding:8px 16px;border-bottom:1px solid #f0f0f0;">Female Signups</td><td style="padding:8px 16px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:bold;">{female_signups}</td></tr>
+            <tr><td style="padding:8px 16px;">Installed but Not Registered</td><td style="padding:8px 16px;text-align:right;font-weight:bold;color:#f59e0b;">{not_registered}</td></tr>
+            </table>
+        </td></tr>
+        
+        {"<tr><td style='padding:0 24px 24px;'><h3 style='margin:0 0 8px;font-size:14px;color:#374151;'>Acquisition Sources</h3><table width='100%' cellspacing='0' cellpadding='0' style='border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;'>" + source_rows + "</table></td></tr>" if source_rows else ""}
+        
+        <tr><td style="padding:16px 24px;background:#f9fafb;text-align:center;border-top:1px solid #e5e7eb;">
+            <p style="margin:0;font-size:11px;color:#9ca3af;">HeartLink Admin • Auto-generated weekly digest</p>
+        </td></tr>
+        
+        </table></td></tr></table></body></html>
+        """
+        
+        # Send to admin emails
+        admin_emails = ["shivamkks112@gmail.com"]
+        subject = f"💕 HeartLink Weekly: {installs_week} installs, {signups_week} signups ({conversion}% conversion)"
+        
+        for email in admin_emails:
+            result = send_email(email, subject, html)
+            logging.info(f"📧 Weekly digest sent to {email}: {result}")
+        
+    except Exception as e:
+        logging.error(f"Weekly growth digest error: {e}")
 
 
 async def notification_scheduler():
@@ -7968,6 +8106,70 @@ async def get_acquisition_table(response: Response, page: int = 1, limit: int = 
     except Exception as e:
         logger.error(f"Acquisition table error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch acquisition data: {str(e)}")
+
+
+@api_router.get("/admin/retention-chart")
+async def get_retention_chart(response: Response, days: int = 7):
+    """Get N-day retention data: for each cohort day, how many users came back on subsequent days."""
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    
+    try:
+        now = datetime.now(timezone.utc)
+        ist_offset = timedelta(hours=5, minutes=30)
+        
+        retention_data = []
+        
+        for day_offset in range(days, 0, -1):
+            # Cohort: users who signed up on this day
+            day_start_ist = (now + ist_offset - timedelta(days=day_offset)).replace(hour=0, minute=0, second=0, microsecond=0)
+            day_end_ist = day_start_ist + timedelta(days=1)
+            day_start_utc = (day_start_ist - ist_offset).isoformat()
+            day_end_utc = (day_end_ist - ist_offset).isoformat()
+            
+            # Users who signed up on this day
+            cohort_count = await db.users.count_documents({
+                "created_at": {"$gte": day_start_utc, "$lt": day_end_utc},
+                "is_ai_profile": {"$ne": True}
+            })
+            
+            # Users from this cohort who were active today
+            today_start_ist = (now + ist_offset).replace(hour=0, minute=0, second=0, microsecond=0)
+            today_start_utc = (today_start_ist - ist_offset).isoformat()
+            
+            returned_today = 0
+            if cohort_count > 0:
+                # Find users who signed up on cohort day AND were active today
+                returned_today = await db.users.count_documents({
+                    "created_at": {"$gte": day_start_utc, "$lt": day_end_utc},
+                    "last_active": {"$gte": today_start_utc},
+                    "is_ai_profile": {"$ne": True}
+                })
+            
+            retention_pct = round((returned_today / cohort_count * 100), 1) if cohort_count > 0 else 0
+            day_label = (now - timedelta(days=day_offset)).strftime("%d %b")
+            
+            retention_data.append({
+                "day": day_label,
+                "days_ago": day_offset,
+                "cohort_size": cohort_count,
+                "returned_today": returned_today,
+                "retention_pct": retention_pct
+            })
+        
+        return {"retention": retention_data, "fetched_at": now.isoformat()}
+    except Exception as e:
+        logger.error(f"Retention chart error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch retention data: {str(e)}")
+
+
+@api_router.post("/admin/send-weekly-digest-now")
+async def send_weekly_digest_now():
+    """Manually trigger the weekly growth digest email (for testing)."""
+    try:
+        await _send_weekly_growth_digest()
+        return {"status": "sent"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 app.include_router(api_router)

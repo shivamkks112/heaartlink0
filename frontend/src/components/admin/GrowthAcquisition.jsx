@@ -55,10 +55,12 @@ const SourceRow = ({ name, data }) => (
 const GrowthAcquisition = () => {
   const [stats, setStats] = useState(null);
   const [table, setTable] = useState(null);
+  const [retention, setRetention] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [period, setPeriod] = useState('today');
   const [tablePage, setTablePage] = useState(1);
+  const [sendingDigest, setSendingDigest] = useState(false);
 
   const fetchGrowthStats = useCallback(async () => {
     setLoading(true);
@@ -89,14 +91,38 @@ const GrowthAcquisition = () => {
     }
   }, [tablePage]);
 
+  const fetchRetention = useCallback(async () => {
+    try {
+      const res = await adminApi.get('/admin/retention-chart', { 
+        params: { days: 7, _t: Date.now() } 
+      });
+      setRetention(res.data?.retention || []);
+    } catch (e) {
+      console.error('Retention chart error:', e);
+    }
+  }, []);
+
+  const sendDigestNow = async () => {
+    setSendingDigest(true);
+    try {
+      await adminApi.post('/admin/send-weekly-digest-now');
+      toast.success('Weekly digest email sent!');
+    } catch (e) {
+      toast.error('Failed to send digest: ' + (e.response?.data?.detail || e.message));
+    } finally {
+      setSendingDigest(false);
+    }
+  };
+
   useEffect(() => { fetchGrowthStats(); }, [fetchGrowthStats]);
   useEffect(() => { fetchTable(); }, [fetchTable]);
+  useEffect(() => { fetchRetention(); }, [fetchRetention]);
 
   // Auto-refresh every 30s
   useEffect(() => {
-    const iv = setInterval(() => { fetchGrowthStats(); fetchTable(); }, 30000);
+    const iv = setInterval(() => { fetchGrowthStats(); fetchTable(); fetchRetention(); }, 30000);
     return () => clearInterval(iv);
-  }, [fetchGrowthStats, fetchTable]);
+  }, [fetchGrowthStats, fetchTable, fetchRetention]);
 
   if (error) {
     return (
@@ -205,6 +231,65 @@ const GrowthAcquisition = () => {
             <FunnelBar label="Active User" value={stats.funnel.active_user} total={stats.funnel.app_install} color="bg-pink-500" />
           </div>
         )}
+      </div>
+
+      {/* 7-Day Retention Chart */}
+      <div className="bg-white rounded-xl p-5 shadow-sm">
+        <h3 className="font-bold text-sm text-gray-800 mb-3">7-Day Retention (Users who came back today)</h3>
+        {retention && retention.length > 0 ? (
+          <div>
+            <div className="flex items-end gap-2 h-48 mb-3">
+              {retention.map((d, i) => {
+                const maxH = 160;
+                const barH = Math.max(d.retention_pct / 100 * maxH, 4);
+                return (
+                  <div key={i} className="flex-1 flex flex-col items-center justify-end gap-1">
+                    <span className="text-[10px] font-bold text-gray-700">{d.retention_pct}%</span>
+                    <div 
+                      className="w-full rounded-t-md transition-all duration-500"
+                      style={{ 
+                        height: `${barH}px`, 
+                        background: d.retention_pct > 30 ? 'linear-gradient(180deg, #10b981, #059669)' : 
+                                    d.retention_pct > 10 ? 'linear-gradient(180deg, #f59e0b, #d97706)' : 
+                                    'linear-gradient(180deg, #ef4444, #dc2626)',
+                        minWidth: '24px'
+                      }}
+                    />
+                    <span className="text-[10px] text-gray-500">{d.day}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="grid grid-cols-7 gap-2 text-center text-[10px] text-gray-500">
+              {retention.map((d, i) => (
+                <div key={i}>
+                  <span className="font-medium text-gray-700">{d.returned_today}</span>/{d.cohort_size}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-gray-400 text-center py-8">No retention data yet</p>
+        )}
+      </div>
+
+      {/* Weekly Email Digest */}
+      <div className="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-xl p-5 border border-indigo-100">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-bold text-sm text-gray-800">Weekly Growth Email Digest</h3>
+            <p className="text-xs text-gray-500 mt-1">Auto-sent every Monday 9 AM IST to shivamkks112@gmail.com</p>
+          </div>
+          <Button 
+            size="sm" 
+            className="bg-indigo-500 hover:bg-indigo-600" 
+            onClick={sendDigestNow}
+            disabled={sendingDigest}
+            data-testid="send-digest-btn"
+          >
+            {sendingDigest ? 'Sending...' : 'Send Now'}
+          </Button>
+        </div>
       </div>
 
       {/* Acquisition Table */}
