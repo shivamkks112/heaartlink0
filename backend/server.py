@@ -8346,6 +8346,42 @@ async def send_weekly_digest_now():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@api_router.post("/admin/push-update-notification")
+async def push_update_notification(request: Request):
+    """Send app update push notification to ALL users."""
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
+    
+    title = data.get("title", "HeartLink Update Available!")
+    message = data.get("message", "A new version of HeartLink is available. Update now from Play Store for the best experience!")
+    play_store_url = data.get("play_store_url", "https://play.google.com/store/apps/details?id=com.heartlink.app")
+    
+    try:
+        result = await fcm_service.send_to_all(
+            db, title, message,
+            data={"type": "app_update", "url": play_store_url, "click_action": "OPEN_PLAY_STORE"}
+        )
+        
+        # Log the broadcast
+        await db.app_settings.update_one(
+            {"type": "update_notifications"},
+            {"$push": {"history": {
+                "title": title,
+                "message": message,
+                "sent_at": datetime.now(timezone.utc).isoformat(),
+                "result": str(result)
+            }}, "$inc": {"total_sent": 1}},
+            upsert=True
+        )
+        
+        return {"status": "sent", "result": result}
+    except Exception as e:
+        logger.error(f"Update push notification error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 app.include_router(api_router)
 
 @app.on_event("shutdown")

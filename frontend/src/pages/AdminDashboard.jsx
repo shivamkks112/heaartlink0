@@ -7,7 +7,7 @@ import {
   TrendingUp, UserPlus, Clock, Calendar, Filter,
   Eye, MessageCircle, Heart, Shield, Crown,
   Activity, BarChart3, PieChart, ClipboardCheck, Settings,
-  Bot, Power, RotateCcw, KeyRound
+  Bot, Power, RotateCcw, KeyRound, Download, Send
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,6 +21,65 @@ import GrowthAcquisition from '@/components/admin/GrowthAcquisition';
 import WelcomeSettings from '@/components/admin/WelcomeSettings';
 
 import { BACKEND_URL } from '@/config/api';
+
+// Update Push Notification Card
+const UpdatePushCard = () => {
+  const [sending, setSending] = useState(false);
+  const [title, setTitle] = useState('HeartLink Update Available!');
+  const [message, setMessage] = useState('A new version of HeartLink is available with exciting features. Update now from Play Store!');
+
+  const sendUpdatePush = async () => {
+    setSending(true);
+    try {
+      await adminApi.post('/admin/push-update-notification', { title, message });
+      toast.success('Update notification sent to all users!');
+    } catch (e) {
+      toast.error('Failed: ' + (e.response?.data?.detail || e.message));
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border border-green-200 dark:border-green-800 rounded-xl p-5" data-testid="update-push-card">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-10 h-10 bg-green-500 rounded-xl flex items-center justify-center">
+          <Download className="w-5 h-5 text-white" />
+        </div>
+        <div>
+          <h3 className="font-bold text-gray-900 dark:text-gray-100">Push App Update Notification</h3>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Send update alert to ALL users via push notification</p>
+        </div>
+      </div>
+      <div className="space-y-3">
+        <div>
+          <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">Title</label>
+          <input
+            type="text" value={title} onChange={(e) => setTitle(e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-green-300"
+            data-testid="update-push-title"
+          />
+        </div>
+        <div>
+          <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">Message</label>
+          <textarea
+            value={message} onChange={(e) => setMessage(e.target.value)} rows={2}
+            className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 outline-none resize-none focus:ring-2 focus:ring-green-300"
+            data-testid="update-push-message"
+          />
+        </div>
+        <Button
+          onClick={sendUpdatePush} disabled={sending || !title.trim()}
+          className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-5 rounded-xl"
+          data-testid="send-update-push-btn"
+        >
+          <Send className="w-4 h-4 mr-2" />
+          {sending ? 'Sending to all users...' : 'Send Update Notification to All Users'}
+        </Button>
+      </div>
+    </div>
+  );
+};
 
 // Stats Card Component
 const StatCard = ({ icon: Icon, label, value, subValue, color, bgColor }) => (
@@ -1030,7 +1089,12 @@ const AdminDashboard = ({ user }) => {
         )}
 
         {/* Notifications Tab */}
-        {activeTab === 'notifications' && <NotificationManager />}
+        {activeTab === 'notifications' && (
+          <div className="space-y-6">
+            <NotificationManager />
+            <UpdatePushCard />
+          </div>
+        )}
 
         {/* Profile Approvals Tab */}
         {activeTab === 'approvals' && <ProfileApprovals />}
