@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, lazy, Suspense, useRef } from 'react';
 import '@/App.css';
 import '@/styles/material3.css';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
@@ -39,6 +39,7 @@ const ShareProfilePage = lazy(() => import('@/pages/ShareProfilePage'));
 const CityDatingPage = lazy(() => import('@/pages/CityDatingPage'));
 const MatchShareCard = lazy(() => import('@/pages/MatchShareCard'));
 const DailyRewardModal = lazy(() => import('@/components/DailyRewardModal'));
+const WelcomeModal = lazy(() => import('@/components/WelcomeModal'));
 const InstallPrompt = lazy(() => import('@/components/InstallPrompt'));
 
 // Lazy load AdProvider - only needed for logged-in users
@@ -142,6 +143,8 @@ function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showDailyReward, setShowDailyReward] = useState(false);
+  const [welcomeData, setWelcomeData] = useState(null);
+  const welcomeRef = useRef(null);
   useTheme(); // Initialize theme (applies dark class on <html>)
 
   useEffect(() => {
@@ -165,14 +168,17 @@ function App() {
         const userData = JSON.parse(storedUser);
         setUser(userData);
         
-        // Show daily reward if not shown today
+        // Check welcome message for returning users
+        setTimeout(() => checkWelcome(userData.id), 1000);
+        
+        // Show daily reward if not shown today (delayed to not conflict with welcome)
         const lastShown = localStorage.getItem('heartlink_daily_reward_date');
         const today = new Date().toISOString().split('T')[0];
         if (lastShown !== today) {
           setTimeout(() => {
             setShowDailyReward(true);
             localStorage.setItem('heartlink_daily_reward_date', today);
-          }, 2000);
+          }, 3000);
         }
         
         // Lazy load heavy native modules only when user is logged in
@@ -215,6 +221,38 @@ function App() {
     };
   }, []);
 
+  // Check if welcome message should be shown
+  const checkWelcome = async (userId) => {
+    try {
+      const res = await fetch(`${API}/welcome-check/${userId}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.show) {
+          setWelcomeData(data);
+          welcomeRef.current = data;
+          // Mark as shown immediately to prevent duplicates
+          fetch(`${API}/welcome-shown/${userId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: data.type })
+          }).catch(() => {});
+        }
+      }
+    } catch (_) {}
+  };
+
+  const handleWelcomeCta = (userId) => {
+    if (welcomeData) {
+      fetch(`${API}/welcome-clicked/${userId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: welcomeData.type })
+      }).catch(() => {});
+    }
+    setWelcomeData(null);
+    welcomeRef.current = null;
+  };
+
   const handleLogin = (userData) => {
     setUser(userData);
     localStorage.setItem('user', JSON.stringify(userData));
@@ -224,14 +262,18 @@ function App() {
     });
     // Connect WebSocket
     import('@/services/WebSocketService').then((mod) => mod.default.connect(userData.id));
-    // Show daily reward after login (check if not claimed today)
+    // Check welcome message (show before daily reward)
+    setTimeout(() => checkWelcome(userData.id), 800);
+    // Show daily reward after login — delayed and uses ref to avoid stale closure
     const lastShown = localStorage.getItem('heartlink_daily_reward_date');
     const today = new Date().toISOString().split('T')[0];
     if (lastShown !== today) {
       setTimeout(() => {
-        setShowDailyReward(true);
-        localStorage.setItem('heartlink_daily_reward_date', today);
-      }, 1500);
+        if (!welcomeRef.current) {
+          setShowDailyReward(true);
+          localStorage.setItem('heartlink_daily_reward_date', today);
+        }
+      }, 2500);
     }
   };
 
@@ -294,8 +336,19 @@ function App() {
             <Route path="/premium" element={<Navigate to="/discover" />} />
           </Routes>
           </Suspense>
-          {/* Daily Reward Modal */}
-          {showDailyReward && user && (
+          {/* Welcome Message Modal */}
+          {welcomeData && welcomeData.show && user && (
+            <Suspense fallback={null}>
+              <WelcomeModal 
+                data={welcomeData} 
+                onCta={() => handleWelcomeCta(user.id)} 
+                onClose={() => { setWelcomeData(null); welcomeRef.current = null; }} 
+              />
+            </Suspense>
+          )}
+
+          {/* Daily Reward Modal — only if welcome is not showing */}
+          {showDailyReward && user && !welcomeData && (
             <Suspense fallback={null}>
               <DailyRewardModal user={user} onClose={() => setShowDailyReward(false)} />
             </Suspense>

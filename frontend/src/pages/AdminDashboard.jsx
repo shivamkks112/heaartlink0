@@ -18,6 +18,7 @@ import TopBar from '@/components/TopBar';
 import NotificationManager from '@/components/admin/NotificationManager';
 import ProfileApprovals from '@/components/admin/ProfileApprovals';
 import GrowthAcquisition from '@/components/admin/GrowthAcquisition';
+import WelcomeSettings from '@/components/admin/WelcomeSettings';
 
 import { BACKEND_URL } from '@/config/api';
 
@@ -1311,6 +1312,9 @@ const AdminDashboard = ({ user }) => {
           <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-sm text-yellow-800">
             <strong>Note:</strong> Disabling a feature will immediately prevent users from accessing it. Existing data (streaks, referral codes) will be preserved and available when re-enabled.
           </div>
+          
+          {/* Welcome Messages Section */}
+          <WelcomeSettings />
         </div>
       )}
     </div>

@@ -1,0 +1,44 @@
+{
+  "summary": "Tested HeartLink Smart Welcome Message system (TEST 1-10). Backend: 14 pytest tests written+run against public URL (welcome-check new/returning/active/unknown user, welcome-shown, welcome-clicked, admin GET/PUT welcome-settings incl. disable + message editing + analytics counters) — all passed (100%). Frontend: new-user WelcomeModal renders correctly with all required testids, CTA closes modal + tracks click, admin Settings tab shows full Welcome Messages section with toggles/editors/analytics/Save (save works, toast shown). TWO major bugs found: (1) welcome_back never fires in the real login flow because /api/auth/login updates last_active=now before the frontend calls welcome-check (verified in UI: welcome-check returned show:false for a 9-day-inactive user right after login); (2) admin welcome message text inputs lose focus after every keystroke (only 1 char registers) because Toggle/TextInput/TextArea are declared inline inside WelcomeSettings.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET/PUT /api/admin/welcome-settings", "issue": "No authentication/authorization — reachable with a plain unauthenticated session (no JWT / X-Admin-Id). Any anonymous caller can read or rewrite global welcome messages."},
+      {"endpoint": "GET /api/welcome-check/{user_id}", "issue": "Unknown/invalid user_id returns 200 {show:false} instead of 404 (acceptable but hides bad IDs)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "WelcomeSettings.jsx", "issue": "Toggle/TextInput/TextArea are defined as inline components inside WelcomeSettings, so they are remounted on every state change. Typing loses focus after each character — typing 'HELLO QA' resulted in value 'Welcome to HeartLinkH' and document.activeElement became null. Admin effectively cannot edit welcome titles/messages/CTAs. Fix: move Toggle/TextInput/TextArea outside the component (module scope) and pass value/onChange as props.", "selector": "[data-testid=\"welcome-input-new_user_title\"]", "priority": "HIGH"}
+    ],
+    "integration_issues": [
+      {"flow": "Returning user (7+ days inactive) welcome-back on login", "issue": "CRITICAL: /api/auth/login sets users.last_active = now (server.py ~line 1389-1396) before the frontend calls GET /api/welcome-check/{id} (App.js checkWelcome, 800ms after login). days_inactive is therefore always 0 and welcome-check returns {show:false}. Reproduced in UI with review@heartlink.co.in seeded to last_active=9 days ago + welcome_back_shown_at unset — no modal, network response {\"show\":false}. Feature works only when queried before login (curl/pytest). Fix: persist previous_last_active on login (or return welcome eligibility from the login response / compute welcome server-side inside the login handler).", "affected_selectors": ["[data-testid=\"welcome-modal\"]", "[data-testid=\"welcome-title\"]"]},
+      {"flow": "Welcome modal vs Daily Reward modal", "issue": "In App.js handleLogin the daily-reward timer checks `if (!welcomeData)` inside setTimeout — that reads the stale closure value (always null at handleLogin time), so the guard never works. Observed daily reward modal appearing immediately after the welcome CTA; with slower networks it can stack on top of the welcome modal. Use a ref or chain daily reward off welcome dismissal.", "affected_selectors": ["[data-testid=\"welcome-modal\"]"]}
+    ],
+    "design_issues": [
+      {"screen": "Admin Dashboard → Settings (1920x1080)", "issues": ["Settings panel content overflows horizontally: section headings ('Feature Settings', 'Welcome Messages') render flush at x=0 with no left padding and the pink 'Save Changes' button is clipped at the right viewport edge.", "Welcome Messages 'Save Changes' button sits far from the editors it saves; consider sticky/bottom placement."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_welcome_iter32.py", "/app/test_reports/pytest/welcome_iter32.xml"],
+  "action_items": [
+    "Fix welcome_back: store previous last_active (e.g. prev_last_active) before /api/auth/login overwrites it, and use it in check_welcome_message — otherwise the returning-user welcome is dead code in production.",
+    "Move Toggle/TextInput/TextArea out of the WelcomeSettings component body to stop input remount/focus loss (admin cannot type messages today).",
+    "Replace stale-closure `if (!welcomeData)` daily-reward guard in App.js handleLogin with a ref or sequential trigger.",
+    "Add admin auth (JWT/X-Admin-Id middleware, as used by other /api/admin routes) to GET/PUT /api/admin/welcome-settings.",
+    "Fix admin Settings panel horizontal overflow / clipped Save button on desktop."
+  ],
+  "critical_code_review_comments": [
+    "server.py is 8351 lines — welcome system should live in its own router module.",
+    "check_welcome_message swallows all exceptions in the returning-user branch (bare except: pass), which will silently hide date-parsing bugs.",
+    "PUT /api/admin/welcome-settings takes a raw request body with a manual allow-list instead of a Pydantic model; returning_inactivity_days is not range-validated (any int/type accepted).",
+    "welcome-shown / welcome-clicked accept any user_id without verifying the user exists and without auth, so analytics counters can be inflated by anyone."
+  ],
+  "updated_files": ["/app/backend/tests/test_welcome_iter32.py", "/app/test_reports/iteration_32.json"],
+  "success_rate": {"backend": "100% (14/14 passed, 1 informational skip)", "frontend": "70% (new-user modal + admin section render/save OK; welcome-back flow and message editing broken)"},
+  "seed_data_creation": "Created 4 temporary TEST_ users directly in Mongo (deleted in teardown, verified 0 remaining). Reset then restored welcome fields for review@heartlink.co.in (currently welcome_shown_at=40d ago, last_active=9d ago from seeding — login will have refreshed last_active). Admin welcome settings were mutated during tests and restored to defaults (verified new_user_title='Welcome to HeartLink', both toggles true).",
+  "should_call_test_agent_after_fix": true,
+  "should_main_agent_self_test": false,
+  "test_credentials": "shivamkks112@gmail.com / Shivam@2026 (admin), review@heartlink.co.in / HeartLink@2026; login field=email_or_phone on /api/auth/login",
+  "context_for_next_testing_agent": "Backend regression suite: /app/backend/tests/test_welcome_iter32.py (pytest, seeds its own users via pymongo, restores admin settings). Correct login route is /api/auth/login (not /api/login). To retest welcome-back in the UI you must fix the last_active overwrite first; UI verification = login as review user with last_active 8+ days old and assert [data-testid='welcome-modal'] with type welcome_back. Admin welcome editors: verify typing multiple characters into [data-testid='welcome-input-new_user_title'] persists (focus-loss bug).",
+  "rca_of_the_issue": "Welcome-back RCA: the login handler (server.py ~1389) does db.users.update_one({...},{'$set':{...,'last_active': now}}) as part of successful auth. The frontend only calls GET /api/welcome-check/{id} 800ms after that, so (now - last_active).days == 0 < returning_inactivity_days and the endpoint returns {show:false}. Admin editor RCA: WelcomeSettings.jsx defines Toggle/TextInput/TextArea as function components inside the parent render; each setSettings creates new component identities, React unmounts/remounts the DOM input, and the caret/focus is lost after the first character."
+}
