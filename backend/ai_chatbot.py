@@ -394,8 +394,11 @@ FIRST_MESSAGES = {
 
 
 async def _send_ai_first_message(db, match_id: str, ai_id: str, user_id: str, ai_name: str):
-    """Send a personalized first greeting from AI girl."""
-    await asyncio.sleep(random.randint(5, 30))
+    """Send a personalized first greeting — delayed 1-4 hours to feel natural."""
+    # Natural delay: real people don't message within seconds of matching
+    delay_hours = random.uniform(1, 4)
+    logger.info(f"AI {ai_name} first message scheduled in {delay_hours:.1f}h for match {match_id}")
+    await asyncio.sleep(delay_hours * 3600)
 
     # Get AI personality type
     ai_user = await db.users.find_one({"id": ai_id}, {"_id": 0, "ai_personality": 1})
@@ -542,24 +545,29 @@ async def handle_ai_message(db, websocket_manager, match_id: str, sender_id: str
     if not ai_user.get("is_active_ai", True):
         return
 
-    # Natural typing delay based on personality
+    # Natural reply delay — real people take minutes, not seconds
     personality = ai_user.get("ai_personality", "sweet_caring")
     if personality == "flirty_fun":
-        delay = random.uniform(1.5, 3.5)  # Quick, energetic
+        delay_minutes = random.uniform(2, 8)    # Quick but not instant
     elif personality == "witty_smart":
-        delay = random.uniform(2.0, 5.0)  # Thinks before replying
-    else:
-        delay = random.uniform(2.0, 4.0)  # Sweet, thoughtful
+        delay_minutes = random.uniform(5, 15)   # Takes time to think
+    else:  # sweet_caring
+        delay_minutes = random.uniform(3, 12)   # Thoughtful replies
 
-    # Send typing indicator first
+    delay_seconds = delay_minutes * 60
+    logger.info(f"AI {ai_user.get('name')} replying in {delay_minutes:.1f} min")
+
+    # Send typing indicator ~30s before actual reply
+    await asyncio.sleep(max(delay_seconds - 30, 10))
+    
     if websocket_manager:
         await websocket_manager.send_message(sender_id, {
             "type": "typing",
             "user_id": ai_user["id"],
             "is_typing": True
         })
-
-    await asyncio.sleep(delay)
+    
+    await asyncio.sleep(random.uniform(15, 30))  # "Typing" for 15-30 seconds
 
     ai_response = await generate_ai_response(db, match_id, ai_user, user_message, user_name)
 

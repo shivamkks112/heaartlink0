@@ -6,6 +6,7 @@ from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
+import random
 from pathlib import Path
 from pydantic import BaseModel, Field, EmailStr
 from typing import List, Optional, Dict, Any
@@ -374,6 +375,16 @@ async def _send_push_to_user(user_id: str, title: str, message: str, data: dict 
     except Exception as e:
         logger.error(f"Push to {user_id} error: {e}")
         return {"success": False, "error": str(e)}
+
+
+
+async def _delayed_ai_match(user_id: str, gender: str, looking_for: str):
+    """Delay AI matching by 2-6 hours to feel natural — not immediate on signup."""
+    delay_hours = random.uniform(2, 6)
+    delay_seconds = delay_hours * 3600
+    logger.info(f"AI match for {user_id} scheduled in {delay_hours:.1f} hours")
+    await asyncio.sleep(delay_seconds)
+    await auto_match_ai_profiles(db, user_id, gender, looking_for)
 
 
 async def _notify_new_user_joined(user_id: str, name: str, gender: str, location: str):
@@ -1332,9 +1343,9 @@ async def signup(request: Request, user_data: UserSignup):
         # Notify all users about new user joining
         asyncio.create_task(_notify_new_user_joined(user.id, sanitized_name, user_dict.get("gender", ""), user_dict.get("location", "")))
         
-        # Auto-match AI girl profiles with new user (runs in background)
+        # Auto-match AI girl profiles — DELAYED to feel natural (2-6 hours after signup)
         asyncio.create_task(
-            auto_match_ai_profiles(db, user.id, user_dict.get("gender", ""), user_dict.get("looking_for", ""))
+            _delayed_ai_match(user.id, user_dict.get("gender", ""), user_dict.get("looking_for", ""))
         )
         
         # Serialize for response (removes _id, password_hash, cleans None values)
@@ -1634,9 +1645,9 @@ async def phone_signup(data: PhoneSignup):
     # Notify all users about new user joining
     asyncio.create_task(_notify_new_user_joined(user_id, data.name, data.gender, data.location))
     
-    # Auto-match AI girl profiles with new user (runs in background)
+    # Auto-match AI girl profiles — DELAYED to feel natural
     asyncio.create_task(
-        auto_match_ai_profiles(db, user_id, data.gender, data.looking_for)
+        _delayed_ai_match(user_id, data.gender, data.looking_for)
     )
     
     return {"message": "Signup successful", "user": clean_user}
