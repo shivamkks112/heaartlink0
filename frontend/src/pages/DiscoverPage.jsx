@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { Heart, X, MapPin, Play, Star, SlidersHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -38,6 +38,9 @@ const DiscoverPage = ({ user }) => {
   const [showMatchAnimation, setShowMatchAnimation] = useState(false);
   const [matchedUserData, setMatchedUserData] = useState(null);
   const [matchCompatibilityScore, setMatchCompatibilityScore] = useState(null);
+  const [matchIdForChat, setMatchIdForChat] = useState(null);
+  const actionInFlight = useRef(false);
+  const swipeAnimation = useRef(null);
 
   const DAILY_SWIPE_LIMIT = 50;
   const shouldShowAds = user?.gender === 'male' && !user?.is_premium && !user?.isPremium;
@@ -120,17 +123,36 @@ const DiscoverPage = ({ user }) => {
 
     if (user?.id) {
       wsService.connect(user.id);
-      const unsub = wsService.on('status_update', (data) => {
+      const unsub1 = wsService.on('status_update', (data) => {
         setProfiles(prev => prev.map(p =>
           p.id === data.user_id ? { ...p, is_online: data.is_online, last_active: data.last_active } : p
         ));
       });
-      return () => unsub();
+      // Listen for match triggered by the OTHER user
+      const unsub2 = wsService.on('new_match', (data) => {
+        if (data.user && data.match_id) {
+          setMatchedUserData(data.user);
+          setMatchIdForChat(data.match_id);
+          setShowMatchAnimation(true);
+        }
+      });
+      return () => { unsub1(); unsub2(); };
     }
   }, []);
 
+  const advanceCard = useCallback(() => {
+    if (currentIndex < profiles.length - 1) {
+      setCurrentIndex(i => i + 1);
+      setPhotoIndex(0);
+    } else {
+      setCurrentIndex(0);
+      setPhotoIndex(0);
+      fetchProfiles();
+    }
+  }, [currentIndex, profiles.length]);
+
   const handleAction = async (action) => {
-    if (profiles.length === 0) return;
+    if (profiles.length === 0 || actionInFlight.current) return;
 
     // Handle crush separately
     if (action === 'crush') {
@@ -151,6 +173,7 @@ const DiscoverPage = ({ user }) => {
       return;
     }
 
+    // Swipe limit check (non-premium)
     if (!user?.is_premium && !user?.isPremium && (action === 'like' || action === 'pass')) {
       const currentExtra = parseInt(localStorage.getItem('heartlink_extra_swipes') || '0');
       if (dailySwipeCount >= DAILY_SWIPE_LIMIT && currentExtra <= 0) {
@@ -175,33 +198,36 @@ const DiscoverPage = ({ user }) => {
       }
     }
 
+    // OPTIMISTIC: advance card immediately — don't wait for API
+    const targetProfile = profiles[currentIndex];
+    actionInFlight.current = true;
+    advanceCard();
+
+    // Fire API in background
     try {
       const response = await axios.post(`${API}/action/${user.id}`, {
-        target_user_id: profiles[currentIndex].id,
+        target_user_id: targetProfile.id,
         action
       });
       if (response.data.action === 'matched') {
-        setMatchedUserData(profiles[currentIndex]);
+        setMatchedUserData(targetProfile);
+        setMatchIdForChat(response.data.match_id);
         setMatchCompatibilityScore(response.data.compatibility_score);
         setShowMatchAnimation(true);
       } else if (action === 'superlike') {
         toast.success('Super Like sent!');
       }
-      if (currentIndex < profiles.length - 1) {
-        setCurrentIndex(currentIndex + 1);
-        setPhotoIndex(0);
-      } else {
-        setCurrentIndex(0);
-        setPhotoIndex(0);
-        fetchProfiles();
-      }
     } catch (error) {
-      toast.error('Action failed');
+      if (error.response?.status !== 400) {
+        toast.error('Action failed, please try again');
+      }
+    } finally {
+      actionInFlight.current = false;
     }
   };
 
-  const handleMatchAnimationClose = () => { setShowMatchAnimation(false); setMatchedUserData(null); setMatchCompatibilityScore(null); };
-  const handleStartChatFromMatch = () => { setShowMatchAnimation(false); if (matchedUserData) navigate('/matches'); };
+  const handleMatchAnimationClose = () => { setShowMatchAnimation(false); setMatchedUserData(null); setMatchCompatibilityScore(null); setMatchIdForChat(null); };
+  const handleStartChatFromMatch = () => { setShowMatchAnimation(false); if (matchIdForChat) navigate(`/chat/${matchIdForChat}`); else if (matchedUserData) navigate('/matches'); };
 
   const handleWatchAdForSwipes = async () => {
     setShowingAd(true);

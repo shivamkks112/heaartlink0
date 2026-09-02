@@ -15,18 +15,21 @@ const MatchAnimation = ({
 
   useEffect(() => {
     if (isOpen) {
-      // Delay content for dramatic effect
-      setTimeout(() => setShowContent(true), 300);
+      // Show content instantly — no artificial delay
+      setShowContent(true);
       
       // Generate floating hearts
       const newHearts = Array.from({ length: 20 }, (_, i) => ({
         id: i,
         left: Math.random() * 100,
-        delay: Math.random() * 2,
+        delay: Math.random() * 1.5,
         size: Math.random() * 20 + 15,
-        duration: Math.random() * 2 + 3
+        duration: Math.random() * 2 + 2
       }));
       setHearts(newHearts);
+      
+      // Haptic feedback on supported devices
+      try { navigator.vibrate?.([50, 30, 80]); } catch (_) {}
     } else {
       setShowContent(false);
       setHearts([]);
@@ -92,11 +95,11 @@ const MatchAnimation = ({
 
         {/* "It's a Match!" Text */}
         <div className="text-center mb-8">
-          <h1 className="text-5xl md:text-6xl font-bold text-white mb-2 animate-bounce-slow">
-            It's a Match! 💕
+          <h1 className="text-5xl md:text-6xl font-bold text-white mb-2 animate-bounce-slow" data-testid="match-title">
+            It's a Match! 💗
           </h1>
-          <p className="text-white/80 text-lg">
-            You and {matchedUser?.name} liked each other
+          <p className="text-white/80 text-lg" data-testid="match-subtitle">
+            You both liked each other
           </p>
         </div>
 
@@ -160,16 +163,18 @@ const MatchAnimation = ({
           <Button
             onClick={onStartChat}
             className="flex-1 bg-white text-pink-600 hover:bg-gray-100 font-semibold py-6 text-lg rounded-full shadow-xl transition-transform hover:scale-105"
+            data-testid="match-send-message-btn"
           >
             <MessageCircle className="w-5 h-5 mr-2" />
-            Send Message
+            Send a Message
           </Button>
           <Button
             onClick={onClose}
             variant="outline"
             className="flex-1 bg-transparent border-2 border-white text-white hover:bg-white/20 font-semibold py-6 text-lg rounded-full transition-transform hover:scale-105"
+            data-testid="match-keep-discovering-btn"
           >
-            Keep Swiping
+            Keep Discovering
           </Button>
         </div>
       </div>

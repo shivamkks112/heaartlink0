@@ -3491,6 +3491,29 @@ async def get_icebreakers():
     return {"icebreakers": random.sample(ICEBREAKERS, 5)}
 
 # Like/Match Routes
+async def _post_match_tasks(match_id, user_id, target_id, user_name, target_name, user_pic, target_pic):
+    """Background: notifications, WS, FCM after match. Runs after API response sent for speed."""
+    try:
+        await manager.send_message(target_id, {
+            "type": "new_match", "match_id": match_id,
+            "user": {"id": user_id, "name": user_name, "profile_picture": user_pic}
+        })
+        await manager.send_message(user_id, {
+            "type": "new_match", "match_id": match_id,
+            "user": {"id": target_id, "name": target_name, "profile_picture": target_pic}
+        })
+        await create_in_app_notification(target_id, "It's a Match!", f"You matched with {user_name}! Start chatting now.", "match",
+            {"match_id": match_id, "user_id": user_id, "action": "open_chat", "route": f"/chat/{match_id}"})
+        await create_in_app_notification(user_id, "It's a Match!", f"You matched with {target_name}! Start chatting now.", "match",
+            {"match_id": match_id, "user_id": target_id, "action": "open_chat", "route": f"/chat/{match_id}"})
+        await fcm_service.notify_new_match(db, target_id, user_name, match_id)
+        await fcm_service.notify_new_match(db, user_id, target_name, match_id)
+        asyncio.create_task(manager.send_badge_update(target_id))
+        asyncio.create_task(manager.send_badge_update(user_id))
+    except Exception as e:
+        logger.error(f"Post-match tasks error: {e}")
+
+
 @api_router.post("/action/{user_id}")
 async def user_action(user_id: str, action: LikeAction):
     # Check if there's an existing record where target user liked current user
@@ -3546,45 +3569,17 @@ async def user_action(user_id: str, action: LikeAction):
             cache_key = f"matches_{uid}"
             matches_cache.pop(cache_key, None)
         
-        # Send real-time notification to BOTH users
-        await manager.send_message(action.target_user_id, {
-            "type": "new_match",
-            "match_id": existing["id"],
-            "user": {"id": user_id, "name": user1["name"], "profile_picture": user1.get("profile_picture")}
-        })
-        await manager.send_message(user_id, {
-            "type": "new_match",
-            "match_id": existing["id"],
-            "user": {"id": action.target_user_id, "name": user2["name"], "profile_picture": user2.get("profile_picture")}
-        })
-        
-        # Store in-app notifications for BOTH users
-        await create_in_app_notification(
-            action.target_user_id,
-            "💕 It's a Match!",
-            f"You matched with {user1['name']}! Start chatting now.",
-            "match",
-            {"match_id": existing["id"], "user_id": user_id, "action": "open_chat", "route": f"/chat/{existing['id']}"}
-        )
-        await create_in_app_notification(
-            user_id,
-            "💕 It's a Match!",
-            f"You matched with {user2['name']}! Start chatting now.",
-            "match",
-            {"match_id": existing["id"], "user_id": action.target_user_id, "action": "open_chat", "route": f"/chat/{existing['id']}"}
-        )
-        
-        # Send push notification to BOTH matched users via FCM
-        await fcm_service.notify_new_match(db, action.target_user_id, user1['name'], existing["id"])
-        await fcm_service.notify_new_match(db, user_id, user2['name'], existing["id"])
-        
-        # Update badge counts for both users
-        asyncio.create_task(manager.send_badge_update(action.target_user_id))
-        asyncio.create_task(manager.send_badge_update(user_id))
+        # Return FAST — move notifications to background
+        match_id = existing["id"]
+        asyncio.create_task(_post_match_tasks(
+            match_id, user_id, action.target_user_id,
+            user1["name"], user2["name"],
+            user1.get("profile_picture"), user2.get("profile_picture")
+        ))
         
         return {
             "action": "matched",
-            "match_id": existing["id"],
+            "match_id": match_id,
             "compatibility_score": score,
             "analysis": analysis
         }
