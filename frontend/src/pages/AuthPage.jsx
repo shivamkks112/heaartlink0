@@ -97,6 +97,7 @@ const AuthPage = ({ onLogin }) => {
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    if (loading) return;
     
     if (!loginData.email_or_phone || !loginData.password) {
       toast.error('Please enter both email/phone and password');
@@ -104,17 +105,16 @@ const AuthPage = ({ onLogin }) => {
     }
     
     setLoading(true);
-    console.log('🔐 Starting login process...');
     
     try {
-      const response = await axios.post(`${API}/auth/login`, loginData);
+      const response = await axios.post(`${API}/auth/login`, loginData, { timeout: 15000 });
       const userData = response.data.user;
       
       if (!userData || !userData.id) {
         throw new Error('Invalid response from server');
       }
       
-      // Store auth token for admin API access
+      // Store auth token
       if (response.data.access_token) {
         localStorage.setItem('heartlink_token', response.data.access_token);
       }
@@ -130,9 +130,18 @@ const AuthPage = ({ onLogin }) => {
         navigate('/discover');
       }, 100);
     } catch (error) {
-      console.error('❌ Login error:', error);
-      const errorMessage = error.response?.data?.detail || 'Login failed. Please check your credentials.';
-      toast.error(errorMessage);
+      console.error('Login error:', error);
+      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        toast.error('Connection timed out. Please check your internet and try again.');
+      } else if (!error.response) {
+        toast.error('Please check your internet connection and try again.');
+      } else if (error.response?.status === 401) {
+        toast.error('Invalid email/phone or password. Please try again.');
+      } else if (error.response?.status === 429) {
+        toast.error('Too many login attempts. Please wait a moment.');
+      } else {
+        toast.error(error.response?.data?.detail || 'Login failed. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -141,15 +150,12 @@ const AuthPage = ({ onLogin }) => {
   const handleSignup = async (e) => {
     e.preventDefault();
     
+    // Prevent double-tap
+    if (loading) return;
+    
     // Email is compulsory
     if (!signupData.email || !signupData.email.includes('@')) {
       toast.error('Please enter a valid email address');
-      return;
-    }
-    
-    // Phone is compulsory
-    if (!signupData.phone || signupData.phone.length !== 10) {
-      toast.error('Please enter a valid 10-digit phone number');
       return;
     }
     
@@ -183,7 +189,7 @@ const AuthPage = ({ onLogin }) => {
     // Block social media handles in name/bio
     const blockedWords = /telegram|whatsapp|instagram|insta|snapchat|snap|facebook|fb|twitter|discord|signal|skype|t\.me|wa\.me|@\w+/i;
     if (blockedWords.test(signupData.name) || blockedWords.test(signupData.bio)) {
-      toast.error('Name ya Bio mein social media handles (Telegram, WhatsApp, Instagram etc.) allowed nahi hai');
+      toast.error('Name ya Bio mein social media handles allowed nahi hai');
       return;
     }
     
@@ -195,7 +201,7 @@ const AuthPage = ({ onLogin }) => {
     
     // Block phone numbers in bio (5+ digits)
     if (signupData.bio && /\d{5,}/.test(signupData.bio)) {
-      toast.error('Bio mein phone number ya numeric values allowed nahi hain');
+      toast.error('Bio mein phone number allowed nahi hain');
       return;
     }
     
@@ -205,13 +211,19 @@ const AuthPage = ({ onLogin }) => {
     trackEvent('signup_started');
     
     try {
-      // Upload photo if provided
+      // Upload photo if provided — failure should NOT block signup
       let photoURL = null;
       if (profilePicture) {
-        toast.loading('Uploading photo...');
-        const tempUserId = `temp_${Date.now()}`;
-        photoURL = await uploadProfilePicture(tempUserId);
-        toast.dismiss();
+        try {
+          toast.loading('Uploading photo...');
+          const tempUserId = `temp_${Date.now()}`;
+          photoURL = await uploadProfilePicture(tempUserId);
+          toast.dismiss();
+        } catch (photoErr) {
+          toast.dismiss();
+          console.warn('Photo upload failed, continuing without photo:', photoErr);
+          // Continue signup without photo
+        }
       }
 
       const submitData = {
@@ -223,7 +235,8 @@ const AuthPage = ({ onLogin }) => {
         installation_id: getStoredInstallId()
       };
       
-      const response = await axios.post(`${API}/auth/signup`, submitData);
+      // API call with timeout (15 seconds)
+      const response = await axios.post(`${API}/auth/signup`, submitData, { timeout: 15000 });
       const userData = response.data.user;
       
       // Track signup completed
@@ -237,7 +250,7 @@ const AuthPage = ({ onLogin }) => {
       localStorage.setItem('user', JSON.stringify(userData));
       await onLogin(userData);
       toast.dismiss();
-      toast.success(`Welcome to HeartLink, ${userData.name}! Your profile is pending approval.`);
+      toast.success(`Welcome to HeartLink, ${userData.name}!`);
       
       // Apply referral code if provided
       if (signupData.referral_code && signupData.referral_code.trim()) {
@@ -258,8 +271,24 @@ const AuthPage = ({ onLogin }) => {
     } catch (error) {
       console.error('Signup error:', error);
       toast.dismiss();
-      const errorMessage = error.response?.data?.detail || 'Signup failed. Please try again.';
-      toast.error(errorMessage);
+      
+      // User-friendly error messages
+      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        toast.error('Connection timed out. Please check your internet and try again.');
+      } else if (!error.response) {
+        toast.error('Please check your internet connection and try again.');
+      } else if (error.response?.status === 400) {
+        const detail = error.response.data?.detail || '';
+        if (detail.includes('already') || detail.includes('exists')) {
+          toast.error('This email is already registered. Please login instead.');
+        } else {
+          toast.error(detail || 'Please check your details and try again.');
+        }
+      } else if (error.response?.status === 429) {
+        toast.error('Too many attempts. Please try again after some time.');
+      } else {
+        toast.error('Something went wrong. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -476,18 +505,17 @@ const AuthPage = ({ onLogin }) => {
               </div>
 
               <div>
-                <Label className="text-gray-700 font-semibold">Phone Number <span className="text-red-500">*</span></Label>
+                <Label className="text-gray-700 font-semibold">Phone Number <span className="text-xs text-gray-400 font-normal">(Optional)</span></Label>
                 <div className="relative mt-2">
                   <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <Input
                     data-testid="signup-phone-input"
                     type="tel"
-                    placeholder="10-digit mobile number"
+                    placeholder="10-digit mobile number (optional)"
                     value={signupData.phone}
                     onChange={(e) => setSignupData({...signupData, phone: e.target.value.replace(/\D/g, '').slice(0, 10)})}
                     className="pl-10 py-5 rounded-xl border-2 border-gray-200 focus:border-pink-500"
                     maxLength={10}
-                    required
                   />
                 </div>
               </div>
