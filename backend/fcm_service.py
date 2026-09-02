@@ -196,6 +196,30 @@ async def send_to_all(db, title: str, body: str, data: Optional[Dict] = None) ->
     return result
 
 
+async def send_to_gender(db, target_gender: str, title: str, body: str, data: Optional[Dict] = None, exclude_user_id: str = None) -> Dict:
+    """Send push to users of a specific gender, excluding AI profiles and optionally a user."""
+    query = {
+        "fcm_token": {"$exists": True, "$nin": [None, ""]},
+        "is_ai_profile": {"$ne": True},
+        "gender": {"$regex": f"^{target_gender}$", "$options": "i"}
+    }
+    if exclude_user_id:
+        query["id"] = {"$ne": exclude_user_id}
+    
+    users = await db.users.find(query, {"_id": 0, "fcm_token": 1}).to_list(None)
+    tokens = [u["fcm_token"] for u in users if u.get("fcm_token")]
+    if not tokens:
+        return {"success": False, "error": "no_tokens", "total": 0}
+    result = send_fcm_multi(tokens, title, body, data)
+    if result.get("stale_tokens"):
+        await db.users.update_many(
+            {"fcm_token": {"$in": result["stale_tokens"]}},
+            {"$set": {"fcm_token": None}}
+        )
+    result["total_targeted"] = len(tokens)
+    return result
+
+
 # ─── Event-Specific Notifications ────────────────────────────────
 
 async def notify_new_message(db, receiver_id: str, sender_name: str, preview: str, match_id: str):

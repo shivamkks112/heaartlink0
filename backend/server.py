@@ -388,18 +388,62 @@ async def _delayed_ai_match(user_id: str, gender: str, looking_for: str):
 
 
 async def _notify_new_user_joined(user_id: str, name: str, gender: str, location: str):
-    """Notify all users when a new user joins."""
+    """Send gender-based notification: new female → notify males, new male → notify females."""
     try:
         await asyncio.sleep(5)
-        gender_label = "ladki" if gender.lower() == "female" else "ladka"
+        
+        # Check admin feature flag
+        flags = await db.app_settings.find_one({"type": "feature_flags"}, {"_id": 0})
+        if flags and not flags.get("new_user_gender_notifications", True):
+            return
+        
+        # Check gender-specific admin toggles
+        gender_lower = gender.lower() if gender else ""
+        if gender_lower == "female" and flags and not flags.get("new_user_notif_to_males", True):
+            return
+        if gender_lower == "male" and flags and not flags.get("new_user_notif_to_females", True):
+            return
+        
+        # Determine target gender (opposite)
+        if gender_lower == "female":
+            target_gender = "male"
+        elif gender_lower == "male":
+            target_gender = "female"
+        else:
+            return  # Unknown gender, skip
+        
+        # Duplicate prevention — check if we already sent for this user
+        already_sent = await db.app_settings.find_one({
+            "type": "new_user_notif_log",
+            "new_user_id": user_id
+        })
+        if already_sent:
+            return
+        
+        # Log to prevent duplicates
+        await db.app_settings.insert_one({
+            "type": "new_user_notif_log",
+            "new_user_id": user_id,
+            "sent_at": datetime.now(timezone.utc).isoformat(),
+            "target_gender": target_gender
+        })
+        
         city = location.split(",")[0].strip() if location else "India"
-        await fcm_service.send_to_all(db,
-            f"New {gender_label} joined!",
-            f"{name} from {city} just joined HeartLink. Check out their profile!"
+        first_name = name.split()[0] if name else "Someone"
+        
+        result = await fcm_service.send_to_gender(
+            db,
+            target_gender=target_gender,
+            title="Someone new joined HeartLink!",
+            body=f"Say hello to {first_name} from {city}. Tap to discover.",
+            data={"type": "new_user", "route": "/discover", "action": "open_discover"},
+            exclude_user_id=user_id
         )
-        logger.info(f"Sent new user notification for {name}")
+        
+        logger.info(f"Gender notification: {gender_lower} joined → sent to {target_gender}s ({result.get('total_targeted', 0)} targeted)")
+        
     except Exception as e:
-        logger.error(f"Failed to send new user notification: {e}")
+        logger.error(f"Gender-based new user notification error: {e}")
 
 
 async def _notify_matches_user_online(user_id: str, name: str):
@@ -7628,6 +7672,9 @@ DEFAULT_FEATURE_FLAGS = {
     "referral_system": True,
     "daily_rewards": True,
     "ai_chatbot": True,
+    "new_user_gender_notifications": True,
+    "new_user_notif_to_males": True,
+    "new_user_notif_to_females": True,
 }
 
 @api_router.get("/admin/feature-flags")
@@ -7642,7 +7689,7 @@ async def get_feature_flags():
 @api_router.put("/admin/feature-flags")
 async def update_feature_flags(data: dict):
     """Update feature flags (admin only)"""
-    allowed_keys = {"referral_system", "daily_rewards", "ai_chatbot"}
+    allowed_keys = {"referral_system", "daily_rewards", "ai_chatbot", "new_user_gender_notifications", "new_user_notif_to_males", "new_user_notif_to_females"}
     updates = {k: bool(v) for k, v in data.items() if k in allowed_keys}
     
     if not updates:
