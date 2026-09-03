@@ -1410,6 +1410,33 @@ const AdminDashboard = ({ user }) => {
                 }`} />
               </button>
             </div>
+
+            {/* Rewarded Ads Toggle */}
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl" data-testid="rewarded-ads-toggle-row">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
+                  <DollarSign className="w-5 h-5 text-emerald-600" />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-gray-900">Rewarded Ads (Ad-Free)</h4>
+                  <p className="text-sm text-gray-500">Watch 2 ads → 30 min ad-free reward</p>
+                </div>
+              </div>
+              <button
+                onClick={async () => {
+                  try {
+                    const res = await adminApi.get('/admin/adfree-config');
+                    const current = res.data.config?.enabled !== false;
+                    await adminApi.put('/admin/adfree-config', { enabled: !current });
+                    toast.success(`Rewarded ads ${!current ? 'enabled' : 'disabled'}`);
+                  } catch (e) { toast.error('Failed to toggle'); }
+                }}
+                data-testid="rewarded-ads-toggle-btn"
+                className="relative w-14 h-7 rounded-full transition-colors duration-200 bg-green-500"
+              >
+                <div className="absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform duration-200 translate-x-7" />
+              </button>
+            </div>
           </div>
 
           {/* Status Legend */}

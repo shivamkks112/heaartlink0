@@ -7898,6 +7898,169 @@ async def track_rating_event(request: Request):
     return {"status": "ok"}
 
 
+
+# ==========================================
+# AD-FREE REWARD SYSTEM
+# ==========================================
+
+DEFAULT_ADFREE_CONFIG = {
+    "type": "adfree_reward_config",
+    "enabled": True,
+    "reward_minutes": 30,
+    "required_ads": 2,
+}
+
+
+@api_router.get("/adfree/config")
+async def get_adfree_config():
+    """Get ad-free reward config (public — used by app to show/hide the feature)."""
+    config = await db.app_settings.find_one({"type": "adfree_reward_config"}, {"_id": 0})
+    if not config:
+        config = {**DEFAULT_ADFREE_CONFIG}
+    return {
+        "enabled": config.get("enabled", True),
+        "reward_minutes": config.get("reward_minutes", 30),
+        "required_ads": config.get("required_ads", 2),
+    }
+
+
+@api_router.get("/adfree/status/{user_id}")
+async def get_adfree_status(user_id: str):
+    """Check if user currently has ad-free reward active."""
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "ad_free_until": 1, "is_premium": 1, "isPremium": 1})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if user.get("is_premium") or user.get("isPremium"):
+        return {"ad_free": True, "reason": "premium", "remaining_seconds": -1}
+
+    ad_free_until = user.get("ad_free_until")
+    if ad_free_until:
+        try:
+            expires = datetime.fromisoformat(ad_free_until.replace("Z", "+00:00"))
+            remaining = (expires - datetime.now(timezone.utc)).total_seconds()
+            if remaining > 0:
+                return {"ad_free": True, "reason": "reward", "remaining_seconds": int(remaining), "expires_at": ad_free_until}
+        except (ValueError, TypeError):
+            pass
+
+    return {"ad_free": False, "remaining_seconds": 0}
+
+
+@api_router.post("/adfree/activate")
+async def activate_adfree_reward(request: Request):
+    """Activate ad-free reward after user completed required rewarded ads."""
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+
+    user_id = data.get("user_id")
+    ads_completed = data.get("ads_completed", 0)
+
+    if not user_id:
+        raise HTTPException(status_code=400, detail="user_id required")
+
+    # Get config
+    config = await db.app_settings.find_one({"type": "adfree_reward_config"}, {"_id": 0})
+    if not config:
+        config = {**DEFAULT_ADFREE_CONFIG}
+
+    if not config.get("enabled", True):
+        raise HTTPException(status_code=403, detail="Ad-free reward is currently disabled")
+
+    required = config.get("required_ads", 2)
+    reward_mins = config.get("reward_minutes", 30)
+
+    if ads_completed < required:
+        raise HTTPException(status_code=400, detail=f"Need {required} ads completed, got {ads_completed}")
+
+    # Prevent duplicate activation (check if already active)
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "ad_free_until": 1})
+    if user and user.get("ad_free_until"):
+        try:
+            existing = datetime.fromisoformat(user["ad_free_until"].replace("Z", "+00:00"))
+            if (existing - datetime.now(timezone.utc)).total_seconds() > 60:
+                return {"status": "already_active", "expires_at": user["ad_free_until"]}
+        except (ValueError, TypeError):
+            pass
+
+    expires = datetime.now(timezone.utc) + timedelta(minutes=reward_mins)
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {"ad_free_until": expires.isoformat()}}
+    )
+
+    # Track analytics
+    await db.app_settings.update_one(
+        {"type": "adfree_analytics"},
+        {"$inc": {"ad_free_reward_activated": 1}},
+        upsert=True
+    )
+
+    return {"status": "activated", "reward_minutes": reward_mins, "expires_at": expires.isoformat()}
+
+
+@api_router.post("/adfree/track")
+async def track_adfree_event(request: Request):
+    """Track rewarded ad events for analytics."""
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+
+    event = data.get("event")
+    valid_events = ("rewarded_ad_prompt_shown", "rewarded_ad_started", "rewarded_ad_completed",
+                    "rewarded_ad_failed", "ad_free_reward_activated", "ad_free_reward_expired")
+    if event not in valid_events:
+        raise HTTPException(status_code=400, detail="Invalid event")
+
+    await db.app_settings.update_one(
+        {"type": "adfree_analytics"},
+        {"$inc": {event: 1}},
+        upsert=True
+    )
+    return {"status": "ok"}
+
+
+@api_router.get("/admin/adfree-config")
+async def admin_get_adfree_config():
+    """Admin: Get ad-free reward config with analytics."""
+    config = await db.app_settings.find_one({"type": "adfree_reward_config"}, {"_id": 0})
+    if not config:
+        config = {**DEFAULT_ADFREE_CONFIG}
+    analytics = await db.app_settings.find_one({"type": "adfree_analytics"}, {"_id": 0})
+    return {
+        "config": {k: v for k, v in config.items() if k != "type"},
+        "analytics": {k: v for k, v in (analytics or {}).items() if k not in ("type", "_id")},
+    }
+
+
+@api_router.put("/admin/adfree-config")
+async def admin_update_adfree_config(request: Request):
+    """Admin: Update ad-free reward config."""
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+
+    allowed = {"enabled", "reward_minutes", "required_ads"}
+    updates = {}
+    for k, v in data.items():
+        if k in allowed:
+            if k == "enabled":
+                updates[k] = bool(v)
+            else:
+                updates[k] = int(v)
+
+    if not updates:
+        raise HTTPException(status_code=400, detail="No valid fields")
+
+    await db.app_settings.update_one({"type": "adfree_reward_config"}, {"$set": updates}, upsert=True)
+    config = await db.app_settings.find_one({"type": "adfree_reward_config"}, {"_id": 0})
+    return {k: v for k, v in config.items() if k != "type"}
+
+
 # ==========================================
 # SMART APP UPDATE SYSTEM
 # ==========================================

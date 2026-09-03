@@ -304,14 +304,26 @@ class AdsService {
 
   /**
    * Track swipe and show interstitial after SWIPES_BEFORE_AD swipes
+   * Respects ad-free reward period
    */
   async trackSwipe() {
+    // Skip if user is in ad-free period
+    if (this._isAdFree()) return false;
     this.swipeCount++;
     if (this.swipeCount >= SWIPES_BEFORE_AD) {
       this.swipeCount = 0;
       return await this.showInterstitial();
     }
     return false;
+  }
+
+  /** Check if user is in ad-free reward period */
+  _isAdFree() {
+    try {
+      const stored = localStorage.getItem('heartlink_adfree_until');
+      if (!stored) return false;
+      return new Date(stored) > new Date();
+    } catch { return false; }
   }
 
   /**

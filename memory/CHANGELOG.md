@@ -40,6 +40,11 @@
 - [x] **AppUpdateSettings.jsx**: Admin panel component with config fields, toggles, send notification with confirmation, analytics cards, history
 - [x] **In-App Rating Prompt**: Triggers after 3+ matches, animated modal with floating hearts + star pop, "Rate on Play Store" / "Maybe Later", 7-day dismiss cooldown, never shows after rating
 - [x] **Smart Online Notifications**: Merged 2 duplicate functions into 1, batched AI check (no N+1), 2hr DB-persisted throttle, mute respect, varied FCM messages
+- [x] **Banner Ads Removed from Discover**: Clean swiping experience, no banners on any core screen
+- [x] **Rewarded Ad-Free System**: Watch 2 short ads → 30min ad-free. Server-validated, timer persists across restarts, duplicate protection, admin ON/OFF toggle
+- [x] **AdFreeReward.jsx**: Compact widget (CTA → progress → timer states), below action buttons, only for male free users
+- [x] **AdsService trackSwipe**: Respects ad-free period (skips interstitial when reward active)
+- [x] **Backend**: /api/adfree/config, /api/adfree/status/{id}, /api/adfree/activate, /api/adfree/track, /api/admin/adfree-config
 
 ---
 

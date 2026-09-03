@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
+import AdFreeReward from '@/components/AdFreeReward';
 import adsService, { SWIPES_BEFORE_AD, EXTRA_SWIPES_REWARD } from '@/services/AdsService';
 import wsService from '@/services/WebSocketService';
 import { VerifiedBadge, OnlineStatus } from '@/components/badges/VerifiedBadge';
@@ -642,6 +643,13 @@ const DiscoverPage = ({ user }) => {
           </div>
         </div>
       </div>
+
+      {/* Ad-Free Reward — subtle, below the card area */}
+      {shouldShowAds && (
+        <div className="py-2 px-4">
+          <AdFreeReward user={user} />
+        </div>
+      )}
 
       {/* Out of Swipes Modal */}
       {showOutOfSwipes && (
