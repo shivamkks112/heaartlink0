@@ -53,6 +53,13 @@ const AuthPage = ({ onLogin }) => {
   const [showCityDropdown, setShowCityDropdown] = useState(false);
   const [showLoginPwd, setShowLoginPwd] = useState(false);
   const [showSignupPwd, setShowSignupPwd] = useState(false);
+  
+  // Email OTP verification states
+  const [otpStep, setOtpStep] = useState(false);  // true = show OTP input
+  const [otpCode, setOtpCode] = useState('');
+  const [otpSending, setOtpSending] = useState(false);
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [otpCooldown, setOtpCooldown] = useState(0);
 
   // Handle profile picture selection
   const handlePhotoSelect = (e) => {
@@ -91,6 +98,60 @@ const AuthPage = ({ onLogin }) => {
       setUploadingPhoto(false);
     }
   };
+
+  // OTP cooldown timer
+  useEffect(() => {
+    if (otpCooldown <= 0) return;
+    const timer = setTimeout(() => setOtpCooldown(c => c - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [otpCooldown]);
+
+  // Send OTP to email
+  const handleSendOtp = async () => {
+    if (otpSending || otpCooldown > 0) return;
+    if (!signupData.email || !signupData.email.includes('@')) {
+      toast.error('Please enter a valid email address first');
+      return;
+    }
+    setOtpSending(true);
+    try {
+      await axios.post(`${API}/auth/send-signup-otp`, { email: signupData.email }, { timeout: 15000 });
+      toast.success('OTP sent to your email!');
+      setOtpStep(true);
+      setOtpCooldown(60); // 60 sec cooldown for resend
+    } catch (err) {
+      if (err.response?.data?.detail?.includes('already registered')) {
+        toast.error('This email is already registered. Please login instead.');
+      } else {
+        toast.error(err.response?.data?.detail || 'Failed to send OTP. Please try again.');
+      }
+    } finally {
+      setOtpSending(false);
+    }
+  };
+
+  // Verify OTP
+  const handleVerifyOtp = async () => {
+    if (!otpCode || otpCode.length !== 6) {
+      toast.error('Please enter the 6-digit OTP');
+      return;
+    }
+    setOtpSending(true);
+    try {
+      const res = await axios.post(`${API}/auth/verify-signup-otp`, { email: signupData.email, otp: otpCode }, { timeout: 15000 });
+      if (res.data.verified) {
+        setOtpVerified(true);
+        setOtpStep(false);
+        toast.success('Email verified successfully!');
+        trackEvent('otp_verified');
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'OTP verification failed. Please try again.');
+    } finally {
+      setOtpSending(false);
+    }
+  };
+
 
   // Countdown timer for OTP resend
   // Phone number formatting for signup
@@ -152,6 +213,12 @@ const AuthPage = ({ onLogin }) => {
     
     // Prevent double-tap
     if (loading) return;
+    
+    // Email OTP must be verified first
+    if (!otpVerified) {
+      toast.error('Please verify your email with OTP first');
+      return;
+    }
     
     // Email is compulsory
     if (!signupData.email || !signupData.email.includes('@')) {
@@ -402,7 +469,7 @@ const AuthPage = ({ onLogin }) => {
             <form onSubmit={handleSignup} className="space-y-4">
               {/* Profile Photo Upload - MANDATORY */}
               <div className="mb-6">
-                <Label className="text-gray-700 font-semibold">Profile Photo <span className="text-red-500">* (Required)</span></Label>
+                <Label className="text-gray-700 font-semibold">Profile Photo <span className="text-xs text-gray-400 font-normal">(Optional)</span></Label>
                 <div className="mt-2 flex flex-col items-center">
                   <input
                     type="file"
@@ -497,11 +564,54 @@ const AuthPage = ({ onLogin }) => {
                     type="email"
                     placeholder="your@email.com"
                     value={signupData.email}
-                    onChange={(e) => setSignupData({...signupData, email: e.target.value})}
+                    onChange={(e) => { setSignupData({...signupData, email: e.target.value}); if (otpVerified) { setOtpVerified(false); setOtpStep(false); setOtpCode(''); } }}
                     className="pl-10 py-5 rounded-xl border-2 border-gray-200 focus:border-pink-500"
                     required
+                    disabled={otpVerified}
                   />
+                  {/* OTP Verify button next to email */}
+                  {!otpVerified && (
+                    <button
+                      type="button"
+                      onClick={handleSendOtp}
+                      disabled={otpSending || otpCooldown > 0 || !signupData.email?.includes('@')}
+                      data-testid="send-otp-btn"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-lg text-xs font-semibold text-white disabled:opacity-50 transition-all"
+                      style={{ background: 'linear-gradient(135deg, #ec4899, #f97316)' }}
+                    >
+                      {otpSending ? '...' : otpCooldown > 0 ? `${otpCooldown}s` : otpStep ? 'Resend' : 'Verify'}
+                    </button>
+                  )}
+                  {otpVerified && (
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500 text-sm font-semibold" data-testid="email-verified-badge">Verified</span>
+                  )}
                 </div>
+                
+                {/* OTP Input — shown after OTP is sent */}
+                {otpStep && !otpVerified && (
+                  <div className="mt-2 flex gap-2" data-testid="otp-input-section">
+                    <Input
+                      data-testid="otp-input"
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="Enter 6-digit OTP"
+                      value={otpCode}
+                      onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      className="flex-1 py-4 rounded-xl border-2 border-gray-200 focus:border-pink-500 text-center text-lg tracking-[0.5em] font-mono"
+                      maxLength={6}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleVerifyOtp}
+                      disabled={otpSending || otpCode.length !== 6}
+                      data-testid="verify-otp-btn"
+                      className="px-5 py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50"
+                      style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}
+                    >
+                      {otpSending ? '...' : 'Verify'}
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div>

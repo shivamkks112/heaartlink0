@@ -1159,6 +1159,114 @@ async def verify_profile_with_ai(user_data: dict) -> tuple:
         return False, "Verification system error - Please try again"
 
 # Authentication Routes
+
+# ==================== EMAIL OTP FOR SIGNUP ====================
+
+@api_router.post("/auth/send-signup-otp")
+@limiter.limit("5/minute")
+async def send_signup_otp(request: Request):
+    """Send 6-digit OTP to email for signup verification. Rate limited."""
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid request")
+    
+    email = (data.get("email") or "").strip().lower()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="Please enter a valid email address")
+    
+    # Check if email already registered
+    existing = await db.users.find_one({"email": {"$regex": f"^{email}$", "$options": "i"}})
+    if existing:
+        raise HTTPException(status_code=400, detail="This email is already registered. Please login instead.")
+    
+    # Generate 6-digit OTP
+    otp_code = ''.join([str(random.randint(0, 9)) for _ in range(6)])
+    otp_expires = datetime.now(timezone.utc) + timedelta(minutes=10)
+    
+    # Store OTP in DB (upsert — replaces any previous OTP for this email)
+    await db.signup_otps.update_one(
+        {"email": email},
+        {"$set": {
+            "email": email,
+            "otp_code": otp_code,
+            "expires_at": otp_expires.isoformat(),
+            "attempts": 0,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }},
+        upsert=True
+    )
+    
+    # Send OTP email
+    try:
+        from email_service import send_otp_email
+        result = send_otp_email(to_email=email, otp_code=otp_code, user_name="HeartLink User")
+        if result.get("success"):
+            logger.info(f"Signup OTP sent to {email}")
+            return {"message": "OTP sent to your email", "email": email}
+        else:
+            logger.error(f"Failed to send signup OTP: {result}")
+            raise HTTPException(status_code=500, detail="Failed to send OTP. Please try again.")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Signup OTP email error: {e}")
+        raise HTTPException(status_code=500, detail="Email service error. Please try again.")
+
+
+@api_router.post("/auth/verify-signup-otp")
+@limiter.limit("10/minute")
+async def verify_signup_otp(request: Request):
+    """Verify the signup OTP code."""
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid request")
+    
+    email = (data.get("email") or "").strip().lower()
+    otp_input = (data.get("otp") or "").strip()
+    
+    if not email or not otp_input:
+        raise HTTPException(status_code=400, detail="Email and OTP are required")
+    
+    # Find stored OTP
+    stored = await db.signup_otps.find_one({"email": email})
+    if not stored:
+        raise HTTPException(status_code=400, detail="No OTP found. Please request a new OTP.")
+    
+    # Check attempts (max 5)
+    if stored.get("attempts", 0) >= 5:
+        await db.signup_otps.delete_one({"email": email})
+        raise HTTPException(status_code=400, detail="Too many attempts. Please request a new OTP.")
+    
+    # Increment attempts
+    await db.signup_otps.update_one({"email": email}, {"$inc": {"attempts": 1}})
+    
+    # Check expiry
+    expires = stored.get("expires_at", "")
+    if expires:
+        try:
+            exp_dt = datetime.fromisoformat(expires.replace("Z", "+00:00"))
+            if datetime.now(timezone.utc) > exp_dt:
+                await db.signup_otps.delete_one({"email": email})
+                raise HTTPException(status_code=400, detail="OTP expired. Please request a new OTP.")
+        except (ValueError, TypeError):
+            pass
+    
+    # Verify code
+    if stored.get("otp_code") != otp_input:
+        remaining = 5 - stored.get("attempts", 0) - 1
+        raise HTTPException(status_code=400, detail=f"Incorrect OTP. {remaining} attempts remaining.")
+    
+    # OTP verified — mark email as verified and clean up
+    await db.signup_otps.update_one(
+        {"email": email},
+        {"$set": {"verified": True, "verified_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    return {"message": "Email verified successfully", "email": email, "verified": True}
+
+
 @api_router.post("/auth/signup")
 @limiter.limit(RATE_LIMITS["register"])
 async def signup(request: Request, user_data: UserSignup):
@@ -1170,6 +1278,12 @@ async def signup(request: Request, user_data: UserSignup):
     - JWT token generation
     """
     client_ip = request.client.host if request.client else "unknown"
+    
+    # Verify email OTP was completed before allowing signup
+    if user_data.email:
+        otp_record = await db.signup_otps.find_one({"email": user_data.email.strip().lower(), "verified": True})
+        if not otp_record:
+            raise HTTPException(status_code=400, detail="Please verify your email with OTP before signing up.")
     
     # Validate email format
     if user_data.email and not validate_email(user_data.email):
@@ -1379,6 +1493,10 @@ async def signup(request: Request, user_data: UserSignup):
         
         # Serialize for response (removes _id, password_hash, cleans None values)
         clean_user = serialize_user_for_response(created_user, exclude_password=True)
+        
+        # Clean up OTP record after successful signup
+        if user_data.email:
+            await db.signup_otps.delete_one({"email": user_data.email.strip().lower()})
         
         return {
             "message": "Signup successful",

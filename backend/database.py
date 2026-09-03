@@ -146,6 +146,10 @@ async def create_indexes():
         # Install tracking indexes
         await db.installs.create_index("installation_id", unique=True, background=True)
         await db.installs.create_index("first_open_at", background=True)
+        
+        # Signup OTP indexes
+        await db.signup_otps.create_index("email", unique=True, background=True)
+        await db.signup_otps.create_index("expires_at", background=True, expireAfterSeconds=900)  # Auto-cleanup after 15min
         await db.installs.create_index("signup_status", background=True)
         await db.installs.create_index("acquisition_source", background=True)
         await db.installs.create_index("user_id", sparse=True, background=True)
