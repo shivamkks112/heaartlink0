@@ -1,0 +1,87 @@
+{
+  "summary": "Iteration 34: Verified (1) crush_feature admin flag + backend gate, (2) new glassmorphic Discover action dock, (3) Chat/Matches tab sync end-to-end. Backend: 17/17 pytest tests passed (auth, feature-flags GET/PUT/persistence/invalid-key, crush 403-when-off / works-when-on / self-crush, conversations, matches, active-users, conversation payload shape). Frontend: login -> Discover dock (Pass/SuperLike/Like, no Crush when OFF; Crush appears when ON, order pass->superlike->like->crush, verified computed backdrop-filter blur(20px) saturate(1.5), rgba(0,0,0,0.35) bg, pill radius, glass border; like 66px > pass 56px > superlike/crush 46px), Admin Settings 'Secret Crush' toggle row present, clicking it flips UI state, fires toast 'crush feature disabled!' and persists to DB (verified via API). Matches page: Matches (2) with 2 match-cards, Messages tab loads 2 message-cards with preview + unread badge + online status, Active (1) with 1 active-user-card. Chat E2E: opened /chat/<match_id>, sent message, it rendered in thread and conversation preview updated to 'You: TEST_iter34 sync check'. All 3 requested features work as specified.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/analytics/track-install",
+        "issue": "Intermittent 500. Confirmed root cause in backend.err.log: pymongo.errors.DuplicateKeyError E11000 on collection 'installs', index installation_id_1. The find_one-then-insert_one flow is not atomic, so two concurrent first-open calls with the same installation_id race and the second insert throws unhandled. Reproduced twice during frontend runs (console error visible on app load). Fix: replace find_one+insert_one with a single update_one(..., {'$setOnInsert': {...}, '$set': {'last_active_at': now}}, upsert=True), or catch DuplicateKeyError and return already_tracked.",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "GET /api/admin/feature-flags",
+        "issue": "DEFAULT_FEATURE_FLAGS is only applied when no document exists. The existing document is returned as-is, so newly added flags are silently missing from the response. Current response omits new_user_notif_to_males and new_user_notif_to_females entirely (they default to True in code but are absent in DB). Admin UI will render them as OFF and DiscoverPage-style `!!res.data?.flag` checks will read undefined->false. Fix: return {**DEFAULT_FEATURE_FLAGS, **stored_flags}."
+      },
+      {
+        "endpoint": "GET/PUT /api/admin/feature-flags",
+        "issue": "No admin auth guard. Both endpoints were toggled successfully with plain unauthenticated curl (no token/header). Any anonymous caller can enable/disable referral_system, daily_rewards, ai_chatbot and crush_feature globally. Other admin routes use an admin middleware; this one appears exempt."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "MatchesPage tab strip",
+        "issue": "At 390px width the third tab is clipped by the container right edge - it renders as 'Activ...' cut off mid-word (label text is correct: 'Active (1)'). Needs horizontal scroll/shrink or shorter labels.",
+        "selector": "[data-testid=\"tab-active\"]",
+        "priority": "MEDIUM"
+      },
+      {
+        "component": "DiscoverPage daily-reward modal",
+        "issue": "The 'Reward Claimed!' modal auto-opens over the Discover action dock on every fresh login and must be dismissed before any swipe action is possible. Not a blocker (dismissable) but it hides the newly designed dock on first paint.",
+        "selector": "n/a (no data-testid on reward modal)",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "DiscoverPage action dock",
+        "issues": [
+          "Crush button uses the same Heart icon as the primary Like button (amber heart vs green heart), which reads as a duplicate/secondary 'like' rather than a distinct action. The Admin panel uses a Flame icon for the same feature - use Flame (or Sparkles) on Discover for consistency and to disambiguate from Like.",
+          "Pass button (56px) is larger than SuperLike (46px) and sits leftmost; the visual hierarchy Like(66) > Pass(56) > SuperLike/Crush(46) is intentional and looks good, no change needed.",
+          "Reward modal and Out-of-Swipes modal have no data-testid, making them hard to assert on in automation."
+        ]
+      },
+      {
+        "screen": "ChatPage message thread",
+        "issues": [
+          "Seeded messages render with mixed am/pm timestamps in a sequence that looks out of order (12:59 pm after 12:49 pm, then 03:16 am). Likely cross-day seed data rather than a sort bug, but consider showing a date separator between days."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_crush_iter34.py",
+    "/app/test_reports/pytest/iter34_results.xml"
+  ],
+  "action_items": [
+    "Fix POST /api/analytics/track-install 500: use an atomic upsert with $setOnInsert (or catch DuplicateKeyError) instead of find_one + insert_one.",
+    "Merge DEFAULT_FEATURE_FLAGS over the stored document in GET /api/admin/feature-flags so newly added flags (new_user_notif_to_males/females) are returned.",
+    "Add admin authentication to GET/PUT /api/admin/feature-flags - currently togglable anonymously.",
+    "Fix tab strip overflow on MatchesPage at 390px (Active tab clipped).",
+    "Change Discover Crush button icon from Heart to Flame to match the admin panel and avoid confusion with the Like heart.",
+    "Optional: split /app/backend/server.py (8697 lines) into routers/modules; AdminDashboard.jsx is 1413 lines."
+  ],
+  "critical_code_review_comments": [
+    "server.py track_install(): find_one -> insert_one is a TOCTOU race against a unique index on installation_id; must be an upsert.",
+    "server.py get_feature_flags(): defaults are only seeded on first-ever insert, so any future flag addition is invisible to clients until a PUT writes it. Always merge defaults on read.",
+    "server.py feature-flags routes lack the admin auth dependency used by other /admin routes - privilege escalation for a global kill-switch.",
+    "DiscoverPage.jsx: crushEnabled is fetched inside the useEffect keyed on [cityFilter], so the feature-flag request is re-issued on every city filter change. Move it to a mount-only effect.",
+    "DiscoverPage.jsx handleAction('crush') intentionally does not advance the card (returns early). This is a reasonable choice but means users can only crush the currently visible profile; confirm this is the intended UX.",
+    "MatchesPage.jsx has 3 unused eslint-disable directives (lines 377, 392, 415) - remove them.",
+    "server.py is 8697 lines - well past the 700-line guideline; extract admin, chat, and analytics routers."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_crush_iter34.py",
+    "/app/frontend/src/pages/MatchesPage.jsx"
+  ],
+  "success_rate": {"backend": "100% (17/17 pytest)", "frontend": "95% (all requested flows pass; 1 clipped tab + icon/design nits)"},
+  "seed_data_creation": "No new users created. Sent one chat message 'TEST_iter34 sync check' in match 5f5b1722-cc69-4e4c-bde5-f41e21ed0747. One crush record created for user A -> user B while testing the enabled path. crush_feature flag restored to false (paused) at end of testing.",
+  "should_call_test_agent_after_fix": true,
+  "should_main_agent_self_test": false,
+  "test_credentials": "Used /app/memory/test_credentials.md: shivamkks112@gmail.com / Shivam@2026 and review@heartlink.co.in / HeartLink@2026. Login payload field is 'email_or_phone'. File is present and accurate.",
+  "context_for_next_testing_agent": "Only in-scope edit I made: added data-testid=\"safety-modal\" and data-testid=\"safety-modal-proceed-btn\" to SafetyMessageModal in MatchesPage.jsx - the 'Safety First!' modal intercepts the click on a message-card and MUST be dismissed via that button before /chat/<match_id> navigation happens, otherwise chat tests fail with a false negative. Also dismiss the 'Reward Claimed!' modal (click text 'Done') right after login before touching the Discover dock. crush_feature is currently FALSE; toggle via PUT /api/admin/feature-flags (no auth required) then hard-reload /discover to see crush-btn. Regression suite: /app/backend/tests/test_crush_iter34.py (17 tests, all green). Conversation payload uses camelCase (unreadCount, lastMessage, hasMessages) not snake_case. Active-users endpoint is /api/active-users/{user_id} (not /api/users/active/...).",
+  "rca_of_the_issue": "track-install 500: POST /api/analytics/track-install does find_one({installation_id}) then insert_one(). MongoDB has a unique index installation_id_1 on dating_app_db.installs. When the SPA fires the install-tracking call twice concurrently on first open (observed on app bootstrap), both requests miss the find_one and the second insert_one raises pymongo.errors.DuplicateKeyError E11000, which is unhandled and surfaces as HTTP 500 plus a browser console error. Repro: two parallel POSTs with the same fresh installation_id. Mitigation: single atomic update_one with upsert=True and $setOnInsert for the immutable fields."
+}

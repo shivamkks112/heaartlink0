@@ -3796,6 +3796,11 @@ async def user_action(user_id: str, action: LikeAction):
 @api_router.post("/crush/{user_id}")
 async def mark_crush(user_id: str, target_user_id: str):
     """Mark someone as anonymous crush"""
+    # Check if crush feature is enabled
+    flags = await db.app_settings.find_one({"type": "feature_flags"}, {"_id": 0})
+    if not (flags or {}).get("crush_feature", False):
+        raise HTTPException(status_code=403, detail="Crush feature is currently paused")
+    
     if user_id == target_user_id:
         raise HTTPException(status_code=400, detail="Cannot crush yourself")
     
@@ -7870,21 +7875,24 @@ DEFAULT_FEATURE_FLAGS = {
     "new_user_gender_notifications": True,
     "new_user_notif_to_males": True,
     "new_user_notif_to_females": True,
+    "crush_feature": False,
 }
 
 @api_router.get("/admin/feature-flags")
 async def get_feature_flags():
-    """Get all feature flags"""
+    """Get all feature flags (always merged with defaults)"""
     flags = await db.app_settings.find_one({"type": "feature_flags"}, {"_id": 0})
     if not flags:
         flags = {**DEFAULT_FEATURE_FLAGS, "type": "feature_flags"}
         await db.app_settings.insert_one(flags)
-    return {k: v for k, v in flags.items() if k != "type"}
+    # Always merge defaults so newly added flags are visible
+    merged = {**DEFAULT_FEATURE_FLAGS, **{k: v for k, v in flags.items() if k != "type"}}
+    return merged
 
 @api_router.put("/admin/feature-flags")
 async def update_feature_flags(data: dict):
     """Update feature flags (admin only)"""
-    allowed_keys = {"referral_system", "daily_rewards", "ai_chatbot", "new_user_gender_notifications", "new_user_notif_to_males", "new_user_notif_to_females"}
+    allowed_keys = {"referral_system", "daily_rewards", "ai_chatbot", "new_user_gender_notifications", "new_user_notif_to_males", "new_user_notif_to_females", "crush_feature"}
     updates = {k: bool(v) for k, v in data.items() if k in allowed_keys}
     
     if not updates:
@@ -8343,36 +8351,35 @@ async def track_install(request: Request):
     if not installation_id:
         raise HTTPException(status_code=400, detail="installation_id required")
     
-    # Check if already tracked — idempotent
-    existing = await db.installs.find_one({"installation_id": installation_id})
-    if existing:
-        # Update last_active only
-        await db.installs.update_one(
-            {"installation_id": installation_id},
-            {"$set": {"last_active_at": datetime.now(timezone.utc).isoformat()}}
-        )
-        return {"status": "already_tracked", "installation_id": installation_id}
-    
     now = datetime.now(timezone.utc).isoformat()
-    install_doc = {
-        "installation_id": installation_id,
-        "first_open_at": now,
-        "last_active_at": now,
-        "platform": data.get("platform", "unknown"),
-        "app_version": data.get("app_version", "unknown"),
-        "signup_status": "not_registered",
-        "user_id": None,
-        "acquisition_source": data.get("acquisition_source", "direct"),
-        "utm_source": data.get("utm_source"),
-        "utm_medium": data.get("utm_medium"),
-        "utm_campaign": data.get("utm_campaign"),
-        "signup_at": None,
-        "first_login_at": None,
-        "events": [{"type": "first_open", "timestamp": now}]
-    }
     
-    await db.installs.insert_one(install_doc)
-    return {"status": "tracked", "installation_id": installation_id}
+    # Atomic upsert: avoids TOCTOU race on concurrent first-open calls
+    result = await db.installs.update_one(
+        {"installation_id": installation_id},
+        {
+            "$setOnInsert": {
+                "installation_id": installation_id,
+                "first_open_at": now,
+                "platform": data.get("platform", "unknown"),
+                "app_version": data.get("app_version", "unknown"),
+                "signup_status": "not_registered",
+                "user_id": None,
+                "acquisition_source": data.get("acquisition_source", "direct"),
+                "utm_source": data.get("utm_source"),
+                "utm_medium": data.get("utm_medium"),
+                "utm_campaign": data.get("utm_campaign"),
+                "signup_at": None,
+                "first_login_at": None,
+                "events": [{"type": "first_open", "timestamp": now}]
+            },
+            "$set": {"last_active_at": now}
+        },
+        upsert=True
+    )
+    
+    if result.upserted_id:
+        return {"status": "tracked", "installation_id": installation_id}
+    return {"status": "already_tracked", "installation_id": installation_id}
 
 
 @api_router.post("/analytics/track-event")

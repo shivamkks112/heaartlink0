@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
-import { Heart, X, MapPin, Play, Star, SlidersHorizontal } from 'lucide-react';
+import { Heart, X, MapPin, Play, Star, SlidersHorizontal, Flame } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
@@ -39,6 +39,7 @@ const DiscoverPage = ({ user }) => {
   const [matchedUserData, setMatchedUserData] = useState(null);
   const [matchCompatibilityScore, setMatchCompatibilityScore] = useState(null);
   const [matchIdForChat, setMatchIdForChat] = useState(null);
+  const [crushEnabled, setCrushEnabled] = useState(false);
   const actionInFlight = useRef(false);
   const swipeAnimation = useRef(null);
 
@@ -110,7 +111,14 @@ const DiscoverPage = ({ user }) => {
 
   useEffect(() => {
     fetchProfiles();
-  }, [cityFilter]);
+  }, [cityFilter]); // eslint-disable-line
+
+  // Fetch feature flags once on mount
+  useEffect(() => {
+    axios.get(`${API}/admin/feature-flags`).then(res => {
+      setCrushEnabled(!!res.data?.crush_feature);
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     updateGPSLocation();
@@ -531,64 +539,95 @@ const DiscoverPage = ({ user }) => {
               </div>
             </div>
 
-            {/* Action buttons — flow naturally after info, with dynamic padding */}
+            {/* Action buttons — floating glass dock */}
             <div
-              className="flex justify-center items-center gap-5 z-20"
+              className="flex justify-center items-center z-20"
               style={{
                 paddingTop: 'clamp(12px, 2.5vh, 24px)',
                 paddingBottom: 'var(--action-offset, 16px)',
               }}
               data-testid="action-buttons"
             >
-              <button
-                data-testid="pass-btn"
-                onClick={() => handleAction('pass')}
-                className="rounded-full flex items-center justify-center active:scale-90 transition-all duration-200"
+              <div className="flex items-center gap-4 px-6 py-3 rounded-full"
                 style={{
-                  width: 'var(--btn-md, 52px)', height: 'var(--btn-md, 52px)',
-                  background: 'rgba(255,255,255,0.95)',
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.2)',
+                  background: 'rgba(0,0,0,0.35)',
+                  backdropFilter: 'blur(20px) saturate(1.5)',
+                  WebkitBackdropFilter: 'blur(20px) saturate(1.5)',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08)',
                 }}
               >
-                <X className="w-6 h-6 text-[#D6336C]" strokeWidth={2.8} />
-              </button>
-              <button
-                data-testid="crush-btn"
-                onClick={() => handleAction('crush')}
-                className="rounded-full flex items-center justify-center active:scale-90 transition-all duration-200"
-                style={{
-                  width: 'var(--btn-sm, 44px)', height: 'var(--btn-sm, 44px)',
-                  background: 'linear-gradient(135deg, #F59E0B 0%, #EF4444 100%)',
-                  boxShadow: '0 4px 16px rgba(245,158,11,0.4), 0 0 0 1px rgba(255,255,255,0.15)',
-                }}
-                title="Secret Crush"
-              >
-                <Heart className="w-5 h-5 text-white" strokeWidth={2.5} />
-              </button>
-              <button
-                data-testid="superlike-btn"
-                onClick={() => handleAction('superlike')}
-                className="rounded-full flex items-center justify-center active:scale-90 transition-all duration-200"
-                style={{
-                  width: 'var(--btn-sm, 44px)', height: 'var(--btn-sm, 44px)',
-                  background: 'rgba(255,255,255,0.95)',
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.2)',
-                }}
-              >
-                <Star className="w-5 h-5 text-[#3B82F6]" fill="currentColor" />
-              </button>
-              <button
-                data-testid="like-btn"
-                onClick={() => handleAction('like')}
-                className="rounded-full flex items-center justify-center active:scale-90 transition-all duration-200"
-                style={{
-                  width: 'var(--btn-lg, 60px)', height: 'var(--btn-lg, 60px)',
-                  background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-                  boxShadow: '0 4px 20px rgba(16,185,129,0.4), 0 0 0 2px rgba(255,255,255,0.15)',
-                }}
-              >
-                <Heart className="w-7 h-7 text-white" fill="white" />
-              </button>
+                {/* PASS Button */}
+                <button
+                  data-testid="pass-btn"
+                  onClick={() => handleAction('pass')}
+                  className="group relative rounded-full flex items-center justify-center transition-all duration-300 active:scale-[0.8]"
+                  style={{
+                    width: '56px', height: '56px',
+                    background: 'linear-gradient(145deg, rgba(255,255,255,0.15), rgba(255,255,255,0.05))',
+                    border: '1.5px solid rgba(255,100,100,0.3)',
+                    boxShadow: '0 0 0 0 rgba(255,100,100,0), 0 4px 12px rgba(0,0,0,0.2)',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.boxShadow = '0 0 20px 4px rgba(255,100,100,0.25), 0 4px 12px rgba(0,0,0,0.2)'}
+                  onMouseLeave={e => e.currentTarget.style.boxShadow = '0 0 0 0 rgba(255,100,100,0), 0 4px 12px rgba(0,0,0,0.2)'}
+                >
+                  <X className="w-6 h-6 text-rose-400 group-active:text-rose-300 transition-colors" strokeWidth={3} />
+                </button>
+
+                {/* SUPERLIKE Button */}
+                <button
+                  data-testid="superlike-btn"
+                  onClick={() => handleAction('superlike')}
+                  className="group relative rounded-full flex items-center justify-center transition-all duration-300 active:scale-[0.8]"
+                  style={{
+                    width: '46px', height: '46px',
+                    background: 'linear-gradient(145deg, rgba(59,130,246,0.25), rgba(59,130,246,0.08))',
+                    border: '1.5px solid rgba(59,130,246,0.35)',
+                    boxShadow: '0 0 0 0 rgba(59,130,246,0), 0 4px 12px rgba(0,0,0,0.2)',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.boxShadow = '0 0 16px 3px rgba(59,130,246,0.3), 0 4px 12px rgba(0,0,0,0.2)'}
+                  onMouseLeave={e => e.currentTarget.style.boxShadow = '0 0 0 0 rgba(59,130,246,0), 0 4px 12px rgba(0,0,0,0.2)'}
+                >
+                  <Star className="w-5 h-5 text-blue-400 group-active:text-blue-300 transition-colors" fill="currentColor" />
+                </button>
+
+                {/* LIKE Button — Hero/Primary */}
+                <button
+                  data-testid="like-btn"
+                  onClick={() => handleAction('like')}
+                  className="group relative rounded-full flex items-center justify-center transition-all duration-300 active:scale-[0.8]"
+                  style={{
+                    width: '66px', height: '66px',
+                    background: 'linear-gradient(145deg, #34d399, #059669)',
+                    border: '2px solid rgba(255,255,255,0.2)',
+                    boxShadow: '0 0 24px 4px rgba(16,185,129,0.35), 0 6px 20px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.2)',
+                  }}
+                >
+                  <Heart className="w-8 h-8 text-white drop-shadow-sm" fill="white" strokeWidth={0} />
+                  {/* Pulse ring */}
+                  <span className="absolute inset-0 rounded-full animate-ping opacity-20" style={{ background: 'rgba(16,185,129,0.5)', animationDuration: '2s' }} />
+                </button>
+
+                {/* CRUSH Button — only if admin-enabled */}
+                {crushEnabled && (
+                  <button
+                    data-testid="crush-btn"
+                    onClick={() => handleAction('crush')}
+                    className="group relative rounded-full flex items-center justify-center transition-all duration-300 active:scale-[0.8]"
+                    style={{
+                      width: '46px', height: '46px',
+                      background: 'linear-gradient(145deg, rgba(245,158,11,0.25), rgba(239,68,68,0.15))',
+                      border: '1.5px solid rgba(245,158,11,0.35)',
+                      boxShadow: '0 0 0 0 rgba(245,158,11,0), 0 4px 12px rgba(0,0,0,0.2)',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.boxShadow = '0 0 16px 3px rgba(245,158,11,0.3), 0 4px 12px rgba(0,0,0,0.2)'}
+                    onMouseLeave={e => e.currentTarget.style.boxShadow = '0 0 0 0 rgba(245,158,11,0), 0 4px 12px rgba(0,0,0,0.2)'}
+                    title="Secret Crush"
+                  >
+                    <Flame className="w-5 h-5 text-amber-400 group-active:text-amber-300 transition-colors" strokeWidth={2.5} />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>

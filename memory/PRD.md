@@ -65,6 +65,21 @@ Modern, safe, trust-based dating app for Indian users. React frontend + FastAPI 
 - `GET /api/admin/welcome-settings` — Admin config + analytics
 - `PUT /api/admin/welcome-settings` — Update config remotely
 
+## Crush Feature — Admin-Controlled (Sep 3, 2026)
+- Default: **OFF** (paused)
+- Admin Panel: Settings → Secret Crush toggle (Flame icon)
+- Feature flag: `crush_feature` in `app_settings.feature_flags`
+- Backend: `/api/crush/{user_id}` returns 403 when disabled
+- Frontend: Crush button hidden on Discover page when flag is OFF
+- All existing crush data preserved when re-enabled
+
+## Like/Pass Button Design (Sep 3, 2026)
+- Glassmorphic floating dock: `backdrop-blur(20px)`, glass border, dark translucent bg
+- Pass (56px): Rose-tinted circle, X icon, glow on hover
+- SuperLike (46px): Blue-tinted circle, filled Star icon
+- Like (66px): Large emerald gradient, filled Heart, pulse ring animation
+- Crush (46px, conditional): Amber Flame icon, only when crush_feature=true
+
 ## Pending / Backlog
 - P0: Razorpay Premium Subscription (₹99-999/month)
 - P1: Virtual Gifts & HeartCoins

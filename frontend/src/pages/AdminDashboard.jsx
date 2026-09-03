@@ -7,7 +7,7 @@ import {
   TrendingUp, UserPlus, Clock, Calendar, Filter,
   Eye, MessageCircle, Heart, Shield, Crown,
   Activity, BarChart3, PieChart, ClipboardCheck, Settings,
-  Bot, Power, RotateCcw, KeyRound, Download, Send
+  Bot, Power, RotateCcw, KeyRound, Download, Send, Flame
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -1367,6 +1367,31 @@ const AdminDashboard = ({ user }) => {
               >
                 <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform duration-200 ${
                   featureFlags.ai_chatbot ? 'translate-x-7' : 'translate-x-0.5'
+                }`} />
+              </button>
+            </div>
+
+            {/* Crush Feature Toggle */}
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl" data-testid="crush-toggle-row">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
+                  <Flame className="w-5 h-5 text-amber-600" />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-gray-900">Secret Crush</h4>
+                  <p className="text-sm text-gray-500">Anonymous crush feature on Discover page</p>
+                </div>
+              </div>
+              <button
+                onClick={() => toggleFeatureFlag('crush_feature', !featureFlags.crush_feature)}
+                disabled={flagsLoading}
+                data-testid="crush-toggle-btn"
+                className={`relative w-14 h-7 rounded-full transition-colors duration-200 ${
+                  featureFlags.crush_feature ? 'bg-green-500' : 'bg-gray-300'
+                } ${flagsLoading ? 'opacity-50' : ''}`}
+              >
+                <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform duration-200 ${
+                  featureFlags.crush_feature ? 'translate-x-7' : 'translate-x-0.5'
                 }`} />
               </button>
             </div>

@@ -4,7 +4,7 @@
 
 ---
 
-## Sep 3, 2026 — Realtime Messaging + Active Users Fix
+## Sep 3, 2026 — Realtime Messaging + Active Users Fix + Crush Admin + Button Redesign
 - [x] **CRITICAL FIX**: ChatPage no longer creates duplicate WebSocket (uses global wsService)
 - [x] **CRITICAL FIX**: Active Users "Active(0)" bug — fixed privacy_settings filter, case-insensitive gender matching, expanded threshold
 - [x] New `/api/conversations/{user_id}` endpoint — returns all conversations with lastMessage & unreadCount in single call
@@ -14,6 +14,11 @@
 - [x] Badge count fix — sender's own message echo no longer inflates unread count
 - [x] Regex escape for gender values in active-users query (security hardening)
 - [x] WebSocketService handles all event types: typing_indicator, screenshot_alert, message_deleted, messages_read, message_delivered
+- [x] **Crush Feature**: Paused by default, admin toggle via feature_flags (crush_feature), backend returns 403 when OFF, frontend hides button
+- [x] **Like/Pass Buttons Redesign**: Glassmorphic floating dock, Pass(rose X)/SuperLike(blue star)/Like(green heart with pulse)/Crush(amber flame, conditional)
+- [x] **Track Install Fix**: Atomic upsert replaces find_one+insert_one (fixes DuplicateKeyError 500)
+- [x] **Feature Flags Merge**: GET /api/admin/feature-flags now always merges stored values with defaults
+- [x] **Tab Strip Fix**: Mobile-responsive tab labels (shortened on <640px)
 
 ---
 

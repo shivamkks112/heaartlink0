@@ -20,7 +20,7 @@ const SafetyMessageModal = ({ isOpen, onClose, onProceed }) => {
   if (!isOpen) return null;
   
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" data-testid="safety-modal">
       <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl animate-bounce-in">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
@@ -69,6 +69,7 @@ const SafetyMessageModal = ({ isOpen, onClose, onProceed }) => {
         <div className="flex gap-3">
           <button
             onClick={onProceed}
+            data-testid="safety-modal-proceed-btn"
             className="flex-1 bg-gradient-to-r from-pink-500 to-orange-500 text-white py-3 rounded-xl font-semibold hover:opacity-90 transition-all"
           >
             I Understand, Continue
@@ -464,31 +465,34 @@ const MatchesPage = ({ user }) => {
           <Button
             data-testid="tab-matches"
             onClick={() => setActiveTab('matches')}
-            className="flex-1 py-3 sm:py-3.5 rounded-l-full rounded-r-none font-medium text-xs sm:text-sm transition-all duration-300"
+            className="flex-1 py-2.5 sm:py-3.5 rounded-l-full rounded-r-none font-medium text-[11px] sm:text-sm transition-all duration-300 px-1 sm:px-3"
             style={{
               background: activeTab === 'matches' ? 'var(--m3-primary-container)' : 'transparent',
               color: activeTab === 'matches' ? 'var(--m3-primary)' : 'var(--m3-on-surface-variant)',
               borderRight: '1px solid var(--m3-outline-variant)',
             }}
           >
-            <Heart className="w-4 h-4 mr-1 inline" />
-            Matches ({matches.length})
+            <Heart className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-0.5 sm:mr-1 inline" />
+            <span className="hidden sm:inline">Matches</span>
+            <span className="sm:hidden">Match</span>
+            <span className="ml-0.5">({matches.length})</span>
           </Button>
 
           <Button
             data-testid="tab-messages"
             onClick={() => setActiveTab('messages')}
-            className="relative flex-1 py-3 sm:py-3.5 rounded-none font-medium text-xs sm:text-sm transition-all duration-300"
+            className="relative flex-1 py-2.5 sm:py-3.5 rounded-none font-medium text-[11px] sm:text-sm transition-all duration-300 px-1 sm:px-3"
             style={{
               background: activeTab === 'messages' ? 'var(--m3-primary-container)' : 'transparent',
               color: activeTab === 'messages' ? 'var(--m3-primary)' : 'var(--m3-on-surface-variant)',
               borderRight: '1px solid var(--m3-outline-variant)',
             }}
           >
-            <Mail className="w-4 h-4 mr-1 inline" />
-            Messages
+            <Mail className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-0.5 sm:mr-1 inline" />
+            <span className="hidden sm:inline">Messages</span>
+            <span className="sm:hidden">Chat</span>
             {totalUnread > 0 && (
-              <span className="ml-1 bg-[#E53935] text-white text-[10px] font-bold rounded-full w-4 h-4 inline-flex items-center justify-center">
+              <span className="ml-0.5 bg-[#E53935] text-white text-[9px] sm:text-[10px] font-bold rounded-full w-4 h-4 inline-flex items-center justify-center">
                 {totalUnread > 9 ? '9+' : totalUnread}
               </span>
             )}
@@ -497,13 +501,13 @@ const MatchesPage = ({ user }) => {
           <Button
             data-testid="tab-active"
             onClick={() => setActiveTab('active')}
-            className="flex-1 py-3 sm:py-3.5 rounded-r-full rounded-l-none font-medium text-xs sm:text-sm transition-all duration-300"
+            className="flex-1 py-2.5 sm:py-3.5 rounded-r-full rounded-l-none font-medium text-[11px] sm:text-sm transition-all duration-300 px-1 sm:px-3"
             style={{
               background: activeTab === 'active' ? 'var(--m3-primary-container)' : 'transparent',
               color: activeTab === 'active' ? 'var(--m3-primary)' : 'var(--m3-on-surface-variant)',
             }}
           >
-            <Zap className="w-4 h-4 mr-1 inline" />
+            <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-0.5 sm:mr-1 inline" />
             Active ({activeUsers.length})
           </Button>
         </div>
