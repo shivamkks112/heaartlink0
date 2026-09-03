@@ -21,6 +21,7 @@ import ProfileApprovals from '@/components/admin/ProfileApprovals';
 import GrowthAcquisition from '@/components/admin/GrowthAcquisition';
 import WelcomeSettings from '@/components/admin/WelcomeSettings';
 import AdAnalyticsPanel from '@/components/admin/AdAnalyticsPanel';
+import AppUpdateSettings from '@/components/admin/AppUpdateSettings';
 
 import { BACKEND_URL } from '@/config/api';
 
@@ -1418,6 +1419,9 @@ const AdminDashboard = ({ user }) => {
           
           {/* Welcome Messages Section */}
           <WelcomeSettings />
+          
+          {/* App Update Control */}
+          <AppUpdateSettings />
         </div>
       )}
     </div>

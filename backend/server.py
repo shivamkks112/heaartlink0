@@ -7810,6 +7810,187 @@ async def update_feature_flags(data: dict):
 
 
 # ==========================================
+# SMART APP UPDATE SYSTEM
+# ==========================================
+
+DEFAULT_APP_UPDATE_CONFIG = {
+    "type": "app_update_config",
+    "latest_version_code": 57,
+    "latest_version_name": "3.2.6",
+    "update_title": "New HeartLink Update Available",
+    "update_message": "Update now for a smoother and better HeartLink experience.",
+    "update_enabled": True,
+    "force_update": False,
+    "play_store_url": "https://play.google.com/store/apps/details?id=com.heartlink.app",
+    "min_dismiss_hours": 24,
+}
+
+
+@api_router.get("/app-update/check")
+async def check_app_update(version_code: int = 0, version_name: str = ""):
+    """Check if an app update is available. Called on app startup/resume."""
+    config = await db.app_settings.find_one({"type": "app_update_config"}, {"_id": 0})
+    if not config:
+        config = {**DEFAULT_APP_UPDATE_CONFIG}
+
+    if not config.get("update_enabled", True):
+        return {"update_available": False}
+
+    latest_code = config.get("latest_version_code", 0)
+    has_update = version_code > 0 and latest_code > version_code
+
+    if not has_update:
+        return {"update_available": False}
+
+    return {
+        "update_available": True,
+        "latest_version_code": latest_code,
+        "latest_version_name": config.get("latest_version_name", ""),
+        "title": config.get("update_title", DEFAULT_APP_UPDATE_CONFIG["update_title"]),
+        "message": config.get("update_message", DEFAULT_APP_UPDATE_CONFIG["update_message"]),
+        "force_update": config.get("force_update", False),
+        "play_store_url": config.get("play_store_url", DEFAULT_APP_UPDATE_CONFIG["play_store_url"]),
+        "min_dismiss_hours": config.get("min_dismiss_hours", 24),
+    }
+
+
+@api_router.get("/admin/app-update")
+async def get_app_update_config():
+    """Admin: Get current app update configuration."""
+    config = await db.app_settings.find_one({"type": "app_update_config"}, {"_id": 0})
+    if not config:
+        config = {**DEFAULT_APP_UPDATE_CONFIG}
+        await db.app_settings.insert_one({**config})
+
+    # Analytics
+    analytics = await db.app_settings.find_one({"type": "app_update_analytics"}, {"_id": 0})
+
+    # Notification history
+    notif_hist = await db.app_settings.find_one({"type": "update_notifications"}, {"_id": 0})
+
+    return {
+        "config": {k: v for k, v in config.items() if k != "type"},
+        "analytics": {k: v for k, v in (analytics or {}).items() if k not in ("type", "_id")},
+        "notification_history": (notif_hist or {}).get("history", [])[-5:],
+        "total_notifications_sent": (notif_hist or {}).get("total_sent", 0),
+    }
+
+
+@api_router.put("/admin/app-update")
+async def update_app_update_config(request: Request):
+    """Admin: Update app update configuration."""
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+
+    allowed_keys = {
+        "latest_version_code", "latest_version_name",
+        "update_title", "update_message",
+        "update_enabled", "force_update",
+        "play_store_url", "min_dismiss_hours"
+    }
+    updates = {}
+    for k, v in data.items():
+        if k in allowed_keys:
+            if k in ("latest_version_code", "min_dismiss_hours"):
+                updates[k] = int(v)
+            elif k in ("update_enabled", "force_update"):
+                updates[k] = bool(v)
+            else:
+                updates[k] = str(v)
+
+    if not updates:
+        raise HTTPException(status_code=400, detail="No valid fields provided")
+
+    updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+
+    await db.app_settings.update_one(
+        {"type": "app_update_config"},
+        {"$set": updates},
+        upsert=True
+    )
+
+    config = await db.app_settings.find_one({"type": "app_update_config"}, {"_id": 0})
+    return {k: v for k, v in config.items() if k != "type"}
+
+
+@api_router.post("/admin/app-update/send-notification")
+async def send_app_update_notification(request: Request):
+    """Admin: Send FCM push notification for app update to eligible users."""
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
+
+    # Get current config
+    config = await db.app_settings.find_one({"type": "app_update_config"}, {"_id": 0})
+    if not config:
+        config = {**DEFAULT_APP_UPDATE_CONFIG}
+
+    title = data.get("title", config.get("update_title", DEFAULT_APP_UPDATE_CONFIG["update_title"]))
+    message = data.get("message", config.get("update_message", DEFAULT_APP_UPDATE_CONFIG["update_message"]))
+    play_url = config.get("play_store_url", DEFAULT_APP_UPDATE_CONFIG["play_store_url"])
+
+    # Dedupe guard: check last notification time
+    notif_hist = await db.app_settings.find_one({"type": "update_notifications"}, {"_id": 0})
+    if notif_hist and notif_hist.get("history"):
+        last = notif_hist["history"][-1]
+        last_time = last.get("sent_at", "")
+        if last_time:
+            try:
+                elapsed = (datetime.now(timezone.utc) - datetime.fromisoformat(last_time.replace("Z", "+00:00"))).total_seconds()
+                if elapsed < 300:  # 5 min cooldown
+                    raise HTTPException(status_code=429, detail="Notification sent recently. Wait 5 minutes.")
+            except (ValueError, TypeError):
+                pass
+
+    # Send to all users with FCM tokens
+    result = await fcm_service.send_to_all(
+        db,
+        title,
+        message,
+        data={"type": "app_update", "url": play_url, "click_action": "OPEN_PLAY_STORE"}
+    )
+
+    # Log
+    await db.app_settings.update_one(
+        {"type": "update_notifications"},
+        {"$push": {"history": {
+            "title": title,
+            "message": message,
+            "sent_at": datetime.now(timezone.utc).isoformat(),
+            "result": str(result),
+            "source": "admin_manual"
+        }}, "$inc": {"total_sent": 1}},
+        upsert=True
+    )
+
+    return {"status": "sent", "result": result}
+
+
+@api_router.post("/app-update/analytics")
+async def track_update_analytics(request: Request):
+    """Track update prompt events: shown, clicked, dismissed."""
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+
+    event = data.get("event")  # update_prompt_shown | update_prompt_clicked | update_prompt_dismissed
+    if event not in ("update_prompt_shown", "update_prompt_clicked", "update_prompt_dismissed"):
+        raise HTTPException(status_code=400, detail="Invalid event type")
+
+    await db.app_settings.update_one(
+        {"type": "app_update_analytics"},
+        {"$inc": {event: 1}},
+        upsert=True
+    )
+    return {"status": "ok"}
+
+
+
+# ==========================================
 # PLAY WITH MATCH — Moved to routes/games.py
 # PROFILE BOOST — Moved to routes/boost.py
 # WELCOME MESSAGE SYSTEM — Moved to routes/welcome.py

@@ -7,6 +7,7 @@ import { trackInstall } from '@/utils/installTracker';
 import { useTheme } from '@/hooks/useTheme';
 import { API } from '@/config/api';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import AppUpdateBanner from '@/components/AppUpdateBanner';
 import { DiscoverSkeleton, MatchesSkeleton, ChatSkeleton, ProfileSkeleton, QuickLoader } from '@/components/PageSkeletons';
 
 // Critical pages - loaded immediately (lightweight)
@@ -314,6 +315,7 @@ function App() {
         <BrowserRouter>
           <NavigationHelper />
           <PendingNavigationHandler user={user} />
+          {user && <AppUpdateBanner />}
           <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/" element={!user ? <LandingPage /> : <Navigate to="/discover" />} />

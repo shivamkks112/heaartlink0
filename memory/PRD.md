@@ -102,6 +102,15 @@ Modern, safe, trust-based dating app for Indian users. React frontend + FastAPI 
 - `/app/backend/email_service.py` — Resend email service
 - Total extracted: 543 lines into 4 route modules
 
+## Smart App Update System (Sep 3, 2026)
+- **Backend Config** (`app_update_config` in app_settings): latest_version_code, latest_version_name, update_title, update_message, update_enabled, force_update, play_store_url, min_dismiss_hours
+- **Check endpoint**: `GET /api/app-update/check?version_code=X` — compares installed vs latest, returns update info if available
+- **Admin endpoint**: `GET/PUT /api/admin/app-update` — full config with analytics
+- **Send notification**: `POST /api/admin/app-update/send-notification` — FCM push to all users, 5min cooldown
+- **Analytics**: `POST /api/app-update/analytics` — tracks shown/clicked/dismissed events
+- **In-App Banner**: `AppUpdateBanner.jsx` — dark glass banner on top, "Update Now" / "Later", respects dismissal cooldown
+- **Admin UI**: `AppUpdateSettings.jsx` in Settings tab — version config, toggles, analytics cards, send button with confirmation
+
 ## Pending / Backlog
 - P0: Razorpay Premium Subscription (₹99-999/month)
 - P1: Virtual Gifts & HeartCoins
