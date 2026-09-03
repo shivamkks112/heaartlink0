@@ -38,6 +38,7 @@
 - [x] **Smart App Update System**: Admin-controlled version config, in-app update banner, FCM push with 5min cooldown, analytics tracking (shown/clicked/dismissed)
 - [x] **AppUpdateBanner.jsx**: Dark glassmorphic banner at top, "Update Now" opens Play Store, "Later" dismisses with cooldown
 - [x] **AppUpdateSettings.jsx**: Admin panel component with config fields, toggles, send notification with confirmation, analytics cards, history
+- [x] **In-App Rating Prompt**: Triggers after 3+ matches, animated modal with floating hearts + star pop, "Rate on Play Store" / "Maybe Later", 7-day dismiss cooldown, never shows after rating
 
 ---
 

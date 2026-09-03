@@ -3722,6 +3722,12 @@ async def _post_match_tasks(match_id, user_id, target_id, user_name, target_name
     except Exception as e:
         logger.error(f"Post-match tasks error: {e}")
 
+    # Update match counts for rating prompt trigger
+    for uid in (user_id, target_id):
+        await db.users.update_one({"id": uid}, {"$inc": {"total_match_count": 1}})
+
+
+
 
 @api_router.post("/action/{user_id}")
 async def user_action(user_id: str, action: LikeAction):
@@ -7807,6 +7813,90 @@ async def update_feature_flags(data: dict):
     flags = await db.app_settings.find_one({"type": "feature_flags"}, {"_id": 0})
     return {k: v for k, v in flags.items() if k != "type"}
 
+
+
+
+# ==========================================
+# IN-APP RATING PROMPT
+# ==========================================
+
+@api_router.get("/rating/check/{user_id}")
+async def check_rating_prompt(user_id: str):
+    """Check if user should see the Play Store rating prompt.
+    Trigger: 3+ matches AND not already rated AND not dismissed recently."""
+    user = await db.users.find_one({"id": user_id}, {
+        "_id": 0, "id": 1, "total_match_count": 1,
+        "rating_submitted": 1, "rating_dismissed_at": 1
+    })
+    if not user:
+        return {"show_rating": False}
+
+    # Already rated — never show again
+    if user.get("rating_submitted"):
+        return {"show_rating": False}
+
+    # Not enough matches
+    match_count = user.get("total_match_count", 0)
+    if match_count < 3:
+        # Count from DB if field wasn't incremented yet (includes AI matches for user experience)
+        match_count = await db.matches.count_documents({
+            "$or": [{"user1_id": user_id}, {"user2_id": user_id}],
+            "matched": True
+        })
+        if match_count < 3:
+            return {"show_rating": False}
+
+    # Dismissed recently? (cooldown: 7 days)
+    dismissed_at = user.get("rating_dismissed_at")
+    if dismissed_at:
+        try:
+            dt = datetime.fromisoformat(dismissed_at.replace("Z", "+00:00"))
+            if (datetime.now(timezone.utc) - dt).days < 7:
+                return {"show_rating": False}
+        except (ValueError, TypeError):
+            pass
+
+    return {
+        "show_rating": True,
+        "match_count": match_count,
+        "play_store_url": "https://play.google.com/store/apps/details?id=com.heartlink.app"
+    }
+
+
+@api_router.post("/rating/event")
+async def track_rating_event(request: Request):
+    """Track rating prompt events: shown, clicked (rated), dismissed."""
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+
+    user_id = data.get("user_id")
+    event = data.get("event")  # rating_prompt_shown | rating_submitted | rating_dismissed
+
+    if not user_id or event not in ("rating_prompt_shown", "rating_submitted", "rating_dismissed"):
+        raise HTTPException(status_code=400, detail="Invalid event or user_id")
+
+    # Track in analytics
+    await db.app_settings.update_one(
+        {"type": "rating_analytics"},
+        {"$inc": {event: 1}},
+        upsert=True
+    )
+
+    # Update user-level state
+    if event == "rating_submitted":
+        await db.users.update_one(
+            {"id": user_id},
+            {"$set": {"rating_submitted": True, "rating_submitted_at": datetime.now(timezone.utc).isoformat()}}
+        )
+    elif event == "rating_dismissed":
+        await db.users.update_one(
+            {"id": user_id},
+            {"$set": {"rating_dismissed_at": datetime.now(timezone.utc).isoformat()}}
+        )
+
+    return {"status": "ok"}
 
 
 # ==========================================
