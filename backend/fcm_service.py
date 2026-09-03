@@ -313,14 +313,12 @@ async def notify_photo_approval(db, user_id: str, approved: bool):
         )
 
 async def notify_online_status(db, user_ids: List[str], online_name: str, online_user_id: str = ""):
-    """Send online notification only to opposite-gender users."""
+    """Send smart 'match is online' push — varied messages, opposite gender only."""
+    import random as _rand
     if online_user_id and user_ids:
-        # Get the online user's gender
         online_user = await db.users.find_one({"id": online_user_id}, {"_id": 0, "gender": 1})
         online_gender = (online_user.get("gender", "") if online_user else "").lower()
-        
         if online_gender:
-            # Filter: only notify opposite gender
             receivers = await db.users.find(
                 {"id": {"$in": user_ids}},
                 {"_id": 0, "id": 1, "gender": 1}
@@ -329,10 +327,20 @@ async def notify_online_status(db, user_ids: List[str], online_name: str, online
     
     if not user_ids:
         return None
+    
+    # Varied engaging messages
+    messages = [
+        (f"{online_name} is online!", f"Your match {online_name} is online right now. Say hi!"),
+        (f"{online_name} just came online", f"Now's a great time to chat with {online_name}!"),
+        (f"Someone special is online", f"{online_name} is active on HeartLink. Don't miss out!"),
+        (f"{online_name} is here!", f"Your match is online — start a conversation with {online_name}!"),
+    ]
+    title, body = _rand.choice(messages)
+    
     return await send_to_users(db, user_ids,
-        title=f"{online_name} is online!",
-        body=f"Your match {online_name} is online. Say hi!",
-        data={"type": "online_status", "route": "/matches"},
+        title=title,
+        body=body,
+        data={"type": "online_status", "route": "/matches", "user_id": online_user_id},
     )
 
 async def notify_unread_reminder(db, user_id: str, count: int):

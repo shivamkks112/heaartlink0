@@ -457,103 +457,102 @@ async def _notify_new_user_joined(user_id: str, name: str, gender: str, location
 
 
 async def _notify_matches_user_online(user_id: str, name: str):
-    """Notify matched users when someone comes online."""
+    """Smart notification: Tell matched users that someone came online.
+    - Throttled: max once per 2 hours per user (persisted in DB)
+    - Batched AI check (no N+1 queries)
+    - Respects mute settings
+    - Varied engaging messages
+    """
     try:
-        await asyncio.sleep(3)
-        # Get matched user IDs
+        await asyncio.sleep(5)  # Wait 5s to confirm user actually stayed online
+        
+        # Verify user is still connected
+        if user_id not in manager.active_connections:
+            return
+        
+        # Check feature flag
+        flags = await db.app_settings.find_one({"type": "feature_flags"}, {"_id": 0})
+        if flags and flags.get("online_notifications") is False:
+            return
+
+        # Throttle: check last notification time (2 hours)
+        user_doc = await db.users.find_one({"id": user_id}, {"_id": 0, "name": 1, "last_online_notif_at": 1, "profile_picture": 1})
+        if not user_doc:
+            return
+        
+        last_notif = user_doc.get("last_online_notif_at")
+        if last_notif:
+            try:
+                elapsed = (datetime.now(timezone.utc) - datetime.fromisoformat(last_notif.replace("Z", "+00:00"))).total_seconds()
+                if elapsed < 7200:  # 2 hours
+                    return
+            except (ValueError, TypeError):
+                pass
+        
+        user_name = user_doc.get("name", name or "Someone")
+        
+        # Get all matched user IDs in one query
         matches = await db.matches.find(
             {"$or": [{"user1_id": user_id}, {"user2_id": user_id}], "matched": True},
             {"_id": 0, "user1_id": 1, "user2_id": 1}
         ).limit(50).to_list(None)
-
-        matched_ids = []
-        for m in matches:
-            other_id = m["user2_id"] if m["user1_id"] == user_id else m["user1_id"]
-            # Skip AI profiles
-            ai_check = await db.users.find_one({"id": other_id, "is_ai_profile": True})
-            if not ai_check:
-                matched_ids.append(other_id)
-
-        if matched_ids:
-            await fcm_service.send_to_users(db, 
-                matched_ids,
-                f"{name} is online! 💬",
-                f"Your match {name} just came online. Say hi!"
-            )
-            logger.info(f"Sent online notification to {len(matched_ids)} matches of {name}")
-    except Exception as e:
-        logger.error(f"Failed to send online notification: {e}")
-
-
-# Throttle cache for online notifications (user_id -> last_notified_timestamp)
-_online_notif_cache = {}
-
-async def _send_online_notification_to_matches(user_id: str):
-    """Notify matched users that someone came online. Throttled: max once per 30 min."""
-    try:
-        # Throttle check
-        now = datetime.now(timezone.utc)
-        last_sent = _online_notif_cache.get(user_id)
-        if last_sent and (now - last_sent).total_seconds() < 1800:  # 30 min
-            return
-        _online_notif_cache[user_id] = now
         
-        user = await db.users.find_one({"id": user_id}, {"_id": 0, "name": 1})
-        if not user:
+        if not matches:
             return
         
-        user_name = user.get("name", "Someone")
+        other_ids = list(set(
+            m["user2_id"] if m["user1_id"] == user_id else m["user1_id"]
+            for m in matches
+        ))
         
-        # Get matched user IDs (only real users, not AI)
-        matches = await db.matches.find(
-            {"$or": [{"user1_id": user_id}, {"user2_id": user_id}], "matched": True},
-            {"_id": 0, "user1_id": 1, "user2_id": 1}
-        ).limit(30).to_list(None)
+        # Batch check: filter out AI profiles and muted users in ONE query
+        real_users = await db.users.find(
+            {
+                "id": {"$in": other_ids},
+                "is_ai_profile": {"$ne": True},
+                "muted_users": {"$nin": [user_id]},  # Respect mute
+            },
+            {"_id": 0, "id": 1, "gender": 1}
+        ).to_list(None)
         
-        for m in matches:
-            other_id = m["user2_id"] if m["user1_id"] == user_id else m["user1_id"]
-            # Skip AI profiles
-            ai_check = await db.users.find_one({"id": other_id, "is_ai_profile": True})
-            if ai_check:
-                continue
-            
-            # Send WS notification
-            await manager.send_message(other_id, {
+        if not real_users:
+            return
+        
+        eligible_ids = [u["id"] for u in real_users]
+        
+        # Send WebSocket notification to online matched users
+        for eid in eligible_ids:
+            await manager.send_message(eid, {
                 "type": "user_online",
                 "user_id": user_id,
                 "user_name": user_name
             })
-            
-            # Store in-app notification
-            await create_in_app_notification(
-                other_id,
-                f"🟢 {user_name} is online",
-                f"{user_name} just came online. Say hi!",
-                "online",
-                {"user_id": user_id, "action": "open_chat", "route": f"/matches"}
-            )
         
-        # Send OneSignal push to all matched users at once
-        matched_ids_for_push = []
-        for m in matches:
-            other_id = m["user2_id"] if m["user1_id"] == user_id else m["user1_id"]
-            ai_check = await db.users.find_one({"id": other_id, "is_ai_profile": True})
-            if not ai_check:
-                matched_ids_for_push.append(other_id)
-        
-        if matched_ids_for_push:
+        # Send FCM push to all eligible (fcm_service handles token lookup)
+        if eligible_ids:
             try:
-                await fcm_service.notify_online_status(db, matched_ids_for_push, user_name, online_user_id=user_id)
+                await fcm_service.notify_online_status(db, eligible_ids, user_name, online_user_id=user_id)
             except Exception as e:
-                logger.error(f"Online push notification failed: {e}")
+                logger.error(f"Online push failed: {e}")
         
-        # Send badge updates
-        for m in matches:
-            other_id = m["user2_id"] if m["user1_id"] == user_id else m["user1_id"]
-            asyncio.create_task(manager.send_badge_update(other_id))
-            
+        # Update throttle timestamp
+        await db.users.update_one(
+            {"id": user_id},
+            {"$set": {"last_online_notif_at": datetime.now(timezone.utc).isoformat()}}
+        )
+        
+        logger.info(f"Online notification sent to {len(eligible_ids)} matches of {user_name}")
+        
     except Exception as e:
         logger.error(f"Online notification error: {e}")
+
+
+# Kept for backward compatibility — delegates to the main function
+async def _send_online_notification_to_matches(user_id: str):
+    """Alias: delegates to _notify_matches_user_online."""
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "name": 1})
+    if user:
+        await _notify_matches_user_online(user_id, user.get("name", "Someone"))
 
 
 

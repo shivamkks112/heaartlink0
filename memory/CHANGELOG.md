@@ -39,6 +39,7 @@
 - [x] **AppUpdateBanner.jsx**: Dark glassmorphic banner at top, "Update Now" opens Play Store, "Later" dismisses with cooldown
 - [x] **AppUpdateSettings.jsx**: Admin panel component with config fields, toggles, send notification with confirmation, analytics cards, history
 - [x] **In-App Rating Prompt**: Triggers after 3+ matches, animated modal with floating hearts + star pop, "Rate on Play Store" / "Maybe Later", 7-day dismiss cooldown, never shows after rating
+- [x] **Smart Online Notifications**: Merged 2 duplicate functions into 1, batched AI check (no N+1), 2hr DB-persisted throttle, mute respect, varied FCM messages
 
 ---
 
