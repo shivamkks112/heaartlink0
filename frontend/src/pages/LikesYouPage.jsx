@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Heart, Sparkles, X, Check, User, Crown, Eye, Lock, Play } from 'lucide-react';
+import { Heart, Sparkles, X, Check, User, Crown, Eye, Lock, Play, ArrowDownUp, Clock, TrendingUp } from 'lucide-react';
 import axios from 'axios';
 import Navbar from '@/components/Navbar';
 import SeeWhoLikedYouCard from '@/components/ads/SeeWhoLikedYouCard';
@@ -19,6 +19,7 @@ const LikesYouPage = ({ user }) => {
   const [revealedProfiles, setRevealedProfiles] = useState([]);
   const [crushes, setCrushes] = useState({ crushes: [], total: 0 });
   const [viewers, setViewers] = useState({ viewers: [], total_views: 0, today_views: 0 });
+  const [sortBy, setSortBy] = useState('recent'); // 'recent' | 'name'
   
   // Ad context
   const { isEligible } = useAds();
@@ -133,7 +134,17 @@ const LikesYouPage = ({ user }) => {
     }
   };
 
-  const displayedLikes = getDisplayedLikes();
+  const displayedLikes = useMemo(() => {
+    const list = getDisplayedLikes();
+    if (sortBy === 'recent') {
+      return [...list].sort((a, b) => {
+        const tA = a.liked_at || a.last_active || a.created_at || '';
+        const tB = b.liked_at || b.last_active || b.created_at || '';
+        return tB.localeCompare(tA);
+      });
+    }
+    return list;
+  }, [likes, activeTab, sortBy]); // eslint-disable-line
   
   // Handle profile reveal after watching ad
   const handleProfileReveal = (profileId) => {
@@ -242,6 +253,35 @@ const LikesYouPage = ({ user }) => {
               {viewers.total_views > 0 && <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-white/30">{viewers.total_views}</span>}
             </button>
           </div>
+
+          {/* Sort Bar — only on likes tabs */}
+          {(activeTab === 'all' || activeTab === 'super' || activeTab === 'regular') && displayedLikes.length > 1 && (
+            <div className="flex items-center justify-end mt-3 gap-2" data-testid="sort-bar">
+              <ArrowDownUp className="w-3.5 h-3.5 text-gray-400" />
+              <button
+                onClick={() => setSortBy('recent')}
+                data-testid="sort-recent"
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                  sortBy === 'recent'
+                    ? 'bg-pink-100 text-pink-700 shadow-sm'
+                    : 'bg-white/60 text-gray-500 hover:bg-white'
+                }`}
+              >
+                <Clock className="w-3 h-3" /> Recent
+              </button>
+              <button
+                onClick={() => setSortBy('default')}
+                data-testid="sort-default"
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                  sortBy === 'default'
+                    ? 'bg-pink-100 text-pink-700 shadow-sm'
+                    : 'bg-white/60 text-gray-500 hover:bg-white'
+                }`}
+              >
+                <TrendingUp className="w-3 h-3" /> Default
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -490,27 +530,69 @@ const LikesYouPage = ({ user }) => {
                       </div>
                     )}
 
-                    {/* Action Buttons */}
-                    <div className="p-6 flex gap-4">
-                      <button
-                        onClick={() => handleAction(likedUser.id, 'pass')}
-                        disabled={processingId === likedUser.id}
-                        className="flex-1 py-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-2xl font-semibold text-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2 group-hover:scale-105"
-                        data-testid={`pass-btn-${likedUser.id}`}
+                    {/* Action Buttons — Glassmorphic Floating Dock */}
+                    <div className="p-4 pt-2">
+                      <div
+                        className="flex gap-3 p-2 rounded-2xl"
+                        style={{
+                          background: 'rgba(255,255,255,0.6)',
+                          backdropFilter: 'blur(12px)',
+                          WebkitBackdropFilter: 'blur(12px)',
+                          border: '1px solid rgba(255,255,255,0.5)',
+                          boxShadow: '0 2px 16px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.6)',
+                        }}
                       >
-                        <X className="w-6 h-6" />
-                        Pass
-                      </button>
-                      
-                      <button
-                        onClick={() => handleAction(likedUser.id, 'like')}
-                        disabled={processingId === likedUser.id}
-                        className="flex-1 py-4 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-2xl font-semibold text-lg transition-all shadow-lg shadow-pink-300 disabled:opacity-50 flex items-center justify-center gap-2 group-hover:scale-105"
-                        data-testid={`like-btn-${likedUser.id}`}
-                      >
-                        <Heart className="w-6 h-6 fill-current" />
-                        Like Back
-                      </button>
+                        {/* PASS Button */}
+                        <button
+                          onClick={() => handleAction(likedUser.id, 'pass')}
+                          disabled={processingId === likedUser.id}
+                          data-testid={`pass-btn-${likedUser.id}`}
+                          className="flex-[0.4] py-3.5 rounded-xl font-semibold text-sm transition-all duration-300 disabled:opacity-40 flex items-center justify-center gap-2 active:scale-[0.92]"
+                          style={{
+                            background: 'linear-gradient(145deg, rgba(255,255,255,0.9), rgba(241,241,241,0.9))',
+                            color: '#9ca3af',
+                            border: '1px solid rgba(200,200,200,0.4)',
+                            boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+                          }}
+                          onMouseEnter={e => {
+                            e.currentTarget.style.background = 'linear-gradient(145deg, #fee2e2, #fecaca)';
+                            e.currentTarget.style.color = '#ef4444';
+                            e.currentTarget.style.borderColor = 'rgba(239,68,68,0.3)';
+                          }}
+                          onMouseLeave={e => {
+                            e.currentTarget.style.background = 'linear-gradient(145deg, rgba(255,255,255,0.9), rgba(241,241,241,0.9))';
+                            e.currentTarget.style.color = '#9ca3af';
+                            e.currentTarget.style.borderColor = 'rgba(200,200,200,0.4)';
+                          }}
+                        >
+                          <X className="w-5 h-5" strokeWidth={2.5} />
+                          <span>Pass</span>
+                        </button>
+
+                        {/* LIKE BACK Button — Hero */}
+                        <button
+                          onClick={() => handleAction(likedUser.id, 'like')}
+                          disabled={processingId === likedUser.id}
+                          data-testid={`like-btn-${likedUser.id}`}
+                          className="flex-[0.6] py-3.5 rounded-xl font-bold text-sm text-white transition-all duration-300 disabled:opacity-40 flex items-center justify-center gap-2 active:scale-[0.92] relative overflow-hidden"
+                          style={{
+                            background: 'linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%)',
+                            boxShadow: '0 4px 20px rgba(16,185,129,0.4), inset 0 1px 0 rgba(255,255,255,0.2)',
+                            border: '1px solid rgba(255,255,255,0.15)',
+                          }}
+                        >
+                          {/* Shimmer effect */}
+                          <span
+                            className="absolute inset-0 opacity-30"
+                            style={{
+                              background: 'linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.4) 50%, transparent 70%)',
+                              animation: 'shimmer 2.5s ease-in-out infinite',
+                            }}
+                          />
+                          <Heart className="w-5 h-5 relative z-10" fill="white" strokeWidth={0} />
+                          <span className="relative z-10">Like Back</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -530,6 +612,10 @@ const LikesYouPage = ({ user }) => {
             opacity: 1;
             transform: translateY(0);
           }
+        }
+        @keyframes shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
         }
       `}</style>
 

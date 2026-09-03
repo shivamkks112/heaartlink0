@@ -34,6 +34,7 @@
 - [x] **Ad Analytics Dashboard**: New admin tab with impression stats, daily chart, type breakdown, rewards tracking, top users, estimated revenue
 - [x] **Ad Revenue in Weekly Email**: Ad impressions, est. revenue, type breakdown, users reached — all added to Monday weekly digest
 - [x] **Server Cleanup Phase 1**: Extracted 4 route modules (ads, games, boost, welcome) — 543 lines moved out, server.py 8839→8179
+- [x] **Likes You Page**: Pass/Like Back buttons redesigned with glassmorphic dock, shimmer effect on Like Back, hover states; Sort bar added (Recent/Default)
 
 ---
 
