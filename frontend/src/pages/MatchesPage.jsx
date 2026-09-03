@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import { Heart, MessageCircle, Sparkles, Users, Zap, Mail, Shield, AlertTriangle, X, CheckCircle, Share2, ArrowUpDown, Clock, Filter } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -347,7 +347,7 @@ const MatchesPage = ({ user }) => {
     });
     
     const unsubStatus = wsService.on('status_update', (data) => {
-      // Update online status in real-time across all tabs
+      // Update online status in real-time across all tabs (instant, no API call)
       setMatches(prev => prev.map(m => 
         m.user?.id === data.user_id 
           ? { ...m, user: { ...m.user, is_online: data.is_online, last_active: data.last_active } }
@@ -358,21 +358,16 @@ const MatchesPage = ({ user }) => {
           ? { ...c, user: { ...c.user, is_online: data.is_online, last_active: data.last_active } }
           : c
       ));
-      // Refresh active users when someone comes online/offline
-      fetchActiveUsers();
+      // Update activeUsers inline instead of refetching
+      setActiveUsers(prev => prev.map(u =>
+        u.id === data.user_id ? { ...u, is_online: data.is_online, last_active: data.last_active } : u
+      ));
     });
-    
-    // Periodic refresh for active tab (every 30s)
-    let activeRefreshInterval;
-    if (activeTab === 'active') {
-      activeRefreshInterval = setInterval(fetchActiveUsers, 30000);
-    }
     
     return () => {
       unsubMatch();
       unsubMsg();
       unsubStatus();
-      if (activeRefreshInterval) clearInterval(activeRefreshInterval);
     };
     // eslint-disable-next-line
   }, [activeTab]);
@@ -416,7 +411,7 @@ const MatchesPage = ({ user }) => {
   }, [activeTab]);
 
   // Calculate total unread messages
-  const totalUnread = Object.values(unreadCounts).reduce((sum, count) => sum + count, 0);
+  const totalUnread = useMemo(() => Object.values(unreadCounts).reduce((sum, count) => sum + count, 0), [unreadCounts]);
 
   if (loading) {
     return (

@@ -145,7 +145,8 @@ const ChatPage = ({ user }) => {
 
     const init = async () => {
       try {
-        const matchRes = await axios.get(`${API}/matches/${user.id}`);
+        // Fetch only this specific match (not ALL matches)
+        const matchRes = await axios.get(`${API}/conversations/${user.id}`);
         const match = matchRes.data.find(m => m.match_id === matchId);
         if (!match) {
           if (!cancelled) { toast.error('Match not found'); navigate('/matches'); }

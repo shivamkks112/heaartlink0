@@ -169,18 +169,22 @@ const DiscoverPage = ({ user }) => {
     if (currentIndex < profiles.length - 1) {
       setCurrentIndex(i => i + 1);
       setPhotoIndex(0);
-      // Preload next profile image
-      const nextIdx = currentIndex + 2;
-      if (nextIdx < profiles.length) {
-        const nextImg = profiles[nextIdx].profile_picture || profiles[nextIdx].photos?.[0];
-        if (nextImg) { const img = new Image(); img.src = nextImg; }
+      setImgError(false);
+      // Preload next 2 profile images for instant display
+      for (let offset = 2; offset <= 3; offset++) {
+        const nextIdx = currentIndex + offset;
+        if (nextIdx < profiles.length) {
+          const nextImg = profiles[nextIdx].profile_picture || profiles[nextIdx].photos?.[0];
+          if (nextImg) { const img = new Image(); img.src = nextImg; }
+        }
       }
     } else {
       setCurrentIndex(0);
       setPhotoIndex(0);
+      setImgError(false);
       fetchProfiles();
     }
-  }, [currentIndex, profiles.length]);
+  }, [currentIndex, profiles.length]); // eslint-disable-line
 
   const handleAction = async (action) => {
     if (profiles.length === 0 || actionInFlight.current) return;
@@ -405,10 +409,15 @@ const DiscoverPage = ({ user }) => {
       {/* Card area */}
       <div className="flex-1 min-h-0 p-1.5 pb-0">
         <div
-          className={`relative w-full h-full max-w-md mx-auto rounded-xl overflow-hidden transition-transform duration-200 ease-out ${
+          className={`relative w-full h-full max-w-md mx-auto rounded-xl overflow-hidden ${
             swipeDirection === 'left' ? '-translate-x-6 -rotate-3 opacity-70' :
             swipeDirection === 'right' ? 'translate-x-6 rotate-3 opacity-70' : ''
           }`}
+          style={{
+            willChange: 'transform, opacity',
+            transform: 'translateZ(0)',
+            transition: 'transform 150ms ease-out, opacity 150ms ease-out',
+          }}
           data-testid="profile-card"
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
