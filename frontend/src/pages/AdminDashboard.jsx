@@ -27,8 +27,8 @@ import { BACKEND_URL } from '@/config/api';
 // Update Push Notification Card
 const UpdatePushCard = () => {
   const [sending, setSending] = useState(false);
-  const [title, setTitle] = useState('HeartLink Update Available!');
-  const [message, setMessage] = useState('A new version of HeartLink is available with exciting features. Update now from Play Store!');
+  const [title, setTitle] = useState('HeartLink Update Available! \u2728');
+  const [message, setMessage] = useState('Please update the app for a smooth and bugless experience! Naye features aur improvements aapka wait kar rahe hain.');
 
   const sendUpdatePush = async () => {
     setSending(true);

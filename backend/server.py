@@ -287,7 +287,7 @@ async def startup_event():
     asyncio.create_task(auto_update_notification())
 
 
-APP_VERSION = "3.2.5"  # Increment this on each release
+APP_VERSION = "3.2.6"  # Increment this on each release
 
 
 async def auto_update_notification():
@@ -319,8 +319,8 @@ async def auto_update_notification():
         
         result = await fcm_service.send_to_all(
             db,
-            "HeartLink Update Available! 🎉",
-            f"New version {APP_VERSION} is here with exciting features! Update now from Play Store.",
+            "HeartLink Update Available! \u2728",
+            "Please update the app for a smooth and bugless experience! New features aur improvements aapka wait kar rahe hain.",
             data={"type": "app_update", "url": "https://play.google.com/store/apps/details?id=com.heartlink.app", "click_action": "OPEN_PLAY_STORE"}
         )
         
@@ -8144,8 +8144,8 @@ async def push_update_notification(request: Request):
     except Exception:
         data = {}
     
-    title = data.get("title", "HeartLink Update Available!")
-    message = data.get("message", "A new version of HeartLink is available. Update now from Play Store for the best experience!")
+    title = data.get("title", "HeartLink Update Available! \u2728")
+    message = data.get("message", "Please update the app for a smooth and bugless experience! Naye features aur improvements aapka wait kar rahe hain.")
     play_store_url = data.get("play_store_url", "https://play.google.com/store/apps/details?id=com.heartlink.app")
     
     try:
