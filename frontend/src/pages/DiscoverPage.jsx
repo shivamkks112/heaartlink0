@@ -109,15 +109,8 @@ const DiscoverPage = ({ user }) => {
     }
   };
 
-  // Show banner only when profiles are available, hide on empty state
-  useEffect(() => {
-    if (!shouldShowAds) return;
-    if (profiles.length > 0 && currentIndex < profiles.length) {
-      adsService.showBanner();
-    } else {
-      adsService.hideBanner();
-    }
-  }, [profiles.length, currentIndex, shouldShowAds]);
+  // NO banner ads on Discover — user experience is priority
+  // Ads strategy: interstitial after 6 swipes (natural break), rewarded (user-initiated only)
 
   useEffect(() => {
     fetchProfiles();
@@ -165,15 +158,10 @@ const DiscoverPage = ({ user }) => {
       return () => {
         unsub1();
         unsub2();
-        // Hide banner when leaving Discover page
-        adsService.hideBanner();
       };
     }
 
-    return () => {
-      // Cleanup banner on unmount
-      adsService.hideBanner();
-    };
+    return () => {};
   }, []); // eslint-disable-line
 
   const advanceCard = useCallback(() => {
