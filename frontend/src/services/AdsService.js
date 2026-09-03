@@ -43,6 +43,7 @@ class AdsService {
     // State machines for each ad type
     this.interstitialState = AdState.IDLE;
     this.rewardedState = AdState.IDLE;
+    this.bannerState = AdState.IDLE;
 
     // Resolve callback when waiting for a load
     this._interstitialLoadResolve = null;
@@ -84,6 +85,9 @@ class AdsService {
       // Store event enums for proper listener names
       this._InterstitialEvents = mod.InterstitialAdPluginEvents;
       this._RewardEvents = mod.RewardAdPluginEvents;
+      this._BannerEvents = mod.BannerAdPluginEvents;
+      this._BannerAdSize = mod.BannerAdSize;
+      this._BannerAdPosition = mod.BannerAdPosition;
 
       await AdMob.initialize({
         requestTrackingAuthorization: true,
@@ -192,6 +196,29 @@ class AdsService {
       this._log(`Rewarded REWARD earned: ${JSON.stringify(reward)}`);
       this._lastRewardEarned = true;
     });
+
+    // ── Banner events ──
+    if (this._BannerEvents) {
+      const BE = this._BannerEvents;
+
+      this._addListener(BE.Loaded, () => {
+        this._log('Banner LOADED');
+        this.bannerState = AdState.LOADED;
+      });
+
+      this._addListener(BE.FailedToLoad, (err) => {
+        this._log(`Banner FAILED to load: ${JSON.stringify(err)}`);
+        this.bannerState = AdState.FAILED;
+      });
+
+      this._addListener(BE.Opened, () => {
+        this._log('Banner OPENED (impression)');
+      });
+
+      this._addListener(BE.AdImpression, () => {
+        this._log('Banner AD IMPRESSION recorded');
+      });
+    }
   }
 
   _addListener(event, handler) {
@@ -389,6 +416,79 @@ class AdsService {
     }
   }
 
+  // ═══════════════════════════════════════════════════
+  // BANNER ADS
+  // ═══════════════════════════════════════════════════
+
+  /**
+   * Show banner ad at bottom of screen
+   * Call when entering a screen that should show banner (e.g., Discover)
+   */
+  async showBanner() {
+    if (!this.isNative() || !this.admob) return false;
+    if (this.bannerState === AdState.SHOWING) {
+      this._log('Banner already showing');
+      return true;
+    }
+
+    try {
+      this.bannerState = AdState.LOADING;
+      this._log('Banner SHOW...');
+
+      const options = {
+        adId: AD_CONFIG.BANNER_ID,
+        adSize: this._BannerAdSize?.ADAPTIVE_BANNER || 'ADAPTIVE_BANNER',
+        position: this._BannerAdPosition?.BOTTOM_CENTER || 'BOTTOM_CENTER',
+        margin: 0,
+        isTesting: false,
+      };
+
+      await this.admob.showBanner(options);
+      this.bannerState = AdState.SHOWING;
+      this._log('Banner SHOWING');
+      return true;
+    } catch (error) {
+      this._log(`Banner show error: ${error.message}`);
+      this.bannerState = AdState.FAILED;
+      return false;
+    }
+  }
+
+  /**
+   * Hide banner ad
+   * Call when leaving the screen or entering chat
+   */
+  async hideBanner() {
+    if (!this.isNative() || !this.admob) return false;
+    if (this.bannerState !== AdState.SHOWING) return false;
+
+    try {
+      await this.admob.hideBanner();
+      this.bannerState = AdState.IDLE;
+      this._log('Banner HIDDEN');
+      return true;
+    } catch (error) {
+      this._log(`Banner hide error: ${error.message}`);
+      return false;
+    }
+  }
+
+  /**
+   * Remove banner completely (cleanup)
+   */
+  async removeBanner() {
+    if (!this.isNative() || !this.admob) return false;
+    try {
+      await this.admob.removeBanner();
+      this.bannerState = AdState.IDLE;
+      this._log('Banner REMOVED');
+      return true;
+    } catch (error) {
+      this._log(`Banner remove error: ${error.message}`);
+      return false;
+    }
+  }
+
   getSwipeCount() { return this.swipeCount; }
   getSwipesUntilAd() { return SWIPES_BEFORE_AD - this.swipeCount; }
   resetSwipeCount() { this.swipeCount = 0; }
@@ -397,10 +497,12 @@ class AdsService {
     return {
       interstitial: this.interstitialState === AdState.LOADED,
       rewarded: this.rewardedState === AdState.LOADED,
+      banner: this.bannerState === AdState.SHOWING,
       isNative: this.isNative(),
       states: {
         interstitial: this.interstitialState,
         rewarded: this.rewardedState,
+        banner: this.bannerState,
       }
     };
   }

@@ -122,7 +122,12 @@ const DiscoverPage = ({ user }) => {
 
   useEffect(() => {
     updateGPSLocation();
-    if (shouldShowAds) adsService.initialize();
+    if (shouldShowAds) {
+      adsService.initialize().then(() => {
+        // Show banner ad on Discover page for passive impressions
+        adsService.showBanner();
+      });
+    }
 
     const today = new Date().toDateString();
     const storedDate = localStorage.getItem('heartlink_swipe_date');
@@ -142,7 +147,6 @@ const DiscoverPage = ({ user }) => {
           p.id === data.user_id ? { ...p, is_online: data.is_online, last_active: data.last_active } : p
         ));
       });
-      // Listen for match triggered by the OTHER user
       const unsub2 = wsService.on('new_match', (data) => {
         if (data.user && data.match_id) {
           setMatchedUserData(data.user);
@@ -150,9 +154,19 @@ const DiscoverPage = ({ user }) => {
           setShowMatchAnimation(true);
         }
       });
-      return () => { unsub1(); unsub2(); };
+      return () => {
+        unsub1();
+        unsub2();
+        // Hide banner when leaving Discover page
+        adsService.hideBanner();
+      };
     }
-  }, []);
+
+    return () => {
+      // Cleanup banner on unmount
+      adsService.hideBanner();
+    };
+  }, []); // eslint-disable-line
 
   const advanceCard = useCallback(() => {
     if (currentIndex < profiles.length - 1) {
