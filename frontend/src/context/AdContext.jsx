@@ -26,7 +26,7 @@ export const AdProvider = ({ children, user }) => {
   const [boostActive, setBoostActive] = useState(false);
   const [boostEndTime, setBoostEndTime] = useState(null);
 
-  // Initialize AdMob on mount
+  // Initialize AdMob on mount (delegates to singleton — safe to call multiple times)
   useEffect(() => {
     const init = async () => {
       const success = await adMobService.initialize();

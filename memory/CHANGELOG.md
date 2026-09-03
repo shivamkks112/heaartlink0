@@ -24,6 +24,12 @@
 - [x] **Proactive Messaging**: AI girls send 1st message (1-4hr delay) + optional follow-up (2-6hr if no reply, 50% chance)
 - [x] **Human-like Personality**: Varied message lengths, natural filler words, emotional intelligence, no robotic patterns
 - [x] **Enhanced System Prompt**: Pure human feel — typos, broken sentences, double messages, voice note vibe
+- [x] **AdMob Impression Audit**: Root cause found — TWO competing ad services, premature `interstitialReady`, no event listeners
+- [x] **AdsService.js Rewritten**: Proper state machine (IDLE→LOADING→LOADED→SHOWING→DISMISSED), event-driven via InterstitialAdPluginEvents/RewardAdPluginEvents
+- [x] **adMobService.js**: Converted to thin wrapper over AdsService (eliminates duplicate init/requests)
+- [x] **No duplicate requests**: State guards prevent prepare while LOADING/LOADED
+- [x] **Show waits for load**: If interstitial is LOADING when show triggers, waits up to 8s instead of returning false
+- [x] **Debug diagnostics**: `adsService.getDebugLog()` available for dev troubleshooting
 
 ---
 
