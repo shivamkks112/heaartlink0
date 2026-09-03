@@ -1,6 +1,7 @@
 import { Heart, Compass, MessageSquare, User, Bell } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect, useRef, useCallback } from 'react';
+import React from 'react';
 import wsService from '@/services/WebSocketService';
 
 const Navbar = ({ user }) => {
@@ -124,4 +125,4 @@ const Navbar = ({ user }) => {
   );
 };
 
-export default Navbar;
+export default React.memo(Navbar);

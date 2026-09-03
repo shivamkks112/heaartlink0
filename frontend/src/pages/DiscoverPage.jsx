@@ -57,6 +57,12 @@ const DiscoverPage = ({ user }) => {
       setProfiles(response.data);
       cacheDiscoverProfiles(user.id, response.data);
       setLoading(false);
+      
+      // Preload first 3 profile images for instant display
+      (response.data || []).slice(0, 3).forEach(p => {
+        const imgUrl = p.profile_picture || p.photos?.[0];
+        if (imgUrl) { const img = new Image(); img.src = imgUrl; }
+      });
     } catch (error) {
       const cached = getCachedDiscoverProfiles(user.id);
       if (cached && cached.length > 0) {
@@ -144,6 +150,12 @@ const DiscoverPage = ({ user }) => {
     if (currentIndex < profiles.length - 1) {
       setCurrentIndex(i => i + 1);
       setPhotoIndex(0);
+      // Preload next profile image
+      const nextIdx = currentIndex + 2;
+      if (nextIdx < profiles.length) {
+        const nextImg = profiles[nextIdx].profile_picture || profiles[nextIdx].photos?.[0];
+        if (nextImg) { const img = new Image(); img.src = nextImg; }
+      }
     } else {
       setCurrentIndex(0);
       setPhotoIndex(0);
@@ -285,8 +297,18 @@ const DiscoverPage = ({ user }) => {
     return (
       <div className="h-[100%] bg-[#0a0a0a] flex flex-col" style={{ height: 'calc(100vh - var(--nav-total, 86px))' }}>
         {shellTop}
-        <div className="flex-1 min-h-0 flex items-center justify-center p-2">
-          <div className="w-full h-full max-w-md rounded-xl overflow-hidden bg-gray-800/60 animate-pulse" />
+        <div className="flex-1 min-h-0 flex flex-col items-center justify-center p-2 gap-4">
+          <div className="w-full h-[75%] max-w-md rounded-3xl overflow-hidden bg-gray-800/60 animate-pulse relative">
+            <div className="absolute bottom-6 left-5 right-5 space-y-2">
+              <div className="h-6 w-40 bg-gray-700/60 rounded-lg" />
+              <div className="h-4 w-28 bg-gray-700/40 rounded" />
+            </div>
+          </div>
+          <div className="flex items-center gap-5">
+            <div className="w-14 h-14 rounded-full bg-gray-800/60 animate-pulse" />
+            <div className="w-16 h-16 rounded-full bg-gray-800/60 animate-pulse" />
+            <div className="w-14 h-14 rounded-full bg-gray-800/60 animate-pulse" />
+          </div>
         </div>
       </div>
     );

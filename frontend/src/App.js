@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense, useRef } from 'react';
+import { useState, useEffect, lazy, Suspense, useRef, useCallback } from 'react';
 import '@/App.css';
 import '@/styles/material3.css';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
@@ -7,6 +7,7 @@ import { trackInstall } from '@/utils/installTracker';
 import { useTheme } from '@/hooks/useTheme';
 import { API } from '@/config/api';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import { DiscoverSkeleton, MatchesSkeleton, ChatSkeleton, ProfileSkeleton, QuickLoader } from '@/components/PageSkeletons';
 
 // Critical pages - loaded immediately (lightweight)
 import LandingPage from '@/pages/LandingPage';
@@ -41,6 +42,17 @@ const MatchShareCard = lazy(() => import('@/pages/MatchShareCard'));
 const DailyRewardModal = lazy(() => import('@/components/DailyRewardModal'));
 const WelcomeModal = lazy(() => import('@/components/WelcomeModal'));
 const InstallPrompt = lazy(() => import('@/components/InstallPrompt'));
+
+// Preload critical pages in background — called after login for instant navigation
+function preloadCriticalPages() {
+  // Preload the 4 main tab pages user will navigate to
+  import('@/pages/DiscoverPage');
+  import('@/pages/MatchesPage');
+  import('@/pages/LikesYouPage');
+  import('@/pages/ProfilePage');
+  // Preload chat slightly later
+  setTimeout(() => { import('@/pages/ChatPage'); import('@/pages/NotificationsPage'); }, 1000);
+}
 
 // Lazy load AdProvider - only needed for logged-in users
 const LazyAdProvider = lazy(() => import('@/context/AdContext').then(mod => ({ default: mod.AdProvider })));
@@ -130,14 +142,8 @@ function PendingNavigationHandler({ user }) {
   return null;
 }
 
-// Loading spinner for lazy components
-const PageLoader = () => (
-  <div className="flex items-center justify-center min-h-screen" style={{ backgroundColor: 'var(--m3-surface-container-low)' }}>
-    <div className="flex flex-col items-center gap-3">
-      <div className="w-10 h-10 rounded-full border-3 border-pink-500 border-t-transparent animate-spin"></div>
-    </div>
-  </div>
-);
+// Loading spinner for lazy components — fast, non-blocking
+const PageLoader = () => <QuickLoader />;
 
 function App() {
   const [user, setUser] = useState(null);
@@ -183,6 +189,8 @@ function App() {
         
         // Lazy load heavy native modules only when user is logged in
         import('@/utils/nativeGoogleAuth').then(({ initGoogleAuth }) => initGoogleAuth());
+        // Preload critical pages for instant navigation
+        preloadCriticalPages();
         import('@/services/pushNotifications').then(({ initPushNotifications }) => {
           setTimeout(() => initPushNotifications(userData.id), 2000);
         });
@@ -262,6 +270,8 @@ function App() {
     });
     // Connect WebSocket
     import('@/services/WebSocketService').then((mod) => mod.default.connect(userData.id));
+    // Preload critical pages for instant tab switching
+    preloadCriticalPages();
     // Check welcome message (show before daily reward)
     setTimeout(() => checkWelcome(userData.id), 800);
     // Show daily reward after login — delayed and uses ref to avoid stale closure
@@ -318,13 +328,13 @@ function App() {
             <Route path="/dating/:city" element={<CityDatingPage />} />
             <Route path="/admin" element={user && user.is_admin ? <AdminDashboard user={user} /> : <Navigate to="/" />} />
             
-            {/* All protected routes: redirect to photo upload if profile incomplete */}
-            <Route path="/discover" element={user ? <DiscoverPage user={user} /> : <Navigate to="/" />} />
-            <Route path="/matches" element={user ? <MatchesPage user={user} /> : <Navigate to="/" />} />
-            <Route path="/likes" element={user ? <LikesYouPage user={user} /> : <Navigate to="/" />} />
-            <Route path="/chat/:matchId" element={user ? <ErrorBoundary><ChatPage user={user} /></ErrorBoundary> : <Navigate to="/" />} />
-            <Route path="/profile" element={user ? <ProfilePage user={user} onUpdate={handleLogin} /> : <Navigate to="/" />} />
-            <Route path="/profile/:userId" element={user ? <UserProfilePage user={user} /> : <Navigate to="/" />} />
+            {/* All protected routes */}
+            <Route path="/discover" element={user ? <Suspense fallback={<DiscoverSkeleton />}><DiscoverPage user={user} /></Suspense> : <Navigate to="/" />} />
+            <Route path="/matches" element={user ? <Suspense fallback={<MatchesSkeleton />}><MatchesPage user={user} /></Suspense> : <Navigate to="/" />} />
+            <Route path="/likes" element={user ? <Suspense fallback={<MatchesSkeleton />}><LikesYouPage user={user} /></Suspense> : <Navigate to="/" />} />
+            <Route path="/chat/:matchId" element={user ? <Suspense fallback={<ChatSkeleton />}><ErrorBoundary><ChatPage user={user} /></ErrorBoundary></Suspense> : <Navigate to="/" />} />
+            <Route path="/profile" element={user ? <Suspense fallback={<ProfileSkeleton />}><ProfilePage user={user} onUpdate={handleLogin} /></Suspense> : <Navigate to="/" />} />
+            <Route path="/profile/:userId" element={user ? <Suspense fallback={<ProfileSkeleton />}><UserProfilePage user={user} /></Suspense> : <Navigate to="/" />} />
             <Route path="/privacy" element={user ? <PrivacyPage user={user} onUpdate={handleLogin} /> : <Navigate to="/" />} />
             <Route path="/settings" element={user ? <SettingsPage user={user} /> : <Navigate to="/" />} />
             <Route path="/profile-viewers" element={user ? <ProfileViewersPage user={user} /> : <Navigate to="/" />} />
