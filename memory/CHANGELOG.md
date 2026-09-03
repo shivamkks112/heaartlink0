@@ -32,6 +32,8 @@
 - [x] **Debug diagnostics**: `adsService.getDebugLog()` available for dev troubleshooting
 - [x] **Banner Ads on Discover**: ADAPTIVE_BANNER at BOTTOM_CENTER, shows on mount, hides on navigate away, event-driven state tracking
 - [x] **Ad Analytics Dashboard**: New admin tab with impression stats, daily chart, type breakdown, rewards tracking, top users, estimated revenue
+- [x] **Ad Revenue in Weekly Email**: Ad impressions, est. revenue, type breakdown, users reached — all added to Monday weekly digest
+- [x] **Server Cleanup Phase 1**: Extracted 4 route modules (ads, games, boost, welcome) — 543 lines moved out, server.py 8839→8179
 
 ---
 

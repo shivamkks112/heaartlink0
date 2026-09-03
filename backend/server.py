@@ -188,6 +188,16 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 api_router = APIRouter(prefix="/api")
 
+# Include extracted route modules
+from routes.ads import router as ads_router
+from routes.games import router as games_router
+from routes.boost import router as boost_router
+from routes.welcome import router as welcome_router
+api_router.include_router(ads_router)
+api_router.include_router(games_router)
+api_router.include_router(boost_router)
+api_router.include_router(welcome_router)
+
 # Health check endpoint for Kubernetes/deployment health checks
 @app.get("/health")
 async def health_check():
@@ -843,6 +853,29 @@ async def _send_weekly_growth_digest():
             if cnt > 0:
                 sources[src] = cnt
         
+        # ── Ad Revenue Stats ──
+        total_impressions = await db.ad_impressions.count_documents({})
+        week_impressions = await db.ad_impressions.count_documents({"created_at": {"$gte": week_ago}})
+        prev_week_impressions = await db.ad_impressions.count_documents({"created_at": {"$gte": prev_week_ago, "$lt": week_ago}})
+        
+        # Breakdown by type this week
+        ad_type_pipeline = [
+            {"$match": {"created_at": {"$gte": week_ago}}},
+            {"$group": {"_id": "$ad_type", "count": {"$sum": 1}}},
+        ]
+        ad_type_data = await db.ad_impressions.aggregate(ad_type_pipeline).to_list(None)
+        ad_types = {t["_id"]: t["count"] for t in ad_type_data}
+        
+        interstitial_imp = ad_types.get("interstitial", 0)
+        rewarded_imp = ad_types.get("rewarded", 0)
+        banner_imp = ad_types.get("banner", 0)
+        
+        # eCPM-based estimated revenue (India market)
+        est_revenue = round((interstitial_imp * 0.75 + rewarded_imp * 2.0 + banner_imp * 0.15) / 1000, 2)
+        
+        week_rewards = await db.ad_rewards.count_documents({"created_at": {"$gte": week_ago}})
+        unique_ad_users = len(await db.ad_impressions.distinct("user_id", {"created_at": {"$gte": week_ago}}))
+        
         def trend(current, previous):
             if previous == 0:
                 return "🆕" if current > 0 else "—"
@@ -900,6 +933,35 @@ async def _send_weekly_growth_digest():
         
         {"<tr><td style='padding:0 24px 24px;'><h3 style='margin:0 0 8px;font-size:14px;color:#374151;'>Acquisition Sources</h3><table width='100%' cellspacing='0' cellpadding='0' style='border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;'>" + source_rows + "</table></td></tr>" if source_rows else ""}
         
+        <tr><td style="padding:0 24px 24px;">
+            <h3 style="margin:0 0 12px;font-size:14px;color:#374151;">📊 Ad Revenue & Impressions</h3>
+            <table width="100%" cellspacing="0" cellpadding="0">
+            <tr>
+                <td style="padding:12px;background:#fffbeb;border-radius:12px;text-align:center;width:33%;">
+                    <p style="margin:0;font-size:24px;font-weight:bold;color:#d97706;">${est_revenue}</p>
+                    <p style="margin:4px 0 0;font-size:11px;color:#6b7280;">Est. Revenue</p>
+                </td>
+                <td style="width:8px;"></td>
+                <td style="padding:12px;background:#eff6ff;border-radius:12px;text-align:center;width:33%;">
+                    <p style="margin:0;font-size:24px;font-weight:bold;color:#2563eb;">{week_impressions}</p>
+                    <p style="margin:4px 0 0;font-size:11px;color:#6b7280;">Impressions {trend(week_impressions, prev_week_impressions)}</p>
+                </td>
+                <td style="width:8px;"></td>
+                <td style="padding:12px;background:#f0fdf4;border-radius:12px;text-align:center;width:33%;">
+                    <p style="margin:0;font-size:24px;font-weight:bold;color:#16a34a;">{unique_ad_users}</p>
+                    <p style="margin:4px 0 0;font-size:11px;color:#6b7280;">Users Reached</p>
+                </td>
+            </tr>
+            </table>
+            <table width="100%" cellspacing="0" cellpadding="0" style="margin-top:12px;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
+            <tr style="background:#f9fafb;"><td style="padding:8px 16px;font-weight:bold;font-size:12px;">Ad Type</td><td style="padding:8px 16px;font-weight:bold;font-size:12px;text-align:right;">Count</td></tr>
+            <tr><td style="padding:6px 16px;border-bottom:1px solid #f0f0f0;font-size:13px;">Interstitial</td><td style="padding:6px 16px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:bold;">{interstitial_imp}</td></tr>
+            <tr><td style="padding:6px 16px;border-bottom:1px solid #f0f0f0;font-size:13px;">Rewarded</td><td style="padding:6px 16px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:bold;">{rewarded_imp}</td></tr>
+            <tr><td style="padding:6px 16px;border-bottom:1px solid #f0f0f0;font-size:13px;">Banner</td><td style="padding:6px 16px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:bold;">{banner_imp}</td></tr>
+            <tr><td style="padding:6px 16px;font-size:13px;">Rewards Given</td><td style="padding:6px 16px;text-align:right;font-weight:bold;color:#7c3aed;">{week_rewards}</td></tr>
+            </table>
+        </td></tr>
+        
         <tr><td style="padding:16px 24px;background:#f9fafb;text-align:center;border-top:1px solid #e5e7eb;">
             <p style="margin:0;font-size:11px;color:#9ca3af;">HeartLink Admin • Auto-generated weekly digest</p>
         </td></tr>
@@ -909,7 +971,7 @@ async def _send_weekly_growth_digest():
         
         # Send to admin emails
         admin_emails = ["shivamkks112@gmail.com"]
-        subject = f"💕 HeartLink Weekly: {installs_week} installs, {signups_week} signups ({conversion}% conversion)"
+        subject = f"💕 HeartLink Weekly: {installs_week} installs, {signups_week} signups, ${est_revenue} ad revenue"
         
         for email in admin_emails:
             result = send_email(email, subject, html)
@@ -6562,260 +6624,10 @@ async def cancel_scheduled_notification(notification_id: str):
     return {"success": True, "message": "Notification cancelled"}
 
 # ==================== ADS & MONETIZATION APIS ====================
+# Moved to routes/ads.py
 
+# ==================== PREMIUM SUBSCRIPTION APIS ====================
 
-
-
-@api_router.post("/ads/impression")
-async def track_ad_impression(data: AdImpressionRequest):
-    """
-    Track ad impression for analytics
-    Business Rules:
-    - Only male, non-premium users can have ad impressions
-    - Max 1 interstitial per day
-    """
-    # Verify user exists and is eligible
-    user = await db.users.find_one({"id": data.user_id})
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    # Check eligibility - only male non-premium users
-    if user.get("gender", "").lower() != "male":
-        raise HTTPException(status_code=403, detail="Ads only for male users")
-    
-    if user.get("is_premium") or user.get("isPremium"):
-        raise HTTPException(status_code=403, detail="Premium users don't see ads")
-    
-    # Record impression
-    impression_doc = {
-        "id": str(uuid.uuid4()),
-        "user_id": data.user_id,
-        "ad_type": data.ad_type,
-        "reward_type": data.reward_type,
-        "amount": data.amount,
-        "timestamp": data.timestamp,
-        "created_at": datetime.now(timezone.utc).isoformat()
-    }
-    
-    await db.ad_impressions.insert_one(impression_doc)
-    
-    # Update user's ad stats
-    await db.users.update_one(
-        {"id": data.user_id},
-        {
-            "$inc": {f"ad_stats.{data.ad_type}_count": 1},
-            "$set": {"ad_stats.last_ad_shown": data.timestamp}
-        }
-    )
-    
-    return {"success": True, "impression_id": impression_doc["id"]}
-
-@api_router.post("/ads/reward")
-async def track_ad_reward(data: AdRewardRequest):
-    """Track reward earned from watching ad"""
-    user = await db.users.find_one({"id": data.user_id})
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    # Record reward
-    reward_doc = {
-        "id": str(uuid.uuid4()),
-        "user_id": data.user_id,
-        "reward_type": data.reward_type,
-        "amount": data.amount,
-        "timestamp": data.timestamp,
-        "created_at": datetime.now(timezone.utc).isoformat()
-    }
-    
-    await db.ad_rewards.insert_one(reward_doc)
-    
-    # Apply reward to user based on type
-    update_fields = {}
-    
-    if data.reward_type == "extra_swipes":
-        update_fields["extra_swipes"] = user.get("extra_swipes", 0) + data.amount
-    elif data.reward_type == "profile_boost":
-        boost_end = datetime.now(timezone.utc) + timedelta(minutes=data.amount)
-        update_fields["profile_boost_end"] = boost_end.isoformat()
-        update_fields["is_boosted"] = True
-    elif data.reward_type == "priority_message":
-        update_fields["priority_messages"] = user.get("priority_messages", 0) + data.amount
-    
-    if update_fields:
-        await db.users.update_one(
-            {"id": data.user_id},
-            {"$set": update_fields}
-        )
-    
-    invalidate_user_cache(data.user_id)
-    
-    return {"success": True, "reward_applied": data.reward_type, "amount": data.amount}
-
-@api_router.get("/ads/stats/{user_id}")
-async def get_ad_stats(user_id: str):
-    """Get user's ad statistics"""
-    user = await db.users.find_one({"id": user_id})
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    # Get today's impressions
-    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-    
-    today_impressions = await db.ad_impressions.count_documents({
-        "user_id": user_id,
-        "created_at": {"$gte": today_start.isoformat()}
-    })
-    
-    today_interstitials = await db.ad_impressions.count_documents({
-        "user_id": user_id,
-        "ad_type": "interstitial",
-        "created_at": {"$gte": today_start.isoformat()}
-    })
-    
-    # Get total rewards earned
-    rewards_pipeline = [
-        {"$match": {"user_id": user_id}},
-        {"$group": {
-            "_id": "$reward_type",
-            "total_amount": {"$sum": "$amount"},
-            "count": {"$sum": 1}
-        }}
-    ]
-    rewards_summary = await db.ad_rewards.aggregate(rewards_pipeline).to_list(None)
-    
-    return {
-        "user_id": user_id,
-        "is_eligible": user.get("gender", "").lower() == "male" and not user.get("is_premium"),
-        "today_impressions": today_impressions,
-        "today_interstitials": today_interstitials,
-        "can_show_interstitial": today_interstitials < 1,  # Max 1 per day
-        "extra_swipes": user.get("extra_swipes", 0),
-        "priority_messages": user.get("priority_messages", 0),
-        "is_boosted": user.get("is_boosted", False),
-        "boost_end": user.get("profile_boost_end"),
-        "rewards_summary": {r["_id"]: {"total": r["total_amount"], "count": r["count"]} for r in rewards_summary}
-    }
-
-@api_router.get("/ads/frequency-cap/{user_id}")
-async def check_frequency_cap(user_id: str):
-    """Check if user can see interstitial ad today"""
-    user = await db.users.find_one({"id": user_id})
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    # Check eligibility
-    if user.get("gender", "").lower() != "male":
-        return {"can_show": False, "reason": "female_user"}
-    
-    if user.get("is_premium") or user.get("isPremium"):
-        return {"can_show": False, "reason": "premium_user"}
-    
-    # Check today's interstitial count
-    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-    
-    today_interstitials = await db.ad_impressions.count_documents({
-        "user_id": user_id,
-        "ad_type": "interstitial",
-        "created_at": {"$gte": today_start.isoformat()}
-    })
-    
-    if today_interstitials >= 1:
-        # Calculate next eligible time (midnight UTC)
-        tomorrow = today_start + timedelta(days=1)
-        return {
-            "can_show": False,
-            "reason": "daily_limit_reached",
-            "next_eligible_at": tomorrow.isoformat()
-        }
-    
-    return {"can_show": True}
-
-
-@api_router.get("/admin/ad-analytics")
-async def get_admin_ad_analytics():
-    """Admin endpoint: Ad impression, reward, and revenue analytics."""
-    now = datetime.now(timezone.utc)
-    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
-    week_ago = (now - timedelta(days=7)).isoformat()
-    month_ago = (now - timedelta(days=30)).isoformat()
-
-    # ── Total counts ──
-    total_impressions = await db.ad_impressions.count_documents({})
-    today_impressions = await db.ad_impressions.count_documents({"created_at": {"$gte": today_start}})
-    week_impressions = await db.ad_impressions.count_documents({"created_at": {"$gte": week_ago}})
-    month_impressions = await db.ad_impressions.count_documents({"created_at": {"$gte": month_ago}})
-
-    total_rewards = await db.ad_rewards.count_documents({})
-    today_rewards = await db.ad_rewards.count_documents({"created_at": {"$gte": today_start}})
-
-    # ── Impressions by ad type ──
-    type_pipeline = [
-        {"$group": {"_id": "$ad_type", "count": {"$sum": 1}}},
-        {"$sort": {"count": -1}}
-    ]
-    type_breakdown = await db.ad_impressions.aggregate(type_pipeline).to_list(None)
-
-    # ── Rewards by type ──
-    reward_pipeline = [
-        {"$group": {"_id": "$reward_type", "count": {"$sum": 1}, "total_amount": {"$sum": "$amount"}}},
-        {"$sort": {"count": -1}}
-    ]
-    reward_breakdown = await db.ad_rewards.aggregate(reward_pipeline).to_list(None)
-
-    # ── Daily impressions (last 7 days) ──
-    daily_pipeline = [
-        {"$match": {"created_at": {"$gte": week_ago}}},
-        {"$addFields": {"date_str": {"$substr": ["$created_at", 0, 10]}}},
-        {"$group": {"_id": "$date_str", "count": {"$sum": 1}}},
-        {"$sort": {"_id": 1}}
-    ]
-    daily_impressions = await db.ad_impressions.aggregate(daily_pipeline).to_list(None)
-
-    # ── Top users by impressions ──
-    top_users_pipeline = [
-        {"$group": {"_id": "$user_id", "count": {"$sum": 1}}},
-        {"$sort": {"count": -1}},
-        {"$limit": 10}
-    ]
-    top_users_raw = await db.ad_impressions.aggregate(top_users_pipeline).to_list(None)
-
-    top_users = []
-    for tu in top_users_raw:
-        u = await db.users.find_one({"id": tu["_id"]}, {"_id": 0, "name": 1, "id": 1})
-        top_users.append({
-            "user_id": tu["_id"],
-            "name": u.get("name", "Unknown") if u else "Deleted",
-            "impressions": tu["count"]
-        })
-
-    # ── Unique users who saw ads ──
-    unique_users_total = len(await db.ad_impressions.distinct("user_id"))
-    unique_users_today = len(await db.ad_impressions.distinct("user_id", {"created_at": {"$gte": today_start}}))
-
-    # ── Estimated revenue (eCPM based) ──
-    # Typical Indian AdMob eCPM: Interstitial ~$0.50-1.00, Rewarded ~$1.00-3.00, Banner ~$0.10-0.30
-    interstitial_count = sum(1 for t in type_breakdown if t["_id"] == "interstitial" for _ in range(t["count"]))
-    rewarded_count = sum(1 for t in type_breakdown if t["_id"] == "rewarded" for _ in range(t["count"]))
-    banner_count = sum(1 for t in type_breakdown if t["_id"] == "banner" for _ in range(t["count"]))
-    est_revenue = (interstitial_count * 0.75 + rewarded_count * 2.0 + banner_count * 0.15) / 1000
-
-    return {
-        "summary": {
-            "total_impressions": total_impressions,
-            "today_impressions": today_impressions,
-            "week_impressions": week_impressions,
-            "month_impressions": month_impressions,
-            "total_rewards": total_rewards,
-            "today_rewards": today_rewards,
-            "unique_users_total": unique_users_total,
-            "unique_users_today": unique_users_today,
-            "estimated_revenue_usd": round(est_revenue, 2),
-        },
-        "type_breakdown": {t["_id"]: t["count"] for t in type_breakdown},
-        "reward_breakdown": {r["_id"]: {"count": r["count"], "total_amount": r["total_amount"]} for r in reward_breakdown},
-        "daily_impressions": [{"date": d["_id"], "count": d["count"]} for d in daily_impressions],
-        "top_users": top_users,
-    }
 
 
 # ==================== PREMIUM SUBSCRIPTION APIS ====================
@@ -7996,433 +7808,14 @@ async def update_feature_flags(data: dict):
     return {k: v for k, v in flags.items() if k != "type"}
 
 
-# ==========================================
-# PLAY WITH MATCH — GAME SYSTEM
-# ==========================================
-
-MATCH_QUIZ_QUESTIONS = [
-    {"id": "q1", "question": "What's your idea of a perfect date?", "options": ["Candlelight dinner", "Movie night", "Adventure trip", "Cooking together"]},
-    {"id": "q2", "question": "What's your love language?", "options": ["Words of affirmation", "Quality time", "Physical touch", "Acts of service"]},
-    {"id": "q3", "question": "How do you handle disagreements?", "options": ["Talk it out calmly", "Take space first", "Humor & lighten up", "Compromise quickly"]},
-    {"id": "q4", "question": "What matters most in a partner?", "options": ["Honesty", "Sense of humor", "Ambition", "Kindness"]},
-    {"id": "q5", "question": "Ideal weekend together?", "options": ["Explore a new city", "Binge-watch shows", "Outdoor adventure", "Stay in & cook"]},
-]
-
-COMPATIBILITY_CHALLENGE_QUESTIONS = [
-    {"id": "c1", "question": "Morning person or night owl?", "options": ["Early bird", "Night owl", "Depends on mood", "Both!"]},
-    {"id": "c2", "question": "Travel style?", "options": ["Backpacking", "Luxury resort", "Road trips", "Spontaneous"]},
-    {"id": "c3", "question": "Favorite cuisine?", "options": ["Indian", "Italian", "Chinese", "Street food"]},
-    {"id": "c4", "question": "How do you relax?", "options": ["Music & chill", "Gym & fitness", "Reading", "Gaming"]},
-    {"id": "c5", "question": "What's your dream?", "options": ["Travel the world", "Build a business", "Happy family", "Creative career"]},
-]
-
-@api_router.post("/game/create")
-async def create_game_session(match_id: str, game_type: str, sender_id: str):
-    """Create a game invitation"""
-    # Validate match
-    match = await db.matches.find_one({"id": match_id, "matched": True})
-    if not match:
-        raise HTTPException(status_code=404, detail="Match not found")
-    
-    # Verify sender is part of the match
-    if sender_id not in [match["user1_id"], match["user2_id"]]:
-        raise HTTPException(status_code=403, detail="Not part of this match")
-    
-    receiver_id = match["user2_id"] if sender_id == match["user1_id"] else match["user1_id"]
-    
-    # Prevent duplicate active sessions
-    existing = await db.game_sessions.find_one({
-        "match_id": match_id,
-        "status": {"$in": ["pending", "active"]},
-        "game_type": game_type
-    })
-    if existing:
-        raise HTTPException(status_code=400, detail="Game already in progress")
-    
-    questions = MATCH_QUIZ_QUESTIONS if game_type == "match_quiz" else COMPATIBILITY_CHALLENGE_QUESTIONS
-    
-    session = {
-        "id": str(uuid.uuid4()),
-        "match_id": match_id,
-        "game_type": game_type,
-        "sender_id": sender_id,
-        "receiver_id": receiver_id,
-        "status": "pending",  # pending, active, completed, declined
-        "questions": questions,
-        "answers": {},  # {user_id: {q1: "option", q2: "option"...}}
-        "score": None,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-    }
-    await db.game_sessions.insert_one(session)
-    
-    # Send game invite as chat message
-    invite_msg = {
-        "id": str(uuid.uuid4()),
-        "match_id": match_id,
-        "sender_id": sender_id,
-        "receiver_id": receiver_id,
-        "content": f"__GAME_INVITE__{session['id']}__{game_type}__",
-        "message_type": "game_invite",
-        "read": False,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-    }
-    await db.messages.insert_one(invite_msg)
-    
-    # Push notification
-    sender = await db.users.find_one({"id": sender_id}, {"_id": 0, "name": 1})
-    game_label = "Match Quiz" if game_type == "match_quiz" else "Compatibility Challenge"
-    await create_in_app_notification(
-        receiver_id, "Game Invitation!",
-        f"{sender['name'] if sender else 'Someone'} invited you to {game_label}!",
-        "game", {"action": "open_chat", "match_id": match_id, "game_id": session["id"]}
-    )
-    try:
-        await fcm_service.send_to_user(db, receiver_id, "Game Invitation!", f"{sender['name'] if sender else 'Someone'} wants to play {game_label}!")
-    except Exception:
-        pass
-    
-    return {"game_id": session["id"], "status": "pending", "message_id": invite_msg.get("id")}
-
-@api_router.post("/game/{game_id}/respond")
-async def respond_to_game(game_id: str, user_id: str, action: str):
-    """Accept or decline a game invitation"""
-    session = await db.game_sessions.find_one({"id": game_id})
-    if not session:
-        raise HTTPException(status_code=404, detail="Game not found")
-    
-    if user_id != session["receiver_id"]:
-        raise HTTPException(status_code=403, detail="Only the invited user can respond")
-    
-    if session["status"] != "pending":
-        raise HTTPException(status_code=400, detail="Game already responded to")
-    
-    if action == "accept":
-        await db.game_sessions.update_one({"id": game_id}, {"$set": {"status": "active"}})
-        return {"status": "active", "questions": session["questions"]}
-    else:
-        await db.game_sessions.update_one({"id": game_id}, {"$set": {"status": "declined"}})
-        return {"status": "declined"}
-
-@api_router.post("/game/{game_id}/answer")
-async def submit_game_answers(game_id: str, user_id: str, answers: dict):
-    """Submit answers for a game session"""
-    session = await db.game_sessions.find_one({"id": game_id})
-    if not session:
-        raise HTTPException(status_code=404, detail="Game not found")
-    
-    if session["status"] not in ["active", "pending"]:
-        raise HTTPException(status_code=400, detail="Game not active")
-    
-    if user_id not in [session["sender_id"], session["receiver_id"]]:
-        raise HTTPException(status_code=403, detail="Not a participant")
-    
-    # Prevent duplicate submissions
-    existing_answers = session.get("answers", {})
-    if user_id in existing_answers:
-        raise HTTPException(status_code=400, detail="Already submitted answers")
-    
-    existing_answers[user_id] = answers
-    update = {"$set": {f"answers.{user_id}": answers, "status": "active"}}
-    
-    # Check if both answered
-    other_id = session["receiver_id"] if user_id == session["sender_id"] else session["sender_id"]
-    if other_id in existing_answers:
-        # Calculate score
-        matching = 0
-        total = len(session["questions"])
-        for q in session["questions"]:
-            qid = q["id"]
-            if existing_answers.get(other_id, {}).get(qid) == answers.get(qid):
-                matching += 1
-        
-        score = int((matching / total) * 100) if total > 0 else 0
-        
-        # Fun messages
-        if score >= 80:
-            msg = "You two have an amazing vibe!"
-        elif score >= 60:
-            msg = "Great compatibility! You think alike."
-        elif score >= 40:
-            msg = "Interesting mix! Opposites attract."
-        else:
-            msg = "Different perspectives make great conversations!"
-        
-        update["$set"]["status"] = "completed"
-        update["$set"]["score"] = score
-        update["$set"]["result_message"] = msg
-        update["$set"]["completed_at"] = datetime.now(timezone.utc).isoformat()
-        
-        # Notify both
-        for uid in [session["sender_id"], session["receiver_id"]]:
-            await create_in_app_notification(
-                uid, "Game Complete!", f"You scored {score}% compatibility! {msg}",
-                "game_result", {"match_id": session["match_id"], "game_id": game_id, "score": score}
-            )
-            try:
-                await fcm_service.send_to_user(db, uid, "Game Complete!", f"{score}% compatibility! {msg}")
-            except Exception:
-                pass
-    
-    await db.game_sessions.update_one({"id": game_id}, update)
-    
-    result = await db.game_sessions.find_one({"id": game_id}, {"_id": 0})
-    result.pop("_id", None)
-    return result
-
-@api_router.get("/game/{game_id}")
-async def get_game_session(game_id: str):
-    """Get game session details"""
-    session = await db.game_sessions.find_one({"id": game_id}, {"_id": 0})
-    if not session:
-        raise HTTPException(status_code=404, detail="Game not found")
-    return session
-
-@api_router.get("/game/match/{match_id}")
-async def get_match_games(match_id: str):
-    """Get all games for a match"""
-    games = await db.game_sessions.find(
-        {"match_id": match_id},
-        {"_id": 0}
-    ).sort("created_at", -1).limit(10).to_list(None)
-    return games
 
 # ==========================================
-# PROFILE BOOST
+# PLAY WITH MATCH — Moved to routes/games.py
+# PROFILE BOOST — Moved to routes/boost.py
+# WELCOME MESSAGE SYSTEM — Moved to routes/welcome.py
 # ==========================================
 
-@api_router.post("/boost/{user_id}")
-async def activate_boost(user_id: str):
-    """Activate a 30-minute profile boost (1 free per day)"""
-    user = await db.users.find_one({"id": user_id}, {"_id": 0, "id": 1, "last_boost": 1, "name": 1})
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    # Check last boost (1 free per day)
-    last_boost = user.get("last_boost")
-    if last_boost:
-        try:
-            lb = datetime.fromisoformat(last_boost.replace("Z", "+00:00"))
-            if (datetime.now(timezone.utc) - lb).total_seconds() < 86400:
-                raise HTTPException(status_code=429, detail="Daily boost already used. Try again tomorrow or upgrade to Premium.")
-        except (ValueError, TypeError):
-            pass
-    
-    boost_end = (datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat()
-    await db.users.update_one(
-        {"id": user_id},
-        {"$set": {
-            "boost_active": True,
-            "boost_end": boost_end,
-            "last_boost": datetime.now(timezone.utc).isoformat()
-        }}
-    )
-    invalidate_user_cache(user_id)
-    
-    return {"message": "Boost activated! Your profile will appear first for 30 minutes.", "boost_end": boost_end}
-
-@api_router.get("/boost/{user_id}/status")
-async def get_boost_status(user_id: str):
-    """Check if user's boost is active"""
-    user = await db.users.find_one({"id": user_id}, {"_id": 0, "boost_active": 1, "boost_end": 1, "last_boost": 1})
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    is_active = False
-    remaining = 0
-    can_boost = True
-    
-    if user.get("boost_active") and user.get("boost_end"):
-        try:
-            end = datetime.fromisoformat(user["boost_end"].replace("Z", "+00:00"))
-            remaining = max(0, int((end - datetime.now(timezone.utc)).total_seconds()))
-            is_active = remaining > 0
-            if not is_active:
-                await db.users.update_one({"id": user_id}, {"$set": {"boost_active": False}})
-        except Exception:
-            pass
-    
-    if user.get("last_boost"):
-        try:
-            lb = datetime.fromisoformat(user["last_boost"].replace("Z", "+00:00"))
-            can_boost = (datetime.now(timezone.utc) - lb).total_seconds() >= 86400
-        except Exception:
-            pass
-    
-    return {"is_active": is_active, "remaining_seconds": remaining, "can_boost": can_boost}
-
-
-
-# Include router - MUST be at the very end after all route definitions
-# ==================== WELCOME MESSAGE SYSTEM ====================
-
-DEFAULT_WELCOME_SETTINGS = {
-    "type": "welcome_messages",
-    "new_user_enabled": True,
-    "new_user_title": "Welcome to HeartLink",
-    "new_user_message": "We're happy to have you here. Complete your profile, discover interesting people and start making meaningful connections.",
-    "new_user_cta": "Explore HeartLink",
-    "returning_user_enabled": True,
-    "returning_user_title": "Welcome back, {firstName}!",
-    "returning_user_message": "We've missed you. See who's new, check your matches and continue your conversations.",
-    "returning_user_cta": "Continue Exploring",
-    "returning_inactivity_days": 7,
-}
-
-
-@api_router.get("/welcome-check/{user_id}")
-async def check_welcome_message(user_id: str):
-    """Check if the user should see a welcome message. Returns message config or null."""
-    user = await db.users.find_one({"id": user_id}, {
-        "_id": 0, "id": 1, "name": 1, "welcome_shown_at": 1,
-        "welcome_back_shown_at": 1, "last_active": 1, "prev_last_active": 1, "created_at": 1
-    })
-    if not user:
-        return {"show": False}
-    
-    # Get welcome settings from admin config
-    settings = await db.app_settings.find_one({"type": "welcome_messages"}, {"_id": 0})
-    if not settings:
-        settings = {**DEFAULT_WELCOME_SETTINGS}
-        await db.app_settings.insert_one({**settings})
-    
-    first_name = (user.get("name") or "").split()[0] if user.get("name") else ""
-    
-    # Case 1: New user — never shown welcome
-    if not user.get("welcome_shown_at") and settings.get("new_user_enabled", True):
-        title = settings.get("new_user_title", DEFAULT_WELCOME_SETTINGS["new_user_title"])
-        msg = settings.get("new_user_message", DEFAULT_WELCOME_SETTINGS["new_user_message"])
-        cta = settings.get("new_user_cta", DEFAULT_WELCOME_SETTINGS["new_user_cta"])
-        
-        title = title.replace("{firstName}", first_name).replace("{fullName}", user.get("name", ""))
-        msg = msg.replace("{firstName}", first_name).replace("{fullName}", user.get("name", ""))
-        
-        return {"show": True, "type": "new_user", "title": title, "message": msg, "cta": cta}
-    
-    # Case 2: Returning user — inactive 7+ days
-    if settings.get("returning_user_enabled", True):
-        inactivity_days = settings.get("returning_inactivity_days", 7)
-        # Use prev_last_active (before login updated it) if available, else last_active
-        last_active = user.get("prev_last_active") or user.get("last_active")
-        welcome_back_at = user.get("welcome_back_shown_at")
-        
-        if last_active:
-            try:
-                last_active_dt = datetime.fromisoformat(last_active.replace("Z", "+00:00"))
-                days_inactive = (datetime.now(timezone.utc) - last_active_dt).days
-                
-                if days_inactive >= inactivity_days:
-                    # Don't show if already shown recently (within the inactivity period)
-                    if welcome_back_at:
-                        wb_dt = datetime.fromisoformat(welcome_back_at.replace("Z", "+00:00"))
-                        days_since_wb = (datetime.now(timezone.utc) - wb_dt).days
-                        if days_since_wb < inactivity_days:
-                            return {"show": False}
-                    
-                    title = settings.get("returning_user_title", DEFAULT_WELCOME_SETTINGS["returning_user_title"])
-                    msg = settings.get("returning_user_message", DEFAULT_WELCOME_SETTINGS["returning_user_message"])
-                    cta = settings.get("returning_user_cta", DEFAULT_WELCOME_SETTINGS["returning_user_cta"])
-                    
-                    title = title.replace("{firstName}", first_name).replace("{fullName}", user.get("name", ""))
-                    msg = msg.replace("{firstName}", first_name).replace("{fullName}", user.get("name", ""))
-                    
-                    return {"show": True, "type": "welcome_back", "title": title, "message": msg, "cta": cta}
-            except Exception:
-                pass
-    
-    return {"show": False}
-
-
-@api_router.post("/welcome-shown/{user_id}")
-async def mark_welcome_shown(user_id: str, request: Request):
-    """Mark that the welcome message has been shown to the user."""
-    try:
-        data = await request.json()
-    except Exception:
-        data = {}
-    
-    welcome_type = data.get("type", "new_user")
-    now = datetime.now(timezone.utc).isoformat()
-    
-    if welcome_type == "new_user":
-        await db.users.update_one({"id": user_id}, {"$set": {"welcome_shown_at": now}})
-        # Analytics
-        await db.app_settings.update_one(
-            {"type": "welcome_analytics"},
-            {"$inc": {"new_user_welcome_shown": 1}},
-            upsert=True
-        )
-    elif welcome_type == "welcome_back":
-        await db.users.update_one({"id": user_id}, {"$set": {"welcome_back_shown_at": now}})
-        await db.app_settings.update_one(
-            {"type": "welcome_analytics"},
-            {"$inc": {"welcome_back_shown": 1}},
-            upsert=True
-        )
-    
-    return {"status": "ok"}
-
-
-@api_router.post("/welcome-clicked/{user_id}")
-async def mark_welcome_clicked(user_id: str, request: Request):
-    """Track that the user clicked the CTA on the welcome message."""
-    try:
-        data = await request.json()
-    except Exception:
-        data = {}
-    
-    welcome_type = data.get("type", "new_user")
-    field = "new_user_welcome_clicked" if welcome_type == "new_user" else "welcome_back_clicked"
-    
-    await db.app_settings.update_one(
-        {"type": "welcome_analytics"},
-        {"$inc": {field: 1}},
-        upsert=True
-    )
-    return {"status": "ok"}
-
-
-@api_router.get("/admin/welcome-settings")
-async def get_welcome_settings():
-    """Get welcome message settings for admin."""
-    settings = await db.app_settings.find_one({"type": "welcome_messages"}, {"_id": 0})
-    if not settings:
-        settings = {**DEFAULT_WELCOME_SETTINGS}
-        await db.app_settings.insert_one({**settings})
-    
-    analytics = await db.app_settings.find_one({"type": "welcome_analytics"}, {"_id": 0})
-    
-    return {
-        "settings": {k: v for k, v in settings.items() if k != "type"},
-        "analytics": {k: v for k, v in (analytics or {}).items() if k not in ("type", "_id")}
-    }
-
-
-@api_router.put("/admin/welcome-settings")
-async def update_welcome_settings(request: Request):
-    """Update welcome message settings from admin."""
-    try:
-        data = await request.json()
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid JSON")
-    
-    allowed_keys = {
-        "new_user_enabled", "new_user_title", "new_user_message", "new_user_cta",
-        "returning_user_enabled", "returning_user_title", "returning_user_message",
-        "returning_user_cta", "returning_inactivity_days"
-    }
-    updates = {k: v for k, v in data.items() if k in allowed_keys}
-    
-    if not updates:
-        raise HTTPException(status_code=400, detail="No valid settings provided")
-    
-    await db.app_settings.update_one(
-        {"type": "welcome_messages"},
-        {"$set": updates},
-        upsert=True
-    )
-    
-    settings = await db.app_settings.find_one({"type": "welcome_messages"}, {"_id": 0})
-    return {k: v for k, v in settings.items() if k != "type"}
+# ==================== ANALYTICS & INSTALL TRACKING ====================
 
 
 # ==================== ANALYTICS & INSTALL TRACKING ====================

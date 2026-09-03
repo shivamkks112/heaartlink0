@@ -90,6 +90,18 @@ Modern, safe, trust-based dating app for Indian users. React frontend + FastAPI 
 - Like (66px): Large emerald gradient, filled Heart, pulse ring animation
 - Crush (46px, conditional): Amber Flame icon, only when crush_feature=true
 
+## Server Architecture (Sep 3, 2026)
+- `/app/backend/server.py` — Main server (8179 lines, down from 8839)
+- `/app/backend/routes/ads.py` — Ad impression, rewards, frequency cap, admin analytics (184 lines)
+- `/app/backend/routes/games.py` — Play With Match game system (136 lines)
+- `/app/backend/routes/boost.py` — Profile boost (79 lines)
+- `/app/backend/routes/welcome.py` — Welcome message system (143 lines)
+- `/app/backend/database.py` — Shared MongoDB connection, caches, indexes
+- `/app/backend/ai_chatbot.py` — 15 AI girl profiles and response generation
+- `/app/backend/fcm_service.py` — FCM push notifications
+- `/app/backend/email_service.py` — Resend email service
+- Total extracted: 543 lines into 4 route modules
+
 ## Pending / Backlog
 - P0: Razorpay Premium Subscription (₹99-999/month)
 - P1: Virtual Gifts & HeartCoins
