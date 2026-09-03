@@ -76,6 +76,16 @@ Modern, safe, trust-based dating app for Indian users. React frontend + FastAPI 
 ## Like/Pass Button Design (Sep 3, 2026)
 - Glassmorphic floating dock: `backdrop-blur(20px)`, glass border, dark translucent bg
 - Pass (56px): Rose-tinted circle, X icon, glow on hover
+
+## AI Chatbot Girls — 15 Profiles (Sep 3, 2026)
+- 15 AI girl profiles with AI-generated Indian face photos
+- 5 NEW: Ishita Sen (Kolkata), Diya Joshi (Indore), Kiara Rathore (Udaipur), Naina Thapa (Shillong), Sara Mehta (Ahmedabad)
+- All 10 existing profiles updated with realistic Indian photos
+- Personality types: flirty_fun, sweet_caring, witty_smart
+- Proactive messaging: AI sends 1st message (1-4hr delay), optional follow-up (2-6hr if no reply)
+- Human-like behavior: varied message lengths, natural typos, filler words, emotional intelligence
+- Admin toggle: ai_chatbot feature flag controls all AI behavior
+
 - SuperLike (46px): Blue-tinted circle, filled Star icon
 - Like (66px): Large emerald gradient, filled Heart, pulse ring animation
 - Crush (46px, conditional): Amber Flame icon, only when crush_feature=true
@@ -86,4 +96,4 @@ Modern, safe, trust-based dating app for Indian users. React frontend + FastAPI 
 - P2: AI-based Photo Verification
 - P3: AI Trust Score Algorithm
 - P4: Video Intros (15-second profile videos)
-- Refactoring: server.py route extraction (8500+ lines → auth.py, matches.py, admin.py, chat.py)
+- Refactoring: server.py route extraction (8500+ lines)

@@ -4,7 +4,7 @@
 
 ---
 
-## Sep 3, 2026 — Realtime Messaging + Active Users Fix + Crush Admin + Button Redesign
+## Sep 3, 2026 — Realtime Messaging + Active Users Fix + Crush Admin + Button Redesign + AI Girls Upgrade
 - [x] **CRITICAL FIX**: ChatPage no longer creates duplicate WebSocket (uses global wsService)
 - [x] **CRITICAL FIX**: Active Users "Active(0)" bug — fixed privacy_settings filter, case-insensitive gender matching, expanded threshold
 - [x] New `/api/conversations/{user_id}` endpoint — returns all conversations with lastMessage & unreadCount in single call
@@ -19,6 +19,11 @@
 - [x] **Track Install Fix**: Atomic upsert replaces find_one+insert_one (fixes DuplicateKeyError 500)
 - [x] **Feature Flags Merge**: GET /api/admin/feature-flags now always merges stored values with defaults
 - [x] **Tab Strip Fix**: Mobile-responsive tab labels (shortened on <640px)
+- [x] **AI Girls Upgrade**: 15 total AI profiles (5 new + 10 existing), all with AI-generated realistic Indian face photos
+- [x] **New AI Girls**: Ishita Sen (Kolkata), Diya Joshi (Indore), Kiara Rathore (Udaipur), Naina Thapa (Shillong), Sara Mehta (Ahmedabad)
+- [x] **Proactive Messaging**: AI girls send 1st message (1-4hr delay) + optional follow-up (2-6hr if no reply, 50% chance)
+- [x] **Human-like Personality**: Varied message lengths, natural filler words, emotional intelligence, no robotic patterns
+- [x] **Enhanced System Prompt**: Pure human feel — typos, broken sentences, double messages, voice note vibe
 
 ---
 
