@@ -109,6 +109,16 @@ const DiscoverPage = ({ user }) => {
     }
   };
 
+  // Show banner only when profiles are available, hide on empty state
+  useEffect(() => {
+    if (!shouldShowAds) return;
+    if (profiles.length > 0 && currentIndex < profiles.length) {
+      adsService.showBanner();
+    } else {
+      adsService.hideBanner();
+    }
+  }, [profiles.length, currentIndex, shouldShowAds]);
+
   useEffect(() => {
     fetchProfiles();
   }, [cityFilter]); // eslint-disable-line
@@ -123,10 +133,8 @@ const DiscoverPage = ({ user }) => {
   useEffect(() => {
     updateGPSLocation();
     if (shouldShowAds) {
-      adsService.initialize().then(() => {
-        // Show banner ad on Discover page for passive impressions
-        adsService.showBanner();
-      });
+      adsService.initialize();
+      // Banner will be shown/hidden based on profile availability (see below)
     }
 
     const today = new Date().toDateString();
