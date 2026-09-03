@@ -245,11 +245,8 @@ const MatchesPage = ({ user }) => {
   };
 
   const fetchMatches = async () => {
-    setLoading(true);
     try {
-      console.log('🔍 Fetching matches for user:', user.id);
       const response = await axios.get(`${API}/matches/${user.id}`);
-      console.log('✅ Matches API Response:', response.data);
       setMatches(response.data);
       setLoading(false);
     } catch (error) {
@@ -260,80 +257,42 @@ const MatchesPage = ({ user }) => {
   };
 
   const fetchConversations = async () => {
-    setLoading(true);
     try {
-      // Get all matches first
-      const matchesResponse = await axios.get(`${API}/matches/${user.id}`);
-      const allMatches = matchesResponse.data;
-      
-      // For each match, get the last message using dedicated endpoint
-      const conversationsWithMessages = await Promise.all(
-        allMatches.map(async (match) => {
-          try {
-            // Use the new /last endpoint to get the most recent message
-            const lastMsgResponse = await axios.get(`${API}/messages/${match.match_id}/last`);
-            const lastMessage = lastMsgResponse.data;
-            
-            // Count unread messages
-            const unreadResponse = await axios.get(`${API}/messages/${match.match_id}/unread-count/${user.id}`);
-            const unreadCount = unreadResponse.data?.count || 0;
-            
-            return {
-              ...match,
-              lastMessage,
-              unreadCount,
-              hasMessages: lastMessage !== null
-            };
-          } catch (error) {
-            return {
-              ...match,
-              lastMessage: null,
-              unreadCount: 0,
-              hasMessages: false
-            };
-          }
-        })
-      );
-      
-      // Filter to only show conversations with messages and sort by last message time (NEWEST FIRST)
-      const activeConversations = conversationsWithMessages
-        .filter(conv => conv.hasMessages && conv.lastMessage)
-        .sort((a, b) => {
-          const timeA = a.lastMessage?.created_at ? new Date(a.lastMessage.created_at) : new Date(0);
-          const timeB = b.lastMessage?.created_at ? new Date(b.lastMessage.created_at) : new Date(0);
-          return timeB - timeA; // Newest first
-        });
+      // Use the efficient single-query conversations endpoint
+      const response = await axios.get(`${API}/conversations/${user.id}`);
+      const activeConversations = response.data || [];
       
       setConversations(activeConversations);
       
       // Store unread counts
       const counts = {};
       activeConversations.forEach(conv => {
-        counts[conv.match_id] = conv.unreadCount;
+        counts[conv.match_id] = conv.unreadCount || 0;
       });
       setUnreadCounts(counts);
       
       setLoading(false);
     } catch (error) {
-      console.error('❌ Error fetching conversations:', error);
+      console.error('Error fetching conversations:', error);
       toast.error('Failed to load messages');
       setLoading(false);
     }
   };
 
   const fetchActiveUsers = async () => {
-    setLoading(true);
     try {
       const response = await axios.get(`${API}/active-users/${user.id}`);
-      setActiveUsers(response.data);
+      setActiveUsers(response.data || []);
       setLoading(false);
     } catch (error) {
-      toast.error('Failed to load active users');
+      console.error('Failed to load active users:', error);
+      setActiveUsers([]);
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    setLoading(true);
     if (activeTab === 'matches') {
       fetchMatches();
     } else if (activeTab === 'messages') {
@@ -349,9 +308,36 @@ const MatchesPage = ({ user }) => {
     });
     
     const unsubMsg = wsService.on('new_message', (msg) => {
-      if (activeTab === 'messages') fetchConversations();
-      // Update unread count for this match
-      if (msg?.match_id) {
+      if (!msg) return;
+      // Inline update: update the specific conversation's lastMessage and unreadCount
+      let found = false;
+      setConversations(prev => {
+        const idx = prev.findIndex(c => c.match_id === msg.match_id);
+        if (idx >= 0) {
+          found = true;
+          const updated = [...prev];
+          updated[idx] = {
+            ...updated[idx],
+            lastMessage: msg,
+            unreadCount: msg.sender_id !== user.id ? (updated[idx].unreadCount || 0) + 1 : updated[idx].unreadCount,
+            hasMessages: true,
+          };
+          // Re-sort: newest first
+          updated.sort((a, b) => {
+            const tA = a.lastMessage?.created_at ? new Date(a.lastMessage.created_at) : new Date(0);
+            const tB = b.lastMessage?.created_at ? new Date(b.lastMessage.created_at) : new Date(0);
+            return tB - tA;
+          });
+          return updated;
+        }
+        return prev;
+      });
+      // If conversation not in list yet (first message), do a deferred refetch
+      if (!found && activeTab === 'messages') {
+        setTimeout(() => fetchConversations(), 100);
+      }
+      // Update unread count
+      if (msg.sender_id !== user.id && msg.match_id) {
         setUnreadCounts(prev => ({
           ...prev,
           [msg.match_id]: (prev[msg.match_id] || 0) + 1
@@ -360,7 +346,7 @@ const MatchesPage = ({ user }) => {
     });
     
     const unsubStatus = wsService.on('status_update', (data) => {
-      // Update online status in real-time
+      // Update online status in real-time across all tabs
       setMatches(prev => prev.map(m => 
         m.user?.id === data.user_id 
           ? { ...m, user: { ...m.user, is_online: data.is_online, last_active: data.last_active } }
@@ -371,15 +357,38 @@ const MatchesPage = ({ user }) => {
           ? { ...c, user: { ...c.user, is_online: data.is_online, last_active: data.last_active } }
           : c
       ));
+      // Refresh active users when someone comes online/offline
+      fetchActiveUsers();
     });
+    
+    // Periodic refresh for active tab (every 30s)
+    let activeRefreshInterval;
+    if (activeTab === 'active') {
+      activeRefreshInterval = setInterval(fetchActiveUsers, 30000);
+    }
     
     return () => {
       unsubMatch();
       unsubMsg();
       unsubStatus();
+      if (activeRefreshInterval) clearInterval(activeRefreshInterval);
     };
     // eslint-disable-next-line
   }, [activeTab]);
+
+  // Always fetch active user count on mount (for tab label)
+  useEffect(() => {
+    const fetchActiveCount = async () => {
+      try {
+        const response = await axios.get(`${API}/active-users/${user.id}`);
+        setActiveUsers(response.data || []);
+      } catch (e) { /* silent */ }
+    };
+    fetchActiveCount();
+    // Refresh count every 30s regardless of which tab is selected
+    const interval = setInterval(fetchActiveCount, 30000);
+    return () => clearInterval(interval);
+  }, [user.id]); // eslint-disable-line
 
   // Refresh conversations when page becomes visible (e.g., coming back from chat)
   useEffect(() => {

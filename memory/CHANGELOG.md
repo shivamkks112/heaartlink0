@@ -4,6 +4,20 @@
 
 ---
 
+## Sep 3, 2026 — Realtime Messaging + Active Users Fix
+- [x] **CRITICAL FIX**: ChatPage no longer creates duplicate WebSocket (uses global wsService)
+- [x] **CRITICAL FIX**: Active Users "Active(0)" bug — fixed privacy_settings filter, case-insensitive gender matching, expanded threshold
+- [x] New `/api/conversations/{user_id}` endpoint — returns all conversations with lastMessage & unreadCount in single call
+- [x] MatchesPage inline realtime updates — new messages update conversation preview without full refetch
+- [x] Active tab count loads on mount regardless of which tab is selected
+- [x] WebSocket ping (25s) updates `last_active` in DB for reliable presence
+- [x] Badge count fix — sender's own message echo no longer inflates unread count
+- [x] Regex escape for gender values in active-users query (security hardening)
+- [x] WebSocketService handles all event types: typing_indicator, screenshot_alert, message_deleted, messages_read, message_delivered
+
+---
+
+
 ## Aug 31, 2026 — Latest Session
 - [x] Show Password toggle (Eye/EyeOff) on Login + Signup forms (AuthPage.jsx)
 - [x] Chat Filter strip (Recent / Oldest / Unread) on Messages tab (MatchesPage.jsx)

@@ -3441,7 +3441,7 @@ async def discover_nearby(user_id: str, max_distance: int = 25, limit: int = 20)
         "id": {"$ne": user_id, "$nin": blocked_users + blocker_ids + list(interacted_ids)},
         "latitude": {"$exists": True, "$ne": None},
         "longitude": {"$exists": True, "$ne": None},
-        "privacy_settings.show_profile": True
+        "privacy_settings.show_profile": {"$ne": False}
     }
     
     # Add gender filters
@@ -4127,33 +4127,42 @@ async def get_active_users(user_id: str, limit: int = 20):
         matched_ids.add(m["user1_id"])
         matched_ids.add(m["user2_id"])
     
-    # Calculate time threshold - truly active users (last 10 minutes)
-    active_threshold = (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
+    # Active threshold: users active in last 30 minutes or connected via WS
+    active_threshold = (datetime.now(timezone.utc) - timedelta(minutes=30)).isoformat()
     
-    # Find active users - currently online or very recently active
-    ws_connected_ids = list(manager.active_connections.keys())
+    # Get currently WebSocket-connected user IDs
+    ws_connected_ids = [uid for uid in manager.active_connections.keys() if uid != user_id]
+    
+    # Exclude list: blocked + blockers (NOT matched users — they can be active too)
+    exclude_ids = list(set(blocked_users + blocker_ids + [user_id]))
+    
+    # Case-insensitive gender matching using regex (escape special chars for safety)
+    looking_for = re.escape(current_user.get("looking_for", "female").strip())
+    my_gender = re.escape(current_user.get("gender", "male").strip())
     
     query = {
-        "id": {"$ne": user_id, "$nin": blocked_users + blocker_ids + list(matched_ids)},
-        "gender": current_user["looking_for"],
-        "looking_for": current_user["gender"],
-        "privacy_settings.show_profile": True,
+        "id": {"$nin": exclude_ids},
+        "gender": {"$regex": f"^{looking_for}$", "$options": "i"},
+        "looking_for": {"$regex": f"^{my_gender}$", "$options": "i"},
+        "privacy_settings.show_profile": {"$ne": False},
         "is_ai_profile": {"$ne": True},
+        "is_permanently_banned": {"$ne": True},
+        "is_shadow_banned": {"$ne": True},
         "$or": [
             {"id": {"$in": ws_connected_ids}},
-            {"is_online": True, "last_active": {"$gte": active_threshold}}
+            {"last_active": {"$gte": active_threshold}}
         ]
     }
     
     users = await db.users.find(query).sort("last_active", -1).limit(limit).to_list(None)
     
-    # Calculate if user is online (active in last 5 minutes)
+    # Determine online status: WS-connected OR active in last 5 minutes
     five_min_ago = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
     
     return [{
         "id": u["id"],
         "name": u["name"],
-        "age": u["age"],
+        "age": u.get("age", 0),
         "bio": u.get("bio", ""),
         "photos": u.get("photos", []),
         "profile_picture": u.get("profile_picture"),
@@ -4161,8 +4170,83 @@ async def get_active_users(user_id: str, limit: int = 20):
         "verified": u.get("verified", False),
         "location": u.get("location", ""),
         "last_active": u.get("last_active"),
-        "is_online": u.get("last_active", "") >= five_min_ago if u.get("last_active") else False
+        "is_online": (u["id"] in ws_connected_ids) or (u.get("last_active", "") >= five_min_ago if u.get("last_active") else False)
     } for u in users]
+
+
+@api_router.get("/conversations/{user_id}")
+async def get_conversations(user_id: str):
+    """Get all conversations with last message and unread count in ONE query — avoids N+1"""
+    # Get all matched matches
+    matches = await db.matches.find({
+        "$or": [{"user1_id": user_id}, {"user2_id": user_id}],
+        "matched": True
+    }).to_list(None)
+    
+    if not matches:
+        return []
+    
+    ws_connected_ids = set(manager.active_connections.keys())
+    five_min_ago = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
+    conversations = []
+    
+    for match in matches:
+        match_id = match["id"]
+        other_user_id = match["user2_id"] if match["user1_id"] == user_id else match["user1_id"]
+        
+        # Get last message and unread count in parallel
+        pipeline_last = [
+            {"$match": {"match_id": match_id, "is_deleted_for_all": {"$ne": True}}},
+            {"$sort": {"created_at": -1}},
+            {"$limit": 1},
+            {"$project": {"_id": 0}}
+        ]
+        pipeline_unread = [
+            {"$match": {"match_id": match_id, "receiver_id": user_id, "read": False, "is_deleted_for_all": {"$ne": True}}},
+            {"$count": "count"}
+        ]
+        
+        last_msgs = await db.messages.aggregate(pipeline_last).to_list(1)
+        unread_result = await db.messages.aggregate(pipeline_unread).to_list(1)
+        
+        last_message = last_msgs[0] if last_msgs else None
+        unread_count = unread_result[0]["count"] if unread_result else 0
+        
+        if not last_message:
+            continue
+        
+        # Get other user info
+        other_user = await db.users.find_one({"id": other_user_id}, {
+            "_id": 0, "id": 1, "name": 1, "age": 1, "profile_picture": 1, "photos": 1,
+            "is_online": 1, "last_active": 1, "verified": 1, "is_ai_profile": 1
+        })
+        if not other_user:
+            continue
+        
+        is_online = (other_user_id in ws_connected_ids) or (other_user.get("last_active", "") >= five_min_ago if other_user.get("last_active") else False)
+        
+        conversations.append({
+            "match_id": match_id,
+            "user": {
+                "id": other_user["id"],
+                "name": other_user.get("name", ""),
+                "age": other_user.get("age", 0),
+                "profile_picture": other_user.get("profile_picture"),
+                "photos": other_user.get("photos", []),
+                "is_online": is_online,
+                "last_active": other_user.get("last_active"),
+                "verified": other_user.get("verified", False),
+                "is_ai_profile": other_user.get("is_ai_profile", False),
+            },
+            "lastMessage": serialize_user_for_response(last_message, exclude_password=False),
+            "unreadCount": unread_count,
+            "hasMessages": True,
+        })
+    
+    # Sort by last message time, newest first
+    conversations.sort(key=lambda c: c["lastMessage"].get("created_at", ""), reverse=True)
+    return conversations
+
 
 # Chat Routes
 @api_router.get("/messages/{match_id}")
@@ -4680,6 +4764,14 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
         while True:
             data = await websocket.receive_text()
             message_data = json.loads(data)
+            
+            # Handle ping/heartbeat — update last_active to keep presence fresh
+            if message_data.get("type") == "ping":
+                await db.users.update_one(
+                    {"id": user_id},
+                    {"$set": {"last_active": datetime.now(timezone.utc).isoformat(), "is_online": True}}
+                )
+                continue
             
             # Handle typing indicator via WS (fast path)
             if message_data.get("type") == "typing":
