@@ -6730,6 +6730,94 @@ async def check_frequency_cap(user_id: str):
     
     return {"can_show": True}
 
+
+@api_router.get("/admin/ad-analytics")
+async def get_admin_ad_analytics():
+    """Admin endpoint: Ad impression, reward, and revenue analytics."""
+    now = datetime.now(timezone.utc)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+    week_ago = (now - timedelta(days=7)).isoformat()
+    month_ago = (now - timedelta(days=30)).isoformat()
+
+    # ── Total counts ──
+    total_impressions = await db.ad_impressions.count_documents({})
+    today_impressions = await db.ad_impressions.count_documents({"created_at": {"$gte": today_start}})
+    week_impressions = await db.ad_impressions.count_documents({"created_at": {"$gte": week_ago}})
+    month_impressions = await db.ad_impressions.count_documents({"created_at": {"$gte": month_ago}})
+
+    total_rewards = await db.ad_rewards.count_documents({})
+    today_rewards = await db.ad_rewards.count_documents({"created_at": {"$gte": today_start}})
+
+    # ── Impressions by ad type ──
+    type_pipeline = [
+        {"$group": {"_id": "$ad_type", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}}
+    ]
+    type_breakdown = await db.ad_impressions.aggregate(type_pipeline).to_list(None)
+
+    # ── Rewards by type ──
+    reward_pipeline = [
+        {"$group": {"_id": "$reward_type", "count": {"$sum": 1}, "total_amount": {"$sum": "$amount"}}},
+        {"$sort": {"count": -1}}
+    ]
+    reward_breakdown = await db.ad_rewards.aggregate(reward_pipeline).to_list(None)
+
+    # ── Daily impressions (last 7 days) ──
+    daily_pipeline = [
+        {"$match": {"created_at": {"$gte": week_ago}}},
+        {"$addFields": {"date_str": {"$substr": ["$created_at", 0, 10]}}},
+        {"$group": {"_id": "$date_str", "count": {"$sum": 1}}},
+        {"$sort": {"_id": 1}}
+    ]
+    daily_impressions = await db.ad_impressions.aggregate(daily_pipeline).to_list(None)
+
+    # ── Top users by impressions ──
+    top_users_pipeline = [
+        {"$group": {"_id": "$user_id", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}},
+        {"$limit": 10}
+    ]
+    top_users_raw = await db.ad_impressions.aggregate(top_users_pipeline).to_list(None)
+
+    top_users = []
+    for tu in top_users_raw:
+        u = await db.users.find_one({"id": tu["_id"]}, {"_id": 0, "name": 1, "id": 1})
+        top_users.append({
+            "user_id": tu["_id"],
+            "name": u.get("name", "Unknown") if u else "Deleted",
+            "impressions": tu["count"]
+        })
+
+    # ── Unique users who saw ads ──
+    unique_users_total = len(await db.ad_impressions.distinct("user_id"))
+    unique_users_today = len(await db.ad_impressions.distinct("user_id", {"created_at": {"$gte": today_start}}))
+
+    # ── Estimated revenue (eCPM based) ──
+    # Typical Indian AdMob eCPM: Interstitial ~$0.50-1.00, Rewarded ~$1.00-3.00, Banner ~$0.10-0.30
+    interstitial_count = sum(1 for t in type_breakdown if t["_id"] == "interstitial" for _ in range(t["count"]))
+    rewarded_count = sum(1 for t in type_breakdown if t["_id"] == "rewarded" for _ in range(t["count"]))
+    banner_count = sum(1 for t in type_breakdown if t["_id"] == "banner" for _ in range(t["count"]))
+    est_revenue = (interstitial_count * 0.75 + rewarded_count * 2.0 + banner_count * 0.15) / 1000
+
+    return {
+        "summary": {
+            "total_impressions": total_impressions,
+            "today_impressions": today_impressions,
+            "week_impressions": week_impressions,
+            "month_impressions": month_impressions,
+            "total_rewards": total_rewards,
+            "today_rewards": today_rewards,
+            "unique_users_total": unique_users_total,
+            "unique_users_today": unique_users_today,
+            "estimated_revenue_usd": round(est_revenue, 2),
+        },
+        "type_breakdown": {t["_id"]: t["count"] for t in type_breakdown},
+        "reward_breakdown": {r["_id"]: {"count": r["count"], "total_amount": r["total_amount"]} for r in reward_breakdown},
+        "daily_impressions": [{"date": d["_id"], "count": d["count"]} for d in daily_impressions],
+        "top_users": top_users,
+    }
+
+
 # ==================== PREMIUM SUBSCRIPTION APIS ====================
 
 

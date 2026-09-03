@@ -7,7 +7,8 @@ import {
   TrendingUp, UserPlus, Clock, Calendar, Filter,
   Eye, MessageCircle, Heart, Shield, Crown,
   Activity, BarChart3, PieChart, ClipboardCheck, Settings,
-  Bot, Power, RotateCcw, KeyRound, Download, Send, Flame
+  Bot, Power, RotateCcw, KeyRound, Download, Send, Flame,
+  DollarSign, BarChart2, Target, Tv
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,6 +20,7 @@ import NotificationManager from '@/components/admin/NotificationManager';
 import ProfileApprovals from '@/components/admin/ProfileApprovals';
 import GrowthAcquisition from '@/components/admin/GrowthAcquisition';
 import WelcomeSettings from '@/components/admin/WelcomeSettings';
+import AdAnalyticsPanel from '@/components/admin/AdAnalyticsPanel';
 
 import { BACKEND_URL } from '@/config/api';
 
@@ -721,6 +723,13 @@ const AdminDashboard = ({ user }) => {
           >
             <TrendingUp className="w-4 h-4 mr-2" /> Growth
           </Button>
+          <Button
+            onClick={() => setActiveTab('ads')}
+            className={activeTab === 'ads' ? 'bg-amber-600' : 'bg-gray-200 text-gray-700'}
+            data-testid="admin-ads-tab"
+          >
+            <Flame className="w-4 h-4 mr-2" /> Ads
+          </Button>
         </div>
 
         {/* Overview Tab */}
@@ -1283,6 +1292,11 @@ const AdminDashboard = ({ user }) => {
       )}
 
       {/* Growth & Acquisition Tab */}
+      {/* Ads Analytics Tab */}
+      {activeTab === 'ads' && (
+        <AdAnalyticsPanel />
+      )}
+
       {activeTab === 'growth' && (
         <GrowthAcquisition />
       )}

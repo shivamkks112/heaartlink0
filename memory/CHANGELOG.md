@@ -31,6 +31,7 @@
 - [x] **Show waits for load**: If interstitial is LOADING when show triggers, waits up to 8s instead of returning false
 - [x] **Debug diagnostics**: `adsService.getDebugLog()` available for dev troubleshooting
 - [x] **Banner Ads on Discover**: ADAPTIVE_BANNER at BOTTOM_CENTER, shows on mount, hides on navigate away, event-driven state tracking
+- [x] **Ad Analytics Dashboard**: New admin tab with impression stats, daily chart, type breakdown, rewards tracking, top users, estimated revenue
 
 ---
 
