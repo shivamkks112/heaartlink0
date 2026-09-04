@@ -8130,7 +8130,7 @@ async def get_app_update_config():
 
 @api_router.put("/admin/app-update")
 async def update_app_update_config(request: Request):
-    """Admin: Update app update configuration."""
+    """Admin: Update app update configuration. Auto-sends push if version changed."""
     try:
         data = await request.json()
     except Exception:
@@ -8155,6 +8155,11 @@ async def update_app_update_config(request: Request):
     if not updates:
         raise HTTPException(status_code=400, detail="No valid fields provided")
 
+    # Check if version changed (for auto-notification)
+    old_config = await db.app_settings.find_one({"type": "app_update_config"}, {"_id": 0})
+    old_version_code = (old_config or {}).get("latest_version_code", 0)
+    new_version_code = updates.get("latest_version_code", old_version_code)
+
     updates["updated_at"] = datetime.now(timezone.utc).isoformat()
 
     await db.app_settings.update_one(
@@ -8164,7 +8169,38 @@ async def update_app_update_config(request: Request):
     )
 
     config = await db.app_settings.find_one({"type": "app_update_config"}, {"_id": 0})
-    return {k: v for k, v in config.items() if k != "type"}
+    result_data = {k: v for k, v in config.items() if k != "type"}
+
+    # AUTO-SEND push if version code increased and auto_notify is requested
+    auto_sent = False
+    if new_version_code > old_version_code and data.get("auto_notify", True):
+        title = config.get("update_title", DEFAULT_APP_UPDATE_CONFIG["update_title"])
+        message = config.get("update_message", DEFAULT_APP_UPDATE_CONFIG["update_message"])
+        play_url = config.get("play_store_url", DEFAULT_APP_UPDATE_CONFIG["play_store_url"])
+
+        try:
+            push_result = await fcm_service.send_to_all(
+                db, title, message,
+                data={"type": "app_update", "url": play_url, "click_action": "OPEN_PLAY_STORE"}
+            )
+            await db.app_settings.update_one(
+                {"type": "update_notifications"},
+                {"$push": {"history": {
+                    "title": title, "message": message,
+                    "sent_at": datetime.now(timezone.utc).isoformat(),
+                    "result": str(push_result), "source": "auto_version_change",
+                    "version_change": f"{old_version_code} → {new_version_code}"
+                }}, "$inc": {"total_sent": 1}},
+                upsert=True
+            )
+            auto_sent = True
+            result_data["notification_sent"] = True
+            result_data["notification_result"] = push_result
+        except Exception as e:
+            result_data["notification_error"] = str(e)
+
+    result_data["auto_notification_sent"] = auto_sent
+    return result_data
 
 
 @api_router.post("/admin/app-update/send-notification")
