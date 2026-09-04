@@ -166,6 +166,7 @@ const DiscoverPage = ({ user }) => {
   }, []); // eslint-disable-line
 
   const advanceCard = useCallback(() => {
+    setSwipeDirection(null); // Reset tilt immediately
     if (currentIndex < profiles.length - 1) {
       setCurrentIndex(i => i + 1);
       setPhotoIndex(0);

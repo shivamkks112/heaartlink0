@@ -145,9 +145,21 @@ const ChatPage = ({ user }) => {
 
     const init = async () => {
       try {
-        // Fetch only this specific match (not ALL matches)
-        const matchRes = await axios.get(`${API}/conversations/${user.id}`);
-        const match = matchRes.data.find(m => m.match_id === matchId);
+        // Try conversations first (has lastMessage data), fallback to matches for new chats
+        let match = null;
+        try {
+          const convRes = await axios.get(`${API}/conversations/${user.id}`);
+          match = convRes.data.find(m => m.match_id === matchId);
+        } catch {}
+        
+        if (!match) {
+          // Fallback: fetch from matches (for new matches without messages)
+          try {
+            const matchRes = await axios.get(`${API}/matches/${user.id}`);
+            match = matchRes.data.find(m => m.match_id === matchId);
+          } catch {}
+        }
+        
         if (!match) {
           if (!cancelled) { toast.error('Match not found'); navigate('/matches'); }
           return;

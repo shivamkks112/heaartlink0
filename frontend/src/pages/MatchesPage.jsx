@@ -311,11 +311,9 @@ const MatchesPage = ({ user }) => {
     const unsubMsg = wsService.on('new_message', (msg) => {
       if (!msg) return;
       // Inline update: update the specific conversation's lastMessage and unreadCount
-      let found = false;
       setConversations(prev => {
         const idx = prev.findIndex(c => c.match_id === msg.match_id);
         if (idx >= 0) {
-          found = true;
           const updated = [...prev];
           updated[idx] = {
             ...updated[idx],
@@ -331,12 +329,10 @@ const MatchesPage = ({ user }) => {
           });
           return updated;
         }
+        // Conversation not found — first message in this match, schedule refetch
+        setTimeout(() => fetchConversations(), 200);
         return prev;
       });
-      // If conversation not in list yet (first message), do a deferred refetch
-      if (!found && activeTab === 'messages') {
-        setTimeout(() => fetchConversations(), 100);
-      }
       // Update unread count
       if (msg.sender_id !== user.id && msg.match_id) {
         setUnreadCounts(prev => ({

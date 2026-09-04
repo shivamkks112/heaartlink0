@@ -8,8 +8,8 @@ android {
         applicationId "com.heartlink.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 57
-        versionName "3.2.5"
+        versionCode 58
+        versionName "3.2.6"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         
         // Multi-dex support for large apps with many dependencies
