@@ -285,6 +285,40 @@ async def startup_event():
     
     # Auto-send update notification if app version changed
     asyncio.create_task(auto_update_notification())
+    
+    # Catch existing users who never got AI matches
+    asyncio.create_task(_backfill_ai_matches())
+
+
+async def _backfill_ai_matches():
+    """On startup, find male users who have 0 AI matches and create them."""
+    try:
+        await asyncio.sleep(30)  # Wait for DB + AI profiles to be ready
+        
+        # Get all male users looking for female
+        male_users = await db.users.find(
+            {"is_ai_profile": {"$ne": True}, "gender": {"$regex": "^male$", "$options": "i"}, "looking_for": {"$regex": "^female$", "$options": "i"}},
+            {"_id": 0, "id": 1, "name": 1, "gender": 1, "looking_for": 1}
+        ).to_list(None)
+        
+        backfilled = 0
+        for user in male_users:
+            # Check if user already has AI matches
+            ai_match = await db.matches.find_one({
+                "$or": [{"user1_id": user["id"]}, {"user2_id": user["id"]}],
+                "matched": True, "is_ai_match": True
+            })
+            if ai_match:
+                continue
+            
+            # No AI matches — create them now (no delay for backfill)
+            await auto_match_ai_profiles(db, user["id"], user.get("gender", "male"), user.get("looking_for", "female"))
+            backfilled += 1
+        
+        if backfilled > 0:
+            logging.info(f"Backfilled AI matches for {backfilled} existing users")
+    except Exception as e:
+        logging.error(f"Backfill AI matches error: {e}")
 
 
 APP_VERSION = "3.2.6"  # Increment this on each release
@@ -389,10 +423,10 @@ async def _send_push_to_user(user_id: str, title: str, message: str, data: dict 
 
 
 async def _delayed_ai_match(user_id: str, gender: str, looking_for: str):
-    """Delay AI matching by 2-6 hours to feel natural — not immediate on signup."""
-    delay_hours = random.uniform(2, 6)
-    delay_seconds = delay_hours * 3600
-    logger.info(f"AI match for {user_id} scheduled in {delay_hours:.1f} hours")
+    """Delay AI matching by 5-15 minutes — quick enough to engage, slow enough to feel natural."""
+    delay_minutes = random.uniform(5, 15)
+    delay_seconds = delay_minutes * 60
+    logger.info(f"AI match for {user_id} scheduled in {delay_minutes:.0f} minutes")
     await asyncio.sleep(delay_seconds)
     await auto_match_ai_profiles(db, user_id, gender, looking_for)
 

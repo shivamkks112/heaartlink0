@@ -531,11 +531,11 @@ FOLLOWUP_MESSAGES = {
 
 
 async def _send_ai_first_messages(db, match_id: str, ai_id: str, user_id: str, ai_name: str):
-    """Send 1-2 proactive messages from AI girl — delayed naturally."""
-    # First message: 1-4 hours delay
-    delay_hours = random.uniform(1, 4)
-    logger.info(f"AI {ai_name} first message scheduled in {delay_hours:.1f}h for match {match_id}")
-    await asyncio.sleep(delay_hours * 3600)
+    """Send 1-2 proactive messages from AI girl — quick natural timing."""
+    # First message: 3-10 minutes delay (feels like she saw the match and messaged)
+    delay_minutes = random.uniform(3, 10)
+    logger.info(f"AI {ai_name} first message scheduled in {delay_minutes:.0f} min for match {match_id}")
+    await asyncio.sleep(delay_minutes * 60)
 
     ai_user = await db.users.find_one({"id": ai_id}, {"_id": 0, "ai_personality": 1})
     personality = ai_user.get("ai_personality", "sweet_caring") if ai_user else "sweet_caring"
@@ -559,9 +559,18 @@ async def _send_ai_first_messages(db, match_id: str, ai_id: str, user_id: str, a
     await db.messages.insert_one(msg_doc)
     logger.info(f"AI {ai_name} sent first message in match {match_id}")
 
-    # 50% chance to send a follow-up if no reply after 2-6 hours
-    if random.random() < 0.5:
-        followup_delay = random.uniform(2, 6) * 3600
+    # Push via WebSocket if user is online
+    try:
+        from server import manager
+        clean_msg = {k: v for k, v in msg_doc.items() if k != "_id"}
+        await manager.send_message(user_id, {"type": "message", "message": clean_msg})
+        await manager.send_badge_update(user_id)
+    except Exception as e:
+        logger.debug(f"WS push for AI msg failed (user may be offline): {e}")
+
+    # 60% chance to send a follow-up if no reply after 30-90 minutes
+    if random.random() < 0.6:
+        followup_delay = random.uniform(30, 90) * 60  # 30-90 minutes
         await asyncio.sleep(followup_delay)
         
         # Check if user replied
@@ -587,6 +596,15 @@ async def _send_ai_first_messages(db, match_id: str, ai_id: str, user_id: str, a
             }
             await db.messages.insert_one(followup_doc)
             logger.info(f"AI {ai_name} sent follow-up in match {match_id}")
+            
+            # Push follow-up via WebSocket too
+            try:
+                from server import manager
+                clean_fu = {k: v for k, v in followup_doc.items() if k != "_id"}
+                await manager.send_message(user_id, {"type": "message", "message": clean_fu})
+                await manager.send_badge_update(user_id)
+            except Exception:
+                pass
 
 
 def _get_ai_system_prompt(ai_user: dict) -> str:
