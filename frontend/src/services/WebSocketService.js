@@ -51,9 +51,17 @@ class WebSocketService {
         this.emit('connected', { userId });
         
         // Ping every 25s to keep connection alive AND update last_active on server
+        // Also detect zombie connections — if pong doesn't come back, reconnect
         clearInterval(this.pingInterval);
+        this._lastPongAt = Date.now();
         this.pingInterval = setInterval(() => {
           if (this.ws?.readyState === WebSocket.OPEN) {
+            // If no pong received in 35s (ping is 25s + 10s grace), connection is dead
+            if (Date.now() - this._lastPongAt > 35000) {
+              console.warn('WS zombie detected — no pong in 35s, reconnecting');
+              try { this.ws.close(); } catch(e) {}
+              return;
+            }
             this.ws.send(JSON.stringify({ type: 'ping' }));
           }
         }, 25000);
@@ -86,6 +94,9 @@ class WebSocketService {
   }
 
   handleMessage(data) {
+    // Any message from server proves connection is alive
+    this._lastPongAt = Date.now();
+    
     switch (data.type) {
       case 'status_update':
         if (data.is_online) {

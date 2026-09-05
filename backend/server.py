@@ -4993,6 +4993,11 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
                     {"id": user_id},
                     {"$set": {"last_active": datetime.now(timezone.utc).isoformat(), "is_online": True}}
                 )
+                # Send pong back so client can detect zombie connections
+                try:
+                    await websocket.send_json({"type": "pong"})
+                except Exception:
+                    pass
                 continue
             
             # Handle typing indicator via WS (fast path)

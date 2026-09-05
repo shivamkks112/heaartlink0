@@ -4,7 +4,7 @@
 
 ---
 
-## Sep 5, 2026 — Smart User Growth + Retention Notification System
+## Sep 5, 2026 — Smart User Growth + Retention Notification System + Chat Reliability Fix
 - [x] **Welcome Push gating**: Signup welcome FCM now respects `notification_config.welcome_enabled` admin toggle
 - [x] **New User Discovery gating**: `_notify_new_user_joined` now respects `notification_config.new_user_discovery_enabled`
 - [x] **Notification analytics logging**: Welcome + Discovery notifications log to `notification_logs` + increment `notification_analytics` counters
@@ -14,6 +14,9 @@
 - [x] **SmartNotificationConfig.jsx**: New admin panel with gradient header, 3 stat cards, 7-day bar chart, frequency controls, 7 toggle cards
 - [x] **Admin Dashboard integration**: SmartNotificationConfig added at top of Notifications tab
 - [x] **BUGFIX**: `GET /api/admin/notification-templates` 500 KeyError — `value["message"]` → `value.get("body", value.get("message", ""))`
+- [x] **Chat Delivery Fallback**: WS sendMessage now has 4s timeout → auto HTTP retry if no echo (fixes zombie WS on mobile)
+- [x] **Pong-based Zombie Detection**: Backend sends pong on ping; frontend detects 35s silence → force reconnect
+- [x] **Cleanup on Unmount**: Pending WS fallback timers cleared when ChatPage unmounts
 
 ---
 

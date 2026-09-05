@@ -53,6 +53,7 @@ const ChatPage = ({ user }) => {
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const typingHideTimerRef = useRef(null);
+  const pendingWsMessages = useRef(new Map()); // Track WS messages awaiting echo
 
   // Smart Nudge
   const nudgeData = useMemo(() => {
@@ -85,6 +86,11 @@ const ChatPage = ({ user }) => {
       if (exists) return withoutTemp;
       return [...withoutTemp, msg];
     });
+    // Clear pending WS timeout if this is our own echo
+    if (msg.sender_id === user.id && pendingWsMessages.current.has(msg.content)) {
+      clearTimeout(pendingWsMessages.current.get(msg.content));
+      pendingWsMessages.current.delete(msg.content);
+    }
     // Auto-mark as read if this is someone else's message
     if (msg.sender_id !== user.id) {
       axios.post(`${API}/messages/${matchId}/mark-read/${user.id}`).catch(() => {});
@@ -217,6 +223,9 @@ const ChatPage = ({ user }) => {
     return () => {
       unsubs.forEach(unsub => unsub());
       clearTimeout(typingHideTimerRef.current);
+      // Clear all pending WS fallback timers
+      pendingWsMessages.current.forEach(timer => clearTimeout(timer));
+      pendingWsMessages.current.clear();
     };
   }, [handleWsNewMessage, handleWsTyping, handleWsStatusUpdate, handleWsScreenshot, handleWsSystemWarning, handleWsMessageDeleted, handleWsMessagesRead, handleWsMessageDelivered]);
 
@@ -342,7 +351,34 @@ const ChatPage = ({ user }) => {
     // Send via global WebSocket — if not connected, fall back to HTTP
     const wsSent = wsService.sendMessage(matchId, otherUser.id, messageContent);
     
-    if (!wsSent) {
+    if (wsSent) {
+      // WS.send() succeeded locally, but the connection might be dead (zombie WS).
+      // Set a 4s timeout — if no echo arrives, retry via HTTP to guarantee delivery.
+      const fallbackTimer = setTimeout(async () => {
+        pendingWsMessages.current.delete(messageContent);
+        try {
+          const response = await axios.post(`${API}/messages`, {
+            match_id: matchId,
+            sender_id: user.id,
+            receiver_id: otherUser.id,
+            content: messageContent
+          });
+          setMessages(prev => {
+            const hasReal = prev.some(m => !m._temp && m.id && m.content === messageContent && m.sender_id === user.id);
+            if (hasReal) return prev; // Echo already arrived, skip
+            return prev.map(msg =>
+              msg._temp && msg.content === messageContent ? response.data : msg
+            );
+          });
+        } catch (err) {
+          // HTTP also failed — remove temp message
+          setMessages(prev => prev.filter(msg => !msg._temp || msg.content !== messageContent));
+          toast.error('Message send failed');
+        }
+      }, 4000);
+      pendingWsMessages.current.set(messageContent, fallbackTimer);
+    } else {
+      // WS not connected — immediate HTTP fallback
       try {
         const response = await axios.post(`${API}/messages`, {
           match_id: matchId,
