@@ -409,7 +409,8 @@ const MatchesPage = ({ user }) => {
   // Calculate total unread messages
   const totalUnread = useMemo(() => Object.values(unreadCounts).reduce((sum, count) => sum + count, 0), [unreadCounts]);
 
-  if (loading) {
+  if (loading && matches.length === 0 && conversations.length === 0 && activeUsers.length === 0) {
+    // Only show full skeleton on FIRST load (no data yet)
     return (
       <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 page-with-bottom-nav">
         <TopBar />
@@ -779,7 +780,13 @@ const MatchesPage = ({ user }) => {
         {/* Active Users Tab */}
         {activeTab === 'active' && (
           <>
-            {activeUsers.length === 0 ? (
+            {loading && activeUsers.length === 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+                {Array.from({ length: 4 }).map((_, idx) => (
+                  <div key={idx}><MatchCardSkeleton /></div>
+                ))}
+              </div>
+            ) : activeUsers.length === 0 ? (
               <div className="text-center py-20 m3-animate-in">
                 <div className="rounded-[28px] p-10 inline-block" style={{ background: 'var(--m3-surface-container-lowest)', boxShadow: 'var(--m3-elevation-2)' }}>
                   <Users className="w-16 h-16 mx-auto mb-4" style={{ color: 'var(--m3-outline-variant)' }} />
