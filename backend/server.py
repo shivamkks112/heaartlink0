@@ -3485,6 +3485,9 @@ async def discover_users(user_id: str, limit: int = 10, relationship_intent: str
     
     def rank_score(profile):
         score = 0
+        # LADIES FIRST — Female profiles get auto-boost for male viewers
+        if profile.get("gender", "").lower() == "female" and current_gender == "male":
+            score += 30
         # BOOSTED profile gets massive priority
         if profile.get("boost_active"):
             try:

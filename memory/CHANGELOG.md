@@ -18,6 +18,13 @@
 - [x] **Pong-based Zombie Detection**: Backend sends pong on ping; frontend detects 35s silence → force reconnect
 - [x] **Cleanup on Unmount**: Pending WS fallback timers cleared when ChatPage unmounts
 
+## Sep 5, 2026 — AI Girls Scale-Up (15→40) + Ladies First + Women Safety Landing
+- [x] **AI Girls 15→40**: Added 25 new AI girl profiles covering 40 Indian cities with AI-generated photos
+- [x] **New Cities**: Nagpur, Varanasi, Patna, Surat, Bhopal, Kochi, Dehradun, Ranchi, Guwahati, Thiruvananthapuram, Mysore, Coimbatore, Noida, Gurgaon, Ludhiana, Agra, Amritsar, Visakhapatnam, Raipur, Mangalore, Shimla, Jodhpur, Siliguri, Nashik, Kanpur
+- [x] **AI Conversation Upgrade**: Reduced reply delays (0.5-5 min vs 1-10 min), 35% chance of double messages (realistic "btw" / "haha" style follow-ups)
+- [x] **Ladies First Feature**: Female profiles get +30 ranking boost in discover for male users
+- [x] **Women Safety Badges**: New "Women Safety Certified" strip on landing page (Profile Verified, 24/7 Moderation, Instant Block, No Fake Profiles)
+
 ---
 
 ## Sep 3, 2026 — Realtime Messaging + Active Users Fix + Crush Admin + Button Redesign + AI Girls Upgrade

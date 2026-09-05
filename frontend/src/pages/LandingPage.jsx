@@ -93,7 +93,7 @@ const LandingPage = () => {
           </p>
 
           {/* Trust badges */}
-          <div className="flex flex-wrap justify-center gap-4 mb-10 animate-fade-in" style={{animationDelay: '0.5s'}}>
+          <div className="flex flex-wrap justify-center gap-4 mb-6 animate-fade-in" style={{animationDelay: '0.5s'}}>
             <span className="inline-flex items-center gap-2 bg-white/80 backdrop-blur px-4 py-2 rounded-full text-sm text-gray-700 shadow-sm">
               <CheckCircle className="w-4 h-4 text-green-500" /> 100% Free Download
             </span>
@@ -103,6 +103,42 @@ const LandingPage = () => {
             <span className="inline-flex items-center gap-2 bg-white/80 backdrop-blur px-4 py-2 rounded-full text-sm text-gray-700 shadow-sm">
               <Star className="w-4 h-4 text-yellow-500" /> 4.5★ Rating
             </span>
+          </div>
+
+          {/* Women Safety Strip */}
+          <div className="max-w-2xl mx-auto mb-10 animate-fade-in" style={{animationDelay: '0.55s'}}>
+            <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200/50 rounded-2xl p-4 backdrop-blur-sm">
+              <div className="flex items-center justify-center gap-2 mb-3">
+                <Shield className="w-5 h-5 text-purple-600" />
+                <span className="text-sm font-bold text-purple-800">Women Safety Certified</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="flex flex-col items-center text-center">
+                  <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center mb-1">
+                    <Shield className="w-4 h-4 text-purple-600" />
+                  </div>
+                  <span className="text-xs text-gray-700 font-medium">Profile Verified</span>
+                </div>
+                <div className="flex flex-col items-center text-center">
+                  <div className="w-8 h-8 bg-pink-100 rounded-full flex items-center justify-center mb-1">
+                    <CheckCircle className="w-4 h-4 text-pink-600" />
+                  </div>
+                  <span className="text-xs text-gray-700 font-medium">24/7 Moderation</span>
+                </div>
+                <div className="flex flex-col items-center text-center">
+                  <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center mb-1">
+                    <Shield className="w-4 h-4 text-red-500" />
+                  </div>
+                  <span className="text-xs text-gray-700 font-medium">Instant Block</span>
+                </div>
+                <div className="flex flex-col items-center text-center">
+                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mb-1">
+                    <Award className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <span className="text-xs text-gray-700 font-medium">No Fake Profiles</span>
+                </div>
+              </div>
+            </div>
           </div>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center animate-slide-in-up" style={{animationDelay: '0.6s'}}>

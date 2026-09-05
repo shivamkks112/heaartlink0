@@ -77,10 +77,9 @@ Modern, safe, trust-based dating app for Indian users. React frontend + FastAPI 
 - Glassmorphic floating dock: `backdrop-blur(20px)`, glass border, dark translucent bg
 - Pass (56px): Rose-tinted circle, X icon, glow on hover
 
-## AI Chatbot Girls — 15 Profiles (Sep 3, 2026)
-- 15 AI girl profiles with AI-generated Indian face photos
-- 5 NEW: Ishita Sen (Kolkata), Diya Joshi (Indore), Kiara Rathore (Udaipur), Naina Thapa (Shillong), Sara Mehta (Ahmedabad)
-- All 10 existing profiles updated with realistic Indian photos
+## AI Chatbot Girls — 40 Profiles (Sep 5, 2026)
+- 40 AI girl profiles with AI-generated Indian face photos across 40 cities
+- Original 15 + 25 NEW covering: Nagpur, Varanasi, Patna, Surat, Bhopal, Kochi, Dehradun, Ranchi, Guwahati, Thiruvananthapuram, Mysore, Coimbatore, Noida, Gurgaon, Ludhiana, Agra, Amritsar, Visakhapatnam, Raipur, Mangalore, Shimla, Jodhpur, Siliguri, Nashik, Kanpur
 - Personality types: flirty_fun, sweet_caring, witty_smart
 - Proactive messaging: AI sends 1st message (1-4hr delay), optional follow-up (2-6hr if no reply)
 - Human-like behavior: varied message lengths, natural typos, filler words, emotional intelligence
