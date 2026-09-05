@@ -4,6 +4,19 @@
 
 ---
 
+## Sep 5, 2026 — Smart User Growth + Retention Notification System
+- [x] **Welcome Push gating**: Signup welcome FCM now respects `notification_config.welcome_enabled` admin toggle
+- [x] **New User Discovery gating**: `_notify_new_user_joined` now respects `notification_config.new_user_discovery_enabled`
+- [x] **Notification analytics logging**: Welcome + Discovery notifications log to `notification_logs` + increment `notification_analytics` counters
+- [x] **Unified notification_logs**: All notification logging now uses `notification_logs` (plural) collection consistently
+- [x] **7-Day Analytics Chart endpoint**: `GET /api/admin/notification-analytics-chart?days=7` — daily totals + type breakdown
+- [x] **Server-side validation**: `max_notifications_per_user_per_day` clamped 1-10 in PUT endpoint
+- [x] **SmartNotificationConfig.jsx**: New admin panel with gradient header, 3 stat cards, 7-day bar chart, frequency controls, 7 toggle cards
+- [x] **Admin Dashboard integration**: SmartNotificationConfig added at top of Notifications tab
+- [x] **BUGFIX**: `GET /api/admin/notification-templates` 500 KeyError — `value["message"]` → `value.get("body", value.get("message", ""))`
+
+---
+
 ## Sep 3, 2026 — Realtime Messaging + Active Users Fix + Crush Admin + Button Redesign + AI Girls Upgrade
 - [x] **CRITICAL FIX**: ChatPage no longer creates duplicate WebSocket (uses global wsService)
 - [x] **CRITICAL FIX**: Active Users "Active(0)" bug — fixed privacy_settings filter, case-insensitive gender matching, expanded threshold

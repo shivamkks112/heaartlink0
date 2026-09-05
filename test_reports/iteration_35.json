@@ -1,0 +1,54 @@
+{
+  "summary": "Iteration 35: Tested HeartLink Smart Notification System (admin notification-config, analytics-chart, welcome + new_user_discovery gating) end-to-end. Backend: 17 pytest tests (12 API contract + 5 real signup E2E gating tests) — 16 passed, 1 failed (no server-side range validation on max_notifications_per_user_per_day). Frontend: full UI flow via public URL — login as admin -> /admin -> Notifications tab -> SmartNotificationConfig renders with stats strip, 7-day chart, frequency +/- control (clamped 1-10), all 7 toggle cards; Save appears on change, PUT succeeds, toast shows, value + toggle state persist after reload. Found one pre-existing 500 (GET /api/admin/notification-templates) in the same Notifications tab.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "GET /api/admin/notification-templates", "issue": "Returns 500 KeyError: 'message' (server.py:6621 reads value['message'] but fcm_service.ENGAGEMENT_TEMPLATES entries use key 'body'). Breaks NotificationManager in the same Notifications tab — console shows 'Failed to fetch templates AxiosError' on every load. Fix: use value.get('body') (or value.get('message') or value.get('body')).", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "PUT /api/admin/notification-config", "issue": "max_notifications_per_user_per_day has no server-side range validation — accepts 9999 (and negatives) with 200. UI clamps 1-10 but API does not. Add int bounds check (1-10) or Pydantic model."},
+      {"endpoint": "GET /api/admin/notification-config + analytics-chart", "issue": "New analytics/frequency logic writes to collection 'notification_log' (singular) while the rest of the app logs to 'notification_logs' (plural, 30 existing docs). Result: chart/recent_24h/type_breakdown ignore all other notification types, and the per-user daily cap (can_notify) does not count notifications sent by other code paths, so the frequency limit is not actually enforced app-wide."},
+      {"endpoint": "GET /api/admin/notification-config", "issue": "'analytics' is {} because notification_analytics counters are only incremented by the 6-hourly scheduler; the welcome and new_user_discovery paths log to notification_log but never $inc notification_analytics — so the '<n> sent' badge on toggle cards will always be 0 for those two types."},
+      {"endpoint": "admin/notification-* endpoints", "issue": "No authentication/authorization — AdminAuthMiddleware is in pass-through mode, so any anonymous caller can read and flip all notification toggles (verified via plain curl with no token)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Admin -> Notifications tab load", "issue": "notification-templates 500 surfaces only as a console error; NotificationManager shows no visible error state to the admin", "affected_selectors": ["[data-testid=\"smart-notification-config\"]"]}
+    ],
+    "design_issues": [
+      {"screen": "Admin > Notifications > Smart Notifications", "issues": ["7-day chart x-axis labels show only the day number (d.date.split(' ')[1]) so month context is lost across month boundaries (shows 30, 31, 01, 02...)", "When all totals are 0 the chart renders as a flat 3px line with '0' labels and no empty-state message", "fetchConfig/fetchChart failures are swallowed with console.error only — no error/retry UI (loading skeleton would clear into an empty card)"]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_smart_notif_iter35.py",
+    "/app/backend/tests/test_smart_notif_e2e_iter35.py",
+    "/app/test_reports/pytest/iter35_notif.xml",
+    "/app/test_reports/pytest/iter35_notif_e2e.xml"
+  ],
+  "action_items": [
+    "Fix GET /api/admin/notification-templates KeyError 'message' -> 'body' (server.py ~line 6621)",
+    "Add server-side validation (1-10) for max_notifications_per_user_per_day in PUT /api/admin/notification-config",
+    "Unify notification_log vs notification_logs collections so analytics/chart and the daily frequency cap cover all notification types",
+    "Increment notification_analytics counters (or read from notification_log) so the 'n sent' badges are meaningful",
+    "Consider requiring admin auth on /api/admin/notification-config (currently open to anonymous callers)"
+  ],
+  "critical_code_review_comments": [
+    "server.py:6621 dereferences value['message'] on ENGAGEMENT_TEMPLATES entries that only define 'body' — guaranteed 500.",
+    "Two parallel notification log collections (notification_log / notification_logs) is a silent correctness bug for both analytics and spam capping.",
+    "PUT /admin/notification-config takes a raw Request dict instead of a Pydantic model — no type/range validation (int(v) on a non-numeric string would also raise an unhandled 500).",
+    "SmartNotificationConfig.jsx has no error state for failed GETs; loading skeleton resolves to an empty card on failure."
+  ],
+  "updated_files": [
+    "/app/frontend/src/pages/AdminDashboard.jsx (added data-testid=\"admin-notifications-tab\" to Notifications tab button)",
+    "/app/backend/tests/test_smart_notif_iter35.py (new)",
+    "/app/backend/tests/test_smart_notif_e2e_iter35.py (new)"
+  ],
+  "success_rate": {"backend": "94% (16/17)", "frontend": "100% of tested flows (5/5 steps)"},
+  "seed_data_creation": "E2E tests create throwaway users test_notif_*/test_disc_*@heartlinktest.com by upserting a verified signup_otps record, then delete the users, their notification_log/notifications and new_user_notif_log docs in module teardown. notification_config was restored to all-toggles-true / max=3 after both suites and after UI testing (verified via GET).",
+  "should_call_test_agent_after_fix": true,
+  "should_main_agent_self_test": false,
+  "test_credentials": "shivamkks112@gmail.com / Shivam@2026 (used for UI admin login; worked). Login payload field is 'email_or_phone'. /app/memory/test_credentials.md is present and accurate.",
+  "context_for_next_testing_agent": "Regression suites: /app/backend/tests/test_smart_notif_iter35.py (API contract, fast) and /app/backend/tests/test_smart_notif_e2e_iter35.py (~25s, real signups; needs MONGO_URL from backend/.env to seed verified OTP because /api/auth/signup requires a verified signup_otps record). Admin notification endpoints need NO auth token — curl works directly. UI path: /auth -> login-tab-btn -> login-email-input/login-password-input -> login-submit-btn -> goto /admin -> click [data-testid=\"admin-notifications-tab\"] (testid added by me) -> [data-testid=\"smart-notification-config\"]. Save button testids: notif-config-save (header, only when dirty) and notif-config-save-bottom. notif-type-breakdown block only renders when type_breakdown_24h is non-empty (it is empty when notification_log has no docs in last 24h).",
+  "rca_of_the_issue": "1) notification-templates 500: server.py get_all_notification_templates() builds body from value['message'] but fcm_service.ENGAGEMENT_TEMPLATES uses 'body' -> KeyError (confirmed in backend.err.log traceback). 2) Frequency limit unvalidated: update_notification_config casts int(v) with no bounds, so 9999 persisted (test restored to 3). 3) Zeroed analytics: new welcome/new_user_discovery logging targets db.notification_log while legacy code writes db.notification_logs (30 docs), so chart/recent_24h read an almost-empty collection. Feature gating itself is correct: with welcome_enabled=false no welcome log/notification is created, with new_user_discovery_enabled=false the background _notify_new_user_joined returns early — both verified with real signups."
+}

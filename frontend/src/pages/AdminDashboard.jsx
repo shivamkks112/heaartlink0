@@ -22,6 +22,7 @@ import GrowthAcquisition from '@/components/admin/GrowthAcquisition';
 import WelcomeSettings from '@/components/admin/WelcomeSettings';
 import AdAnalyticsPanel from '@/components/admin/AdAnalyticsPanel';
 import AppUpdateSettings from '@/components/admin/AppUpdateSettings';
+import SmartNotificationConfig from '@/components/admin/SmartNotificationConfig';
 
 import { BACKEND_URL } from '@/config/api';
 
@@ -700,6 +701,7 @@ const AdminDashboard = ({ user }) => {
           <Button
             onClick={() => setActiveTab('notifications')}
             className={activeTab === 'notifications' ? 'bg-pink-500' : 'bg-gray-200 text-gray-700'}
+            data-testid="admin-notifications-tab"
           >
             <Bell className="w-4 h-4 mr-2" /> Notifications
           </Button>
@@ -1101,6 +1103,7 @@ const AdminDashboard = ({ user }) => {
         {/* Notifications Tab */}
         {activeTab === 'notifications' && (
           <div className="space-y-6">
+            <SmartNotificationConfig />
             <NotificationManager />
             <UpdatePushCard />
           </div>

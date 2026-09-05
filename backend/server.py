@@ -436,6 +436,11 @@ async def _notify_new_user_joined(user_id: str, name: str, gender: str, location
     try:
         await asyncio.sleep(5)
         
+        # Check notification_config toggle
+        notif_cfg = await db.app_settings.find_one({"type": "notification_config"}, {"_id": 0})
+        if notif_cfg and not notif_cfg.get("new_user_discovery_enabled", True):
+            return
+        
         # Check admin feature flag
         flags = await db.app_settings.find_one({"type": "feature_flags"}, {"_id": 0})
         if flags and not flags.get("new_user_gender_notifications", True):
@@ -478,10 +483,23 @@ async def _notify_new_user_joined(user_id: str, name: str, gender: str, location
         result = await fcm_service.send_to_gender(
             db,
             target_gender=target_gender,
-            title="Someone new joined HeartLink!",
-            body=f"Say hello to {first_name} from {city}. Tap to discover.",
+            title="New people joined HeartLink",
+            body="Discover who's new today and find someone interesting to connect with.",
             data={"type": "new_user", "route": "/discover", "action": "open_discover"},
             exclude_user_id=user_id
+        )
+        
+        # Log for analytics
+        await db.notification_logs.insert_one({
+            "user_id": user_id, "type": "new_user_discovery",
+            "sent_at": datetime.now(timezone.utc).isoformat(),
+            "target_gender": target_gender,
+            "targeted_count": result.get("total_targeted", 0)
+        })
+        await db.app_settings.update_one(
+            {"type": "notification_analytics"},
+            {"$inc": {"new_user_discovery_sent": 1}},
+            upsert=True
         )
         
         logger.info(f"Gender notification: {gender_lower} joined → sent to {target_gender}s ({result.get('total_targeted', 0)} targeted)")
@@ -1015,67 +1033,152 @@ async def _send_weekly_growth_digest():
 
 
 async def notification_scheduler():
-    """Background task to send automated engagement notifications"""
+    """Background task: smart retention notifications with frequency control."""
+    
+    # Notification config defaults (overridable from admin)
+    DEFAULT_NOTIF_CONFIG = {
+        "type": "notification_config",
+        "welcome_enabled": True,
+        "profile_reminder_enabled": True,
+        "new_user_discovery_enabled": True,
+        "comeback_3d_enabled": True,
+        "comeback_7d_enabled": True,
+        "daily_engagement_enabled": True,
+        "weekend_special_enabled": True,
+        "max_notifications_per_user_per_day": 3,
+    }
+    
     while True:
         try:
-            # Run every 6 hours
-            await asyncio.sleep(6 * 60 * 60)  # 6 hours
+            await asyncio.sleep(6 * 60 * 60)  # Run every 6 hours
             
             now = datetime.now(timezone.utc)
             current_hour = now.hour
             
             # Only send during active hours (9 AM to 9 PM IST = 3:30 AM to 3:30 PM UTC)
-            if 3 <= current_hour <= 15:
-                logging.info("📬 Running scheduled notification check...")
+            if current_hour < 3 or current_hour > 15:
+                continue
+            
+            logging.info("Running scheduled notification check...")
+            
+            # Load admin config
+            notif_config = await db.app_settings.find_one({"type": "notification_config"}, {"_id": 0})
+            if not notif_config:
+                notif_config = {**DEFAULT_NOTIF_CONFIG}
+            
+            max_daily = notif_config.get("max_notifications_per_user_per_day", 3)
+            today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+            
+            async def can_notify(uid):
+                """Check per-user daily notification limit."""
+                count = await db.notification_logs.count_documents({
+                    "user_id": uid, "sent_at": {"$gte": today_start}
+                })
+                return count < max_daily
+            
+            async def log_notification(uid, notif_type):
+                """Log notification for frequency tracking + analytics."""
+                await db.notification_logs.insert_one({
+                    "user_id": uid,
+                    "type": notif_type,
+                    "sent_at": now.isoformat(),
+                })
+                await db.app_settings.update_one(
+                    {"type": "notification_analytics"},
+                    {"$inc": {f"{notif_type}_sent": 1}},
+                    upsert=True
+                )
+            
+            # ── 1. PROFILE COMPLETION REMINDER (24hr after signup, no photo) ──
+            if notif_config.get("profile_reminder_enabled", True):
+                cutoff_24h = (now - timedelta(hours=24)).isoformat()
+                cutoff_30h = (now - timedelta(hours=30)).isoformat()
+                incomplete_users = await db.users.find({
+                    "created_at": {"$gt": cutoff_30h, "$lt": cutoff_24h},
+                    "is_ai_profile": {"$ne": True},
+                    "$or": [
+                        {"profile_picture": {"$in": [None, ""]}},
+                        {"photos": {"$in": [None, []]}},
+                        {"bio": {"$in": [None, ""]}}
+                    ],
+                    "profile_reminder_sent": {"$ne": True},
+                }, {"_id": 0, "id": 1}).to_list(50)
                 
-                # Send to users inactive for 1 day
-                cutoff_1day = now - timedelta(days=1)
-                inactive_1day = await db.users.find({
-                    "last_active": {"$lt": cutoff_1day.isoformat(), "$gt": (cutoff_1day - timedelta(hours=6)).isoformat()},
-                    "profile_status": "approved"
+                for u in incomplete_users:
+                    if await can_notify(u["id"]):
+                        await fcm_service.send_to_user(db, u["id"],
+                            "Complete your HeartLink profile",
+                            "Add a photo and a few details so people can get to know you better.",
+                            data={"type": "profile_reminder", "route": "/profile/edit"})
+                        await db.users.update_one({"id": u["id"]}, {"$set": {"profile_reminder_sent": True}})
+                        await log_notification(u["id"], "profile_reminder")
+                
+                if incomplete_users:
+                    logging.info(f"Sent profile reminders to {len(incomplete_users)} users")
+            
+            # ── 2. 3-DAY COMEBACK ──
+            if notif_config.get("comeback_3d_enabled", True):
+                cutoff_3d = (now - timedelta(days=3)).isoformat()
+                cutoff_3d_window = (now - timedelta(days=3, hours=6)).isoformat()
+                inactive_3d = await db.users.find({
+                    "last_active": {"$lt": cutoff_3d, "$gt": cutoff_3d_window},
+                    "is_ai_profile": {"$ne": True},
+                    "last_comeback_3d_at": {"$not": {"$gte": cutoff_3d}},
                 }, {"_id": 0, "id": 1}).to_list(100)
                 
-                if inactive_1day:
-                    user_ids = [u["id"] for u in inactive_1day]
-                    await fcm_service.send_to_users(db, user_ids, "Someone's waiting!", "Don't miss potential matches!")
-                    logging.info(f"📬 Sent 1-day inactive notification to {len(user_ids)} users")
+                for u in inactive_3d:
+                    if await can_notify(u["id"]):
+                        await fcm_service.send_to_user(db, u["id"],
+                            "We haven't seen you in a while",
+                            "New people may have joined HeartLink. Come back and take a look.",
+                            data={"type": "comeback_3d", "route": "/discover"})
+                        await db.users.update_one({"id": u["id"]}, {"$set": {"last_comeback_3d_at": now.isoformat()}})
+                        await log_notification(u["id"], "comeback_3d")
                 
-                # Send to users inactive for 3 days
-                cutoff_3day = now - timedelta(days=3)
-                inactive_3day = await db.users.find({
-                    "last_active": {"$lt": cutoff_3day.isoformat(), "$gt": (cutoff_3day - timedelta(hours=6)).isoformat()},
-                    "profile_status": "approved"
+                if inactive_3d:
+                    logging.info(f"Sent 3-day comeback to {len(inactive_3d)} users")
+            
+            # ── 3. 7-DAY COMEBACK ──
+            if notif_config.get("comeback_7d_enabled", True):
+                cutoff_7d = (now - timedelta(days=7)).isoformat()
+                cutoff_7d_window = (now - timedelta(days=7, hours=6)).isoformat()
+                inactive_7d = await db.users.find({
+                    "last_active": {"$lt": cutoff_7d, "$gt": cutoff_7d_window},
+                    "is_ai_profile": {"$ne": True},
+                    "last_comeback_7d_at": {"$not": {"$gte": cutoff_7d}},
                 }, {"_id": 0, "id": 1}).to_list(100)
                 
-                if inactive_3day:
-                    user_ids = [u["id"] for u in inactive_3day]
-                    await fcm_service.send_to_users(db, user_ids, "We miss you!", "5+ people viewed your profile. Come back!")
-                    logging.info(f"📬 Sent 3-day inactive notification to {len(user_ids)} users")
+                for u in inactive_7d:
+                    if await can_notify(u["id"]):
+                        await fcm_service.send_to_user(db, u["id"],
+                            "Your HeartLink journey is waiting",
+                            "See who's new and continue discovering meaningful connections.",
+                            data={"type": "comeback_7d", "route": "/discover"})
+                        await db.users.update_one({"id": u["id"]}, {"$set": {"last_comeback_7d_at": now.isoformat()}})
+                        await log_notification(u["id"], "comeback_7d")
                 
-                # Weekend special (Saturday/Sunday)
-                if now.weekday() in [5, 6] and current_hour == 10:  # 10 UTC = 3:30 PM IST
-                    await fcm_service.send_to_all(db, 
-                        "🎉 Weekend Special!",
-                        "More people are online on weekends. Perfect time to find your match!"
-                    )
-                    logging.info("📬 Sent weekend special notification")
-                
-                # Daily engagement notifications (run once per cycle)
+                if inactive_7d:
+                    logging.info(f"Sent 7-day comeback to {len(inactive_7d)} users")
+            
+            # ── 4. WEEKEND SPECIAL ──
+            if notif_config.get("weekend_special_enabled", True):
+                if now.weekday() in [5, 6] and 9 <= current_hour <= 11:
+                    await fcm_service.send_to_all(db,
+                        "Weekend Special!",
+                        "More people are online on weekends. Perfect time to find your match!")
+                    logging.info("Sent weekend special")
+            
+            # ── 5. DAILY ENGAGEMENT + SMART RE-ENGAGEMENT ──
+            if notif_config.get("daily_engagement_enabled", True):
                 await _send_daily_engagement_notifications()
-                
-                # Unread message reminders
                 await _send_unread_message_reminders()
-                
-                # === SMART RE-ENGAGEMENT NOTIFICATIONS ===
                 await _send_smart_reengagement_notifications()
-                
-                # === SMART DAILY PICKS (morning 9 AM IST = 3:30 UTC) ===
                 if 3 <= current_hour <= 4:
                     await _send_daily_picks()
         
         except Exception as e:
             logging.error(f"Notification scheduler error: {e}")
-            await asyncio.sleep(60)  # Wait 1 minute on error before retrying
+            await asyncio.sleep(60)
 
 # WebSocket connection manager
 class ConnectionManager:
@@ -1533,16 +1636,29 @@ async def signup(request: Request, user_data: UserSignup):
         if not created_user:
             raise HTTPException(status_code=500, detail="User created but not found")
         
-        # Send welcome notification via in-app + FCM push
+        # Send welcome notification via in-app + FCM push (respects admin toggle)
         try:
-            await create_in_app_notification(
-                user_id=user.id,
-                title="Welcome to HeartLink!",
-                body="Your profile is being reviewed by our team. You'll be notified once approved. This usually takes 24-48 hours.",
-                notification_type="welcome",
-                data={"action": "open_discover", "route": "/discover"}
-            )
-            await fcm_service.notify_welcome(db, user.id, sanitized_name)
+            notif_cfg = await db.app_settings.find_one({"type": "notification_config"}, {"_id": 0})
+            welcome_on = notif_cfg.get("welcome_enabled", True) if notif_cfg else True
+            if welcome_on:
+                await create_in_app_notification(
+                    user_id=user.id,
+                    title="Welcome to HeartLink!",
+                    body="Your profile is being reviewed by our team. You'll be notified once approved. This usually takes 24-48 hours.",
+                    notification_type="welcome",
+                    data={"action": "open_discover", "route": "/discover"}
+                )
+                await fcm_service.notify_welcome(db, user.id, sanitized_name)
+                # Log for analytics
+                await db.notification_logs.insert_one({
+                    "user_id": user.id, "type": "welcome",
+                    "sent_at": datetime.now(timezone.utc).isoformat()
+                })
+                await db.app_settings.update_one(
+                    {"type": "notification_analytics"},
+                    {"$inc": {"welcome_sent": 1}},
+                    upsert=True
+                )
         except Exception as notif_error:
             logger.warning(f"Failed to send signup notification: {notif_error}")
         
@@ -6514,7 +6630,7 @@ async def get_all_notification_templates():
         engagement_templates.append({
             "id": key,
             "title": value["title"],
-            "body": value["message"],
+            "body": value.get("body", value.get("message", "")),
             "category": value["data"].get("type", "engagement"),
             "is_engagement": True
         })
@@ -7847,6 +7963,102 @@ async def update_feature_flags(data: dict):
     return {k: v for k, v in flags.items() if k != "type"}
 
 
+
+
+
+# ==========================================
+# NOTIFICATION ADMIN CONTROLS
+# ==========================================
+
+@api_router.get("/admin/notification-config")
+async def get_notification_config():
+    """Admin: Get notification settings + analytics."""
+    config = await db.app_settings.find_one({"type": "notification_config"}, {"_id": 0})
+    defaults = {
+        "welcome_enabled": True, "profile_reminder_enabled": True,
+        "new_user_discovery_enabled": True, "comeback_3d_enabled": True,
+        "comeback_7d_enabled": True, "daily_engagement_enabled": True,
+        "weekend_special_enabled": True, "max_notifications_per_user_per_day": 3,
+    }
+    if not config:
+        config = defaults
+    merged = {**defaults, **{k: v for k, v in config.items() if k != "type"}}
+    
+    analytics = await db.app_settings.find_one({"type": "notification_analytics"}, {"_id": 0})
+    
+    # Recent notification counts (last 24h)
+    yesterday = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+    recent_count = await db.notification_logs.count_documents({"sent_at": {"$gte": yesterday}})
+    
+    # Type breakdown (last 24h)
+    type_pipeline = [
+        {"$match": {"sent_at": {"$gte": yesterday}}},
+        {"$group": {"_id": "$type", "count": {"$sum": 1}}},
+    ]
+    type_breakdown = await db.notification_logs.aggregate(type_pipeline).to_list(None)
+    
+    return {
+        "config": merged,
+        "analytics": {k: v for k, v in (analytics or {}).items() if k not in ("type", "_id")},
+        "recent_24h": recent_count,
+        "type_breakdown_24h": {t["_id"]: t["count"] for t in type_breakdown},
+    }
+
+
+@api_router.put("/admin/notification-config")
+async def update_notification_config(request: Request):
+    """Admin: Update notification settings."""
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+    
+    allowed = {
+        "welcome_enabled", "profile_reminder_enabled", "new_user_discovery_enabled",
+        "comeback_3d_enabled", "comeback_7d_enabled", "daily_engagement_enabled",
+        "weekend_special_enabled", "max_notifications_per_user_per_day",
+    }
+    updates = {}
+    for k, v in data.items():
+        if k in allowed:
+            if k == "max_notifications_per_user_per_day":
+                val = int(v)
+                updates[k] = max(1, min(10, val))
+            else:
+                updates[k] = bool(v)
+    
+    if not updates:
+        raise HTTPException(status_code=400, detail="No valid fields")
+    
+    await db.app_settings.update_one({"type": "notification_config"}, {"$set": updates}, upsert=True)
+    config = await db.app_settings.find_one({"type": "notification_config"}, {"_id": 0})
+    return {k: v for k, v in config.items() if k != "type"}
+
+
+@api_router.get("/admin/notification-analytics-chart")
+async def get_notification_analytics_chart(days: int = 7):
+    """7-day notification analytics chart data from notification_logs."""
+    now = datetime.now(timezone.utc)
+    chart_data = []
+    for i in range(days - 1, -1, -1):
+        day = now - timedelta(days=i)
+        day_start = day.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+        day_end = day.replace(hour=23, minute=59, second=59, microsecond=999999).isoformat()
+        
+        pipeline = [
+            {"$match": {"sent_at": {"$gte": day_start, "$lte": day_end}}},
+            {"$group": {"_id": "$type", "count": {"$sum": 1}}},
+        ]
+        type_counts = await db.notification_logs.aggregate(pipeline).to_list(None)
+        total = sum(t["count"] for t in type_counts)
+        
+        chart_data.append({
+            "date": day.strftime("%b %d"),
+            "total": total,
+            "breakdown": {t["_id"]: t["count"] for t in type_counts}
+        })
+    
+    return {"chart": chart_data, "period_days": days}
 
 
 # ==========================================

@@ -90,8 +90,8 @@ Modern, safe, trust-based dating app for Indian users. React frontend + FastAPI 
 - Like (66px): Large emerald gradient, filled Heart, pulse ring animation
 - Crush (46px, conditional): Amber Flame icon, only when crush_feature=true
 
-## Server Architecture (Sep 3, 2026)
-- `/app/backend/server.py` — Main server (8179 lines, down from 8839)
+## Server Architecture (Sep 5, 2026)
+- `/app/backend/server.py` — Main server (~8900 lines, actively being split)
 - `/app/backend/routes/ads.py` — Ad impression, rewards, frequency cap, admin analytics (184 lines)
 - `/app/backend/routes/games.py` — Play With Match game system (136 lines)
 - `/app/backend/routes/boost.py` — Profile boost (79 lines)
@@ -110,6 +110,35 @@ Modern, safe, trust-based dating app for Indian users. React frontend + FastAPI 
 - **Analytics**: `POST /api/app-update/analytics` — tracks shown/clicked/dismissed events
 - **In-App Banner**: `AppUpdateBanner.jsx` — dark glass banner on top, "Update Now" / "Later", respects dismissal cooldown
 - **Admin UI**: `AppUpdateSettings.jsx` in Settings tab — version config, toggles, analytics cards, send button with confirmation
+
+## Smart User Growth + Retention Notification System (Sep 5, 2026)
+### Backend
+- `notification_scheduler()` background loop runs every 6 hours (9AM-9PM IST)
+- 7 notification types, each admin-toggleable via `notification_config` in `app_settings`:
+  1. **Welcome Push** — Immediate FCM on signup (gated by `welcome_enabled`)
+  2. **Profile Completion Reminder** — 24hr after signup if no photo/bio
+  3. **New User Discovery** — Opposite gender alert when new user joins (gated by `new_user_discovery_enabled`)
+  4. **3-Day Comeback** — Push for users inactive 3 days
+  5. **7-Day Comeback** — Push for users inactive 7 days
+  6. **Daily Engagement** — Daily picks, unread reminders, smart re-engagement
+  7. **Weekend Special** — Saturday/Sunday blast
+- Per-user daily frequency limit (1-10, server-validated)
+- Notification logging in `notification_logs` collection for analytics
+- `notification_analytics` counters in `app_settings` for cumulative stats
+
+### API Endpoints
+- `GET /api/admin/notification-config` — Config + analytics + 24h counts + type breakdown
+- `PUT /api/admin/notification-config` — Update toggles/limits (server-side validation)
+- `GET /api/admin/notification-analytics-chart?days=7` — 7-day chart data
+
+### Frontend
+- `SmartNotificationConfig.jsx` — Admin component with:
+  - Purple gradient header with 3 stat cards (24h count, active types, max/day)
+  - 7-day notification volume bar chart
+  - 24h type breakdown tags
+  - Frequency limit +/- control (clamped 1-10)
+  - 7 toggle cards for each notification type with sent counts
+  - Save button (appears only when dirty)
 
 ## Pending / Backlog
 - P0: Razorpay Premium Subscription (₹99-999/month)

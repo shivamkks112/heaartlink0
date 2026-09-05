@@ -283,8 +283,8 @@ async def notify_profile_view(db, user_id: str, viewer_name: str, viewer_id: str
 
 async def notify_welcome(db, user_id: str, name: str):
     return await send_to_user(db, user_id,
-        title=f"Welcome {name}!",
-        body="Your profile is being reviewed. Start exploring matches!",
+        title="Welcome to HeartLink!",
+        body="Thanks for joining us. Stay active to discover new people, get matches and start meaningful conversations.",
         data={"type": "welcome", "route": "/discover"},
     )
 
