@@ -31,6 +31,21 @@ const UserProfilePage = lazy(() => import('@/pages/UserProfilePage'));
 const PrivacyPage = lazy(() => import('@/pages/PrivacyPage'));
 const SettingsPage = lazy(() => import('@/pages/SettingsPage'));
 const PrivacyPolicyPage = lazy(() => import('@/pages/PrivacyPolicyPage'));
+
+// Prefetch notification-critical pages so they're instant on notification tap
+if (typeof window !== 'undefined') {
+  requestIdleCallback?.(() => {
+    import('@/pages/ChatPage');
+    import('@/pages/MatchesPage');
+    import('@/pages/LikesYouPage');
+    import('@/pages/DiscoverPage');
+  }) || setTimeout(() => {
+    import('@/pages/ChatPage');
+    import('@/pages/MatchesPage');
+    import('@/pages/LikesYouPage');
+    import('@/pages/DiscoverPage');
+  }, 2000);
+}
 const DataDeletionPage = lazy(() => import('@/pages/DataDeletionPage'));
 const TermsPage = lazy(() => import('@/pages/TermsPage'));
 const ProfileViewersPage = lazy(() => import('@/pages/ProfileViewersPage'));
@@ -96,13 +111,12 @@ function NavigationHelper() {
       }
     };
     
-    // Check immediately
+    // Check immediately and on rapid intervals for fast notification response
     checkPendingNavigation();
-    
-    // Also check after a delay (in case app is still loading)
-    const timer1 = setTimeout(checkPendingNavigation, 500);
-    const timer2 = setTimeout(checkPendingNavigation, 1500);
-    const timer3 = setTimeout(checkPendingNavigation, 3000);
+    const timer1 = setTimeout(checkPendingNavigation, 100);
+    const timer2 = setTimeout(checkPendingNavigation, 300);
+    const timer3 = setTimeout(checkPendingNavigation, 800);
+    const timer4 = setTimeout(checkPendingNavigation, 2000);
     
     // Listen for popstate events (back button, history changes)
     const handlePopState = () => {
@@ -119,6 +133,7 @@ function NavigationHelper() {
       clearTimeout(timer1);
       clearTimeout(timer2);
       clearTimeout(timer3);
+      clearTimeout(timer4);
       delete window.__HEARTLINK_NAVIGATE__;
     };
   }, [navigate, location.pathname]);

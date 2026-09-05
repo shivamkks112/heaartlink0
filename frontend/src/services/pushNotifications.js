@@ -286,19 +286,29 @@ function navigateToScreen(data) {
     // App.js picks this up and uses React Router (no full reload)
     localStorage.setItem('heartlink_pending_nav', route);
     
-    // If app is already loaded, try React Router navigation
+    // If app is already loaded, try React Router navigation immediately
     if (window.__heartlink_navigate) {
       window.__heartlink_navigate(route);
       localStorage.removeItem('heartlink_pending_nav');
     } else {
       // App not yet loaded (cold start) — pending nav will be picked up on load
-      // Only use full reload as last resort if SPA nav fails after 500ms
+      // Try again quickly as the app initializes
+      setTimeout(() => {
+        if (window.__heartlink_navigate) {
+          const stillPending = localStorage.getItem('heartlink_pending_nav');
+          if (stillPending === route) {
+            window.__heartlink_navigate(route);
+            localStorage.removeItem('heartlink_pending_nav');
+          }
+        }
+      }, 200);
+      // Last resort: full reload after 1.5s if SPA nav still hasn't picked it up
       setTimeout(() => {
         const stillPending = localStorage.getItem('heartlink_pending_nav');
         if (stillPending === route) {
           window.location.href = route;
         }
-      }, 500);
+      }, 1500);
     }
   }
 }
