@@ -1156,3 +1156,195 @@ async def toggle_ai_profile(db, profile_id: str, is_active: bool):
         {"$set": {"is_active_ai": is_active}}
     )
     return result.modified_count > 0
+
+
+# ═══════════════════════════════════════════════════════════════
+# STEALTH AUTO-CHAT — Real user accounts with AI-powered replies
+# No "is_ai_profile" flag — completely invisible, looks 100% real
+# ═══════════════════════════════════════════════════════════════
+
+STEALTH_SYSTEM_PROMPT = """Tu ek real Indian ladki hai jo HeartLink dating app pe hai. Tera naam {name} hai, {age} saal ki hai, {location} se hai.
+
+Tera bio: {bio}
+Tere interests: {interests}
+
+Tu ek REAL PERSON hai — kisi ko pata nahi chalna chahiye ki AI reply kar raha hai.
+
+RULES:
+1. HINGLISH mein baat kar — Hindi + English naturally mix. Kabhi pure Hindi, kabhi English dominated.
+2. Reply length VARY kar — kabhi "haha 😂", kabhi 1-2 lines, kabhi 3-4 lines.
+3. Natural human patterns — "arey", "yaar", "haan", "achha", "basically", "matlab".
+4. Situation ke according behave kar:
+   - Flirty when they compliment: "aww thank you 😏"
+   - Caring when they're sad: "kya hua? Batao na"
+   - Witty when they joke: sharp comeback
+   - Cold when inappropriate: "yaar ye thoda weird hai"
+5. NEVER reveal tu AI hai. Agar puche toh: "haha pagal hai kya 😂 video call karke dikhaun?"
+6. Personal info maange toh redirect: "abhi thoda aur yahan baat kar lete hai na 😊"
+7. Random thoughts share kar: "abhi coffee pee rahi thi", "aaj mausam kitna acha hai"
+8. Emotional intelligence dikhao — genuinely react karo, empathy dikhao.
+9. Tu {name} hai, ye teri real identity hai. NEVER break character.
+10. Kabhi kabhi double message bhej — pehle short reaction, phir main reply.
+"""
+
+
+async def handle_stealth_auto_reply(db, websocket_manager, match_id: str, sender_id: str, auto_user: dict, user_message: str, user_name: str):
+    """Handle auto-reply for stealth automated accounts — looks completely real."""
+    
+    # Check if auto_chat is still enabled
+    if not auto_user.get("auto_chat_enabled"):
+        return
+    
+    # Natural reply delay — mix of fast and slow
+    delay_minutes = random.uniform(0.5, 4)
+    delay_seconds = delay_minutes * 60
+    logger.info(f"Stealth auto-chat {auto_user.get('name')} replying in {delay_minutes:.1f} min")
+    
+    # Typing indicator before reply
+    await asyncio.sleep(max(delay_seconds - 15, 5))
+    
+    if websocket_manager:
+        await websocket_manager.send_message(sender_id, {
+            "type": "typing_indicator",
+            "match_id": match_id,
+            "user_id": auto_user["id"],
+            "is_typing": True
+        })
+    
+    await asyncio.sleep(random.uniform(5, 15))
+    
+    # Generate AI response
+    response = await _generate_stealth_response(db, match_id, auto_user, user_message, user_name)
+    
+    # Save and send message
+    msg_doc = {
+        "id": str(uuid.uuid4()),
+        "match_id": match_id,
+        "sender_id": auto_user["id"],
+        "receiver_id": sender_id,
+        "content": response,
+        "read": False,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "message_type": "text",
+        "is_deleted_for_sender": False,
+        "is_deleted_for_receiver": False,
+        "is_deleted_for_all": False,
+    }
+    await db.messages.insert_one(msg_doc)
+    
+    if websocket_manager:
+        # Stop typing
+        await websocket_manager.send_message(sender_id, {
+            "type": "typing_indicator",
+            "match_id": match_id,
+            "user_id": auto_user["id"],
+            "is_typing": False
+        })
+        await asyncio.sleep(0.3)
+        clean_msg = {k: v for k, v in msg_doc.items() if k != "_id"}
+        await websocket_manager.send_message(sender_id, {
+            "type": "message", "message": clean_msg
+        })
+    
+    logger.info(f"Stealth auto-chat {auto_user['name']} replied in match {match_id}")
+    
+    # 30% chance double message
+    if random.random() < 0.30:
+        await asyncio.sleep(random.uniform(2, 6))
+        doubles = ["haha", "btw", "aur sunao", "achha ek aur baat", "😂", "wait", "arey haan"]
+        double_doc = {
+            "id": str(uuid.uuid4()),
+            "match_id": match_id,
+            "sender_id": auto_user["id"],
+            "receiver_id": sender_id,
+            "content": random.choice(doubles),
+            "read": False,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "message_type": "text",
+            "is_deleted_for_sender": False,
+            "is_deleted_for_receiver": False,
+            "is_deleted_for_all": False,
+        }
+        await db.messages.insert_one(double_doc)
+        if websocket_manager:
+            clean_d = {k: v for k, v in double_doc.items() if k != "_id"}
+            await websocket_manager.send_message(sender_id, {
+                "type": "message", "message": clean_d
+            })
+
+
+async def _generate_stealth_response(db, match_id: str, auto_user: dict, user_message: str, user_name: str) -> str:
+    """Generate AI response using the real user's profile data."""
+    if not EMERGENT_LLM_KEY:
+        return _get_stealth_fallback()
+    
+    system_prompt = STEALTH_SYSTEM_PROMPT.format(
+        name=auto_user.get("name", ""),
+        age=auto_user.get("age", 22),
+        location=auto_user.get("location", "India"),
+        bio=auto_user.get("bio", ""),
+        interests=", ".join(auto_user.get("interests", []))
+    )
+    
+    session_id = f"stealth_chat_{match_id}"
+    
+    try:
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=session_id,
+            system_message=system_prompt
+        )
+        chat.with_model("gemini", "gemini-2.5-flash")
+        
+        # Load recent messages for context
+        recent_msgs = await db.messages.find(
+            {"match_id": match_id},
+            {"_id": 0, "sender_id": 1, "content": 1}
+        ).sort("created_at", -1).limit(20).to_list(None)
+        recent_msgs.reverse()
+        
+        context = []
+        for msg in recent_msgs[:-1]:
+            who = auto_user["name"] if msg["sender_id"] == auto_user["id"] else user_name
+            context.append(f"{who}: {msg['content']}")
+        
+        prompt = ""
+        if context:
+            prompt = "Chat history:\n" + "\n".join(context[-15:]) + "\n\n"
+        prompt += f"{user_name}: {user_message}\n\n"
+        prompt += f"Reply as {auto_user['name']}. NATURAL Hinglish. Vary length. Be REAL:"
+        
+        user_msg = UserMessage(text=prompt)
+        response = await chat.send_message(user_msg)
+        
+        response_text = str(response).strip()
+        
+        # Clean LLM artifacts
+        name = auto_user.get("name", "")
+        for prefix in [f"{name}:", f"{name.split()[0]}:", f"**{name}**:"]:
+            if response_text.startswith(prefix):
+                response_text = response_text[len(prefix):].strip()
+        response_text = response_text.replace("**", "").replace("*", "")
+        
+        if len(response_text) > 400:
+            response_text = response_text[:397] + "..."
+        
+        return response_text
+        
+    except Exception as e:
+        logger.error(f"Stealth auto-chat AI failed: {e}")
+        return _get_stealth_fallback()
+
+
+def _get_stealth_fallback() -> str:
+    """Fallback responses for stealth auto-chat."""
+    fallbacks = [
+        "Haha arey yaar 😂 network issue aa raha tha. Batao kya chal raha hai?",
+        "Sorry thoda busy thi! Ab free hoon, batao",
+        "Omg haan! Interesting hai ye 😏 Aur batao",
+        "Achha achha! Mujhe aur detail mein batao na",
+        "Hmm that's nice 🤗 Tum batao apna kya scene hai",
+        "Haha wait wait 😂 Ek sec, phone slow ho gaya tha",
+        "Arey nice! Tumse baat karke accha lagta hai honestly",
+    ]
+    return random.choice(fallbacks)

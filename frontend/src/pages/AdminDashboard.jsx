@@ -8,7 +8,7 @@ import {
   Eye, MessageCircle, Heart, Shield, Crown,
   Activity, BarChart3, PieChart, ClipboardCheck, Settings,
   Bot, Power, RotateCcw, KeyRound, Download, Send, Flame,
-  DollarSign, BarChart2, Target, Tv
+  DollarSign, BarChart2, Target, Tv, Zap
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -102,7 +102,7 @@ const StatCard = ({ icon: Icon, label, value, subValue, color, bgColor }) => (
 );
 
 // UserCard Component
-const UserCard = ({ u, onBlock, onUnblock, onDelete, onView, onResetPassword }) => {
+const UserCard = ({ u, onBlock, onUnblock, onDelete, onView, onResetPassword, onToggleAutoChat }) => {
   if (!u) return null;
   
   const lastActive = u.last_active ? new Date(u.last_active) : null;
@@ -178,6 +178,17 @@ const UserCard = ({ u, onBlock, onUnblock, onDelete, onView, onResetPassword }) 
         <Button size="sm" variant="outline" onClick={() => onView(u)}>
           <Eye className="w-4 h-4" />
         </Button>
+        {!u.is_ai_profile && (
+          <Button 
+            size="sm" 
+            variant="outline" 
+            className={u.auto_chat_enabled ? 'text-emerald-600 border-emerald-600 bg-emerald-50' : 'text-gray-400 border-gray-300'}
+            onClick={() => onToggleAutoChat(u.id, u.name, !u.auto_chat_enabled)}
+            title={u.auto_chat_enabled ? 'Auto-chat ON' : 'Auto-chat OFF'}
+          >
+            <Zap className="w-4 h-4" />
+          </Button>
+        )}
         {(u.is_shadow_banned || u.is_permanently_banned) ? (
           <Button size="sm" variant="outline" className="text-green-600 border-green-600" onClick={() => onUnblock(u.id, u.name)}>
             <UserCheck className="w-4 h-4" />
@@ -614,6 +625,18 @@ const AdminDashboard = ({ user }) => {
     setShowUserDetail(true);
   };
 
+  const handleToggleAutoChat = async (userId, userName, enable) => {
+    try {
+      const endpoint = enable ? '/admin/auto-chat/enable' : '/admin/auto-chat/disable';
+      await adminApi.post(endpoint, { user_id: userId });
+      toast.success(`${userName} auto-chat ${enable ? 'ON' : 'OFF'}`);
+      fetchUsers();
+    } catch (e) {
+      toast.error('Failed: ' + (e.response?.data?.detail || e.message));
+    }
+  };
+
+
   const handleResetPassword = async () => {
     if (!selectedUser || !resetNewPassword) return;
     setResetPasswordLoading(true);
@@ -967,6 +990,7 @@ const AdminDashboard = ({ user }) => {
                         onDelete={(usr) => { setSelectedUser(usr); setShowDeleteModal(true); }}
                         onView={handleViewUser}
                         onResetPassword={(usr) => { setSelectedUser(usr); setShowResetPasswordModal(true); }}
+                        onToggleAutoChat={handleToggleAutoChat}
                       />
                     ) : null
                   ))}

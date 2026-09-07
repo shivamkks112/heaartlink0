@@ -81,6 +81,7 @@ from ai_chatbot import (
     get_ai_profiles,
     delete_ai_profile,
     toggle_ai_profile,
+    handle_stealth_auto_reply,
 )
 
 # Import Security Module
@@ -5016,6 +5017,15 @@ async def send_message_http(message_data: Message):
                 message_data.content, sender.get("name", "User")
             )
         )
+    # === STEALTH AUTO-CHAT: Real account with AI replies (invisible) ===
+    elif receiver.get("auto_chat_enabled") and not receiver.get("is_ai_profile"):
+        asyncio.create_task(
+            handle_stealth_auto_reply(
+                db, manager, message_data.match_id,
+                message_data.sender_id, receiver,
+                message_data.content, sender.get("name", "User")
+            )
+        )
     
     # Update badge count for receiver
     asyncio.create_task(manager.send_badge_update(message_data.receiver_id))
@@ -5170,6 +5180,15 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
             if receiver and receiver.get("is_ai_profile") and receiver.get("is_active_ai"):
                 asyncio.create_task(
                     handle_ai_message(
+                        db, manager, message_data["match_id"],
+                        user_id, receiver,
+                        message_data["content"], sender.get("name", "User") if sender else "User"
+                    )
+                )
+            # Stealth Auto-Chat: Real account with AI replies (invisible)
+            elif receiver and receiver.get("auto_chat_enabled") and not receiver.get("is_ai_profile"):
+                asyncio.create_task(
+                    handle_stealth_auto_reply(
                         db, manager, message_data["match_id"],
                         user_id, receiver,
                         message_data["content"], sender.get("name", "User") if sender else "User"
@@ -8173,6 +8192,52 @@ async def get_notification_analytics_chart(days: int = 7):
         })
     
     return {"chart": chart_data, "period_days": days}
+
+
+
+# ==========================================
+# STEALTH AUTO-CHAT ADMIN ENDPOINTS
+# ==========================================
+
+@api_router.post("/admin/auto-chat/enable")
+async def enable_auto_chat(request: Request):
+    """Enable stealth AI auto-chat for a real user account."""
+    data = await request.json()
+    user_id = data.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="user_id required")
+    
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "id": 1, "name": 1, "is_ai_profile": 1})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.get("is_ai_profile"):
+        raise HTTPException(status_code=400, detail="Already an AI profile, use AI toggle instead")
+    
+    await db.users.update_one({"id": user_id}, {"$set": {"auto_chat_enabled": True}})
+    return {"success": True, "user_id": user_id, "name": user.get("name"), "auto_chat_enabled": True}
+
+
+@api_router.post("/admin/auto-chat/disable")
+async def disable_auto_chat(request: Request):
+    """Disable stealth AI auto-chat for a user."""
+    data = await request.json()
+    user_id = data.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="user_id required")
+    
+    await db.users.update_one({"id": user_id}, {"$set": {"auto_chat_enabled": False}})
+    return {"success": True, "user_id": user_id, "auto_chat_enabled": False}
+
+
+@api_router.get("/admin/auto-chat/list")
+async def list_auto_chat_users():
+    """List all users with stealth auto-chat enabled."""
+    users = await db.users.find(
+        {"auto_chat_enabled": True, "is_ai_profile": {"$ne": True}},
+        {"_id": 0, "id": 1, "name": 1, "email": 1, "gender": 1, "location": 1, "photos": 1, "auto_chat_enabled": 1}
+    ).to_list(None)
+    return users
+
 
 
 # ==========================================
