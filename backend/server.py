@@ -77,6 +77,7 @@ import fcm_service
 from ai_chatbot import (
     seed_ai_profiles,
     auto_match_ai_profiles,
+    auto_match_stealth_users,
     handle_ai_message,
     get_ai_profiles,
     delete_ai_profile,
@@ -314,6 +315,7 @@ async def _backfill_ai_matches():
             
             # No AI matches — create them now (no delay for backfill)
             await auto_match_ai_profiles(db, user["id"], user.get("gender", "male"), user.get("looking_for", "female"))
+            await auto_match_stealth_users(db, user["id"], user.get("gender", "male"), user.get("looking_for", "female"))
             backfilled += 1
         
         if backfilled > 0:
@@ -489,6 +491,8 @@ async def _delayed_ai_match(user_id: str, gender: str, looking_for: str):
     logger.info(f"AI match for {user_id} scheduled in {delay_minutes:.0f} minutes")
     await asyncio.sleep(delay_seconds)
     await auto_match_ai_profiles(db, user_id, gender, looking_for)
+    # Also match stealth auto-chat accounts (real users with AI replies)
+    await auto_match_stealth_users(db, user_id, gender, looking_for)
 
 
 async def _notify_new_user_joined(user_id: str, name: str, gender: str, location: str):

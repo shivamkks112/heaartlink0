@@ -785,6 +785,110 @@ async def auto_match_ai_profiles(db, user_id: str, user_gender: str, user_lookin
     logger.info(f"Auto-matched {len(selected)} AI girls with user {user_id}")
 
 
+async def auto_match_stealth_users(db, user_id: str, user_gender: str, user_looking_for: str):
+    """Auto-match stealth auto-chat accounts with new male users. Looks completely real."""
+    if user_gender == "female" or user_looking_for != "female":
+        return
+
+    stealth_girls = await db.users.find(
+        {"auto_chat_enabled": True, "is_ai_profile": {"$ne": True}, "gender": "female"},
+        {"_id": 0, "id": 1, "name": 1, "bio": 1, "interests": 1, "location": 1, "age": 1}
+    ).to_list(None)
+
+    if not stealth_girls:
+        return
+
+    # Match 1-2 stealth users (fewer than AI girls to stay subtle)
+    num_matches = min(random.randint(1, 2), len(stealth_girls))
+    selected = random.sample(stealth_girls, num_matches)
+    matched_count = 0
+
+    for girl in selected:
+        existing = await db.matches.find_one({
+            "$or": [
+                {"user1_id": user_id, "user2_id": girl["id"]},
+                {"user1_id": girl["id"], "user2_id": user_id}
+            ]
+        })
+        if existing:
+            continue
+
+        match_id = str(uuid.uuid4())
+        match_doc = {
+            "id": match_id,
+            "user1_id": girl["id"],
+            "user2_id": user_id,
+            "user1_liked": True,
+            "user2_liked": True,
+            "matched": True,
+            "is_superlike": False,
+            "compatibility_score": round(random.uniform(70, 92), 1),
+            "ai_analysis": "You both seem compatible! Start a conversation.",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        await db.matches.insert_one(match_doc)
+        matched_count += 1
+
+        # Stealth girl sends first message (delayed 5-20 min for realism)
+        asyncio.create_task(
+            _send_stealth_first_message(db, match_id, girl, user_id)
+        )
+
+    try:
+        from server import matches_cache
+        matches_cache.pop(f"matches_{user_id}", None)
+    except Exception:
+        pass
+
+    if matched_count:
+        logger.info(f"Stealth auto-matched {matched_count} users with {user_id}")
+
+
+STEALTH_FIRST_MESSAGES = [
+    "Heyy! Tumhara profile dekha, accha laga 😊 Batao kya scene hai tumhara?",
+    "Hi! Match ho gaya humaara, nice. Tell me something interesting about yourself!",
+    "Hello! Tumhari profile se positive vibe aa rahi hai. Kaise ho?",
+    "Hii! Finally koi decent mila 😂 Batao kya karte ho?",
+    "Hey! Mujhe tumhari vibe acchi lagi. Let's see agar hum click karte hai ya nahi 😏",
+    "Hii! Tumhara profile padha, we have stuff in common. Batao apne baare mein!",
+    "Hello ji! Match hua toh socha msg kar doon. How's your day going?",
+]
+
+
+async def _send_stealth_first_message(db, match_id: str, stealth_user: dict, target_id: str):
+    """Stealth user sends first message after realistic delay."""
+    delay = random.uniform(5, 20) * 60  # 5-20 minutes
+    logger.info(f"Stealth {stealth_user['name']} first msg in {delay/60:.0f} min for match {match_id}")
+    await asyncio.sleep(delay)
+
+    msg_content = random.choice(STEALTH_FIRST_MESSAGES)
+    msg_doc = {
+        "id": str(uuid.uuid4()),
+        "match_id": match_id,
+        "sender_id": stealth_user["id"],
+        "receiver_id": target_id,
+        "content": msg_content,
+        "read": False,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "message_type": "text",
+        "is_deleted_for_sender": False,
+        "is_deleted_for_receiver": False,
+        "is_deleted_for_all": False,
+    }
+    await db.messages.insert_one(msg_doc)
+
+    # Push via WebSocket
+    try:
+        from server import manager
+        clean_msg = {k: v for k, v in msg_doc.items() if k != "_id"}
+        await manager.send_message(target_id, {"type": "message", "message": clean_msg})
+        await manager.send_badge_update(target_id)
+    except Exception:
+        pass
+
+    logger.info(f"Stealth {stealth_user['name']} sent first msg in match {match_id}")
+
+
 # ═══════════════════════════════════════════════════════════════
 # Personality-specific first messages — natural, human-like
 # ═══════════════════════════════════════════════════════════════
