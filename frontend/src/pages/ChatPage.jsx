@@ -43,6 +43,7 @@ const ChatPage = ({ user }) => {
   const [showGameMenu, setShowGameMenu] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(null);
   const [privacySettings, setPrivacySettings] = useState({});
+  const [, setTimeTick] = useState(0); // Forces re-render for "last seen" label
   const [nudgeDismissed, setNudgeDismissed] = useState(() => {
     try {
       const d = JSON.parse(localStorage.getItem('heartlink_nudge_dismissed') || '{}');
@@ -228,6 +229,12 @@ const ChatPage = ({ user }) => {
       pendingWsMessages.current.clear();
     };
   }, [handleWsNewMessage, handleWsTyping, handleWsStatusUpdate, handleWsScreenshot, handleWsSystemWarning, handleWsMessageDeleted, handleWsMessagesRead, handleWsMessageDelivered]);
+
+  // Tick every 30s to keep "last seen" label fresh (e.g. "5m ago" → "6m ago")
+  useEffect(() => {
+    const interval = setInterval(() => setTimeTick(t => t + 1), 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const sendScreenshotAlert = async () => {
     try {

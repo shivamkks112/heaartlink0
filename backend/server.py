@@ -5002,15 +5002,31 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
             
             # Handle ping/heartbeat — update last_active to keep presence fresh
             if message_data.get("type") == "ping":
+                now_iso = datetime.now(timezone.utc).isoformat()
                 await db.users.update_one(
                     {"id": user_id},
-                    {"$set": {"last_active": datetime.now(timezone.utc).isoformat(), "is_online": True}}
+                    {"$set": {"last_active": now_iso, "is_online": True}}
                 )
                 # Send pong back so client can detect zombie connections
                 try:
                     await websocket.send_json({"type": "pong"})
                 except Exception:
                     pass
+                # Every ~2 min (5th ping), broadcast last_active to connected matched users
+                ping_count = getattr(websocket, '_ping_count', 0) + 1
+                websocket._ping_count = ping_count
+                if ping_count % 5 == 0:
+                    for cid in list(manager.active_connections.keys()):
+                        if cid != user_id:
+                            try:
+                                await manager.send_message(cid, {
+                                    "type": "status_update",
+                                    "user_id": user_id,
+                                    "is_online": True,
+                                    "last_active": now_iso
+                                })
+                            except Exception:
+                                pass
                 continue
             
             # Handle typing indicator via WS (fast path)
