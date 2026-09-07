@@ -4916,15 +4916,14 @@ async def send_message_http(message_data: Message):
     muted_users = receiver.get('muted_users', [])
     sender_not_muted = message_data.sender_id not in muted_users
     
-    # Send push notification via FCM — skip if receiver is online via WS, skip for AI
-    receiver_online_ws = message_data.receiver_id in manager.active_connections
-    if not is_ai_receiver and sender and sender_not_muted and not receiver_online_ws:
-        # Throttle: max 1 FCM per sender→receiver per 30s
+    # Send push notification via FCM — always send (frontend handles dedup)
+    if not is_ai_receiver and sender and sender_not_muted:
+        # Throttle: max 1 FCM per sender→receiver per 10s (prevents rapid chat spam)
         import time as _time
         throttle_key = f"msg_fcm_{message_data.sender_id}_{message_data.receiver_id}"
         last_sent = getattr(manager, '_fcm_throttle', {}).get(throttle_key, 0)
         now_ts = _time.time()
-        if now_ts - last_sent > 30:
+        if now_ts - last_sent > 10:
             if not hasattr(manager, '_fcm_throttle'):
                 manager._fcm_throttle = {}
             manager._fcm_throttle[throttle_key] = now_ts
@@ -5067,21 +5066,19 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
             # Send back to sender (for confirmation)
             await manager.send_message(user_id, message_payload)
             
-            # Send push notification to receiver if not muted
-            # SKIP FCM if receiver is connected via WebSocket (they get real-time message)
+            # Send push notification to receiver — always send FCM (frontend handles dedup)
             receiver = await db.users.find_one({"id": message_data["receiver_id"]})
             sender = await db.users.find_one({"id": user_id})
-            receiver_online_ws = message_data["receiver_id"] in manager.active_connections
             
-            if receiver and sender and not receiver_online_ws:
+            if receiver and sender:
                 muted_users = receiver.get('muted_users', [])
                 if user_id not in muted_users:
-                    # Throttle: max 1 FCM per sender→receiver per 30s
+                    # Throttle: max 1 FCM per sender→receiver per 10s
                     throttle_key = f"msg_fcm_{user_id}_{message_data['receiver_id']}"
                     last_sent = getattr(manager, '_fcm_throttle', {}).get(throttle_key, 0)
                     import time as _time
                     now_ts = _time.time()
-                    if now_ts - last_sent > 30:
+                    if now_ts - last_sent > 10:
                         if not hasattr(manager, '_fcm_throttle'):
                             manager._fcm_throttle = {}
                         manager._fcm_throttle[throttle_key] = now_ts
