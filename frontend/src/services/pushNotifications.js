@@ -198,10 +198,45 @@ async function createNotificationChannel() {
 
 // ─── Foreground Display ──────────────────────────────────────────
 
+// Dedup: track recently shown notifications to prevent duplicates
+const _recentNotifHashes = new Map();
+
+function _notifHash(notification) {
+  const t = notification.title || '';
+  const b = notification.body || '';
+  const type = notification.data?.type || '';
+  const matchId = notification.data?.match_id || '';
+  return `${type}|${matchId}|${t}|${b}`;
+}
+
 async function showLocalNotification(notification) {
   try {
-    const { LocalNotifications } = await import('@capacitor/local-notifications');
+    // Dedup check — skip if same notification shown within 15 seconds
+    const hash = _notifHash(notification);
+    const now = Date.now();
+    if (_recentNotifHashes.has(hash) && (now - _recentNotifHashes.get(hash)) < 15000) {
+      console.log(TAG, 'Skipped duplicate notification:', hash.substring(0, 40));
+      return;
+    }
+    _recentNotifHashes.set(hash, now);
+    // Clean old entries
+    if (_recentNotifHashes.size > 50) {
+      for (const [k, v] of _recentNotifHashes) {
+        if (now - v > 30000) _recentNotifHashes.delete(k);
+      }
+    }
+
+    // Skip if user is currently viewing this chat (message already shown via WS)
     const data = notification.data || {};
+    if (data.type === 'message' && data.match_id) {
+      const currentPath = window.location.pathname;
+      if (currentPath === `/chat/${data.match_id}`) {
+        console.log(TAG, 'Skipped notification — user is viewing this chat');
+        return;
+      }
+    }
+
+    const { LocalNotifications } = await import('@capacitor/local-notifications');
     
     // Pick channel + sound based on notification type
     let channelId = 'heartlink_messages';
@@ -215,11 +250,16 @@ async function showLocalNotification(notification) {
       sound = 'heartlink_like.wav';
     }
     
+    // Use deterministic ID based on hash to prevent same notification showing twice
+    let numericId = 0;
+    for (let i = 0; i < hash.length; i++) numericId = ((numericId << 5) - numericId + hash.charCodeAt(i)) | 0;
+    numericId = Math.abs(numericId) % 100000;
+
     await LocalNotifications.schedule({
       notifications: [{
         title: notification.title || 'HeartLink',
         body: notification.body || '',
-        id: Math.floor(Math.random() * 100000),
+        id: numericId,
         schedule: { at: new Date(Date.now() + 100) },
         sound: sound,
         channelId: channelId,
