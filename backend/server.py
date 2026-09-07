@@ -407,6 +407,65 @@ async def keep_ai_profiles_online(db_ref):
 
 
 
+# === SOCIAL MEDIA / EXTERNAL LINK BLOCKING ===
+SOCIAL_BLOCK_DAYS = 15  # Days after match before users can share social handles
+
+_SOCIAL_MEDIA_PATTERNS = [
+    # Platform names
+    r'\btelegram\b', r'\btele\s*gram\b', r'\bt\.me\b', r'\bt\.me/\S+',
+    r'\bwhatsapp\b', r'\bwhats\s*app\b', r'\bwa\.me\b', r'\bwa\.me/\S+',
+    r'\binstagram\b', r'\binsta\b', r'\big\b(?:\s*[:@]\s*\w+)',
+    r'\bsnapchat\b', r'\bsnap\s*chat\b', r'\bsnap\b(?:\s*[:@]\s*\w+)',
+    r'\bfacebook\b', r'\bfb\b(?:\s*[:@./]\s*\S+)', r'\bmessenger\b',
+    r'\btwitter\b', r'\bx\.com\b',
+    r'\bdiscord\b', r'\bdiscord\.gg\b',
+    r'\bsignal\b(?:\s+app)',
+    r'\bskype\b',
+    r'\btinder\b', r'\bbumble\b', r'\bhinge\b',
+    # URL patterns
+    r'https?://\S+',
+    r'www\.\S+',
+    # @ handles
+    r'@[A-Za-z0-9_.]{3,}',
+    # Hinglish variations
+    r'\binsta\s*id\b', r'\binsta\s*pe\b', r'\btg\s*pe\b', r'\btg\s*id\b',
+    r'\bsnap\s*id\b', r'\bwp\s*number\b', r'\bwp\s*no\b',
+    r'\bwhatsapp\s*number\b', r'\bwhatsapp\s*no\b',
+    r'\btelegram\s*id\b', r'\btelegram\s*pe\b',
+]
+
+import re as _re
+_SOCIAL_COMPILED = [_re.compile(p, _re.IGNORECASE) for p in _SOCIAL_MEDIA_PATTERNS]
+
+def _contains_social_media(text: str) -> bool:
+    """Check if text contains any social media handle, link, or platform name."""
+    for pattern in _SOCIAL_COMPILED:
+        if pattern.search(text):
+            return True
+    return False
+
+async def _check_social_block(match_id: str, content: str) -> tuple:
+    """Returns (blocked: bool, reason: str). Blocks social media sharing if match < 15 days."""
+    if not _contains_social_media(content):
+        return False, ""
+    
+    match_doc = await db.matches.find_one({"id": match_id}, {"_id": 0, "created_at": 1})
+    if not match_doc or not match_doc.get("created_at"):
+        return True, f"Social media links aur handles share karna allowed nahi hai pehle {SOCIAL_BLOCK_DAYS} din. Safety ke liye app ke andar baat karein."
+    
+    try:
+        match_created = datetime.fromisoformat(match_doc["created_at"].replace("Z", "+00:00"))
+        days_since = (datetime.now(timezone.utc) - match_created).days
+        if days_since < SOCIAL_BLOCK_DAYS:
+            remaining = SOCIAL_BLOCK_DAYS - days_since
+            return True, f"Social media links aur handles {remaining} din baad share kar sakte hai. Abhi app ke andar baat karein — safety first!"
+    except Exception:
+        pass
+    
+    return False, ""
+
+
+
 # === AUTOMATIC NOTIFICATION HELPERS ===
 
 async def _send_push_to_user(user_id: str, title: str, message: str, data: dict = None):
@@ -4724,6 +4783,11 @@ async def send_message_http(message_data: Message):
     message_dict = message_data.dict()
     original_content = message_dict["content"]
     
+    # === SOCIAL MEDIA BLOCK (15 days) ===
+    blocked, block_reason = await _check_social_block(message_data.match_id, original_content)
+    if blocked:
+        raise HTTPException(status_code=403, detail=block_reason)
+    
     # === PERSONAL INFO DETECTION & MASKING ===
     # Detect phone numbers and mask them
     import re
@@ -5039,6 +5103,15 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
                         "user_id": user_id,
                         "is_typing": message_data.get("is_typing", True)
                     })
+                continue
+            
+            # Block social media links/handles for first 15 days
+            blocked, block_reason = await _check_social_block(message_data["match_id"], message_data["content"])
+            if blocked:
+                await manager.send_message(user_id, {
+                    "type": "system_warning",
+                    "message": f"⚠️ {block_reason}"
+                })
                 continue
             
             # Save message
