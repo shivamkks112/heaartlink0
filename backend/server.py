@@ -430,11 +430,19 @@ _SOCIAL_MEDIA_PATTERNS = [
     r'www\.\S+',
     # @ handles
     r'@[A-Za-z0-9_.]{3,}',
+    # Phone numbers (Indian 10-digit)
+    r'\b[6-9]\d{9}\b',
+    r'\b\+91\s*\d{10}\b',
+    r'\b\d{5}\s*\d{5}\b',
+    # Email
+    r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b',
     # Hinglish variations
     r'\binsta\s*id\b', r'\binsta\s*pe\b', r'\btg\s*pe\b', r'\btg\s*id\b',
     r'\bsnap\s*id\b', r'\bwp\s*number\b', r'\bwp\s*no\b',
     r'\bwhatsapp\s*number\b', r'\bwhatsapp\s*no\b',
     r'\btelegram\s*id\b', r'\btelegram\s*pe\b',
+    r'\bnumber\s*de\b', r'\bphone\s*number\b', r'\bcall\s*me\b', r'\bcall\s*kro\b',
+    r'\bnumber\s*do\b', r'\bnumber\s*bhej\b', r'\bno\.\s*de\b',
 ]
 
 import re as _re
@@ -4788,10 +4796,10 @@ async def send_message_http(message_data: Message):
     message_dict = message_data.dict()
     original_content = message_dict["content"]
     
-    # === SOCIAL MEDIA BLOCK (15 days) ===
+    # === SOCIAL MEDIA BLOCK — silently drop ===
     blocked, block_reason = await _check_social_block(message_data.match_id, original_content)
     if blocked:
-        raise HTTPException(status_code=403, detail=block_reason)
+        return {"id": message_dict.get("id", ""), "status": "sent"}
     
     # === PERSONAL INFO DETECTION & MASKING ===
     # Detect phone numbers and mask them
@@ -5119,13 +5127,9 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
                     })
                 continue
             
-            # Block social media links/handles for first 15 days
+            # Block social media links/handles — silently drop, no warning
             blocked, block_reason = await _check_social_block(message_data["match_id"], message_data["content"])
             if blocked:
-                await manager.send_message(user_id, {
-                    "type": "system_warning",
-                    "message": f"⚠️ {block_reason}"
-                })
                 continue
             
             # Save message

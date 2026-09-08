@@ -121,14 +121,14 @@ const ChatPage = ({ user }) => {
   }, [matchId]);
 
   const handleWsSystemWarning = useCallback((data) => {
-    toast.warning(data.message, { duration: 5000 });
-    // If social media block, remove the temp message that was optimistically added
-    if (data.message && data.message.includes('Social media')) {
+    // Social media blocks are silent — just remove temp message
+    if (data.message && (data.message.includes('Social media') || data.message.includes('social media'))) {
       setMessages(prev => prev.filter(msg => !msg._temp));
-      // Clear any pending WS fallback timer
       pendingWsMessages.current.forEach(timer => clearTimeout(timer));
       pendingWsMessages.current.clear();
+      return;
     }
+    toast.warning(data.message, { duration: 5000 });
   }, []);
 
   const handleWsMessageDeleted = useCallback((data) => {
