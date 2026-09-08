@@ -411,7 +411,7 @@ async def keep_ai_profiles_online(db_ref):
 
 
 # === SOCIAL MEDIA / EXTERNAL LINK BLOCKING ===
-SOCIAL_BLOCK_DAYS = 15  # Days after match before users can share social handles
+SOCIAL_BLOCK_DAYS = 30  # Days after match before users can share social handles
 
 _SOCIAL_MEDIA_PATTERNS = [
     # Platform names

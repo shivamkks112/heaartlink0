@@ -122,6 +122,13 @@ const ChatPage = ({ user }) => {
 
   const handleWsSystemWarning = useCallback((data) => {
     toast.warning(data.message, { duration: 5000 });
+    // If social media block, remove the temp message that was optimistically added
+    if (data.message && data.message.includes('Social media')) {
+      setMessages(prev => prev.filter(msg => !msg._temp));
+      // Clear any pending WS fallback timer
+      pendingWsMessages.current.forEach(timer => clearTimeout(timer));
+      pendingWsMessages.current.clear();
+    }
   }, []);
 
   const handleWsMessageDeleted = useCallback((data) => {
@@ -674,6 +681,19 @@ const ChatPage = ({ user }) => {
                           ),
                         }}
                         onDoubleClick={() => !msg.is_deleted_for_all && handleReaction(msg.id, 'heart')}
+                        onContextMenu={(e) => {
+                          if (isOwn && !msg.is_deleted_for_all && !msg._temp) {
+                            e.preventDefault();
+                            setShowDeleteModal(msg.id);
+                          }
+                        }}
+                        onTouchStart={(e) => {
+                          if (!isOwn || msg.is_deleted_for_all || msg._temp) return;
+                          const timer = setTimeout(() => setShowDeleteModal(msg.id), 500);
+                          e.currentTarget._longPressTimer = timer;
+                        }}
+                        onTouchEnd={(e) => clearTimeout(e.currentTarget._longPressTimer)}
+                        onTouchMove={(e) => clearTimeout(e.currentTarget._longPressTimer)}
                       >
                         {msg.personal_info_detected && (
                           <div className="flex items-center gap-1 text-xs mb-1" style={{ color: isOwn ? 'rgba(255,255,255,0.7)' : 'var(--m3-outline)' }}>
@@ -718,8 +738,9 @@ const ChatPage = ({ user }) => {
                       {isOwn && !msg.is_deleted_for_all && (
                         <button
                           onClick={() => setShowDeleteModal(msg.id)}
-                          className="absolute -left-8 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-full shadow-md hover:bg-red-50"
+                          className="absolute -left-8 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity p-1.5 rounded-full shadow-md hover:bg-red-50 active:bg-red-50 touch-manipulation"
                           style={{ background: 'var(--m3-surface-container-lowest)' }}
+                          data-testid={`delete-msg-${msg.id}`}
                         >
                           <Trash2 className="w-4 h-4 text-red-500" />
                         </button>
