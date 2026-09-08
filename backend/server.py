@@ -85,6 +85,14 @@ from ai_chatbot import (
     handle_stealth_auto_reply,
 )
 
+# Import Safety Module
+from safety_module import (
+    handle_creepy_detection,
+    check_night_mode_block,
+    check_safe_word,
+)
+
+
 # Import Security Module
 from security import (
     hash_password_secure,
@@ -4801,6 +4809,27 @@ async def send_message_http(message_data: Message):
     if blocked:
         return {"id": message_dict.get("id", ""), "status": "sent"}
     
+    # === GIRLS SAFETY CHECKS ===
+    safe_word_triggered = await check_safe_word(
+        db, message_data.sender_id, message_data.receiver_id, message_data.match_id,
+        original_content, ws_manager=manager
+    )
+    if safe_word_triggered:
+        return {"id": message_dict.get("id", ""), "status": "sent"}
+    
+    night_blocked, _ = await check_night_mode_block(
+        db, message_data.sender_id, message_data.receiver_id, message_data.match_id
+    )
+    if night_blocked:
+        return {"id": message_dict.get("id", ""), "status": "sent"}
+    
+    is_creepy = await handle_creepy_detection(
+        db, message_data.sender_id, message_data.receiver_id, message_data.match_id,
+        original_content, ws_manager=manager
+    )
+    if is_creepy:
+        return {"id": message_dict.get("id", ""), "status": "sent"}
+    
     # === PERSONAL INFO DETECTION & MASKING ===
     # Detect phone numbers and mask them
     import re
@@ -5131,6 +5160,30 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
             blocked, block_reason = await _check_social_block(message_data["match_id"], message_data["content"])
             if blocked:
                 continue
+            
+            # ── GIRLS SAFETY CHECKS ──
+            # 1. Safe Word check (girl types emergency keyword → instant block + report)
+            safe_word_triggered = await check_safe_word(
+                db, user_id, message_data["receiver_id"], message_data["match_id"],
+                message_data["content"], ws_manager=manager
+            )
+            if safe_word_triggered:
+                continue
+            
+            # 2. Night Mode Safety (11pm-6am IST, new matches only)
+            night_blocked, _ = await check_night_mode_block(
+                db, user_id, message_data["receiver_id"], message_data["match_id"]
+            )
+            if night_blocked:
+                continue  # Silently drop
+            
+            # 3. Creepy Message Detection (AI) — runs async, blocks if inappropriate
+            is_creepy = await handle_creepy_detection(
+                db, user_id, message_data["receiver_id"], message_data["match_id"],
+                message_data["content"], ws_manager=manager
+            )
+            if is_creepy:
+                continue  # Message blocked, warning sent to sender
             
             # Save message
             message = Message(
@@ -8249,6 +8302,70 @@ async def list_auto_chat_users():
 
 
 # ==========================================
+
+
+# ==========================================
+# GIRLS SAFETY ENDPOINTS
+# ==========================================
+
+@api_router.post("/safety/night-mode/toggle")
+async def toggle_night_safety(request: Request):
+    """Girls can toggle night mode safety (11pm-6am block for new matches)."""
+    data = await request.json()
+    user_id = data.get("user_id")
+    enabled = data.get("enabled", True)
+    if not user_id:
+        raise HTTPException(status_code=400, detail="user_id required")
+    await db.users.update_one({"id": user_id}, {"$set": {"night_safety_enabled": enabled}})
+    return {"success": True, "night_safety_enabled": enabled}
+
+
+@api_router.get("/safety/night-mode/{user_id}")
+async def get_night_safety(user_id: str):
+    """Get night mode safety status for a user."""
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "night_safety_enabled": 1, "gender": 1})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"night_safety_enabled": user.get("night_safety_enabled", True), "gender": user.get("gender")}
+
+
+@api_router.get("/admin/safety-reports")
+async def get_safety_reports(limit: int = 50):
+    """Admin: Get recent safety reports (AI detections + safe word triggers)."""
+    reports = await db.safety_reports.find(
+        {}, {"_id": 0}
+    ).sort("created_at", -1).limit(limit).to_list(None)
+    
+    alerts = await db.admin_alerts.find(
+        {"type": "safe_word_emergency"}, {"_id": 0}
+    ).sort("created_at", -1).limit(20).to_list(None)
+    
+    stats = {
+        "total_reports": await db.safety_reports.count_documents({}),
+        "ai_detections": await db.safety_reports.count_documents({"type": "ai_detection"}),
+        "safe_word_triggers": await db.safety_reports.count_documents({"type": "safe_word_triggered"}),
+        "auto_bans": await db.safety_reports.count_documents({"auto_action": "banned"}),
+        "unread_alerts": await db.admin_alerts.count_documents({"read": False}),
+    }
+    
+    return {"reports": reports, "alerts": alerts, "stats": stats}
+
+
+@api_router.put("/admin/safety-config")
+async def update_safety_config(request: Request):
+    """Admin: Update safety configuration (safe words, etc)."""
+    data = await request.json()
+    allowed = {"safe_words", "creepy_detection_enabled", "night_mode_default", "auto_ban_threshold"}
+    updates = {k: v for k, v in data.items() if k in allowed}
+    if not updates:
+        raise HTTPException(status_code=400, detail="No valid fields")
+    updates["type"] = "safety_config"
+    await db.app_settings.update_one(
+        {"type": "safety_config"}, {"$set": updates}, upsert=True
+    )
+    return updates
+
+
 # IN-APP RATING PROMPT
 # ==========================================
 

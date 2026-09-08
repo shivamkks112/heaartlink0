@@ -35,6 +35,7 @@ const SettingsPage = ({ user, setUser }) => {
     screenshot_alert: true
   });
   const [savingPrivacy, setSavingPrivacy] = useState(false);
+  const [nightSafety, setNightSafety] = useState(true);
   
   // Linking states
   const [showLinkEmail, setShowLinkEmail] = useState(false);
@@ -47,7 +48,27 @@ const SettingsPage = ({ user, setUser }) => {
   useEffect(() => {
     fetchUserSettings();
     fetchPrivacySettings();
+    fetchNightSafety();
   }, []);
+
+  const fetchNightSafety = async () => {
+    try {
+      const res = await axios.get(`${API}/safety/night-mode/${user.id}`);
+      setNightSafety(res.data.night_safety_enabled);
+    } catch {}
+  };
+
+  const toggleNightSafety = async () => {
+    const newVal = !nightSafety;
+    setNightSafety(newVal);
+    try {
+      await axios.post(`${API}/safety/night-mode/toggle`, { user_id: user.id, enabled: newVal });
+      toast.success(newVal ? 'Night Safety ON' : 'Night Safety OFF');
+    } catch {
+      setNightSafety(!newVal);
+      toast.error('Failed to update');
+    }
+  };
 
   const fetchPrivacySettings = async () => {
     try {
@@ -608,6 +629,46 @@ const SettingsPage = ({ user, setUser }) => {
             </svg>
           </button>
         </div>
+
+        {/* Girls Night Safety Toggle */}
+        {user?.gender?.toLowerCase() === 'female' && (
+          <div className="bg-white rounded-2xl p-4 shadow-sm mb-4" data-testid="night-safety-toggle">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center">
+                  <Moon className="w-5 h-5 text-indigo-600" />
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-900 text-sm">Night Safety Mode</p>
+                  <p className="text-xs text-gray-500">11PM-6AM new matches can't message you</p>
+                </div>
+              </div>
+              <button
+                onClick={toggleNightSafety}
+                className={`w-12 h-7 rounded-full transition-colors ${nightSafety ? 'bg-indigo-500' : 'bg-gray-300'}`}
+              >
+                <div className={`w-5 h-5 bg-white rounded-full shadow transition-transform ${nightSafety ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Safe Word Info (for girls) */}
+        {user?.gender?.toLowerCase() === 'female' && (
+          <div className="bg-gradient-to-r from-red-50 to-orange-50 border border-red-200/50 rounded-2xl p-4 shadow-sm mb-4" data-testid="safe-word-info">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                <Shield className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <p className="font-semibold text-gray-900 text-sm">Emergency Safe Word</p>
+                <p className="text-xs text-gray-600 mt-1">
+                  Chat mein <span className="font-bold text-red-600">"heartlink sos"</span> ya <span className="font-bold text-red-600">"i feel unsafe"</span> type karo — user instantly block + report ho jayega. Humari team turant review karegi.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Blocked & Muted Users */}
         <Tabs defaultValue="blocked" className="w-full">
