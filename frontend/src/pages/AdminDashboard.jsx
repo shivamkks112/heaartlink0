@@ -23,6 +23,7 @@ import WelcomeSettings from '@/components/admin/WelcomeSettings';
 import AdAnalyticsPanel from '@/components/admin/AdAnalyticsPanel';
 import AppUpdateSettings from '@/components/admin/AppUpdateSettings';
 import SmartNotificationConfig from '@/components/admin/SmartNotificationConfig';
+import SafetyDashboard from '@/components/admin/SafetyDashboard';
 
 import { BACKEND_URL } from '@/config/api';
 
@@ -756,6 +757,13 @@ const AdminDashboard = ({ user }) => {
           >
             <Flame className="w-4 h-4 mr-2" /> Ads
           </Button>
+          <Button
+            onClick={() => setActiveTab('safety')}
+            className={activeTab === 'safety' ? 'bg-red-600' : 'bg-gray-200 text-gray-700'}
+            data-testid="admin-safety-tab"
+          >
+            <Shield className="w-4 h-4 mr-2" /> Safety
+          </Button>
         </div>
 
         {/* Overview Tab */}
@@ -1327,6 +1335,11 @@ const AdminDashboard = ({ user }) => {
 
       {activeTab === 'growth' && (
         <GrowthAcquisition />
+      )}
+
+
+      {activeTab === 'safety' && (
+        <SafetyDashboard />
       )}
 
       {/* Settings Tab - Feature Toggles */}
