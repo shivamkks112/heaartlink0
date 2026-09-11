@@ -7192,14 +7192,15 @@ async def get_subscription_status(user_id: str):
         }
     }
 
-# CORS - Allow web + Capacitor Android app origins
-cors_origins = os.environ.get('CORS_ORIGINS', 'https://heartlink.co.in,https://www.heartlink.co.in,capacitor://localhost,https://localhost,http://localhost').split(',')
+# CORS - Allow all origins for web + Capacitor Android app
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=cors_origins,
+    allow_origins=["*"],
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin"],
+    allow_headers=["*"],
+    expose_headers=["*"],
+    max_age=600,
 )
 
 
