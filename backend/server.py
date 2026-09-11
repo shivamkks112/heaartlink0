@@ -4905,26 +4905,27 @@ async def send_message_http(message_data: Message):
     if blocked:
         return {"id": message_dict.get("id", ""), "status": "sent"}
     
-    # === GIRLS SAFETY CHECKS ===
-    safe_word_triggered = await check_safe_word(
-        db, message_data.sender_id, message_data.receiver_id, message_data.match_id,
-        original_content, ws_manager=manager
-    )
-    if safe_word_triggered:
-        return {"id": message_dict.get("id", ""), "status": "sent"}
-    
-    night_blocked, _ = await check_night_mode_block(
-        db, message_data.sender_id, message_data.receiver_id, message_data.match_id
-    )
-    if night_blocked:
-        return {"id": message_dict.get("id", ""), "status": "sent"}
-    
-    is_creepy = await handle_creepy_detection(
-        db, message_data.sender_id, message_data.receiver_id, message_data.match_id,
-        original_content, ws_manager=manager
-    )
-    if is_creepy:
-        return {"id": message_dict.get("id", ""), "status": "sent"}
+    # === GIRLS SAFETY CHECKS (skip for AI/auto-chat profiles) ===
+    if not is_ai_receiver and not receiver.get("auto_chat_enabled"):
+        safe_word_triggered = await check_safe_word(
+            db, message_data.sender_id, message_data.receiver_id, message_data.match_id,
+            original_content, ws_manager=manager
+        )
+        if safe_word_triggered:
+            return {"id": message_dict.get("id", ""), "status": "sent"}
+        
+        night_blocked, _ = await check_night_mode_block(
+            db, message_data.sender_id, message_data.receiver_id, message_data.match_id
+        )
+        if night_blocked:
+            return {"id": message_dict.get("id", ""), "status": "sent"}
+        
+        is_creepy = await handle_creepy_detection(
+            db, message_data.sender_id, message_data.receiver_id, message_data.match_id,
+            original_content, ws_manager=manager
+        )
+        if is_creepy:
+            return {"id": message_dict.get("id", ""), "status": "sent"}
     
     # === PERSONAL INFO DETECTION & MASKING ===
     # Detect phone numbers and mask them
@@ -5257,29 +5258,33 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
             if blocked:
                 continue
             
-            # ── GIRLS SAFETY CHECKS ──
-            # 1. Safe Word check (girl types emergency keyword → instant block + report)
-            safe_word_triggered = await check_safe_word(
-                db, user_id, message_data["receiver_id"], message_data["match_id"],
-                message_data["content"], ws_manager=manager
-            )
-            if safe_word_triggered:
-                continue
+            # ── GIRLS SAFETY CHECKS (skip for AI profiles) ──
+            receiver_for_safety = await db.users.find_one({"id": message_data["receiver_id"]}, {"_id": 0, "is_ai_profile": 1, "auto_chat_enabled": 1})
+            is_ai_receiver = receiver_for_safety and (receiver_for_safety.get("is_ai_profile") or receiver_for_safety.get("auto_chat_enabled"))
             
-            # 2. Night Mode Safety (11pm-6am IST, new matches only)
-            night_blocked, _ = await check_night_mode_block(
-                db, user_id, message_data["receiver_id"], message_data["match_id"]
-            )
-            if night_blocked:
-                continue  # Silently drop
-            
-            # 3. Creepy Message Detection (AI) — runs async, blocks if inappropriate
-            is_creepy = await handle_creepy_detection(
-                db, user_id, message_data["receiver_id"], message_data["match_id"],
-                message_data["content"], ws_manager=manager
-            )
-            if is_creepy:
-                continue  # Message blocked, warning sent to sender
+            if not is_ai_receiver:
+                # 1. Safe Word check (girl types emergency keyword → instant block + report)
+                safe_word_triggered = await check_safe_word(
+                    db, user_id, message_data["receiver_id"], message_data["match_id"],
+                    message_data["content"], ws_manager=manager
+                )
+                if safe_word_triggered:
+                    continue
+                
+                # 2. Night Mode Safety (11pm-6am IST, new matches only)
+                night_blocked, _ = await check_night_mode_block(
+                    db, user_id, message_data["receiver_id"], message_data["match_id"]
+                )
+                if night_blocked:
+                    continue
+                
+                # 3. Creepy Message Detection (AI) — blocks if vulgar/sexual
+                is_creepy = await handle_creepy_detection(
+                    db, user_id, message_data["receiver_id"], message_data["match_id"],
+                    message_data["content"], ws_manager=manager
+                )
+                if is_creepy:
+                    continue
             
             # Save message
             message = Message(
