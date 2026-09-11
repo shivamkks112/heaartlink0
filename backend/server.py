@@ -8546,6 +8546,73 @@ async def get_girls_referral_tracking():
 
 
 
+
+
+# ==========================================
+# SAFETY BAN / UNBAN SYSTEM
+# ==========================================
+
+@api_router.post("/admin/safety-ban")
+async def safety_ban_user(request: Request):
+    """Ban a user from safety dashboard — sets all block flags."""
+    data = await request.json()
+    user_id = data.get("user_id")
+    reason = data.get("reason", "Banned from safety review")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="user_id required")
+    
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "name": 1, "email": 1})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    await db.users.update_one({"id": user_id}, {"$set": {
+        "is_blocked": True,
+        "is_permanently_banned": True,
+        "block_reason": reason,
+        "banned_at": datetime.now(timezone.utc).isoformat(),
+        "banned_by": "admin_safety"
+    }})
+    
+    return {"success": True, "name": user.get("name"), "action": "banned", "reason": reason}
+
+
+@api_router.post("/admin/safety-unban")
+async def safety_unban_user(request: Request):
+    """Unban a user — clears ALL block flags + resets safety warnings."""
+    data = await request.json()
+    user_id = data.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="user_id required")
+    
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "name": 1, "email": 1})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    await db.users.update_one({"id": user_id}, {"$set": {
+        "is_blocked": False,
+        "is_shadow_banned": False,
+        "is_permanently_banned": False,
+        "block_reason": None,
+        "safety_warnings": 0,
+        "unbanned_at": datetime.now(timezone.utc).isoformat(),
+        "unbanned_by": "admin_safety"
+    }})
+    
+    return {"success": True, "name": user.get("name"), "action": "unbanned"}
+
+
+@api_router.get("/admin/safety-banned-users")
+async def get_safety_banned_users():
+    """List all users banned via safety system."""
+    banned = await db.users.find(
+        {"$or": [{"is_blocked": True}, {"is_permanently_banned": True}]},
+        {"_id": 0, "id": 1, "name": 1, "email": 1, "gender": 1, "safety_warnings": 1,
+         "block_reason": 1, "banned_at": 1, "location": 1, "age": 1, "photos": 1}
+    ).sort("banned_at", -1).to_list(100)
+    
+    return {"banned_users": banned, "total": len(banned)}
+
+
 # GIRLS SAFETY ENDPOINTS
 # ==========================================
 
