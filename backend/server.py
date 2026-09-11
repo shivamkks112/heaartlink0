@@ -1782,6 +1782,17 @@ async def signup(request: Request, user_data: UserSignup):
             _delayed_ai_match(user.id, user_dict.get("gender", ""), user_dict.get("looking_for", ""))
         )
         
+        # === GIRLS FREE PREMIUM (1 month) ===
+        if user_dict.get("gender", "").lower() == "female":
+            premium_until = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
+            await db.users.update_one({"id": user.id}, {"$set": {
+                "is_premium": True,
+                "premium_until": premium_until,
+                "premium_source": "girls_free_signup",
+                "premium_features": ["see_who_liked", "crush_reveal", "extra_boost", "unlimited_swipes"]
+            }})
+            logger.info(f"Girls Free Premium granted to {user.id} until {premium_until}")
+        
         # Serialize for response (removes _id, password_hash, cleans None values)
         clean_user = serialize_user_for_response(created_user, exclude_password=True)
         
@@ -8305,6 +8316,81 @@ async def list_auto_chat_users():
 
 
 # ==========================================
+
+
+# ==========================================
+# GIRLS ACQUISITION ENDPOINTS
+# ==========================================
+
+@api_router.get("/stats/boys-waiting")
+async def get_boys_waiting_count():
+    """Public endpoint: How many boys are active on the platform."""
+    total_boys = await db.users.count_documents({
+        "gender": {"$regex": "^male$", "$options": "i"},
+        "is_ai_profile": {"$ne": True},
+        "is_blocked": {"$ne": True}
+    })
+    # Add a natural-looking multiplier for small numbers (min 100)
+    display_count = max(total_boys, 100)
+    
+    # Active boys (last 7 days)
+    week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    active_boys = await db.users.count_documents({
+        "gender": {"$regex": "^male$", "$options": "i"},
+        "is_ai_profile": {"$ne": True},
+        "last_active": {"$gte": week_ago}
+    })
+    
+    return {
+        "total_boys": display_count,
+        "active_this_week": max(active_boys, 50),
+        "message": f"{display_count}+ boys are looking for matches right now!"
+    }
+
+
+@api_router.post("/referral/invite-girl-check")
+async def check_invite_girl_reward(request: Request):
+    """Check if boy has invited 3+ girls and grant premium reward."""
+    data = await request.json()
+    user_id = data.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="user_id required")
+    
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "gender": 1, "is_premium": 1, "referral_code": 1})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Count how many girls signed up using this user's referral
+    ref_code = user.get("referral_code", "")
+    if not ref_code:
+        return {"girls_invited": 0, "reward_unlocked": False, "needed": 3}
+    
+    girls_invited = await db.users.count_documents({
+        "referred_by": ref_code,
+        "gender": {"$regex": "^female$", "$options": "i"},
+        "is_ai_profile": {"$ne": True}
+    })
+    
+    reward_unlocked = girls_invited >= 3
+    
+    # Auto-grant premium if 3+ girls invited and not already premium
+    if reward_unlocked and not user.get("is_premium"):
+        premium_until = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
+        await db.users.update_one({"id": user_id}, {"$set": {
+            "is_premium": True,
+            "premium_until": premium_until,
+            "premium_source": "invite_girls_reward",
+            "premium_features": ["see_who_liked", "crush_reveal", "extra_boost", "unlimited_swipes"]
+        }})
+    
+    return {
+        "girls_invited": girls_invited,
+        "reward_unlocked": reward_unlocked,
+        "needed": max(0, 3 - girls_invited),
+        "is_premium": user.get("is_premium", False) or reward_unlocked
+    }
+
+
 # GIRLS SAFETY ENDPOINTS
 # ==========================================
 

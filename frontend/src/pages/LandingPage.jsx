@@ -1,11 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Heart, Shield, Sparkles, MessageCircle, Users, Award, Star, CheckCircle, ArrowRight, Download, Play, ChevronDown, MapPin } from 'lucide-react';
+import { Heart, Shield, Sparkles, MessageCircle, Users, Award, Star, CheckCircle, ArrowRight, Download, Play, ChevronDown, MapPin, Crown, Gift } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { API } from '@/config/api';
+import axios from 'axios';
 
 const LandingPage = () => {
   const navigate = useNavigate();
   const [openFaq, setOpenFaq] = useState(null);
+  const [boysCount, setBoysCount] = useState(null);
+
+  useEffect(() => {
+    axios.get(`${API}/stats/boys-waiting`).then(r => setBoysCount(r.data)).catch(() => {});
+  }, []);
 
   const stats = [
     { number: "50,000+", label: "Happy Users", icon: Users },
@@ -18,19 +25,19 @@ const LandingPage = () => {
     {
       name: "Priya S.",
       location: "Mumbai",
-      text: "Found my partner within 2 weeks! The AI matching is really accurate. Finally an app that understands Indian values.",
+      text: "As a girl, I feel SO safe here. Boys are verified, I can block instantly, and the AI actually finds good matches. Best dating app for Indian women!",
       rating: 5
     },
     {
-      name: "Rahul M.",
+      name: "Ananya R.",
       location: "Delhi",
-      text: "Best dating app for serious relationships. Profile verification gives confidence that profiles are real.",
+      text: "Finally an app where I don't get creepy messages! The safety features are amazing. Found my boyfriend here in 3 weeks.",
       rating: 5
     },
     {
       name: "Sneha K.",
       location: "Bangalore",
-      text: "As a woman, I feel safe using HeartLink. The safety features are excellent and support team is responsive.",
+      text: "I got FREE Premium as a girl! See Who Liked me, Crush Reveal — sab free mila. And the guys here are actually respectful.",
       rating: 5
     }
   ];
@@ -89,7 +96,7 @@ const LandingPage = () => {
           </p>
           
           <p className="text-base sm:text-lg text-gray-600 mb-8 max-w-2xl mx-auto animate-fade-in" style={{animationDelay: '0.4s'}}>
-            Find your perfect match with <strong>AI-powered matchmaking</strong>, <strong>verified profiles</strong>, and <strong>women-first safety</strong>. Join 50,000+ Indians finding love!
+            India's Safest Dating App for Women. <strong>AI matchmaking</strong>, <strong>verified profiles</strong>, and <strong>real connections</strong>. Girls get FREE Premium!
           </p>
 
           {/* Trust badges */}
@@ -137,6 +144,38 @@ const LandingPage = () => {
                   </div>
                   <span className="text-xs text-gray-700 font-medium">No Fake Profiles</span>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Boys Waiting Counter + Girls Premium Banner */}
+          <div className="max-w-2xl mx-auto mb-8 space-y-3 animate-fade-in" style={{animationDelay: '0.58s'}}>
+            {/* Boys Waiting Counter */}
+            {boysCount && (
+              <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl p-4 text-white text-center" data-testid="boys-waiting-counter">
+                <div className="flex items-center justify-center gap-2 mb-1">
+                  <Users className="w-5 h-5" />
+                  <span className="text-2xl font-extrabold">{boysCount.total_boys}+</span>
+                </div>
+                <p className="text-sm text-white/90 font-medium">Boys are waiting to match with you!</p>
+                <p className="text-xs text-white/60 mt-1">{boysCount.active_this_week}+ active this week</p>
+              </div>
+            )}
+            
+            {/* Girls FREE Premium */}
+            <div className="bg-gradient-to-r from-amber-400 to-orange-500 rounded-2xl p-4 text-white text-center" data-testid="girls-free-premium-banner">
+              <div className="flex items-center justify-center gap-2 mb-1">
+                <Crown className="w-5 h-5" />
+                <span className="text-base font-extrabold">Girls Get FREE Premium!</span>
+              </div>
+              <p className="text-xs text-white/90">Sign up now and get 1 month FREE Premium — See Who Liked You, Crush Reveal, Extra Boosts, Unlimited Swipes</p>
+            </div>
+            
+            {/* Invite Girls Reward */}
+            <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl p-3 text-white text-center" data-testid="invite-girls-banner">
+              <div className="flex items-center justify-center gap-2">
+                <Gift className="w-4 h-4" />
+                <span className="text-sm font-bold">Invite 3 Girls = 1 Month FREE Premium for You!</span>
               </div>
             </div>
           </div>
