@@ -8727,6 +8727,57 @@ async def get_safety_banned_users():
     return {"banned_users": banned, "total": len(banned)}
 
 
+@api_router.get("/admin/user-chat-history/{user_id}")
+async def get_admin_user_chat_history(user_id: str, limit: int = 50):
+    """Admin: Get banned user's recent chat history across ALL matches for review."""
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "id": 1, "name": 1, "email": 1})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Get all matches for this user
+    matches = await db.matches.find(
+        {"$or": [{"user1_id": user_id}, {"user2_id": user_id}]},
+        {"_id": 0, "id": 1, "user1_id": 1, "user2_id": 1}
+    ).to_list(None)
+    
+    match_ids = [m["id"] for m in matches]
+    
+    # Get other user info for each match
+    other_users = {}
+    for m in matches:
+        other_id = m["user2_id"] if m["user1_id"] == user_id else m["user1_id"]
+        other = await db.users.find_one({"id": other_id}, {"_id": 0, "id": 1, "name": 1, "is_ai_profile": 1})
+        other_users[m["id"]] = other or {"id": other_id, "name": "Unknown"}
+    
+    # Get recent messages across all matches
+    messages = await db.messages.find(
+        {"match_id": {"$in": match_ids}},
+        {"_id": 0, "id": 1, "match_id": 1, "sender_id": 1, "receiver_id": 1, "content": 1, "created_at": 1}
+    ).sort("created_at", -1).limit(limit).to_list(None)
+    
+    # Group by match and enrich
+    for msg in messages:
+        match_id = msg["match_id"]
+        other = other_users.get(match_id, {})
+        msg["is_own"] = msg["sender_id"] == user_id
+        msg["other_user_name"] = other.get("name", "Unknown")
+        msg["is_ai_match"] = other.get("is_ai_profile", False)
+    
+    # Safety reports for this user
+    reports = await db.safety_reports.find(
+        {"sender_id": user_id},
+        {"_id": 0, "type": 1, "content": 1, "severity": 1, "reason": 1, "warning_number": 1, "created_at": 1, "receiver_name": 1}
+    ).sort("created_at", -1).limit(10).to_list(None)
+    
+    return {
+        "user": user,
+        "total_matches": len(matches),
+        "messages": messages,
+        "safety_reports": reports,
+    }
+
+
+
 # GIRLS SAFETY ENDPOINTS
 # ==========================================
 

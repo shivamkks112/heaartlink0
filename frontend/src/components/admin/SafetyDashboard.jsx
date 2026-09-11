@@ -3,7 +3,7 @@ import adminApi from '@/utils/adminApi';
 import {
   Shield, AlertTriangle, Ban, CheckCircle, RefreshCw,
   ChevronDown, ChevronUp, Zap, User, Unlock, Lock,
-  Search, Filter
+  Search, MessageSquare, Eye
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -26,6 +26,9 @@ const SafetyDashboard = () => {
   const [safeWords, setSafeWords] = useState('');
   const [savingConfig, setSavingConfig] = useState(false);
   const [searchBanned, setSearchBanned] = useState('');
+  const [reviewingUser, setReviewingUser] = useState(null);
+  const [chatHistory, setChatHistory] = useState(null);
+  const [loadingChat, setLoadingChat] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -62,10 +65,26 @@ const SafetyDashboard = () => {
     try {
       await adminApi.post('/admin/safety-unban', { user_id: userId });
       toast.success(`${userName || 'User'} unbanned + warnings reset`);
+      setReviewingUser(null);
+      setChatHistory(null);
       fetchData();
     } catch (e) {
       toast.error('Unban failed: ' + (e.response?.data?.detail || e.message));
     }
+  };
+
+  const reviewChatHistory = async (userId) => {
+    if (reviewingUser === userId) { setReviewingUser(null); setChatHistory(null); return; }
+    setReviewingUser(userId);
+    setLoadingChat(true);
+    try {
+      const res = await adminApi.get(`/admin/user-chat-history/${userId}?limit=50`);
+      setChatHistory(res.data);
+    } catch (e) {
+      toast.error('Chat load failed');
+      setChatHistory(null);
+    }
+    setLoadingChat(false);
   };
 
   const updateSafeWords = async () => {
@@ -289,8 +308,8 @@ const SafetyDashboard = () => {
             </div>
           ) : (
             filteredBanned.map((u, i) => (
-              <div key={i} className="bg-white rounded-xl border border-gray-200 p-3" data-testid={`banned-user-${i}`}>
-                <div className="flex items-center justify-between">
+              <div key={i} className="bg-white rounded-xl border border-gray-200 overflow-hidden" data-testid={`banned-user-${i}`}>
+                <div className="p-3 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center overflow-hidden flex-shrink-0">
                       {u.photos?.[0] ? (
@@ -311,16 +330,101 @@ const SafetyDashboard = () => {
                       <p className="text-[10px] text-red-500 mt-0.5">{u.block_reason || 'No reason'} {u.banned_at ? `| ${new Date(u.banned_at).toLocaleDateString('en-IN')}` : ''}</p>
                     </div>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="text-green-600 border-green-300 hover:bg-green-50"
-                    onClick={() => handleUnban(u.id, u.name)}
-                    data-testid={`unban-user-${i}`}
-                  >
-                    <Unlock className="w-3 h-3 mr-1" /> Unban
-                  </Button>
+                  <div className="flex gap-1.5 flex-shrink-0">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                      onClick={() => reviewChatHistory(u.id)}
+                      data-testid={`review-chat-${i}`}
+                    >
+                      <Eye className="w-3 h-3 mr-1" /> Review
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-green-600 border-green-300 hover:bg-green-50"
+                      onClick={() => handleUnban(u.id, u.name)}
+                      data-testid={`unban-user-${i}`}
+                    >
+                      <Unlock className="w-3 h-3 mr-1" /> Unban
+                    </Button>
+                  </div>
                 </div>
+                
+                {/* Chat History Review Panel */}
+                {reviewingUser === u.id && (
+                  <div className="border-t border-gray-100 bg-gray-50 p-3" data-testid={`chat-review-${i}`}>
+                    {loadingChat ? (
+                      <div className="flex items-center justify-center py-6">
+                        <RefreshCw className="w-5 h-5 text-gray-400 animate-spin" />
+                        <span className="text-sm text-gray-500 ml-2">Loading chat history...</span>
+                      </div>
+                    ) : chatHistory ? (
+                      <div className="space-y-3">
+                        {/* Safety Reports */}
+                        {chatHistory.safety_reports?.length > 0 && (
+                          <div>
+                            <p className="text-[10px] text-red-500 uppercase font-bold mb-1.5">Flagged Messages</p>
+                            <div className="space-y-1">
+                              {chatHistory.safety_reports.map((r, ri) => (
+                                <div key={ri} className="bg-red-50 border border-red-100 rounded-lg p-2 text-xs">
+                                  <div className="flex items-center gap-2 mb-0.5">
+                                    <span className={`px-1 py-0.5 rounded text-[9px] font-bold ${SEVERITY_COLORS[r.severity] || SEVERITY_COLORS.none}`}>{(r.severity || 'none').toUpperCase()}</span>
+                                    <span className="text-gray-500">Warning #{r.warning_number} → {r.receiver_name || '?'}</span>
+                                  </div>
+                                  <p className="text-red-700 font-mono">"{r.content}"</p>
+                                  {r.reason && <p className="text-gray-500 mt-0.5">AI: {r.reason}</p>}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Chat Messages */}
+                        <div>
+                          <p className="text-[10px] text-gray-400 uppercase font-bold mb-1.5">
+                            Recent Messages ({chatHistory.messages?.length || 0}) across {chatHistory.total_matches} matches
+                          </p>
+                          <div className="max-h-64 overflow-y-auto space-y-1 bg-white rounded-lg border p-2">
+                            {(chatHistory.messages || []).length === 0 ? (
+                              <p className="text-xs text-gray-400 text-center py-3">No messages found</p>
+                            ) : (
+                              chatHistory.messages.map((msg, mi) => (
+                                <div key={mi} className={`flex gap-2 ${msg.is_own ? '' : 'flex-row-reverse'}`}>
+                                  <div className={`max-w-[80%] px-2.5 py-1.5 rounded-lg text-xs ${
+                                    msg.is_own ? 'bg-pink-50 text-pink-900 border border-pink-100' : 'bg-gray-100 text-gray-700'
+                                  }`}>
+                                    <div className="flex items-center gap-1 mb-0.5">
+                                      <span className="font-bold text-[10px]">{msg.is_own ? u.name : msg.other_user_name}</span>
+                                      {msg.is_ai_match && <span className="text-[8px] bg-purple-100 text-purple-600 px-1 rounded">AI</span>}
+                                    </div>
+                                    <p>{msg.content}</p>
+                                    <p className="text-[9px] text-gray-400 mt-0.5 text-right">
+                                      {new Date(msg.created_at).toLocaleString('en-IN', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'})}
+                                    </p>
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* Action Buttons */}
+                        <div className="flex gap-2 pt-1">
+                          <Button size="sm" variant="outline" className="text-green-600 border-green-300 flex-1" onClick={() => handleUnban(u.id, u.name)}>
+                            <Unlock className="w-3 h-3 mr-1" /> Unban — Innocent
+                          </Button>
+                          <Button size="sm" variant="outline" className="text-red-600 border-red-300 flex-1" onClick={() => { setReviewingUser(null); toast.info('Ban maintained'); }}>
+                            <Lock className="w-3 h-3 mr-1" /> Keep Banned
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-400 text-center py-4">Failed to load</p>
+                    )}
+                  </div>
+                )}
               </div>
             ))
           )}
