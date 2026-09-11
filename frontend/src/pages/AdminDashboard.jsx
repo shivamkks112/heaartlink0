@@ -19,6 +19,7 @@ import TopBar from '@/components/TopBar';
 import NotificationManager from '@/components/admin/NotificationManager';
 import ProfileApprovals from '@/components/admin/ProfileApprovals';
 import GrowthAcquisition from '@/components/admin/GrowthAcquisition';
+import GirlsReferralDashboard from '@/components/admin/GirlsReferralDashboard';
 import WelcomeSettings from '@/components/admin/WelcomeSettings';
 import AdAnalyticsPanel from '@/components/admin/AdAnalyticsPanel';
 import AppUpdateSettings from '@/components/admin/AppUpdateSettings';
@@ -1334,7 +1335,10 @@ const AdminDashboard = ({ user }) => {
       )}
 
       {activeTab === 'growth' && (
-        <GrowthAcquisition />
+        <div className="space-y-6">
+          <GirlsReferralDashboard />
+          <GrowthAcquisition />
+        </div>
       )}
 
 

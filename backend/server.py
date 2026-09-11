@@ -8391,6 +8391,99 @@ async def check_invite_girl_reward(request: Request):
     }
 
 
+
+@api_router.get("/admin/girls-referral-tracking")
+async def get_girls_referral_tracking():
+    """Admin: Full girls referral analytics — who invited whom, conversion rates."""
+    
+    # Total girls (real, not AI)
+    total_girls = await db.users.count_documents({
+        "gender": {"$regex": "^female$", "$options": "i"},
+        "is_ai_profile": {"$ne": True}
+    })
+    
+    # Girls who came via referral
+    girls_via_referral = await db.users.count_documents({
+        "gender": {"$regex": "^female$", "$options": "i"},
+        "is_ai_profile": {"$ne": True},
+        "referred_by": {"$exists": True, "$nin": [None, ""]}
+    })
+    
+    # Girls with free premium
+    girls_premium = await db.users.count_documents({
+        "gender": {"$regex": "^female$", "$options": "i"},
+        "is_ai_profile": {"$ne": True},
+        "is_premium": True
+    })
+    
+    # Total boys
+    total_boys = await db.users.count_documents({
+        "gender": {"$regex": "^male$", "$options": "i"},
+        "is_ai_profile": {"$ne": True}
+    })
+    
+    # Boys who earned premium via girl invites
+    boys_with_invite_premium = await db.users.count_documents({
+        "premium_source": "invite_girls_reward"
+    })
+    
+    # Top referrers (boys who invited most girls)
+    pipeline = [
+        {"$match": {"gender": {"$regex": "^female$", "$options": "i"}, "is_ai_profile": {"$ne": True}, "referred_by": {"$exists": True, "$nin": [None, ""]}}},
+        {"$group": {"_id": "$referred_by", "girls_count": {"$sum": 1}}},
+        {"$sort": {"girls_count": -1}},
+        {"$limit": 10}
+    ]
+    top_referrers_raw = await db.users.aggregate(pipeline).to_list(None)
+    
+    # Enrich with referrer names
+    top_referrers = []
+    for ref in top_referrers_raw:
+        referrer = await db.users.find_one(
+            {"referral_code": ref["_id"]},
+            {"_id": 0, "id": 1, "name": 1, "email": 1, "gender": 1}
+        )
+        top_referrers.append({
+            "referral_code": ref["_id"],
+            "girls_invited": ref["girls_count"],
+            "name": referrer.get("name", "Unknown") if referrer else "Unknown",
+            "email": referrer.get("email", "") if referrer else "",
+            "gender": referrer.get("gender", "") if referrer else "",
+        })
+    
+    # Weekly girl signups trend (last 4 weeks)
+    weekly_trend = []
+    for i in range(3, -1, -1):
+        week_start = (datetime.now(timezone.utc) - timedelta(weeks=i+1)).isoformat()
+        week_end = (datetime.now(timezone.utc) - timedelta(weeks=i)).isoformat()
+        count = await db.users.count_documents({
+            "gender": {"$regex": "^female$", "$options": "i"},
+            "is_ai_profile": {"$ne": True},
+            "created_at": {"$gte": week_start, "$lt": week_end}
+        })
+        weekly_trend.append({
+            "week": f"W{4-i}",
+            "label": f"{(datetime.now(timezone.utc) - timedelta(weeks=i+1)).strftime('%b %d')} - {(datetime.now(timezone.utc) - timedelta(weeks=i)).strftime('%b %d')}",
+            "girls_signup": count
+        })
+    
+    # Gender ratio
+    ratio = round(total_boys / max(total_girls, 1), 1)
+    
+    return {
+        "total_girls": total_girls,
+        "total_boys": total_boys,
+        "gender_ratio": f"{ratio}:1 (Boys:Girls)",
+        "girls_via_referral": girls_via_referral,
+        "girls_premium": girls_premium,
+        "boys_with_invite_premium": boys_with_invite_premium,
+        "referral_conversion_rate": round((girls_via_referral / max(total_girls, 1)) * 100, 1),
+        "top_referrers": top_referrers,
+        "weekly_trend": weekly_trend
+    }
+
+
+
 # GIRLS SAFETY ENDPOINTS
 # ==========================================
 
