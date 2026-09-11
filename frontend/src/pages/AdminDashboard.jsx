@@ -20,6 +20,7 @@ import NotificationManager from '@/components/admin/NotificationManager';
 import ProfileApprovals from '@/components/admin/ProfileApprovals';
 import GrowthAcquisition from '@/components/admin/GrowthAcquisition';
 import GirlsReferralDashboard from '@/components/admin/GirlsReferralDashboard';
+import SignupFunnelDashboard from '@/components/admin/SignupFunnelDashboard';
 import WelcomeSettings from '@/components/admin/WelcomeSettings';
 import AdAnalyticsPanel from '@/components/admin/AdAnalyticsPanel';
 import AppUpdateSettings from '@/components/admin/AppUpdateSettings';
@@ -1336,6 +1337,7 @@ const AdminDashboard = ({ user }) => {
 
       {activeTab === 'growth' && (
         <div className="space-y-6">
+          <SignupFunnelDashboard />
           <GirlsReferralDashboard />
           <GrowthAcquisition />
         </div>

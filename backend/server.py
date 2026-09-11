@@ -1550,6 +1550,13 @@ async def send_signup_otp(request: Request):
     except Exception as e:
         logger.error(f"Signup OTP email error: {e}")
         raise HTTPException(status_code=500, detail="Email service error. Please try again.")
+    
+    # Track funnel: OTP sent
+    await db.signup_funnel.insert_one({
+        "email": email,
+        "step": "otp_sent",
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    })
 
 
 @api_router.post("/auth/verify-signup-otp")
@@ -1601,6 +1608,13 @@ async def verify_signup_otp(request: Request):
         {"email": email},
         {"$set": {"verified": True, "verified_at": datetime.now(timezone.utc).isoformat()}}
     )
+    
+    # Track funnel: OTP verified
+    await db.signup_funnel.insert_one({
+        "email": email,
+        "step": "otp_verified",
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    })
     
     return {"message": "Email verified successfully", "email": email, "verified": True}
 
@@ -1833,6 +1847,17 @@ async def signup(request: Request, user_data: UserSignup):
                 upsert=False
             )
         
+        # Track funnel: Signup completed with gender
+        await db.signup_funnel.insert_one({
+            "email": user_dict.get("email", ""),
+            "step": "signup_completed",
+            "gender": user_dict.get("gender", ""),
+            "name": user_dict.get("name", ""),
+            "location": user_dict.get("location", ""),
+            "user_id": user.id,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+
         # === AUTOMATIC NOTIFICATIONS ===
         # Notify all users about new user joining
         asyncio.create_task(_notify_new_user_joined(user.id, sanitized_name, user_dict.get("gender", ""), user_dict.get("location", "")))
@@ -8382,6 +8407,89 @@ async def list_auto_chat_users():
 
 
 # ==========================================
+
+
+# ==========================================
+# SIGNUP FUNNEL ANALYTICS
+# ==========================================
+
+@api_router.get("/admin/signup-funnel")
+async def get_signup_funnel(days: int = 30):
+    """Admin: Full signup funnel analytics — installs → OTP sent → OTP verified → signup complete, by gender."""
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    
+    # Install count
+    installs = await db.installs.count_documents({"first_open_at": {"$gte": cutoff}})
+    
+    # Funnel steps
+    otp_sent = await db.signup_funnel.count_documents({"step": "otp_sent", "timestamp": {"$gte": cutoff}})
+    otp_verified = await db.signup_funnel.count_documents({"step": "otp_verified", "timestamp": {"$gte": cutoff}})
+    signup_completed = await db.signup_funnel.count_documents({"step": "signup_completed", "timestamp": {"$gte": cutoff}})
+    
+    # Gender breakdown of completed signups
+    girls_completed = await db.signup_funnel.count_documents({
+        "step": "signup_completed", "timestamp": {"$gte": cutoff},
+        "gender": {"$regex": "^female$", "$options": "i"}
+    })
+    boys_completed = await db.signup_funnel.count_documents({
+        "step": "signup_completed", "timestamp": {"$gte": cutoff},
+        "gender": {"$regex": "^male$", "$options": "i"}
+    })
+    
+    # Recent signups (last 20) with details
+    recent_signups = await db.signup_funnel.find(
+        {"step": "signup_completed", "timestamp": {"$gte": cutoff}},
+        {"_id": 0, "name": 1, "email": 1, "gender": 1, "location": 1, "timestamp": 1}
+    ).sort("timestamp", -1).limit(20).to_list(None)
+    
+    # Recent OTP requests that DIDN'T complete signup (drop-offs)
+    otp_emails = set()
+    completed_emails = set()
+    
+    otp_docs = await db.signup_funnel.find(
+        {"step": "otp_sent", "timestamp": {"$gte": cutoff}},
+        {"_id": 0, "email": 1}
+    ).to_list(None)
+    otp_emails = {d["email"] for d in otp_docs}
+    
+    completed_docs = await db.signup_funnel.find(
+        {"step": "signup_completed", "timestamp": {"$gte": cutoff}},
+        {"_id": 0, "email": 1}
+    ).to_list(None)
+    completed_emails = {d["email"] for d in completed_docs}
+    
+    dropped_emails = list(otp_emails - completed_emails)[:20]
+    
+    # Conversion rates
+    install_to_otp = round((otp_sent / max(installs, 1)) * 100, 1)
+    otp_to_verify = round((otp_verified / max(otp_sent, 1)) * 100, 1)
+    verify_to_signup = round((signup_completed / max(otp_verified, 1)) * 100, 1)
+    overall = round((signup_completed / max(installs, 1)) * 100, 1)
+    
+    return {
+        "period_days": days,
+        "funnel": {
+            "installs": installs,
+            "otp_sent": otp_sent,
+            "otp_verified": otp_verified,
+            "signup_completed": signup_completed,
+        },
+        "gender_breakdown": {
+            "girls": girls_completed,
+            "boys": boys_completed,
+        },
+        "conversion_rates": {
+            "install_to_otp": install_to_otp,
+            "otp_to_verify": otp_to_verify,
+            "verify_to_signup": verify_to_signup,
+            "overall": overall,
+        },
+        "recent_signups": recent_signups,
+        "dropped_off_emails": dropped_emails,
+        "drop_off_count": len(otp_emails - completed_emails),
+    }
+
+
 # GIRLS ACQUISITION ENDPOINTS
 # ==========================================
 
