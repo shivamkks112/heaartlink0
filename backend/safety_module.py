@@ -23,7 +23,7 @@ NEW_MATCH_HOURS = 48   # Only block for matches < 48 hours old
 
 
 async def check_creepy_message(content: str) -> dict:
-    """Use AI to detect inappropriate/sexual/threatening messages.
+    """Detect ONLY vulgar, sexual, or inappropriate messages.
     Returns: {"is_creepy": bool, "severity": "low"|"medium"|"high", "reason": str}
     """
     if not EMERGENT_LLM_KEY or len(content.strip()) < 3:
@@ -34,26 +34,26 @@ async def check_creepy_message(content: str) -> dict:
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
             session_id=f"safety_check_{hash(content) % 10000}",
-            system_message="""You are a content safety classifier for an Indian dating app. 
-Classify the given message as SAFE or UNSAFE.
+            system_message="""You are a content safety classifier for an Indian dating app.
+ONLY flag messages that are vulgar, sexually inappropriate, or abusive.
 
-UNSAFE messages include:
-- Sexual/vulgar content or requests
-- Threats or intimidation
-- Stalking language ("I know where you live", "I'm watching you")
-- Extreme pressure for meeting/phone/photos
-- Abusive language, slurs, derogatory terms
-- Unsolicited sexual advances
+FLAG as UNSAFE:
+- Sexual/vulgar words, body part references in sexual context
+- Sexually explicit requests ("send nudes", "come to my room", sex-related)
+- Abusive slurs, gaaliyan (Hindi/English abuses)
+- Sexually inappropriate compliments (about body parts explicitly)
 
-SAFE messages include:
-- Normal flirting, compliments
-- Asking about interests, hobbies, plans
-- Casual conversation, jokes
-- Expressing feelings politely
+DO NOT FLAG (these are SAFE):
+- Normal flirting ("you're beautiful", "I like you", "date pe chalein?")
+- Compliments ("cute ho", "pretty smile", "handsome")
+- Asking for phone/insta/meeting — this is NOT your job, handled elsewhere
+- Jokes, memes, casual talk
+- Expressing feelings ("I love you", "I miss you", "dil mein ho tum")
+- Mild teasing ("pagal hai kya", "bore kar rahi ho")
 
-Respond ONLY in this exact JSON format, nothing else:
-{"unsafe": true/false, "severity": "low/medium/high", "reason": "brief reason"}
+Be STRICT about what you flag. Only genuinely vulgar/sexual/abusive content.
 
+Respond ONLY in JSON: {"unsafe": true/false, "severity": "low/medium/high", "reason": "brief reason in Hindi/English"}
 If safe: {"unsafe": false, "severity": "none", "reason": ""}"""
         )
         chat.with_model("gemini", "gemini-2.5-flash")
@@ -102,18 +102,19 @@ async def handle_creepy_detection(db, sender_id: str, receiver_id: str, match_id
     sender_name = sender.get("name", "Unknown")
     receiver_name = receiver.get("name", "Unknown") if receiver else "Unknown"
 
-    # Send warning to sender via WS
+    # Send warning to sender via WS — 3 LEVEL SYSTEM
     if ws_manager:
-        if warning_count >= 3:
-            warn_msg = f"Your account has been suspended for repeated inappropriate behavior. Warning #{warning_count}."
-        elif severity == "high":
-            warn_msg = f"Your message was flagged as inappropriate. This is warning #{warning_count}/3. One more and your account will be suspended."
+        if warning_count == 1:
+            warn_msg = "Warning 1/3: Aapka message inappropriate flag hua hai. Please respectful rahein. Agli baar strict action hoga."
+        elif warning_count == 2:
+            warn_msg = "Warning 2/3: Aapka ek aur message vulgar/inappropriate flag hua. EK AUR WARNING aur aapka account PERMANENTLY BAN ho jayega!"
         else:
-            warn_msg = f"Please keep conversations respectful. Warning #{warning_count}/3."
+            warn_msg = "Warning 3/3: Aapka account inappropriate behavior ke karan PERMANENTLY SUSPENDED kar diya gaya hai."
 
         await ws_manager.send_message(sender_id, {
             "type": "system_warning",
-            "message": f"⚠️ {warn_msg}"
+            "message": f"⚠️ {warn_msg}",
+            "warning_level": warning_count,
         })
 
     # Notify receiver (girl) — option to report
