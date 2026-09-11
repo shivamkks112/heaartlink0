@@ -43,7 +43,11 @@ const ChatPage = ({ user }) => {
   const [showGameMenu, setShowGameMenu] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(null);
   const [privacySettings, setPrivacySettings] = useState({});
-  const [, setTimeTick] = useState(0); // Forces re-render for "last seen" label
+  const [, setTimeTick] = useState(0);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportDetails, setReportDetails] = useState('');
+  const [reportSubmitting, setReportSubmitting] = useState(false); // Forces re-render for "last seen" label
   const [nudgeDismissed, setNudgeDismissed] = useState(() => {
     try {
       const d = JSON.parse(localStorage.getItem('heartlink_nudge_dismissed') || '{}');
@@ -426,15 +430,27 @@ const ChatPage = ({ user }) => {
 
   const handleReport = async () => {
     if (!otherUser) return;
-    const reason = window.prompt('Reason for reporting:');
-    if (reason) {
-      try {
-        await axios.post(`${API}/report?user_id=${user.id}`, { reported_user_id: otherUser.id, reason });
-        toast.success('Report submitted');
-      } catch (error) {
-        toast.error('Failed to submit report');
-      }
+    setShowReportModal(true);
+  };
+
+  const submitReport = async () => {
+    if (!reportReason) { toast.error('Reason select karo'); return; }
+    setReportSubmitting(true);
+    try {
+      const fullReason = reportDetails ? `${reportReason}: ${reportDetails}` : reportReason;
+      await axios.post(`${API}/report?user_id=${user.id}`, {
+        reported_user_id: otherUser.id,
+        reason: fullReason,
+        match_id: matchId,
+      });
+      toast.success('Report submitted! Humari team review karegi.');
+      setShowReportModal(false);
+      setReportReason('');
+      setReportDetails('');
+    } catch {
+      toast.error('Report submit failed');
     }
+    setReportSubmitting(false);
   };
 
   const checkMuteStatus = async () => {
@@ -869,6 +885,74 @@ const ChatPage = ({ user }) => {
         </form>
       </div>
     </div>
+
+    {/* Report Modal */}
+    {showReportModal && (
+      <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm" data-testid="report-modal">
+        <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl animate-slide-in-up">
+          <div className="bg-gradient-to-r from-red-500 to-orange-500 px-5 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Flag className="w-5 h-5 text-white" />
+                <h3 className="text-base font-bold text-white">Report {otherUser?.name?.split(' ')[0]}</h3>
+              </div>
+              <button onClick={() => { setShowReportModal(false); setReportReason(''); setReportDetails(''); }} className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center text-white text-sm">&times;</button>
+            </div>
+          </div>
+          
+          <div className="p-5 space-y-3">
+            <p className="text-xs text-gray-500">Kya problem hai? Reason select karo:</p>
+            
+            {[
+              { id: 'vulgar', label: 'Vulgar / Sexual Messages', emoji: '🔞' },
+              { id: 'abuse', label: 'Abusive / Gaali-Galoch', emoji: '🤬' },
+              { id: 'fake', label: 'Fake Profile / Catfish', emoji: '🎭' },
+              { id: 'harassment', label: 'Harassment / Stalking', emoji: '😰' },
+              { id: 'spam', label: 'Spam / Scam', emoji: '🚫' },
+              { id: 'underage', label: 'Underage User', emoji: '👶' },
+              { id: 'other', label: 'Other', emoji: '📋' },
+            ].map(r => (
+              <button
+                key={r.id}
+                onClick={() => setReportReason(r.label)}
+                className={`w-full text-left px-4 py-3 rounded-xl border transition-all flex items-center gap-3 ${
+                  reportReason === r.label
+                    ? 'border-red-500 bg-red-50 text-red-700'
+                    : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                }`}
+                data-testid={`report-reason-${r.id}`}
+              >
+                <span className="text-lg">{r.emoji}</span>
+                <span className="text-sm font-medium">{r.label}</span>
+              </button>
+            ))}
+
+            {reportReason && (
+              <textarea
+                value={reportDetails}
+                onChange={(e) => setReportDetails(e.target.value)}
+                placeholder="Details likhna chahein toh likho (optional)..."
+                className="w-full px-4 py-3 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
+                rows={2}
+                data-testid="report-details-input"
+              />
+            )}
+
+            <button
+              onClick={submitReport}
+              disabled={!reportReason || reportSubmitting}
+              className="w-full py-3 rounded-xl text-white font-semibold bg-gradient-to-r from-red-500 to-orange-500 disabled:opacity-50 transition-all active:scale-[0.98]"
+              data-testid="report-submit-btn"
+            >
+              {reportSubmitting ? 'Submitting...' : 'Submit Report'}
+            </button>
+            
+            <p className="text-[10px] text-gray-400 text-center">Humari team 24 ghante mein review karegi. Fake reports pe action liya jayega.</p>
+          </div>
+        </div>
+      </div>
+    )}
+  </div>
   );
 };
 
