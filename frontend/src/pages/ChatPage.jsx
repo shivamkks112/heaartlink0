@@ -884,10 +884,9 @@ const ChatPage = ({ user }) => {
           </Button>
         </form>
       </div>
-    </div>
 
-    {/* Report Modal */}
-    {showReportModal && (
+      {/* Report Modal */}
+      {showReportModal && (
       <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm" data-testid="report-modal">
         <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl animate-slide-in-up">
           <div className="bg-gradient-to-r from-red-500 to-orange-500 px-5 py-4">
@@ -951,8 +950,8 @@ const ChatPage = ({ user }) => {
           </div>
         </div>
       </div>
-    )}
-  </div>
+      )}
+    </div>
   );
 };
 
