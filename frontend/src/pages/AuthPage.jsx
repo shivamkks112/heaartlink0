@@ -53,6 +53,7 @@ const AuthPage = ({ onLogin }) => {
   const [showCityDropdown, setShowCityDropdown] = useState(false);
   const [showLoginPwd, setShowLoginPwd] = useState(false);
   const [showSignupPwd, setShowSignupPwd] = useState(false);
+  const [signupStep, setSignupStep] = useState(1); // 1 = Email+OTP, 2 = Name+Gender+Password
   
   // Email OTP verification states
   const [otpStep, setOtpStep] = useState(false);  // true = show OTP input
@@ -231,14 +232,19 @@ const AuthPage = ({ onLogin }) => {
       return;
     }
     
-    if (!signupData.name || !signupData.age || !signupData.location) {
-      toast.error('Please fill in all required fields');
+    if (!signupData.name || !signupData.age) {
+      toast.error('Please fill in name and age');
       return;
     }
     
     if (!signupData.gender) {
       toast.error('Please select your gender');
       return;
+    }
+    
+    // Auto-set looking_for if not set
+    if (!signupData.looking_for) {
+      signupData.looking_for = signupData.gender === 'male' ? 'female' : signupData.gender === 'female' ? 'male' : 'both';
     }
     
     // Age must be 18+
@@ -465,353 +471,233 @@ const AuthPage = ({ onLogin }) => {
               </form>
             </>
           ) : (
-            /* Signup Form */
+            /* Signup Form — Simplified 2-Step */
             <form onSubmit={handleSignup} className="space-y-4">
-              {/* Profile Photo Upload - MANDATORY */}
-              <div className="mb-6">
-                <Label className="text-gray-700 font-semibold">Profile Photo <span className="text-xs text-gray-400 font-normal">(Optional)</span></Label>
-                <div className="mt-2 flex flex-col items-center">
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handlePhotoSelect}
-                    accept="image/*"
-                    className="hidden"
-                    data-testid="signup-photo-input"
-                  />
+              
+              {/* Step indicator */}
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${signupStep >= 1 ? 'bg-pink-500 text-white' : 'bg-gray-200 text-gray-500'}`}>1</div>
+                <div className={`w-12 h-1 rounded ${signupStep >= 2 ? 'bg-pink-500' : 'bg-gray-200'}`} />
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${signupStep >= 2 ? 'bg-pink-500 text-white' : 'bg-gray-200 text-gray-500'}`}>2</div>
+              </div>
+              
+              {signupStep === 1 && (
+                <>
+                  <p className="text-center text-sm text-gray-500 mb-2">Step 1: Verify your email</p>
                   
-                  {profilePicturePreview ? (
-                    <div className="relative">
-                      <img 
-                        src={profilePicturePreview} 
-                        alt="Profile Preview" 
-                        className="w-28 h-28 rounded-full object-cover border-4 border-pink-500 shadow-lg"
+                  {/* Email + OTP */}
+                  <div>
+                    <Label className="text-gray-700 font-semibold">Email <span className="text-red-500">*</span></Label>
+                    <div className="relative mt-2">
+                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <Input
+                        data-testid="signup-email-input"
+                        type="email"
+                        placeholder="your@email.com"
+                        value={signupData.email}
+                        onChange={(e) => { setSignupData({...signupData, email: e.target.value}); if (otpVerified) { setOtpVerified(false); setOtpStep(false); setOtpCode(''); } }}
+                        className="pl-10 py-5 rounded-xl border-2 border-gray-200 focus:border-pink-500"
+                        required
+                        disabled={otpVerified}
                       />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setProfilePicture(null);
-                          setProfilePicturePreview('');
-                        }}
-                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-lg hover:bg-red-600"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                      <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 bg-green-500 text-white text-xs px-2 py-0.5 rounded-full">
-                        ✓ Ready
-                      </div>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="w-28 h-28 rounded-full bg-gradient-to-br from-pink-100 to-orange-100 border-3 border-dashed border-pink-400 flex flex-col items-center justify-center hover:border-pink-600 hover:from-pink-200 hover:to-orange-200 transition-all cursor-pointer"
-                    >
-                      <Camera className="w-8 h-8 text-pink-500 mb-1" />
-                      <span className="text-xs text-pink-600 font-medium">Add Photo</span>
-                    </button>
-                  )}
-                  
-                  {!profilePicturePreview && (
-                    <p className="text-xs mt-2" style={{ color: 'var(--m3-on-surface-variant)' }}>
-                      Optional — you can add photos after signup
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-gray-700 font-semibold">Name *</Label>
-                  <div className="relative mt-2">
-                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    <Input
-                      data-testid="signup-name-input"
-                      type="text"
-                      placeholder="Your name"
-                      value={signupData.name}
-                      onChange={(e) => setSignupData({...signupData, name: e.target.value})}
-                      className="pl-10 py-5 rounded-xl border-2 border-gray-200 focus:border-pink-500"
-                      required
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label className="text-gray-700 font-semibold">Age *</Label>
-                  <div className="relative mt-2">
-                    <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    <Input
-                      data-testid="signup-age-input"
-                      type="number"
-                      placeholder="Age"
-                      min="18"
-                      max="100"
-                      value={signupData.age}
-                      onChange={(e) => setSignupData({...signupData, age: e.target.value})}
-                      className="pl-10 py-5 rounded-xl border-2 border-gray-200 focus:border-pink-500"
-                      required
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <Label className="text-gray-700 font-semibold">Email <span className="text-red-500">*</span></Label>
-                <div className="relative mt-2">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <Input
-                    data-testid="signup-email-input"
-                    type="email"
-                    placeholder="your@email.com"
-                    value={signupData.email}
-                    onChange={(e) => { setSignupData({...signupData, email: e.target.value}); if (otpVerified) { setOtpVerified(false); setOtpStep(false); setOtpCode(''); } }}
-                    className="pl-10 py-5 rounded-xl border-2 border-gray-200 focus:border-pink-500"
-                    required
-                    disabled={otpVerified}
-                  />
-                  {/* OTP Verify button next to email */}
-                  {!otpVerified && (
-                    <button
-                      type="button"
-                      onClick={handleSendOtp}
-                      disabled={otpSending || otpCooldown > 0 || !signupData.email?.includes('@')}
-                      data-testid="send-otp-btn"
-                      className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-lg text-xs font-semibold text-white disabled:opacity-50 transition-all"
-                      style={{ background: 'linear-gradient(135deg, #ec4899, #f97316)' }}
-                    >
-                      {otpSending ? '...' : otpCooldown > 0 ? `${otpCooldown}s` : otpStep ? 'Resend' : 'Verify'}
-                    </button>
-                  )}
-                  {otpVerified && (
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500 text-sm font-semibold" data-testid="email-verified-badge">Verified</span>
-                  )}
-                </div>
-                
-                {/* OTP Input — shown after OTP is sent */}
-                {otpStep && !otpVerified && (
-                  <div className="mt-2 flex gap-2" data-testid="otp-input-section">
-                    <Input
-                      data-testid="otp-input"
-                      type="text"
-                      inputMode="numeric"
-                      placeholder="Enter 6-digit OTP"
-                      value={otpCode}
-                      onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                      className="flex-1 py-4 rounded-xl border-2 border-gray-200 focus:border-pink-500 text-center text-lg tracking-[0.5em] font-mono"
-                      maxLength={6}
-                    />
-                    <button
-                      type="button"
-                      onClick={handleVerifyOtp}
-                      disabled={otpSending || otpCode.length !== 6}
-                      data-testid="verify-otp-btn"
-                      className="px-5 py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50"
-                      style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}
-                    >
-                      {otpSending ? '...' : 'Verify'}
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <Label className="text-gray-700 font-semibold">Phone Number <span className="text-xs text-gray-400 font-normal">(Optional)</span></Label>
-                <div className="relative mt-2">
-                  <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <Input
-                    data-testid="signup-phone-input"
-                    type="tel"
-                    placeholder="10-digit mobile number (optional)"
-                    value={signupData.phone}
-                    onChange={(e) => setSignupData({...signupData, phone: e.target.value.replace(/\D/g, '').slice(0, 10)})}
-                    className="pl-10 py-5 rounded-xl border-2 border-gray-200 focus:border-pink-500"
-                    maxLength={10}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label className="text-gray-700 font-semibold">Password *</Label>
-                <div className="relative mt-2">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <Input
-                    data-testid="signup-password-input"
-                    type={showSignupPwd ? "text" : "password"}
-                    placeholder="Min 6 characters"
-                    value={signupData.password}
-                    onChange={(e) => setSignupData({...signupData, password: e.target.value})}
-                    className="pl-10 pr-12 py-5 rounded-xl border-2 border-gray-200 focus:border-pink-500"
-                    required
-                    minLength={6}
-                  />
-                  <button type="button" onClick={() => setShowSignupPwd(!showSignupPwd)} className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1" data-testid="signup-toggle-pwd">
-                    {showSignupPwd ? <EyeOff className="w-5 h-5 text-gray-400" /> : <Eye className="w-5 h-5 text-gray-400" />}
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <Label className="text-gray-700 font-semibold">Location *</Label>
-                {/* State selector */}
-                <select
-                  data-testid="signup-state-select"
-                  value={selectedState}
-                  onChange={(e) => {
-                    setSelectedState(e.target.value);
-                    setSignupData({...signupData, location: ''});
-                    setCitySearch('');
-                  }}
-                  className="w-full mt-2 py-3 px-3 rounded-xl border-2 border-gray-200 focus:border-pink-500 text-sm bg-white"
-                >
-                  <option value="">Select State</option>
-                  {INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-                {/* City selector with search */}
-                <div className="relative mt-2">
-                  <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 z-10" />
-                  <Input
-                    data-testid="signup-location-input"
-                    type="text"
-                    placeholder={selectedState ? "Search city..." : "Select state first"}
-                    value={signupData.location || citySearch}
-                    onChange={(e) => {
-                      setCitySearch(e.target.value);
-                      setSignupData({...signupData, location: ''});
-                      setShowCityDropdown(true);
-                    }}
-                    onFocus={() => setShowCityDropdown(true)}
-                    className="pl-10 py-5 rounded-xl border-2 border-gray-200 focus:border-pink-500"
-                    disabled={!selectedState}
-                    required
-                  />
-                  {showCityDropdown && selectedState && (
-                    <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
-                      {(citySearch
-                        ? (CITIES_BY_STATE[selectedState] || []).filter(c => c.toLowerCase().includes(citySearch.toLowerCase()))
-                        : (CITIES_BY_STATE[selectedState] || [])
-                      ).slice(0, 15).map(city => (
+                      {!otpVerified && (
                         <button
-                          key={city}
                           type="button"
-                          onClick={() => {
-                            setSignupData({...signupData, location: `${city}, ${selectedState}, India`});
-                            setCitySearch('');
-                            setShowCityDropdown(false);
-                          }}
-                          className="w-full text-left px-4 py-2.5 hover:bg-pink-50 text-sm text-gray-700 border-b border-gray-50 last:border-0"
+                          onClick={handleSendOtp}
+                          disabled={otpSending || otpCooldown > 0 || !signupData.email?.includes('@')}
+                          data-testid="send-otp-btn"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-lg text-xs font-semibold text-white disabled:opacity-50 transition-all"
+                          style={{ background: 'linear-gradient(135deg, #ec4899, #f97316)' }}
                         >
-                          {city}
+                          {otpSending ? '...' : otpCooldown > 0 ? `${otpCooldown}s` : otpStep ? 'Resend' : 'Verify'}
                         </button>
-                      ))}
-                      {(CITIES_BY_STATE[selectedState] || []).filter(c => citySearch ? c.toLowerCase().includes(citySearch.toLowerCase()) : true).length === 0 && (
-                        <p className="px-4 py-3 text-sm text-gray-400">No cities found</p>
+                      )}
+                      {otpVerified && (
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500 text-sm font-semibold" data-testid="email-verified-badge">Verified</span>
                       )}
                     </div>
+                    
+                    {otpStep && !otpVerified && (
+                      <div className="mt-2 flex gap-2" data-testid="otp-input-section">
+                        <Input
+                          data-testid="otp-input"
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="Enter 6-digit OTP"
+                          value={otpCode}
+                          onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                          className="flex-1 py-4 rounded-xl border-2 border-gray-200 focus:border-pink-500 text-center text-lg tracking-[0.5em] font-mono"
+                          maxLength={6}
+                        />
+                        <button
+                          type="button"
+                          onClick={handleVerifyOtp}
+                          disabled={otpSending || otpCode.length !== 6}
+                          data-testid="verify-otp-btn"
+                          className="px-5 py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50"
+                          style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}
+                        >
+                          {otpSending ? '...' : 'Verify'}
+                        </button>
+                      </div>
+                    )}
+                    
+                    <p className="text-xs text-gray-400 mt-1">Check spam folder if OTP nahi aaya</p>
+                  </div>
+                  
+                  {/* Next Step Button */}
+                  <Button
+                    type="button"
+                    disabled={!otpVerified}
+                    onClick={() => setSignupStep(2)}
+                    data-testid="signup-next-step-btn"
+                    className="w-full bg-gradient-to-r from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600 text-white py-6 rounded-xl font-semibold text-lg shadow-lg disabled:opacity-50"
+                  >
+                    {otpVerified ? 'Next →' : 'Verify email first'}
+                  </Button>
+                </>
+              )}
+              
+              {signupStep === 2 && (
+                <>
+                  <p className="text-center text-sm text-gray-500 mb-2">Step 2: Quick profile setup</p>
+                  
+                  {/* Verified email badge */}
+                  <div className="bg-green-50 border border-green-200 rounded-xl px-3 py-2 flex items-center gap-2">
+                    <Mail className="w-4 h-4 text-green-600" />
+                    <span className="text-sm text-green-700">{signupData.email}</span>
+                    <span className="text-xs text-green-500 ml-auto">Verified</span>
+                  </div>
+                  
+                  {/* Name */}
+                  <div>
+                    <Label className="text-gray-700 font-semibold">Your Name *</Label>
+                    <div className="relative mt-2">
+                      <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <Input
+                        data-testid="signup-name-input"
+                        type="text"
+                        placeholder="Your name"
+                        value={signupData.name}
+                        onChange={(e) => setSignupData({...signupData, name: e.target.value})}
+                        className="pl-10 py-5 rounded-xl border-2 border-gray-200 focus:border-pink-500"
+                        required
+                        autoFocus
+                      />
+                    </div>
+                  </div>
+                  
+                  {/* Password */}
+                  <div>
+                    <Label className="text-gray-700 font-semibold">Password *</Label>
+                    <div className="relative mt-2">
+                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <Input
+                        data-testid="signup-password-input"
+                        type={showSignupPwd ? "text" : "password"}
+                        placeholder="Min 6 characters"
+                        value={signupData.password}
+                        onChange={(e) => setSignupData({...signupData, password: e.target.value})}
+                        className="pl-10 pr-12 py-5 rounded-xl border-2 border-gray-200 focus:border-pink-500"
+                        required
+                        minLength={6}
+                      />
+                      <button type="button" onClick={() => setShowSignupPwd(!showSignupPwd)} className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1" data-testid="signup-toggle-pwd">
+                        {showSignupPwd ? <EyeOff className="w-5 h-5 text-gray-400" /> : <Eye className="w-5 h-5 text-gray-400" />}
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* Gender + Age */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-gray-700 font-semibold">I am <span className="text-red-500">*</span></Label>
+                      <select
+                        data-testid="signup-gender-select"
+                        value={signupData.gender}
+                        onChange={(e) => {
+                          const g = e.target.value;
+                          setSignupData({...signupData, gender: g, looking_for: g === 'male' ? 'female' : g === 'female' ? 'male' : ''});
+                        }}
+                        className="w-full mt-2 p-3 rounded-xl border-2 border-gray-200 focus:border-pink-500 bg-white"
+                        required
+                      >
+                        <option value="">Select</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                    <div>
+                      <Label className="text-gray-700 font-semibold">Age *</Label>
+                      <div className="relative mt-2">
+                        <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                        <Input
+                          data-testid="signup-age-input"
+                          type="number"
+                          placeholder="Age"
+                          min="18"
+                          max="100"
+                          value={signupData.age}
+                          onChange={(e) => setSignupData({...signupData, age: e.target.value})}
+                          className="pl-10 py-5 rounded-xl border-2 border-gray-200 focus:border-pink-500"
+                          required
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Girls Free Premium Badge */}
+                  {signupData.gender === 'female' && (
+                    <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-3 text-center animate-fade-in">
+                      <p className="text-sm font-bold text-amber-700">Girls get 1 Month FREE Premium!</p>
+                      <p className="text-[10px] text-amber-600">See Who Liked, Crush Reveal, Extra Boosts — all FREE</p>
+                    </div>
                   )}
-                </div>
-                {signupData.location && (
-                  <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
-                    <MapPin className="w-3 h-3" /> {signupData.location}
-                  </p>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-gray-700 font-semibold">
-                    I am <span className="text-red-500">*</span>
-                  </Label>
-                  <select
-                    data-testid="signup-gender-select"
-                    value={signupData.gender}
-                    onChange={(e) => setSignupData({...signupData, gender: e.target.value})}
-                    className="w-full mt-2 p-3 rounded-xl border-2 border-gray-200 focus:border-pink-500 bg-white"
-                    required
-                  >
-                    <option value="">Select</option>
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                    <option value="other">Other</option>
-                  </select>
-                  <p className="text-xs text-orange-500 mt-1">⚠️ Signup ke baad change nahi hoga</p>
-                </div>
-                <div>
-                  <Label className="text-gray-700 font-semibold">Looking for <span className="text-red-500">*</span></Label>
-                  <select
-                    data-testid="signup-looking-for-select"
-                    value={signupData.looking_for}
-                    onChange={(e) => setSignupData({...signupData, looking_for: e.target.value})}
-                    className="w-full mt-2 p-3 rounded-xl border-2 border-gray-200 focus:border-pink-500 bg-white"
-                    required
-                  >
-                    <option value="">Select</option>
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                    <option value="both">Both</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Age Verification - REQUIRED for Child Safety Compliance */}
-              <div className="bg-orange-50 border-2 border-orange-200 rounded-xl p-4">
-                <div className="flex items-start gap-3">
-                  <input
-                    type="checkbox"
-                    id="age-verification"
-                    data-testid="age-verification-checkbox"
-                    checked={signupData.ageVerified || false}
-                    onChange={(e) => setSignupData({...signupData, ageVerified: e.target.checked})}
-                    className="mt-1 w-5 h-5 accent-pink-500"
-                    required
-                  />
-                  <label htmlFor="age-verification" className="text-sm text-gray-700">
-                    <span className="font-bold text-orange-600">Age Verification Required *</span>
-                    <br />
-                    I confirm that I am <span className="font-bold">18 years or older</span>. 
-                    I understand that HeartLink is an adult dating platform and users under 18 are strictly prohibited.
-                  </label>
-                </div>
-              </div>
-
-              <div>
-                <Label className="text-gray-700 font-semibold">Relationship Status</Label>
-                <select
-                  data-testid="signup-relationship-status-select"
-                  value={signupData.relationship_status}
-                  onChange={(e) => setSignupData({...signupData, relationship_status: e.target.value})}
-                  className="w-full mt-2 p-3 rounded-xl border-2 border-gray-200 focus:border-pink-500 bg-white"
-                >
-                  <option value="Single">Single</option>
-                  <option value="Divorced">Divorced</option>
-                  <option value="Widowed">Widowed</option>
-                  <option value="Separated">Separated</option>
-                  <option value="Complicated">Its Complicated</option>
-                </select>
-              </div>
-
-              {/* Referral Code */}
-              <div>
-                <Label className="text-gray-700 font-semibold">Referral Code (Optional)</Label>
-                <Input
-                  data-testid="signup-referral-input"
-                  placeholder="Enter friend's referral code"
-                  value={signupData.referral_code}
-                  onChange={(e) => setSignupData({...signupData, referral_code: e.target.value.toUpperCase()})}
-                  className="mt-2 p-3 rounded-xl border-2 border-gray-200 focus:border-pink-500 uppercase tracking-wider"
-                />
-                {signupData.referral_code && (
-                  <p className="text-xs text-green-600 mt-1">You'll get 2 FREE Superlikes for using a referral code!</p>
-                )}
-              </div>
-
-              <Button
-                data-testid="signup-submit-btn"
-                type="submit"
-                disabled={loading}
-                className="w-full bg-gradient-to-r from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600 text-white py-6 rounded-xl font-semibold text-lg shadow-lg transform hover:scale-105 transition-all"
-              >
-                {loading ? 'Creating Account...' : 'Create Account'}
-              </Button>
+                  
+                  {/* Age Verification */}
+                  <div className="bg-orange-50 border-2 border-orange-200 rounded-xl p-3">
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        id="age-verification"
+                        data-testid="age-verification-checkbox"
+                        checked={signupData.ageVerified || false}
+                        onChange={(e) => setSignupData({...signupData, ageVerified: e.target.checked})}
+                        className="mt-0.5 w-5 h-5 accent-pink-500"
+                        required
+                      />
+                      <label htmlFor="age-verification" className="text-xs text-gray-700">
+                        I confirm I am <span className="font-bold">18+</span>. HeartLink is for adults only.
+                      </label>
+                    </div>
+                  </div>
+                  
+                  {/* Hidden fields — auto-set defaults for simplified flow */}
+                  
+                  {/* Back + Submit buttons */}
+                  <div className="flex gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setSignupStep(1)}
+                      className="px-4 py-6 rounded-xl"
+                    >
+                      ← Back
+                    </Button>
+                    <Button
+                      data-testid="signup-submit-btn"
+                      type="submit"
+                      disabled={loading}
+                      className="flex-1 bg-gradient-to-r from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600 text-white py-6 rounded-xl font-semibold text-lg shadow-lg"
+                    >
+                      {loading ? 'Creating...' : 'Join HeartLink'}
+                    </Button>
+                  </div>
+                  
+                  <p className="text-[10px] text-gray-400 text-center">Photo, bio, location — sab baad mein add kar sakte ho</p>
+                </>
+              )}
             </form>
           )}
         </div>
