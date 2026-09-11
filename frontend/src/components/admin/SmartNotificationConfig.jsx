@@ -16,6 +16,7 @@ const NOTIF_TYPES = [
   { key: 'comeback_7d_enabled', label: '7-Day Comeback', desc: '7 din inactive users ko final reminder', icon: CalendarDays, color: 'text-red-500', bg: 'bg-red-50' },
   { key: 'daily_engagement_enabled', label: 'Daily Engagement', desc: 'Daily picks, unread reminders, smart re-engagement', icon: Repeat, color: 'text-violet-500', bg: 'bg-violet-50' },
   { key: 'weekend_special_enabled', label: 'Weekend Special', desc: 'Saturday-Sunday special notification blast', icon: Zap, color: 'text-orange-500', bg: 'bg-orange-50' },
+  { key: 'girls_retention_enabled', label: 'Girls Retention', desc: '3 din inactive girls ko personalized push — "tumhe miss kar rahe hai!"', icon: BellRing, color: 'text-rose-500', bg: 'bg-rose-50' },
 ];
 
 const SmartNotificationConfig = () => {

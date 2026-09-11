@@ -1125,6 +1125,7 @@ async def notification_scheduler():
         "comeback_7d_enabled": True,
         "daily_engagement_enabled": True,
         "weekend_special_enabled": True,
+        "girls_retention_enabled": True,
         "max_notifications_per_user_per_day": 3,
     }
     
@@ -1255,6 +1256,65 @@ async def notification_scheduler():
                 await _send_smart_reengagement_notifications()
                 if 3 <= current_hour <= 4:
                     await _send_daily_picks()
+            
+            # ── 6. GIRLS RETENTION PUSH (3-day inactive girls) ──
+            if notif_config.get("girls_retention_enabled", True):
+                cutoff_3d = (now - timedelta(days=3)).isoformat()
+                cutoff_10d = (now - timedelta(days=10)).isoformat()
+                
+                inactive_girls = await db.users.find({
+                    "gender": {"$regex": "^female$", "$options": "i"},
+                    "is_ai_profile": {"$ne": True},
+                    "last_active": {"$lt": cutoff_3d, "$gt": cutoff_10d},
+                    "is_blocked": {"$ne": True},
+                    "last_girls_retention_at": {"$not": {"$gte": cutoff_3d}},
+                }, {"_id": 0, "id": 1, "name": 1, "is_premium": 1}).to_list(100)
+                
+                import random as _rand
+                girls_msgs = [
+                    {
+                        "title": "{name}, tumhe miss kar rahe hai!",
+                        "body": "Naye verified boys join hue hai HeartLink pe. Aao dekho kaun tumse match hua!",
+                    },
+                    {
+                        "title": "{name}, tumhara FREE Premium active hai!",
+                        "body": "See Who Liked You aur Crush Reveal abhi bhi free hai. Miss mat karo!",
+                    },
+                    {
+                        "title": "Koi tumhe pasand karta hai, {name}!",
+                        "body": "Someone liked your profile! Open HeartLink to find out who.",
+                    },
+                    {
+                        "title": "{name}, you're in demand!",
+                        "body": "Multiple boys viewed your profile recently. Come back and see who's interested!",
+                    },
+                    {
+                        "title": "Safety update for you, {name}",
+                        "body": "We added new safety features just for you. Night Mode, AI protection & more. Check it out!",
+                    },
+                ]
+                
+                sent_count = 0
+                for girl in inactive_girls:
+                    if await can_notify(girl["id"]):
+                        msg = _rand.choice(girls_msgs)
+                        girl_name = (girl.get("name") or "").split()[0] or "Hey"
+                        title = msg["title"].format(name=girl_name)
+                        body = msg["body"]
+                        
+                        # Premium girls get premium-focused messages
+                        if girl.get("is_premium"):
+                            body = msg["body"]
+                        
+                        await fcm_service.send_to_user(db, girl["id"],
+                            title, body,
+                            data={"type": "girls_retention", "route": "/discover"})
+                        await db.users.update_one({"id": girl["id"]}, {"$set": {"last_girls_retention_at": now.isoformat()}})
+                        await log_notification(girl["id"], "girls_retention")
+                        sent_count += 1
+                
+                if sent_count:
+                    logging.info(f"Girls retention push sent to {sent_count} girls")
         
         except Exception as e:
             logging.error(f"Notification scheduler error: {e}")
@@ -8183,7 +8243,8 @@ async def get_notification_config():
         "welcome_enabled": True, "profile_reminder_enabled": True,
         "new_user_discovery_enabled": True, "comeback_3d_enabled": True,
         "comeback_7d_enabled": True, "daily_engagement_enabled": True,
-        "weekend_special_enabled": True, "max_notifications_per_user_per_day": 3,
+        "weekend_special_enabled": True, "girls_retention_enabled": True,
+        "max_notifications_per_user_per_day": 3,
     }
     if not config:
         config = defaults
@@ -8221,7 +8282,8 @@ async def update_notification_config(request: Request):
     allowed = {
         "welcome_enabled", "profile_reminder_enabled", "new_user_discovery_enabled",
         "comeback_3d_enabled", "comeback_7d_enabled", "daily_engagement_enabled",
-        "weekend_special_enabled", "max_notifications_per_user_per_day",
+        "weekend_special_enabled", "girls_retention_enabled",
+        "max_notifications_per_user_per_day",
     }
     updates = {}
     for k, v in data.items():
