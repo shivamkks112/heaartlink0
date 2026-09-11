@@ -39,6 +39,27 @@ async def check_welcome_message(user_id: str):
     first_name = (user.get("name") or "").split()[0] if user.get("name") else ""
 
     if not user.get("welcome_shown_at") and settings.get("new_user_enabled", True):
+        # Check if user is female — show special girls onboarding
+        full_user = await db.users.find_one({"id": user_id}, {"_id": 0, "gender": 1, "is_premium": 1})
+        is_girl = full_user and full_user.get("gender", "").lower() == "female"
+        
+        if is_girl:
+            return {
+                "show": True,
+                "type": "new_user",
+                "variant": "girls_onboarding",
+                "title": f"Welcome {first_name}!",
+                "message": "HeartLink is India's safest dating app — built for women like you.",
+                "cta": "Start Exploring",
+                "perks": [
+                    {"icon": "crown", "title": "FREE Premium for 1 Month", "desc": "See Who Liked, Crush Reveal, Extra Boosts — all FREE!"},
+                    {"icon": "shield", "title": "AI Safety Protection", "desc": "Inappropriate messages auto-blocked. 3 strikes = banned."},
+                    {"icon": "moon", "title": "Night Safety Mode", "desc": "11PM-6AM new matches can't message you. Always in control."},
+                    {"icon": "zap", "title": "Emergency Safe Word", "desc": "Type 'heartlink sos' in chat → instant block + report."},
+                ],
+                "is_premium": full_user.get("is_premium", False),
+            }
+        
         title = settings.get("new_user_title", DEFAULT_WELCOME_SETTINGS["new_user_title"])
         msg = settings.get("new_user_message", DEFAULT_WELCOME_SETTINGS["new_user_message"])
         cta = settings.get("new_user_cta", DEFAULT_WELCOME_SETTINGS["new_user_cta"])

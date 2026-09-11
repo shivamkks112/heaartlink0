@@ -144,6 +144,20 @@ async def handle_creepy_detection(db, sender_id: str, receiver_id: str, match_id
             {"$set": {"is_blocked": True, "block_reason": "Auto-banned: 3 inappropriate message warnings", "blocked_at": datetime.now(timezone.utc).isoformat()}}
         )
         logger.warning(f"AUTO-BANNED user {sender_id} after {warning_count} warnings")
+        
+        # Notify admins about auto-ban
+        try:
+            admin_users = await db.users.find({"is_admin": True}, {"_id": 0, "id": 1}).to_list(None)
+            if admin_users:
+                import fcm_service
+                await fcm_service.send_to_users(
+                    db, [a["id"] for a in admin_users],
+                    title="Auto-Ban: 3 Warnings",
+                    body=f"User {sender_id[:8]}... auto-banned after 3 inappropriate message warnings.",
+                    data={"type": "admin_alert", "alert_type": "auto_ban", "route": "/admin"}
+                )
+        except Exception as e:
+            logger.error(f"Admin auto-ban FCM failed: {e}")
 
     logger.info(f"Creepy message detected from {sender_id}: severity={severity}, warning #{warning_count}")
     return True  # Message was blocked
@@ -236,6 +250,24 @@ async def check_safe_word(db, sender_id: str, receiver_id: str, match_id: str, c
         "created_at": datetime.now(timezone.utc).isoformat(),
         "read": False
     })
+
+    # Notify admin via FCM push
+    try:
+        admin_users = await db.users.find(
+            {"is_admin": True},
+            {"_id": 0, "id": 1}
+        ).to_list(None)
+        admin_ids = [a["id"] for a in admin_users]
+        if admin_ids:
+            import fcm_service
+            await fcm_service.send_to_users(
+                db, admin_ids,
+                title="EMERGENCY: Safe Word Triggered",
+                body=f"{sender.get('name', 'A user')} triggered safe word against user {receiver_id[:8]}...",
+                data={"type": "admin_alert", "alert_type": "safe_word_emergency", "route": "/admin"}
+            )
+    except Exception as e:
+        logger.error(f"Admin FCM alert failed: {e}")
 
     # Send confirmation to girl via WS
     if ws_manager:
