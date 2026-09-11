@@ -96,8 +96,11 @@ async def handle_creepy_detection(db, sender_id: str, receiver_id: str, match_id
         {"$inc": {"safety_warnings": 1}}
     )
 
-    sender = await db.users.find_one({"id": sender_id}, {"_id": 0, "safety_warnings": 1, "name": 1})
+    sender = await db.users.find_one({"id": sender_id}, {"_id": 0, "safety_warnings": 1, "name": 1, "email": 1, "age": 1, "location": 1})
+    receiver = await db.users.find_one({"id": receiver_id}, {"_id": 0, "name": 1, "email": 1, "gender": 1})
     warning_count = sender.get("safety_warnings", 1)
+    sender_name = sender.get("name", "Unknown")
+    receiver_name = receiver.get("name", "Unknown") if receiver else "Unknown"
 
     # Send warning to sender via WS
     if ws_manager:
@@ -123,11 +126,16 @@ async def handle_creepy_detection(db, sender_id: str, receiver_id: str, match_id
             "action": "report_option"
         })
 
-    # Log for admin
+    # Log for admin — include full names and message content
     await db.safety_reports.insert_one({
         "type": "ai_detection",
         "sender_id": sender_id,
+        "sender_name": sender_name,
+        "sender_email": sender.get("email", ""),
+        "sender_age": sender.get("age", ""),
+        "sender_location": sender.get("location", ""),
         "receiver_id": receiver_id,
+        "receiver_name": receiver_name,
         "match_id": match_id,
         "content": content,
         "severity": severity,
@@ -143,23 +151,32 @@ async def handle_creepy_detection(db, sender_id: str, receiver_id: str, match_id
             {"id": sender_id},
             {"$set": {"is_blocked": True, "block_reason": "Auto-banned: 3 inappropriate message warnings", "blocked_at": datetime.now(timezone.utc).isoformat()}}
         )
-        logger.warning(f"AUTO-BANNED user {sender_id} after {warning_count} warnings")
+        logger.warning(f"AUTO-BANNED user {sender_id} ({sender_name}) after {warning_count} warnings")
         
-        # Notify admins about auto-ban
+        # Notify admins with FULL DETAILS
         try:
             admin_users = await db.users.find({"is_admin": True}, {"_id": 0, "id": 1}).to_list(None)
             if admin_users:
                 import fcm_service
+                # Get all 3 warning messages for context
+                reports = await db.safety_reports.find(
+                    {"sender_id": sender_id, "type": "ai_detection"},
+                    {"_id": 0, "content": 1, "warning_number": 1, "receiver_name": 1}
+                ).sort("created_at", -1).limit(3).to_list(None)
+                
+                msg_preview = content[:80] if content else ""
+                body = f"{sender_name} ({sender.get('email','')}) banned!\nSent to: {receiver_name}\nMsg: \"{msg_preview}\"\nTotal warnings: {warning_count}"
+                
                 await fcm_service.send_to_users(
                     db, [a["id"] for a in admin_users],
-                    title="Auto-Ban: 3 Warnings",
-                    body=f"User {sender_id[:8]}... auto-banned after 3 inappropriate message warnings.",
+                    title=f"AUTO-BAN: {sender_name} ({warning_count} warnings)",
+                    body=body,
                     data={"type": "admin_alert", "alert_type": "auto_ban", "route": "/admin"}
                 )
         except Exception as e:
             logger.error(f"Admin auto-ban FCM failed: {e}")
 
-    logger.info(f"Creepy message detected from {sender_id}: severity={severity}, warning #{warning_count}")
+    logger.info(f"Creepy message detected from {sender_name} ({sender_id}): severity={severity}, warning #{warning_count}")
     return True  # Message was blocked
 
 
@@ -229,30 +246,40 @@ async def check_safe_word(db, sender_id: str, receiver_id: str, match_id: str, c
         {"$addToSet": {"blocked_users": receiver_id}}
     )
 
-    # Auto-report
+    # Auto-report with FULL details
+    reported_user_doc = await db.users.find_one({"id": receiver_id}, {"_id": 0, "name": 1, "email": 1, "age": 1, "location": 1})
     await db.safety_reports.insert_one({
         "type": "safe_word_triggered",
         "triggered_by": sender_id,
+        "triggered_by_name": sender.get("name", "Unknown"),
         "reported_user": receiver_id,
+        "reported_user_name": reported_user_doc.get("name", "Unknown") if reported_user_doc else "Unknown",
+        "reported_user_email": reported_user_doc.get("email", "") if reported_user_doc else "",
         "match_id": match_id,
         "safe_word_used": content_lower,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "status": "pending_review"
     })
 
-    # Notify admin
+    # Admin alert with names
     await db.admin_alerts.insert_one({
         "type": "safe_word_emergency",
         "girl_id": sender_id,
         "girl_name": sender.get("name", "Unknown"),
         "reported_user_id": receiver_id,
-        "match_id": match_id,
+        "reported_user_name": reported_user_doc.get("name", "Unknown") if reported_user_doc else "Unknown",
+        "reported_user_email": reported_user_doc.get("email", "") if reported_user_doc else "",
+        "safe_word_used": content_lower,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "read": False
     })
 
-    # Notify admin via FCM push
+    # Notify admin via FCM push — FULL DETAILS
     try:
+        reported_user = await db.users.find_one({"id": receiver_id}, {"_id": 0, "name": 1, "email": 1, "age": 1, "location": 1})
+        reported_name = reported_user.get("name", "Unknown") if reported_user else "Unknown"
+        reported_email = reported_user.get("email", "") if reported_user else ""
+        
         admin_users = await db.users.find(
             {"is_admin": True},
             {"_id": 0, "id": 1}
@@ -260,10 +287,11 @@ async def check_safe_word(db, sender_id: str, receiver_id: str, match_id: str, c
         admin_ids = [a["id"] for a in admin_users]
         if admin_ids:
             import fcm_service
+            body = f"Girl: {sender.get('name', '?')}\nAgainst: {reported_name} ({reported_email})\nSafe word: \"{content_lower[:50]}\""
             await fcm_service.send_to_users(
                 db, admin_ids,
-                title="EMERGENCY: Safe Word Triggered",
-                body=f"{sender.get('name', 'A user')} triggered safe word against user {receiver_id[:8]}...",
+                title=f"SOS: {sender.get('name', 'A girl')} feels unsafe!",
+                body=body,
                 data={"type": "admin_alert", "alert_type": "safe_word_emergency", "route": "/admin"}
             )
     except Exception as e:

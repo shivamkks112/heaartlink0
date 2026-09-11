@@ -138,23 +138,25 @@ const SafetyDashboard = () => {
             <Zap className="w-4 h-4" /> Emergency Alerts ({alerts.length})
           </h3>
           {alerts.slice(0, 5).map((alert, i) => (
-            <div key={i} className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-red-800">
-                  Safe Word triggered by <span className="font-bold">{alert.girl_name}</span>
+            <div key={i} className="bg-red-50 border border-red-200 rounded-xl p-3">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-bold text-red-800">
+                  SOS: {alert.girl_name} feels unsafe!
                 </p>
-                <p className="text-xs text-red-600">
-                  Against user: {alert.reported_user_id?.substring(0, 8)}... | {new Date(alert.created_at).toLocaleString('en-IN')}
-                </p>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => handleBanUser(alert.reported_user_id)}
+                  data-testid={`ban-alert-${i}`}
+                >
+                  <Ban className="w-3 h-3 mr-1" /> Ban
+                </Button>
               </div>
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={() => handleBanUser(alert.reported_user_id)}
-                data-testid={`ban-alert-${i}`}
-              >
-                <Ban className="w-3 h-3 mr-1" /> Ban
-              </Button>
+              <div className="text-xs text-red-700 space-y-0.5">
+                <p>Against: <span className="font-bold">{alert.reported_user_name || alert.reported_user_id?.substring(0, 12)}</span> {alert.reported_user_email && `(${alert.reported_user_email})`}</p>
+                {alert.safe_word_used && <p>Safe word: "{alert.safe_word_used}"</p>}
+                <p className="text-red-500">{new Date(alert.created_at).toLocaleString('en-IN')}</p>
+              </div>
             </div>
           ))}
         </div>
@@ -204,7 +206,7 @@ const SafetyDashboard = () => {
                         )}
                       </div>
                       <p className="text-xs text-gray-500 truncate">
-                        {r.sender_id?.substring(0, 8)}... → {r.receiver_id?.substring(0, 8) || r.reported_user?.substring(0, 8)}... | {new Date(r.created_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        {r.sender_name || r.triggered_by_name || r.sender_id?.substring(0, 12)} → {r.receiver_name || r.reported_user_name || r.receiver_id?.substring(0, 12) || r.reported_user?.substring(0, 12)} | {new Date(r.created_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                       </p>
                     </div>
                     {isExpanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
@@ -212,6 +214,21 @@ const SafetyDashboard = () => {
 
                   {isExpanded && (
                     <div className="border-t border-gray-100 p-3 bg-gray-50 space-y-2">
+                      {/* Sender/Reporter Info */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="bg-white rounded-lg p-2 border">
+                          <p className="text-[10px] text-gray-500 uppercase font-bold">{r.type === 'safe_word_triggered' ? 'Girl (Reporter)' : 'Sender'}</p>
+                          <p className="text-sm font-medium text-gray-800">{r.sender_name || r.triggered_by_name || 'Unknown'}</p>
+                          <p className="text-[10px] text-gray-400">{r.sender_email || ''}</p>
+                          {r.sender_age && <p className="text-[10px] text-gray-400">{r.sender_age} yrs, {r.sender_location || ''}</p>}
+                        </div>
+                        <div className="bg-white rounded-lg p-2 border">
+                          <p className="text-[10px] text-gray-500 uppercase font-bold">{r.type === 'safe_word_triggered' ? 'Reported User' : 'Sent To'}</p>
+                          <p className="text-sm font-medium text-gray-800">{r.receiver_name || r.reported_user_name || 'Unknown'}</p>
+                          <p className="text-[10px] text-gray-400">{r.reported_user_email || ''}</p>
+                        </div>
+                      </div>
+                      
                       {r.content && (
                         <div>
                           <p className="text-[10px] text-gray-500 uppercase font-bold">Message Content</p>
@@ -225,10 +242,10 @@ const SafetyDashboard = () => {
                         </div>
                       )}
                       {r.warning_number && (
-                        <p className="text-xs text-orange-600">Warning #{r.warning_number}</p>
+                        <p className="text-xs text-orange-600 font-medium">Warning #{r.warning_number}/3</p>
                       )}
                       {r.safe_word_used && (
-                        <p className="text-xs text-red-600">Safe word: "{r.safe_word_used}"</p>
+                        <p className="text-xs text-red-600 font-medium">Safe word used: "{r.safe_word_used}"</p>
                       )}
                       <div className="flex gap-2 pt-2">
                         <Button
