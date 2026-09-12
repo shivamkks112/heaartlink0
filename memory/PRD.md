@@ -58,6 +58,14 @@ Modern, safe, trust-based dating app for Indian users. React frontend + FastAPI 
 - 3 options: 24 Hours (orange), 7 Days (red), Permanent (black)
 - Auto-unban applies to 24h and 7d bans only
 
+### Smart Ban Analytics (Sep 12, 2026)
+- New "Analytics" tab in Safety Dashboard
+- Backend: `GET /api/admin/safety-analytics?days=30` — aggregates ban/unban events daily
+- 4 summary cards: Total Bans, Total Unbans, Auto Unbans, Currently Banned
+- Breakdown tags: Temp/Permanent bans, AI detections, Manual unbans, Avg/day
+- Period selector: 7d, 14d, 30d
+- Bar chart: Red (bans), Green (unbans), Blue (auto-unbans) per day
+
 ## Custom AI Persona - shivamkks545@gmail.com (Sep 12, 2026)
 - `CUSTOM_PERSONA_SHIVAM` prompt in ai_chatbot.py
 - Ultra-natural girl-like Hinglish chat behavior

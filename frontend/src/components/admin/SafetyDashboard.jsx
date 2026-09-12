@@ -3,7 +3,7 @@ import adminApi from '@/utils/adminApi';
 import {
   Shield, AlertTriangle, Ban, CheckCircle, RefreshCw,
   ChevronDown, ChevronUp, Zap, User, Unlock, Lock,
-  Search, MessageSquare, Eye
+  Search, MessageSquare, Eye, BarChart3, TrendingUp, Clock, Timer
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -30,23 +30,27 @@ const SafetyDashboard = () => {
   const [chatHistory, setChatHistory] = useState(null);
   const [loadingChat, setLoadingChat] = useState(false);
   const [banModal, setBanModal] = useState(null); // { userId, userName }
+  const [analyticsData, setAnalyticsData] = useState(null);
+  const [analyticsDays, setAnalyticsDays] = useState(30);
 
   const fetchData = useCallback(async () => {
     try {
-      const [reportsRes, bannedRes] = await Promise.all([
+      const [reportsRes, bannedRes, analyticsRes] = await Promise.all([
         adminApi.get('/admin/safety-reports?limit=50'),
         adminApi.get('/admin/safety-banned-users'),
+        adminApi.get(`/admin/safety-analytics?days=${analyticsDays}`),
       ]);
       setReports(reportsRes.data.reports || []);
       setAlerts(reportsRes.data.alerts || []);
       setStats(reportsRes.data.stats || {});
       setBannedUsers(bannedRes.data.banned_users || []);
+      setAnalyticsData(analyticsRes.data || null);
     } catch (e) {
       console.error('Failed to load safety data', e);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [analyticsDays]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -118,6 +122,7 @@ const SafetyDashboard = () => {
     { id: 'alerts', label: 'Alerts', count: alerts.length, color: 'text-red-600' },
     { id: 'reports', label: 'Reports', count: reports.length, color: 'text-orange-600' },
     { id: 'banned', label: 'Banned', count: bannedUsers.length, color: 'text-purple-600' },
+    { id: 'analytics', label: 'Analytics', count: null, color: 'text-blue-600' },
     { id: 'config', label: 'Config', count: null, color: 'text-gray-600' },
   ];
 
@@ -448,6 +453,118 @@ const SafetyDashboard = () => {
             ))
           )}
         </div>
+      )}
+
+      {/* ═══ ANALYTICS SECTION ═══ */}
+      {activeSection === 'analytics' && analyticsData && (
+        <div className="space-y-4" data-testid="safety-analytics-section">
+          {/* Summary Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              { val: analyticsData.summary?.total_bans || 0, label: 'Total Bans', icon: Ban, color: 'from-red-500 to-red-600', textColor: 'text-red-600' },
+              { val: analyticsData.summary?.total_unbans || 0, label: 'Total Unbans', icon: Unlock, color: 'from-green-500 to-emerald-600', textColor: 'text-green-600' },
+              { val: analyticsData.summary?.auto_unbans || 0, label: 'Auto Unbans', icon: Timer, color: 'from-blue-500 to-blue-600', textColor: 'text-blue-600' },
+              { val: analyticsData.summary?.currently_banned || 0, label: 'Currently Banned', icon: Lock, color: 'from-purple-500 to-purple-600', textColor: 'text-purple-600' },
+            ].map((s, i) => (
+              <div key={i} className="bg-white rounded-xl border border-gray-200 p-3 relative overflow-hidden" data-testid={`analytics-card-${i}`}>
+                <div className={`absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl ${s.color} opacity-10 rounded-bl-full`} />
+                <s.icon className={`w-4 h-4 ${s.textColor} mb-1`} />
+                <p className={`text-2xl font-bold ${s.textColor}`}>{s.val}</p>
+                <p className="text-[10px] text-gray-500">{s.label}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Breakdown Tags */}
+          <div className="flex flex-wrap gap-2">
+            {[
+              { label: 'Temp Bans', val: analyticsData.summary?.temp_bans || 0, bg: 'bg-orange-100 text-orange-700' },
+              { label: 'Permanent Bans', val: analyticsData.summary?.perm_bans || 0, bg: 'bg-red-100 text-red-700' },
+              { label: 'AI Detections', val: analyticsData.summary?.ai_detections || 0, bg: 'bg-blue-100 text-blue-700' },
+              { label: 'Manual Unbans', val: analyticsData.summary?.manual_unbans || 0, bg: 'bg-green-100 text-green-700' },
+              { label: 'Avg/Day', val: analyticsData.summary?.avg_bans_per_day || 0, bg: 'bg-gray-100 text-gray-700' },
+            ].map((t, i) => (
+              <span key={i} className={`px-2.5 py-1 rounded-full text-xs font-medium ${t.bg}`}>
+                {t.label}: <span className="font-bold">{t.val}</span>
+              </span>
+            ))}
+          </div>
+
+          {/* Period Selector */}
+          <div className="flex items-center gap-2">
+            <BarChart3 className="w-4 h-4 text-gray-500" />
+            <h3 className="text-sm font-semibold text-gray-700">Ban/Unban Trends</h3>
+            <div className="ml-auto flex gap-1">
+              {[7, 14, 30].map(d => (
+                <button
+                  key={d}
+                  onClick={() => setAnalyticsDays(d)}
+                  className={`px-2.5 py-1 text-[10px] font-bold rounded-full transition-all ${analyticsDays === d ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                  data-testid={`analytics-period-${d}`}
+                >
+                  {d}d
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Chart */}
+          {(() => {
+            const chart = analyticsData.chart || [];
+            const last = chart.slice(-analyticsDays);
+            const maxVal = Math.max(...last.map(d => Math.max(d.bans, d.unbans)), 1);
+            return (
+              <div className="bg-white rounded-xl border border-gray-200 p-4" data-testid="analytics-chart">
+                {/* Legend */}
+                <div className="flex gap-4 mb-3">
+                  <span className="flex items-center gap-1.5 text-[10px] text-gray-500"><span className="w-2.5 h-2.5 rounded-sm bg-red-500" /> Bans</span>
+                  <span className="flex items-center gap-1.5 text-[10px] text-gray-500"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-500" /> Unbans</span>
+                  <span className="flex items-center gap-1.5 text-[10px] text-gray-500"><span className="w-2.5 h-2.5 rounded-sm bg-blue-400" /> Auto Unbans</span>
+                </div>
+                <div className="flex items-end gap-1 h-32 overflow-x-auto">
+                  {last.map((d, i) => {
+                    const banH = Math.max((d.bans / maxVal) * 100, 0);
+                    const unbanH = Math.max((d.unbans / maxVal) * 100, 0);
+                    const dayLabel = new Date(d.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+                    return (
+                      <div key={i} className="flex-1 min-w-[20px] flex flex-col items-center gap-0.5 group" data-testid={`chart-bar-${i}`}>
+                        <div className="flex gap-0.5 items-end h-24 w-full justify-center">
+                          {/* Ban bar */}
+                          <div className="relative flex-1 max-w-[10px]">
+                            {d.bans > 0 && <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-[8px] text-red-600 font-bold opacity-0 group-hover:opacity-100 transition-opacity">{d.bans}</span>}
+                            <div className="w-full bg-red-500 rounded-t-sm transition-all duration-300" style={{ height: `${banH}%`, minHeight: d.bans > 0 ? '4px' : '0px' }} />
+                          </div>
+                          {/* Unban bar */}
+                          <div className="relative flex-1 max-w-[10px]">
+                            {d.unbans > 0 && <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-[8px] text-emerald-600 font-bold opacity-0 group-hover:opacity-100 transition-opacity">{d.unbans}</span>}
+                            <div className="w-full bg-emerald-500 rounded-t-sm transition-all duration-300" style={{ height: `${unbanH}%`, minHeight: d.unbans > 0 ? '4px' : '0px' }} />
+                          </div>
+                          {/* Auto unban indicator */}
+                          {d.auto_unbans > 0 && (
+                            <div className="relative flex-1 max-w-[6px]">
+                              <div className="w-full bg-blue-400 rounded-t-sm" style={{ height: `${Math.max((d.auto_unbans / maxVal) * 100, 4)}%`, minHeight: '3px' }} />
+                            </div>
+                          )}
+                        </div>
+                        <span className="text-[7px] text-gray-400 leading-tight whitespace-nowrap">{analyticsDays <= 14 ? dayLabel : (i % 3 === 0 ? dayLabel : '')}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                {last.every(d => d.bans === 0 && d.unbans === 0) && (
+                  <div className="text-center py-6">
+                    <CheckCircle className="w-8 h-8 text-green-400 mx-auto mb-2" />
+                    <p className="text-sm text-green-600 font-medium">No ban activity in this period</p>
+                    <p className="text-[10px] text-gray-400">Community is behaving well!</p>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </div>
+      )}
+      {activeSection === 'analytics' && !analyticsData && (
+        <div className="animate-pulse space-y-3"><div className="h-20 bg-gray-200 rounded-xl" /><div className="h-32 bg-gray-100 rounded-xl" /></div>
       )}
 
       {/* ═══ CONFIG SECTION ═══ */}

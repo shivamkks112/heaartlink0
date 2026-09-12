@@ -5,6 +5,7 @@
 - **Auto-Unban Timer** — Ban duration selector (24h/7d/permanent) in Safety Dashboard with auto-unban background checker
 - **Custom AI Persona** — shivamkks545@gmail.com stealth bot gets ultra-natural girl-like Hinglish chat behavior
 - **Rating Modal Suppressed** — Admin pages no longer show "Enjoying HeartLink?" rating prompt
+- **Smart Ban Analytics** — New Analytics tab in Safety Dashboard with ban/unban trends chart, summary cards, breakdown tags, and 7d/14d/30d period selector
 
 ## Sep 5, 2026
 - AI Girls expanded to 40 profiles across 40 cities

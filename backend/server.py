@@ -8884,6 +8884,97 @@ async def get_safety_reports(limit: int = 50):
     return {"reports": reports, "alerts": alerts, "stats": stats}
 
 
+@api_router.get("/admin/safety-analytics")
+async def get_safety_analytics(days: int = 30):
+    """Admin: Ban/unban trends over time for Smart Ban Analytics chart."""
+    now = datetime.now(timezone.utc)
+    cutoff = (now - timedelta(days=days)).isoformat()
+    
+    # Get all users who were banned in the period
+    banned_users = await db.users.find(
+        {"banned_at": {"$gte": cutoff}},
+        {"_id": 0, "banned_at": 1, "ban_duration": 1}
+    ).to_list(None)
+    
+    # Get all users who were unbanned in the period
+    unbanned_users = await db.users.find(
+        {"unbanned_at": {"$gte": cutoff}},
+        {"_id": 0, "unbanned_at": 1, "unbanned_by": 1}
+    ).to_list(None)
+    
+    # Also check safety_reports for historical ban actions
+    report_bans = await db.safety_reports.find(
+        {"created_at": {"$gte": cutoff}, "auto_action": "banned"},
+        {"_id": 0, "created_at": 1, "type": 1, "severity": 1}
+    ).to_list(None)
+    
+    # Build daily buckets
+    daily = {}
+    for d in range(days):
+        date = (now - timedelta(days=d)).strftime("%Y-%m-%d")
+        daily[date] = {"date": date, "bans": 0, "unbans": 0, "auto_unbans": 0, "manual_unbans": 0, "temp_bans": 0, "perm_bans": 0, "ai_detections": 0}
+    
+    # Count bans per day
+    for u in banned_users:
+        ba = u.get("banned_at", "")
+        if ba:
+            day = ba[:10]
+            if day in daily:
+                daily[day]["bans"] += 1
+                dur = u.get("ban_duration", "permanent")
+                if dur in ("24h", "7d"):
+                    daily[day]["temp_bans"] += 1
+                else:
+                    daily[day]["perm_bans"] += 1
+    
+    # Count report-triggered bans (AI auto-bans)
+    for r in report_bans:
+        ca = r.get("created_at", "")
+        if ca:
+            day = ca[:10]
+            if day in daily:
+                daily[day]["ai_detections"] += 1
+    
+    # Count unbans per day
+    for u in unbanned_users:
+        ua = u.get("unbanned_at", "")
+        if ua:
+            day = ua[:10]
+            if day in daily:
+                daily[day]["unbans"] += 1
+                if u.get("unbanned_by") == "auto_timer":
+                    daily[day]["auto_unbans"] += 1
+                else:
+                    daily[day]["manual_unbans"] += 1
+    
+    # Sort by date ascending
+    chart = sorted(daily.values(), key=lambda x: x["date"])
+    
+    # Summary
+    total_bans = sum(d["bans"] for d in chart)
+    total_unbans = sum(d["unbans"] for d in chart)
+    total_auto_unbans = sum(d["auto_unbans"] for d in chart)
+    total_temp = sum(d["temp_bans"] for d in chart)
+    total_perm = sum(d["perm_bans"] for d in chart)
+    total_ai = sum(d["ai_detections"] for d in chart)
+    currently_banned = await db.users.count_documents({"$or": [{"is_blocked": True}, {"is_permanently_banned": True}]})
+    
+    return {
+        "chart": chart,
+        "summary": {
+            "total_bans": total_bans,
+            "total_unbans": total_unbans,
+            "auto_unbans": total_auto_unbans,
+            "manual_unbans": total_unbans - total_auto_unbans,
+            "temp_bans": total_temp,
+            "perm_bans": total_perm,
+            "ai_detections": total_ai,
+            "currently_banned": currently_banned,
+            "avg_bans_per_day": round(total_bans / max(days, 1), 1),
+        }
+    }
+
+
 @api_router.put("/admin/safety-config")
 async def update_safety_config(request: Request):
     """Admin: Update safety configuration (safe words, etc)."""
