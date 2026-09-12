@@ -645,12 +645,22 @@ const ChatPage = ({ user }) => {
                 className={`flex ${isSystem ? 'justify-center' : isOwn ? 'justify-end' : 'justify-start'}`}
               >
                 {isSystem ? (
-                  <div className="max-w-[85%] px-4 py-2 bg-yellow-100 border border-yellow-300 rounded-xl text-center">
-                    <p className="text-sm text-yellow-800 flex items-center justify-center gap-2">
-                      <AlertTriangle className="w-4 h-4" />
-                      {msg.content}
-                    </p>
-                  </div>
+                  msg.message_type === 'system_warning' ? (
+                    <div className="max-w-[90%] px-4 py-3 bg-red-50 border-2 border-red-300 rounded-xl text-center" data-testid="chat-warning-bubble">
+                      <div className="flex items-center justify-center gap-2 mb-1">
+                        <AlertTriangle className="w-4 h-4 text-red-600" />
+                        <span className="text-xs font-bold text-red-700 uppercase">Safety Warning {msg.warning_level ? `${msg.warning_level}/3` : ''}</span>
+                      </div>
+                      <p className="text-sm text-red-800 font-medium">{msg.content}</p>
+                    </div>
+                  ) : (
+                    <div className="max-w-[85%] px-4 py-2 bg-yellow-100 border border-yellow-300 rounded-xl text-center">
+                      <p className="text-sm text-yellow-800 flex items-center justify-center gap-2">
+                        <AlertTriangle className="w-4 h-4" />
+                        {msg.content}
+                      </p>
+                    </div>
+                  )
                 ) : msg.message_type === 'game_invite' ? (
                   <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
                     <GameInviteBubble

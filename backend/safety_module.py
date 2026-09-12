@@ -5,6 +5,7 @@ Girls Safety Module for HeartLink
 - Safe Word Emergency System
 """
 import os
+import uuid
 import logging
 import asyncio
 from datetime import datetime, timezone, timedelta
@@ -103,17 +104,40 @@ async def handle_creepy_detection(db, sender_id: str, receiver_id: str, match_id
     receiver_name = receiver.get("name", "Unknown") if receiver else "Unknown"
 
     # Send warning to sender via WS — 3 LEVEL SYSTEM
-    if ws_manager:
-        if warning_count == 1:
-            warn_msg = "Warning 1/3: Aapka message inappropriate flag hua hai. Please respectful rahein. Agli baar strict action hoga."
-        elif warning_count == 2:
-            warn_msg = "Warning 2/3: Aapka ek aur message vulgar/inappropriate flag hua. EK AUR WARNING aur aapka account PERMANENTLY BAN ho jayega!"
-        else:
-            warn_msg = "Warning 3/3: Aapka account inappropriate behavior ke karan PERMANENTLY SUSPENDED kar diya gaya hai."
+    if warning_count == 1:
+        warn_msg = "Warning 1/3: Aapka message inappropriate flag hua hai. Please respectful rahein. Agli baar strict action hoga."
+    elif warning_count == 2:
+        warn_msg = "Warning 2/3: Aapka ek aur message vulgar/inappropriate flag hua. EK AUR WARNING aur aapka account PERMANENTLY BAN ho jayega!"
+    else:
+        warn_msg = "Warning 3/3: Aapka account inappropriate behavior ke karan PERMANENTLY SUSPENDED kar diya gaya hai."
 
+    # Save warning as a system message in chat — visible on sender's chat screen
+    warning_msg_doc = {
+        "id": str(uuid.uuid4()),
+        "match_id": match_id,
+        "sender_id": "system",
+        "receiver_id": sender_id,
+        "content": warn_msg,
+        "read": False,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "message_type": "system_warning",
+        "warning_level": warning_count,
+        "is_deleted_for_sender": False,
+        "is_deleted_for_receiver": False,
+        "is_deleted_for_all": False,
+    }
+    await db.messages.insert_one(warning_msg_doc)
+
+    if ws_manager:
+        clean_warn = {k: v for k, v in warning_msg_doc.items() if k != "_id"}
+        await ws_manager.send_message(sender_id, {
+            "type": "message",
+            "message": clean_warn,
+        })
+        # Also send system_warning event for toast
         await ws_manager.send_message(sender_id, {
             "type": "system_warning",
-            "message": f"⚠️ {warn_msg}",
+            "message": warn_msg,
             "warning_level": warning_count,
         })
 
