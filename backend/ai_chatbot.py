@@ -1413,9 +1413,8 @@ async def _generate_stealth_response(db, match_id: str, auto_user: dict, user_me
     if not EMERGENT_LLM_KEY:
         return _get_stealth_fallback()
     
-    # Check if this user has a custom persona (shivamkks545@gmail.com)
-    user_email = auto_user.get("email", "").lower().strip()
-    if user_email == "shivamkks545@gmail.com":
+    # Check if this user has custom AI persona enabled
+    if auto_user.get("custom_ai_persona"):
         system_prompt = CUSTOM_PERSONA_SHIVAM.format(
             name=auto_user.get("name", ""),
             age=auto_user.get("age", 22),

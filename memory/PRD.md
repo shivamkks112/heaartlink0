@@ -66,12 +66,13 @@ Modern, safe, trust-based dating app for Indian users. React frontend + FastAPI 
 - Period selector: 7d, 14d, 30d
 - Bar chart: Red (bans), Green (unbans), Blue (auto-unbans) per day
 
-## Custom AI Persona - shivamkks545@gmail.com (Sep 12, 2026)
-- `CUSTOM_PERSONA_SHIVAM` prompt in ai_chatbot.py
-- Ultra-natural girl-like Hinglish chat behavior
-- Shy, sweet, moody, subtly flirty personality
-- Natural typos, dramatic reactions, casual tone
-- Activated when stealth bot email matches shivamkks545@gmail.com
+## Custom AI Persona System (Sep 12, 2026)
+- Dedicated **Sparkles ✨ button** in All Users tab for Custom AI Persona toggle
+- Separate from Stealth Auto-Chat (Zap ⚡) — Custom AI controls the personality prompt
+- Backend: `POST /api/admin/custom-ai-persona/toggle` — enables/disables, auto-enables stealth chat if needed
+- Backend: `GET /api/admin/custom-ai-personas` — lists all users with custom persona
+- `ai_chatbot.py` checks `custom_ai_persona` flag on user document (not hardcoded email)
+- `CUSTOM_PERSONA_SHIVAM` prompt: ultra-natural girl-like Hinglish, shy, moody, flirty, typos, dramatic
 
 ## Serious Relationship Branding (Sep 12, 2026)
 - Landing page: "Serious Relationships Only" hero text

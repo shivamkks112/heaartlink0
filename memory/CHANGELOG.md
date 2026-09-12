@@ -3,7 +3,7 @@
 ## Sep 12, 2026
 - **Serious Relationship Branding** — Landing page updated with "Serious Relationships Only" hero text, badge, and tagline
 - **Auto-Unban Timer** — Ban duration selector (24h/7d/permanent) in Safety Dashboard with auto-unban background checker
-- **Custom AI Persona** — shivamkks545@gmail.com stealth bot gets ultra-natural girl-like Hinglish chat behavior
+- **Custom AI Persona** — Dedicated Sparkles ✨ button in All Users tab with toggle API and ultra-natural girl-like Hinglish prompt. Works on any user account via `custom_ai_persona` flag.
 - **Rating Modal Suppressed** — Admin pages no longer show "Enjoying HeartLink?" rating prompt
 - **Smart Ban Analytics** — New Analytics tab in Safety Dashboard with ban/unban trends chart, summary cards, breakdown tags, and 7d/14d/30d period selector
 

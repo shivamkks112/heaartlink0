@@ -5903,7 +5903,8 @@ async def get_all_users(
         "is_permanently_banned": 1, "is_premium": 1, "is_admin": 1,
         "trust_badge_level": 1, "risk_score": 1, "created_at": 1,
         "last_active": 1, "total_matches": 1, "total_likes_received": 1,
-        "selfie_verification_url": 1, "selfie_verification_status": 1
+        "selfie_verification_url": 1, "selfie_verification_status": 1,
+        "auto_chat_enabled": 1, "custom_ai_persona": 1, "photos": 1
     }
     
     # Get total count (use count_documents with hint for speed)
@@ -5939,7 +5940,10 @@ async def get_all_users(
             "total_matches": u.get("total_matches", 0),
             "total_likes_received": u.get("total_likes_received", 0),
             "selfie_verification_url": u.get("selfie_verification_url"),
-            "selfie_verification_status": u.get("selfie_verification_status", "none")
+            "selfie_verification_status": u.get("selfie_verification_status", "none"),
+            "auto_chat_enabled": u.get("auto_chat_enabled", False),
+            "custom_ai_persona": u.get("custom_ai_persona", False),
+            "photos": u.get("photos", [])
         } for u in users],
         "total": total,
         "page": page,
@@ -8448,6 +8452,42 @@ async def list_auto_chat_users():
     ).to_list(None)
     return users
 
+
+
+# ==========================================
+# CUSTOM AI PERSONA SYSTEM
+# ==========================================
+
+@api_router.post("/admin/custom-ai-persona/toggle")
+async def toggle_custom_ai_persona(request: Request):
+    """Toggle custom AI persona for a user. Auto-enables stealth chat if needed."""
+    data = await request.json()
+    user_id = data.get("user_id")
+    enable = data.get("enable", True)
+    if not user_id:
+        raise HTTPException(status_code=400, detail="user_id required")
+    
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "id": 1, "name": 1, "email": 1, "auto_chat_enabled": 1, "is_ai_profile": 1})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if enable and not user.get("auto_chat_enabled"):
+        # Auto-enable stealth chat when enabling custom persona
+        await db.users.update_one({"id": user_id}, {"$set": {"auto_chat_enabled": True, "custom_ai_persona": True}})
+    else:
+        await db.users.update_one({"id": user_id}, {"$set": {"custom_ai_persona": enable}})
+    
+    return {"success": True, "user_id": user_id, "name": user.get("name"), "custom_ai_persona": enable, "auto_chat_enabled": True if enable else user.get("auto_chat_enabled")}
+
+
+@api_router.get("/admin/custom-ai-personas")
+async def list_custom_ai_personas():
+    """List all users with custom AI persona enabled."""
+    users = await db.users.find(
+        {"custom_ai_persona": True},
+        {"_id": 0, "id": 1, "name": 1, "email": 1, "gender": 1, "location": 1, "photos": 1, "auto_chat_enabled": 1, "custom_ai_persona": 1}
+    ).to_list(None)
+    return {"users": users, "total": len(users)}
 
 
 # ==========================================

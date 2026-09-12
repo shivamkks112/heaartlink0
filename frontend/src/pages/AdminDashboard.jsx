@@ -8,7 +8,7 @@ import {
   Eye, MessageCircle, Heart, Shield, Crown,
   Activity, BarChart3, PieChart, ClipboardCheck, Settings,
   Bot, Power, RotateCcw, KeyRound, Download, Send, Flame,
-  DollarSign, BarChart2, Target, Tv, Zap
+  DollarSign, BarChart2, Target, Tv, Zap, Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -105,7 +105,7 @@ const StatCard = ({ icon: Icon, label, value, subValue, color, bgColor }) => (
 );
 
 // UserCard Component
-const UserCard = ({ u, onBlock, onUnblock, onDelete, onView, onResetPassword, onToggleAutoChat }) => {
+const UserCard = ({ u, onBlock, onUnblock, onDelete, onView, onResetPassword, onToggleAutoChat, onToggleCustomAI }) => {
   if (!u) return null;
   
   const lastActive = u.last_active ? new Date(u.last_active) : null;
@@ -188,8 +188,21 @@ const UserCard = ({ u, onBlock, onUnblock, onDelete, onView, onResetPassword, on
             className={u.auto_chat_enabled ? 'text-emerald-600 border-emerald-600 bg-emerald-50' : 'text-gray-400 border-gray-300'}
             onClick={() => onToggleAutoChat(u.id, u.name, !u.auto_chat_enabled)}
             title={u.auto_chat_enabled ? 'Auto-chat ON' : 'Auto-chat OFF'}
+            data-testid={`stealth-toggle-${u.id}`}
           >
             <Zap className="w-4 h-4" />
+          </Button>
+        )}
+        {!u.is_ai_profile && (
+          <Button
+            size="sm"
+            variant="outline"
+            className={u.custom_ai_persona ? 'text-purple-600 border-purple-600 bg-purple-50' : 'text-gray-400 border-gray-300'}
+            onClick={() => onToggleCustomAI(u.id, u.name, !u.custom_ai_persona)}
+            title={u.custom_ai_persona ? 'Custom AI Persona ON' : 'Custom AI Persona OFF'}
+            data-testid={`custom-ai-toggle-${u.id}`}
+          >
+            <Sparkles className="w-4 h-4" />
           </Button>
         )}
         {(u.is_shadow_banned || u.is_permanently_banned) ? (
@@ -639,6 +652,16 @@ const AdminDashboard = ({ user }) => {
     }
   };
 
+  const handleToggleCustomAI = async (userId, userName, enable) => {
+    try {
+      await adminApi.post('/admin/custom-ai-persona/toggle', { user_id: userId, enable });
+      toast.success(`${userName} Custom AI Persona ${enable ? 'ON ✨' : 'OFF'}`);
+      fetchUsers();
+    } catch (e) {
+      toast.error('Failed: ' + (e.response?.data?.detail || e.message));
+    }
+  };
+
 
   const handleResetPassword = async () => {
     if (!selectedUser || !resetNewPassword) return;
@@ -1001,6 +1024,7 @@ const AdminDashboard = ({ user }) => {
                         onView={handleViewUser}
                         onResetPassword={(usr) => { setSelectedUser(usr); setShowResetPasswordModal(true); }}
                         onToggleAutoChat={handleToggleAutoChat}
+                        onToggleCustomAI={handleToggleCustomAI}
                       />
                     ) : null
                   ))}
