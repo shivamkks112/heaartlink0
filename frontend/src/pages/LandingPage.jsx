@@ -25,7 +25,7 @@ const LandingPage = () => {
     {
       name: "Priya S.",
       location: "Mumbai",
-      text: "As a girl, I feel SO safe here. Boys are verified, I can block instantly, and the AI actually finds good matches. Best dating app for Indian women!",
+      text: "Finally an app for serious relationships! I feel SO safe here. Boys are verified and respectful. Found my partner in 3 weeks!",
       rating: 5
     },
     {
@@ -92,12 +92,18 @@ const LandingPage = () => {
           </h1>
           
           <p className="text-xl sm:text-2xl lg:text-3xl text-gray-700 mb-4 font-medium animate-fade-in" style={{animationDelay: '0.2s'}}>
-            India's #1 Safe Dating App
+            Serious Relationships Only
           </p>
           
-          <p className="text-base sm:text-lg text-gray-600 mb-8 max-w-2xl mx-auto animate-fade-in" style={{animationDelay: '0.4s'}}>
-            India's Safest Dating App for Women. <strong>AI matchmaking</strong>, <strong>verified profiles</strong>, and <strong>real connections</strong>. Girls get FREE Premium!
+          <p className="text-base sm:text-lg text-gray-600 mb-6 max-w-2xl mx-auto animate-fade-in" style={{animationDelay: '0.4s'}}>
+            India's Safest Dating App for Women. <strong>Verified profiles</strong>, <strong>AI matchmaking</strong>, and <strong>real connections</strong>. No hookups — only meaningful relationships.
           </p>
+          
+          {/* Serious Relationship Badge */}
+          <div className="inline-flex items-center gap-2 bg-rose-50 border border-rose-200 px-4 py-2 rounded-full mb-6 animate-fade-in" style={{animationDelay: '0.45s'}}>
+            <Heart className="w-4 h-4 text-rose-500" fill="currentColor" />
+            <span className="text-sm font-semibold text-rose-700">For Serious Relationships Only</span>
+          </div>
 
           {/* Trust badges */}
           <div className="flex flex-wrap justify-center gap-4 mb-6 animate-fade-in" style={{animationDelay: '0.5s'}}>

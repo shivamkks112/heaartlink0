@@ -34,115 +34,65 @@ Modern, safe, trust-based dating app for Indian users. React frontend + FastAPI 
 
 ## Realtime Messaging Architecture (Sep 3, 2026)
 ### Changes Made
-- **Single WebSocket per user**: ChatPage now uses global `wsService` instead of opening its own WS connection. This prevents the backend's ConnectionManager from replacing/killing the global connection.
-- **WebSocketService.js**: Handles ALL event types centrally: message, typing_indicator, status_update, screenshot_alert, system_warning, message_deleted, messages_read, message_delivered
-- **Ping/heartbeat**: Client pings every 25s → backend updates `last_active` in DB, keeping presence fresh
+- **Single WebSocket per user**: ChatPage now uses global `wsService` instead of opening its own WS connection
+- **WebSocketService.js**: Handles ALL event types centrally
+- **Ping/heartbeat**: Client pings every 25s, backend updates `last_active` in DB
 - **Badge count fix**: Own message echo no longer inflates sender's unread badge count
-
-### Conversations Endpoint
-- `GET /api/conversations/{user_id}` — Returns all conversations with lastMessage, unreadCount, user info in ONE call (replaced N+1 pattern)
-- MatchesPage uses this endpoint and does inline realtime updates via wsService
-
-### Active Users Fix
-- `GET /api/active-users/{user_id}` — Fixed:
-  - `privacy_settings.show_profile: {"$ne": False}` (was strict `True`, excluding users without field)
-  - Case-insensitive gender matching with `re.escape()`
-  - Expanded active threshold from 10min to 30min
-  - Removed matched_users exclusion (they can be active too)
-  - Active count fetched on mount regardless of which tab is selected
-
-### Presence System
-- Online: Set when WS connects or user logs in
-- Offline: Set on WS disconnect
-- last_active: Updated on login, WS connect, and every 25s via ping
-- Reconnect: Exponential backoff up to 30s, max 15 attempts
-
-## Welcome Message System (Sep 1, 2026)
-### Backend
-- `GET /api/welcome-check/{user_id}` — Returns show/type/title/message/cta
-- `POST /api/welcome-shown/{user_id}` — Marks welcome as shown
-- `POST /api/welcome-clicked/{user_id}` — Analytics tracking
-- `GET /api/admin/welcome-settings` — Admin config + analytics
-- `PUT /api/admin/welcome-settings` — Update config remotely
-
-## Crush Feature — Admin-Controlled (Sep 3, 2026)
-- Default: **OFF** (paused)
-- Admin Panel: Settings → Secret Crush toggle (Flame icon)
-- Feature flag: `crush_feature` in `app_settings.feature_flags`
-- Backend: `/api/crush/{user_id}` returns 403 when disabled
-- Frontend: Crush button hidden on Discover page when flag is OFF
-- All existing crush data preserved when re-enabled
-
-## Like/Pass Button Design (Sep 3, 2026)
-- Glassmorphic floating dock: `backdrop-blur(20px)`, glass border, dark translucent bg
-- Pass (56px): Rose-tinted circle, X icon, glow on hover
 
 ## AI Chatbot Girls — 40 Profiles (Sep 5, 2026)
 - 40 AI girl profiles with AI-generated Indian face photos across 40 cities
-- Original 15 + 25 NEW covering: Nagpur, Varanasi, Patna, Surat, Bhopal, Kochi, Dehradun, Ranchi, Guwahati, Thiruvananthapuram, Mysore, Coimbatore, Noida, Gurgaon, Ludhiana, Agra, Amritsar, Visakhapatnam, Raipur, Mangalore, Shimla, Jodhpur, Siliguri, Nashik, Kanpur
 - Personality types: flirty_fun, sweet_caring, witty_smart
-- Proactive messaging: AI sends 1st message (1-4hr delay), optional follow-up (2-6hr if no reply)
-- Human-like behavior: varied message lengths, natural typos, filler words, emotional intelligence
-- Admin toggle: ai_chatbot feature flag controls all AI behavior
+- Proactive messaging: AI sends 1st message (1-4hr delay)
+- Human-like behavior: varied message lengths, natural typos, filler words
 
-- SuperLike (46px): Blue-tinted circle, filled Star icon
-- Like (66px): Large emerald gradient, filled Heart, pulse ring animation
-- Crush (46px, conditional): Amber Flame icon, only when crush_feature=true
+## Safety System (Sep 12, 2026)
+### Auto-Unban Timer
+- Admin can ban users with duration: 24 hours, 7 days, or permanent
+- `ban_expires_at` field stored on user document
+- Background `auto_unban_checker()` runs every 30 min (first run on startup)
+- Expired temp bans auto-unban user, reset warnings
+- Safety Dashboard shows ban duration badge on banned user cards
 
-## Server Architecture (Sep 5, 2026)
-- `/app/backend/server.py` — Main server (~8900 lines, actively being split)
-- `/app/backend/routes/ads.py` — Ad impression, rewards, frequency cap, admin analytics (184 lines)
-- `/app/backend/routes/games.py` — Play With Match game system (136 lines)
+### Ban Duration Modal
+- Clicking "Ban User" anywhere in Safety Dashboard opens a modal
+- 3 options: 24 Hours (orange), 7 Days (red), Permanent (black)
+- Auto-unban applies to 24h and 7d bans only
+
+## Custom AI Persona - shivamkks545@gmail.com (Sep 12, 2026)
+- `CUSTOM_PERSONA_SHIVAM` prompt in ai_chatbot.py
+- Ultra-natural girl-like Hinglish chat behavior
+- Shy, sweet, moody, subtly flirty personality
+- Natural typos, dramatic reactions, casual tone
+- Activated when stealth bot email matches shivamkks545@gmail.com
+
+## Serious Relationship Branding (Sep 12, 2026)
+- Landing page: "Serious Relationships Only" hero text
+- "For Serious Relationships Only" badge
+- "No hookups — only meaningful relationships" tagline
+- FAQ updated for serious relationship positioning
+
+## Server Architecture
+- `/app/backend/server.py` — Main server (~9700 lines)
+- `/app/backend/routes/ads.py` — Ad system (184 lines)
+- `/app/backend/routes/games.py` — Play With Match (136 lines)
 - `/app/backend/routes/boost.py` — Profile boost (79 lines)
-- `/app/backend/routes/welcome.py` — Welcome message system (143 lines)
-- `/app/backend/database.py` — Shared MongoDB connection, caches, indexes
-- `/app/backend/ai_chatbot.py` — 15 AI girl profiles and response generation
-- `/app/backend/fcm_service.py` — FCM push notifications
-- `/app/backend/email_service.py` — Resend email service
-- Total extracted: 543 lines into 4 route modules
-
-## Smart App Update System (Sep 3, 2026)
-- **Backend Config** (`app_update_config` in app_settings): latest_version_code, latest_version_name, update_title, update_message, update_enabled, force_update, play_store_url, min_dismiss_hours
-- **Check endpoint**: `GET /api/app-update/check?version_code=X` — compares installed vs latest, returns update info if available
-- **Admin endpoint**: `GET/PUT /api/admin/app-update` — full config with analytics
-- **Send notification**: `POST /api/admin/app-update/send-notification` — FCM push to all users, 5min cooldown
-- **Analytics**: `POST /api/app-update/analytics` — tracks shown/clicked/dismissed events
-- **In-App Banner**: `AppUpdateBanner.jsx` — dark glass banner on top, "Update Now" / "Later", respects dismissal cooldown
-- **Admin UI**: `AppUpdateSettings.jsx` in Settings tab — version config, toggles, analytics cards, send button with confirmation
-
-## Smart User Growth + Retention Notification System (Sep 5, 2026)
-### Backend
-- `notification_scheduler()` background loop runs every 6 hours (9AM-9PM IST)
-- 7 notification types, each admin-toggleable via `notification_config` in `app_settings`:
-  1. **Welcome Push** — Immediate FCM on signup (gated by `welcome_enabled`)
-  2. **Profile Completion Reminder** — 24hr after signup if no photo/bio
-  3. **New User Discovery** — Opposite gender alert when new user joins (gated by `new_user_discovery_enabled`)
-  4. **3-Day Comeback** — Push for users inactive 3 days
-  5. **7-Day Comeback** — Push for users inactive 7 days
-  6. **Daily Engagement** — Daily picks, unread reminders, smart re-engagement
-  7. **Weekend Special** — Saturday/Sunday blast
-- Per-user daily frequency limit (1-10, server-validated)
-- Notification logging in `notification_logs` collection for analytics
-- `notification_analytics` counters in `app_settings` for cumulative stats
-
-### API Endpoints
-- `GET /api/admin/notification-config` — Config + analytics + 24h counts + type breakdown
-- `PUT /api/admin/notification-config` — Update toggles/limits (server-side validation)
-- `GET /api/admin/notification-analytics-chart?days=7` — 7-day chart data
-
-### Frontend
-- `SmartNotificationConfig.jsx` — Admin component with:
-  - Purple gradient header with 3 stat cards (24h count, active types, max/day)
-  - 7-day notification volume bar chart
-  - 24h type breakdown tags
-  - Frequency limit +/- control (clamped 1-10)
-  - 7 toggle cards for each notification type with sent counts
-  - Save button (appears only when dirty)
+- `/app/backend/routes/welcome.py` — Welcome messages (143 lines)
+- `/app/backend/ai_chatbot.py` — 40 AI profiles + stealth system + custom persona
+- `/app/backend/safety_module.py` — AI content detection, night mode, SOS
 
 ## Pending / Backlog
-- P0: Razorpay Premium Subscription (₹99-999/month)
+- P0: Razorpay Premium Subscription (Rs 99-999/month)
 - P1: Virtual Gifts & HeartCoins
+- P1: Server Cleanup Phase 3 (server.py modularization)
 - P2: AI-based Photo Verification
 - P3: AI Trust Score Algorithm
 - P4: Video Intros (15-second profile videos)
-- Refactoring: server.py route extraction (8500+ lines)
+- P5: Live Location Share
+
+## Critical Rules
+- Email OTP ONLY — no Phone OTP
+- No WebP conversion — preserve PNG assets
+- No Banner Ads on Discover page
+- No APK updates — solve via backend/web changes
+- Silent Social Media Block: 30-day block, no warning to receiver
+- Respond to user in Hinglish

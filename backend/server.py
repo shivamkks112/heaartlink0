@@ -298,6 +298,51 @@ async def startup_event():
     
     # Catch existing users who never got AI matches
     asyncio.create_task(_backfill_ai_matches())
+    
+    # Auto-unban checker — runs every 30 min to unban expired temp bans
+    asyncio.create_task(auto_unban_checker())
+    logging.info("🔓 Auto-unban checker started")
+
+
+async def auto_unban_checker():
+    """Background task: auto-unban users whose temporary ban has expired."""
+    # Run once immediately on startup, then every 30 min
+    first_run = True
+    while True:
+        try:
+            if not first_run:
+                await asyncio.sleep(30 * 60)
+            else:
+                await asyncio.sleep(10)  # Short delay on first run for DB readiness
+                first_run = False
+            
+            now = datetime.now(timezone.utc).isoformat()
+            
+            # Find users with expired temp bans
+            expired = await db.users.find({
+                "is_blocked": True,
+                "is_permanently_banned": {"$ne": True},
+                "ban_expires_at": {"$ne": None, "$lte": now}
+            }).to_list(None)
+            
+            for user in expired:
+                await db.users.update_one({"id": user["id"]}, {"$set": {
+                    "is_blocked": False,
+                    "is_shadow_banned": False,
+                    "is_permanently_banned": False,
+                    "block_reason": None,
+                    "safety_warnings": 0,
+                    "unbanned_at": now,
+                    "unbanned_by": "auto_timer",
+                    "ban_expires_at": None,
+                    "ban_duration": None,
+                }})
+                logging.info(f"🔓 Auto-unbanned user {user.get('name', user['id'])} (ban expired)")
+            
+            if expired:
+                logging.info(f"🔓 Auto-unban check: {len(expired)} users unbanned")
+        except Exception as e:
+            logging.error(f"Auto-unban checker error: {e}")
 
 
 async def _backfill_ai_matches():
@@ -8668,10 +8713,11 @@ async def get_girls_referral_tracking():
 
 @api_router.post("/admin/safety-ban")
 async def safety_ban_user(request: Request):
-    """Ban a user from safety dashboard — sets all block flags."""
+    """Ban a user — supports temporary (24h/7d) or permanent."""
     data = await request.json()
     user_id = data.get("user_id")
     reason = data.get("reason", "Banned from safety review")
+    duration = data.get("duration", "permanent")  # "24h", "7d", "permanent"
     if not user_id:
         raise HTTPException(status_code=400, detail="user_id required")
     
@@ -8679,15 +8725,28 @@ async def safety_ban_user(request: Request):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    await db.users.update_one({"id": user_id}, {"$set": {
+    now = datetime.now(timezone.utc)
+    ban_data = {
         "is_blocked": True,
-        "is_permanently_banned": True,
         "block_reason": reason,
-        "banned_at": datetime.now(timezone.utc).isoformat(),
-        "banned_by": "admin_safety"
-    }})
+        "banned_at": now.isoformat(),
+        "banned_by": "admin_safety",
+        "ban_duration": duration,
+    }
     
-    return {"success": True, "name": user.get("name"), "action": "banned", "reason": reason}
+    if duration == "24h":
+        ban_data["ban_expires_at"] = (now + timedelta(hours=24)).isoformat()
+        ban_data["is_permanently_banned"] = False
+    elif duration == "7d":
+        ban_data["ban_expires_at"] = (now + timedelta(days=7)).isoformat()
+        ban_data["is_permanently_banned"] = False
+    else:
+        ban_data["ban_expires_at"] = None
+        ban_data["is_permanently_banned"] = True
+    
+    await db.users.update_one({"id": user_id}, {"$set": ban_data})
+    
+    return {"success": True, "name": user.get("name"), "action": "banned", "duration": duration, "reason": reason}
 
 
 @api_router.post("/admin/safety-unban")
@@ -8721,7 +8780,8 @@ async def get_safety_banned_users():
     banned = await db.users.find(
         {"$or": [{"is_blocked": True}, {"is_permanently_banned": True}]},
         {"_id": 0, "id": 1, "name": 1, "email": 1, "gender": 1, "safety_warnings": 1,
-         "block_reason": 1, "banned_at": 1, "location": 1, "age": 1, "photos": 1}
+         "block_reason": 1, "banned_at": 1, "location": 1, "age": 1, "photos": 1,
+         "ban_duration": 1, "ban_expires_at": 1, "is_permanently_banned": 1}
     ).sort("banned_at", -1).to_list(100)
     
     return {"banned_users": banned, "total": len(banned)}

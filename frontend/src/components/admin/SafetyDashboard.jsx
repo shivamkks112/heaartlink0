@@ -29,6 +29,7 @@ const SafetyDashboard = () => {
   const [reviewingUser, setReviewingUser] = useState(null);
   const [chatHistory, setChatHistory] = useState(null);
   const [loadingChat, setLoadingChat] = useState(false);
+  const [banModal, setBanModal] = useState(null); // { userId, userName }
 
   const fetchData = useCallback(async () => {
     try {
@@ -50,10 +51,17 @@ const SafetyDashboard = () => {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleBan = async (userId, userName) => {
-    if (!confirm(`Ban ${userName || 'this user'}?`)) return;
+    setBanModal({ userId, userName });
+  };
+
+  const executeBan = async (duration) => {
+    if (!banModal) return;
+    const { userId, userName } = banModal;
     try {
-      await adminApi.post('/admin/safety-ban', { user_id: userId, reason: 'Banned from safety review' });
-      toast.success(`${userName || 'User'} banned`);
+      await adminApi.post('/admin/safety-ban', { user_id: userId, reason: 'Banned from safety review', duration });
+      const label = duration === '24h' ? '24 hours' : duration === '7d' ? '7 days' : 'permanently';
+      toast.success(`${userName || 'User'} banned for ${label}`);
+      setBanModal(null);
       fetchData();
     } catch (e) {
       toast.error('Ban failed: ' + (e.response?.data?.detail || e.message));
@@ -327,7 +335,18 @@ const SafetyDashboard = () => {
                         )}
                       </div>
                       <p className="text-[10px] text-gray-400">{u.email || ''} {u.age ? `| ${u.age} yrs` : ''} {u.gender ? `| ${u.gender}` : ''} {u.location ? `| ${u.location}` : ''}</p>
-                      <p className="text-[10px] text-red-500 mt-0.5">{u.block_reason || 'No reason'} {u.banned_at ? `| ${new Date(u.banned_at).toLocaleDateString('en-IN')}` : ''}</p>
+                      <p className="text-[10px] text-red-500 mt-0.5">
+                        {u.block_reason || 'No reason'} {u.banned_at ? `| ${new Date(u.banned_at).toLocaleDateString('en-IN')}` : ''}
+                        {u.ban_duration && u.ban_duration !== 'permanent' && (
+                          <span className="ml-1 px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 font-bold">
+                            {u.ban_duration === '24h' ? '24hr' : '7-day'} ban
+                            {u.ban_expires_at && ` · expires ${new Date(u.ban_expires_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`}
+                          </span>
+                        )}
+                        {(!u.ban_duration || u.ban_duration === 'permanent') && (
+                          <span className="ml-1 px-1.5 py-0.5 rounded bg-gray-800 text-white font-bold">Permanent</span>
+                        )}
+                      </p>
                     </div>
                   </div>
                   <div className="flex gap-1.5 flex-shrink-0">
@@ -463,6 +482,36 @@ const SafetyDashboard = () => {
               <p><span className="font-bold">Night Safety:</span> 11PM-6AM new matches (48hr) ke boys girl ko msg nahi bhej sakte.</p>
               <p><span className="font-bold">Admin FCM:</span> Safe word trigger + auto-ban pe sabhi admins ko instant push notification with full details.</p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ BAN DURATION MODAL ═══ */}
+      {banModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setBanModal(null)} data-testid="ban-duration-modal">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-5 space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="text-center">
+              <div className="w-12 h-12 mx-auto rounded-full bg-red-100 flex items-center justify-center mb-3">
+                <Ban className="w-6 h-6 text-red-600" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">Ban {banModal.userName || 'User'}</h3>
+              <p className="text-xs text-gray-500 mt-1">Select ban duration</p>
+            </div>
+            <div className="space-y-2">
+              <button onClick={() => executeBan('24h')} className="w-full p-3 rounded-xl border-2 border-orange-200 bg-orange-50 hover:bg-orange-100 text-left transition-all" data-testid="ban-24h">
+                <p className="text-sm font-bold text-orange-800">24 Hours</p>
+                <p className="text-[10px] text-orange-600">Temporary — auto-unban after 24 hours</p>
+              </button>
+              <button onClick={() => executeBan('7d')} className="w-full p-3 rounded-xl border-2 border-red-200 bg-red-50 hover:bg-red-100 text-left transition-all" data-testid="ban-7d">
+                <p className="text-sm font-bold text-red-800">7 Days</p>
+                <p className="text-[10px] text-red-600">Week ban — auto-unban after 7 days</p>
+              </button>
+              <button onClick={() => executeBan('permanent')} className="w-full p-3 rounded-xl border-2 border-gray-800 bg-gray-900 hover:bg-black text-left transition-all" data-testid="ban-permanent">
+                <p className="text-sm font-bold text-white">Permanent Ban</p>
+                <p className="text-[10px] text-gray-400">Manual unban required</p>
+              </button>
+            </div>
+            <button onClick={() => setBanModal(null)} className="w-full py-2 text-sm text-gray-500 hover:text-gray-700" data-testid="ban-cancel">Cancel</button>
           </div>
         </div>
       )}

@@ -31,6 +31,8 @@ const RatingPrompt = ({ user }) => {
 
   useEffect(() => {
     if (!user?.id || !shouldCheck()) return;
+    // Don't show rating on admin pages
+    if (window.location.pathname.startsWith('/admin')) return;
 
     const check = async () => {
       try {

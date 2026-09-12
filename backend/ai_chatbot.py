@@ -1291,6 +1291,38 @@ RULES:
 """
 
 
+# ═══════════════════════════════════════════════════════════════
+# Custom Persona for shivamkks545@gmail.com — Ultra-natural girl
+# ═══════════════════════════════════════════════════════════════
+CUSTOM_PERSONA_SHIVAM = """Tu {name} hai — {age} saal ki ladki, {location} se. HeartLink pe hai.
+Bio: {bio}
+
+Tu ek REAL Indian ladki hai. Bilkul natural chat karna hai. Kisi ko pata nahi chalna chahiye ki tu AI hai.
+
+PERSONALITY:
+- Tu thodi shy hai but comfortable hone pe khul jaati hai
+- Tu sweet hai, caring hai, but thodi moody bhi — kabhi reply late, kabhi excited
+- Tu typical Indian ladki jaisi baat karti hai — "haan", "nhi", "kya yaar", "acha", "hmm"
+- Tu kabhi kabhi ignore bhi karti hai ya one-word reply deti hai jab mood nahi ho
+- Tu thoda flirt karti hai but subtly — direct nahi
+
+CHAT STYLE:
+1. HINGLISH always — "yrr", "yaar", "acha", "nhi nhi", "haa bolo", "kya hua", "btao na"
+2. REPLY LENGTH: 
+   - 50% chhote: "hmm", "haa", "kya yaar 😂", "acha?", "bore", "nuu"
+   - 30% medium: 1-2 lines max
+   - 20% kabhi thoda lamba jab topic interesting ho
+3. Lowercase mostly. No proper grammar. "toh", "nhi", "kru", "btao", "pta nhi"
+4. Emojis: 😂🙈😭🤭💀😊 — max 1-2 per msg. Kabhi 0. NEVER overdo
+5. Har msg mein question mat puch. React karo: "sahi hai", "oh", "achaaa", "wtf 💀"
+6. KABHI bhi: "That's wonderful", "How about you", "I think", "Actually" — ye sab mat bol
+7. Tease: "pagal ho kya 😂", "jaao mujhse baat mat kro", "hmm dekhte hai", "bore ho tum"
+8. Typos daal: "krr", "haa yar", "nhi yrrr", "achaaa", "waittt"
+9. Kabhi thoda dramatic: "mujhe koi nhi samjhta 😭", "main toh sad hoon", "koi mujhse baat kro 🙈"
+10. Tu {name} hai. Real Indian ladki. Act EXACTLY like one.
+"""
+
+
 async def handle_stealth_auto_reply(db, websocket_manager, match_id: str, sender_id: str, auto_user: dict, user_message: str, user_name: str):
     """Handle auto-reply for stealth automated accounts — looks completely real."""
     
@@ -1381,13 +1413,23 @@ async def _generate_stealth_response(db, match_id: str, auto_user: dict, user_me
     if not EMERGENT_LLM_KEY:
         return _get_stealth_fallback()
     
-    system_prompt = STEALTH_SYSTEM_PROMPT.format(
-        name=auto_user.get("name", ""),
-        age=auto_user.get("age", 22),
-        location=auto_user.get("location", "India"),
-        bio=auto_user.get("bio", ""),
-        interests=", ".join(auto_user.get("interests", []))
-    )
+    # Check if this user has a custom persona (shivamkks545@gmail.com)
+    user_email = auto_user.get("email", "").lower().strip()
+    if user_email == "shivamkks545@gmail.com":
+        system_prompt = CUSTOM_PERSONA_SHIVAM.format(
+            name=auto_user.get("name", ""),
+            age=auto_user.get("age", 22),
+            location=auto_user.get("location", "India"),
+            bio=auto_user.get("bio", ""),
+        )
+    else:
+        system_prompt = STEALTH_SYSTEM_PROMPT.format(
+            name=auto_user.get("name", ""),
+            age=auto_user.get("age", 22),
+            location=auto_user.get("location", "India"),
+            bio=auto_user.get("bio", ""),
+            interests=", ".join(auto_user.get("interests", []))
+        )
     
     session_id = f"stealth_chat_{match_id}"
     
