@@ -960,9 +960,9 @@ async def _send_ai_first_messages(db, match_id: str, ai_id: str, user_id: str, a
     except Exception as e:
         logger.debug(f"WS push for AI msg failed (user may be offline): {e}")
 
-    # 60% chance to send a follow-up if no reply after 30-90 minutes
-    if random.random() < 0.6:
-        followup_delay = random.uniform(30, 90) * 60  # 30-90 minutes
+    # 30% chance to send a follow-up if no reply after 60-180 minutes
+    if random.random() < 0.3:
+        followup_delay = random.uniform(60, 180) * 60  # 60-180 minutes
         await asyncio.sleep(followup_delay)
         
         # Check if user replied
@@ -1383,10 +1383,10 @@ async def handle_stealth_auto_reply(db, websocket_manager, match_id: str, sender
     
     logger.info(f"Stealth auto-chat {auto_user['name']} replied in match {match_id}")
     
-    # 30% chance double message
-    if random.random() < 0.30:
+    # Double message — only for non-custom AI, reduced to 15%
+    if not auto_user.get("custom_ai_persona") and random.random() < 0.15:
         await asyncio.sleep(random.uniform(2, 6))
-        doubles = ["haha", "btw", "aur sunao", "achha ek aur baat", "😂", "wait", "arey haan"]
+        doubles = ["haha", "btw", "aur sunao", "achha ek aur baat", "wait", "arey haan"]
         double_doc = {
             "id": str(uuid.uuid4()),
             "match_id": match_id,
@@ -1492,12 +1492,14 @@ async def _generate_stealth_response(db, match_id: str, auto_user: dict, user_me
 def _get_stealth_fallback() -> str:
     """Fallback responses for stealth auto-chat — ultra natural."""
     fallbacks = [
-        "haha yrr network issue tha 😅 batao kya chal rha",
+        "haha yrr network issue tha batao kya chal rha",
         "sorry busy thi! ab free hoon",
         "hmm interesting. aur batao",
-        "acha acha 🤗 tum batao",
+        "acha acha tum batao",
         "haha wait phone slow tha",
         "hmm nice tumse baat krke acha lgta hai",
         "sahi hai yaar",
+        "acha theek hai",
+        "hmm ok",
     ]
     return random.choice(fallbacks)
