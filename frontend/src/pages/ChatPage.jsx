@@ -189,6 +189,7 @@ const ChatPage = ({ user }) => {
         if (cachedMsgs && cachedMsgs.length > 0) {
           setMessages(cachedMsgs);
           setLoading(false);
+          setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'auto' }), 50);
         }
 
         const [msgRes, privRes] = await Promise.allSettled([
@@ -199,9 +200,14 @@ const ChatPage = ({ user }) => {
         if (!cancelled) {
           if (msgRes.status === 'fulfilled') {
             const msgs = msgRes.value.data || [];
-            setMessages(msgs);
+            // Only update if messages actually changed (avoid flash)
+            const hasNewMessages = !cachedMsgs || msgs.length !== cachedMsgs.length || 
+              (msgs.length > 0 && cachedMsgs.length > 0 && msgs[msgs.length - 1]?.id !== cachedMsgs[cachedMsgs.length - 1]?.id);
+            if (hasNewMessages) {
+              setMessages(msgs);
+              setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'auto' }), 80);
+            }
             cacheChatMessages(matchId, msgs);
-            setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'auto' }), 80);
             axios.post(`${API}/messages/${matchId}/mark-read/${user.id}`).catch(() => {});
           }
           if (privRes.status === 'fulfilled') setPrivacySettings(privRes.value.data);
