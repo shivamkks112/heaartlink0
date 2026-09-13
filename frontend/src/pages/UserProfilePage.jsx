@@ -14,12 +14,28 @@ const UserProfilePage = ({ user }) => {
   const [profileUser, setProfileUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [matchInfo, setMatchInfo] = useState(null); // { matched: true, match_id: '...' }
 
   useEffect(() => {
     if (userId) {
       fetchUserProfile();
+      checkMatchStatus();
     }
   }, [userId]);
+
+  const checkMatchStatus = async () => {
+    if (!user?.id) return;
+    try {
+      const res = await axios.get(`${API}/conversations/${user.id}`);
+      const convs = Array.isArray(res.data) ? res.data : (res.data.conversations || []);
+      const found = convs.find(c => c.user?.id === userId);
+      if (found) {
+        setMatchInfo({ matched: true, match_id: found.match_id || found.id });
+      }
+    } catch (e) {
+      // Silent — just show action buttons if check fails
+    }
+  };
 
   const fetchUserProfile = async () => {
     try {
@@ -94,117 +110,113 @@ const UserProfilePage = ({ user }) => {
       <Toaster position="top-center" />
       <Navbar user={user} />
       
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        {/* Back Button */}
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-all"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          <span className="font-semibold">Back</span>
-        </button>
+      <div className="max-w-lg mx-auto pb-6">
+        {/* Profile Image — full width, taller on mobile */}
+        <div className="relative aspect-[3/4] max-h-[65vh] bg-gradient-to-br from-pink-200 to-orange-200">
+          {/* Back Button overlay */}
+          <button
+            onClick={() => navigate(-1)}
+            className="absolute top-4 left-4 z-10 w-10 h-10 bg-black/30 backdrop-blur-sm rounded-full flex items-center justify-center"
+            style={{ marginTop: 'env(safe-area-inset-top, 0px)' }}
+          >
+            <ArrowLeft className="w-5 h-5 text-white" />
+          </button>
 
-        {/* Profile Card */}
-        <div className="bg-white rounded-3xl shadow-xl overflow-hidden">
-          {/* Profile Image */}
-          <div className="relative h-96 bg-gradient-to-br from-pink-200 to-orange-200">
-            {profileUser.profile_picture ? (
-              <img
-                src={profileUser.profile_picture}
-                alt={profileUser.name}
-                className="w-full h-full object-cover"
-              />
-            ) : profileUser.photos && profileUser.photos.length > 0 ? (
-              <img
-                src={profileUser.photos[0]}
-                alt={profileUser.name}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <Heart className="w-32 h-32 text-white opacity-50" />
-              </div>
-            )}
-            
-            {profileUser.verified && (
-              <div className="absolute top-4 right-4 bg-blue-500 text-white px-4 py-2 rounded-full text-sm font-semibold shadow-lg">
-                ✓ Verified
+          {profileUser.profile_picture ? (
+            <img src={profileUser.profile_picture} alt={profileUser.name} className="w-full h-full object-cover" />
+          ) : profileUser.photos && profileUser.photos.length > 0 ? (
+            <img src={profileUser.photos[0]} alt={profileUser.name} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <Heart className="w-24 h-24 text-white opacity-40" />
+            </div>
+          )}
+          
+          {profileUser.verified && (
+            <div className="absolute top-4 right-4 bg-blue-500 text-white px-3 py-1.5 rounded-full text-xs font-semibold shadow-lg" style={{ marginTop: 'env(safe-area-inset-top, 0px)' }}>
+              Verified
+            </div>
+          )}
+
+          {/* Gradient overlay at bottom */}
+          <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-black/50 to-transparent" />
+          
+          {/* Name overlay */}
+          <div className="absolute bottom-4 left-4 right-4">
+            <h1 className="text-2xl font-bold text-white drop-shadow-lg">{profileUser.name}, {profileUser.age}</h1>
+            {profileUser.location && (
+              <div className="flex items-center gap-1.5 text-white/90 text-sm mt-1">
+                <MapPin className="w-3.5 h-3.5" />
+                <span>{profileUser.location}</span>
               </div>
             )}
           </div>
+        </div>
 
-          {/* Profile Info */}
-          <div className="p-8">
-            <div className="flex items-start justify-between mb-6">
-              <div>
-                <h1 className="text-4xl font-bold text-gray-900 mb-2">
-                  {profileUser.name}, {profileUser.age}
-                </h1>
-                
-                {profileUser.location && (
-                  <div className="flex items-center gap-2 text-gray-600 mb-2">
-                    <MapPin className="w-5 h-5" />
-                    <span>{profileUser.location}</span>
-                  </div>
-                )}
+        {/* Info Section */}
+        <div className="px-4 pt-4 pb-2 space-y-4">
+          {profileUser.bio && (
+            <div>
+              <h3 className="text-sm font-semibold text-gray-900 mb-1">About</h3>
+              <p className="text-sm text-gray-600 leading-relaxed">{profileUser.bio}</p>
+            </div>
+          )}
+
+          {profileUser.interests && profileUser.interests.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold text-gray-900 mb-2">Interests</h3>
+              <div className="flex flex-wrap gap-1.5">
+                {profileUser.interests.map((interest, index) => (
+                  <span key={index} className="px-3 py-1 bg-pink-50 text-pink-700 rounded-full text-xs font-medium border border-pink-100">
+                    {interest}
+                  </span>
+                ))}
               </div>
             </div>
+          )}
+        </div>
 
-            {/* Bio */}
-            {profileUser.bio && (
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">About</h3>
-                <p className="text-gray-700 leading-relaxed">{profileUser.bio}</p>
+        {/* Action Buttons — compact, rounded */}
+        <div className="px-4 pt-2 pb-4">
+          {matchInfo?.matched ? (
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-center gap-2 py-2.5 bg-green-50 border border-green-200 rounded-xl">
+                <Heart className="w-4 h-4 text-green-600 fill-green-600" />
+                <span className="text-green-700 text-sm font-semibold">Already Matched</span>
               </div>
-            )}
-
-            {/* Interests */}
-            {profileUser.interests && profileUser.interests.length > 0 && (
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Interests</h3>
-                <div className="flex flex-wrap gap-2">
-                  {profileUser.interests.map((interest, index) => (
-                    <span
-                      key={index}
-                      className="px-4 py-2 bg-gradient-to-r from-pink-100 to-orange-100 text-pink-700 rounded-full text-sm font-medium"
-                    >
-                      {interest}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Action Buttons */}
-            <div className="flex gap-4 mt-8">
+              <button
+                onClick={() => navigate(`/chat/${matchInfo.match_id}`)}
+                className="w-full bg-gradient-to-r from-pink-500 to-rose-500 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 text-sm active:scale-[0.98] transition-transform"
+              >
+                <MessageCircle className="w-4 h-4" />
+                Chat
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center gap-3">
               <button
                 onClick={() => handleAction('pass')}
                 disabled={actionLoading}
-                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-4 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                className="w-14 h-14 rounded-full bg-white border-2 border-gray-200 flex items-center justify-center shadow-sm hover:shadow-md active:scale-95 transition-all disabled:opacity-50"
               >
-                <X className="w-6 h-6" />
-                Pass
+                <X className="w-6 h-6 text-gray-500" />
               </button>
-
               <button
                 onClick={() => handleAction('like')}
                 disabled={actionLoading}
-                className="flex-1 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white py-4 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                className="w-16 h-16 rounded-full bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center shadow-lg hover:shadow-xl active:scale-95 transition-all disabled:opacity-50"
               >
-                <Heart className="w-6 h-6" />
-                Like
+                <Heart className="w-7 h-7 text-white fill-white" />
               </button>
-
               <button
                 onClick={() => handleAction('superlike')}
                 disabled={actionLoading}
-                className="flex-1 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white py-4 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center shadow-sm hover:shadow-md active:scale-95 transition-all disabled:opacity-50"
               >
-                <Star className="w-6 h-6" />
-                Super Like
+                <Star className="w-6 h-6 text-white fill-white" />
               </button>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
