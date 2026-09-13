@@ -3,7 +3,7 @@ import adminApi from '@/utils/adminApi';
 import {
   Bell, BellRing, UserPlus, Clock, CalendarDays,
   Repeat, Sparkles, TrendingUp, RefreshCw, Save,
-  ToggleLeft, ToggleRight, Gauge, BarChart3, Zap
+  ToggleLeft, ToggleRight, Gauge, BarChart3, Zap, Shield
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -17,6 +17,7 @@ const NOTIF_TYPES = [
   { key: 'daily_engagement_enabled', label: 'Daily Engagement', desc: 'Daily picks, unread reminders, smart re-engagement', icon: Repeat, color: 'text-violet-500', bg: 'bg-violet-50' },
   { key: 'weekend_special_enabled', label: 'Weekend Special', desc: 'Saturday-Sunday special notification blast', icon: Zap, color: 'text-orange-500', bg: 'bg-orange-50' },
   { key: 'girls_retention_enabled', label: 'Girls Retention', desc: '3 din inactive girls ko personalized push — "tumhe miss kar rahe hai!"', icon: BellRing, color: 'text-rose-500', bg: 'bg-rose-50' },
+  { key: 'verify_nudge_enabled', label: 'Verify Nudge', desc: 'Unverified boys ko "Get Verified" push — 48hr baad signup ke', icon: Shield, color: 'text-indigo-500', bg: 'bg-indigo-50' },
 ];
 
 const SmartNotificationConfig = () => {

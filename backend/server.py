@@ -1206,6 +1206,7 @@ async def notification_scheduler():
         "daily_engagement_enabled": True,
         "weekend_special_enabled": True,
         "girls_retention_enabled": True,
+        "verify_nudge_enabled": True,
         "max_notifications_per_user_per_day": 3,
     }
     
@@ -1395,6 +1396,42 @@ async def notification_scheduler():
                 
                 if sent_count:
                     logging.info(f"Girls retention push sent to {sent_count} girls")
+            
+            # ── 7. VERIFY NUDGE (Unverified boys, 48hr+ after signup) ──
+            if notif_config.get("verify_nudge_enabled", True):
+                cutoff_48h = (now - timedelta(hours=48)).isoformat()
+                unverified_boys = await db.users.find({
+                    "is_ai_profile": {"$ne": True},
+                    "gender": {"$regex": "^male$", "$options": "i"},
+                    "created_at": {"$lt": cutoff_48h},
+                    "selfie_verification_status": {"$nin": ["verified", "pending"]},
+                    "verified": {"$ne": True},
+                    "is_blocked": {"$ne": True},
+                    "verify_nudge_sent": {"$ne": True},
+                }, {"_id": 0, "id": 1, "name": 1, "fcm_token": 1}).limit(50).to_list(None)
+                
+                sent_count = 0
+                nudge_msgs = [
+                    ("Get Verified — Stand Out!", "Verified boys get 3x more matches. Take a quick selfie now!"),
+                    ("Girls prefer verified profiles", "Get your verified badge in 30 seconds. Tap to verify."),
+                    ("Almost there!", "One selfie away from your Verified badge. Girls trust verified profiles more."),
+                ]
+                for boy in unverified_boys:
+                    if await can_notify(boy["id"]) and boy.get("fcm_token"):
+                        title, body = random.choice(nudge_msgs)
+                        try:
+                            await fcm_service.send_push_notification(
+                                boy["fcm_token"],
+                                title, body,
+                                data={"type": "verify_nudge", "route": "/verify-selfie"})
+                            await db.users.update_one({"id": boy["id"]}, {"$set": {"verify_nudge_sent": True}})
+                            await log_notification(boy["id"], "verify_nudge")
+                            sent_count += 1
+                        except Exception:
+                            pass
+                
+                if sent_count:
+                    logging.info(f"Verify nudge push sent to {sent_count} boys")
         
         except Exception as e:
             logging.error(f"Notification scheduler error: {e}")
@@ -8501,6 +8538,7 @@ async def get_notification_config():
         "new_user_discovery_enabled": True, "comeback_3d_enabled": True,
         "comeback_7d_enabled": True, "daily_engagement_enabled": True,
         "weekend_special_enabled": True, "girls_retention_enabled": True,
+        "verify_nudge_enabled": True,
         "max_notifications_per_user_per_day": 3,
     }
     if not config:
@@ -8539,7 +8577,7 @@ async def update_notification_config(request: Request):
     allowed = {
         "welcome_enabled", "profile_reminder_enabled", "new_user_discovery_enabled",
         "comeback_3d_enabled", "comeback_7d_enabled", "daily_engagement_enabled",
-        "weekend_special_enabled", "girls_retention_enabled",
+        "weekend_special_enabled", "girls_retention_enabled", "verify_nudge_enabled",
         "max_notifications_per_user_per_day",
     }
     updates = {}
