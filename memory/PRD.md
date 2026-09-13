@@ -89,11 +89,17 @@ Modern, safe, trust-based dating app for Indian users. React frontend + FastAPI 
 - `/app/backend/ai_chatbot.py` — 40 AI profiles + stealth system + custom persona
 - `/app/backend/safety_module.py` — AI content detection, night mode, SOS
 
+## AI Selfie Verification (Sep 13, 2026)
+- User takes selfie via camera → AI compares with profile photo using Gemini Vision
+- Auto-verify (confidence >= 75%), admin review (40-74%), reject (<40%)
+- Verified badge activates on profile
+- Route: `/verify-selfie`, API: `POST /api/user/verify-selfie-ai`
+- Frontend: SelfieVerificationPage.jsx with camera capture, preview, result screens
+
 ## Pending / Backlog
 - P0: Razorpay Premium Subscription (Rs 99-999/month)
 - P1: Virtual Gifts & HeartCoins
 - P1: Server Cleanup Phase 3 (server.py modularization)
-- P2: AI-based Photo Verification
 - P3: AI Trust Score Algorithm
 - P4: Video Intros (15-second profile videos)
 - P5: Live Location Share

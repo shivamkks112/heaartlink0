@@ -28,6 +28,7 @@ const LikesYouPage = lazy(() => import('@/pages/LikesYouPage'));
 const ChatPage = lazy(() => import('@/pages/ChatPage'));
 const ProfilePage = lazy(() => import('@/pages/ProfilePage'));
 const UserProfilePage = lazy(() => import('@/pages/UserProfilePage'));
+const SelfieVerificationPage = lazy(() => import('@/pages/SelfieVerificationPage'));
 const PrivacyPage = lazy(() => import('@/pages/PrivacyPage'));
 const SettingsPage = lazy(() => import('@/pages/SettingsPage'));
 const PrivacyPolicyPage = lazy(() => import('@/pages/PrivacyPolicyPage'));
@@ -354,6 +355,7 @@ function App() {
             <Route path="/chat/:matchId" element={user ? <Suspense fallback={<ChatSkeleton />}><ErrorBoundary><ChatPage user={user} /></ErrorBoundary></Suspense> : <Navigate to="/" />} />
             <Route path="/profile" element={user ? <Suspense fallback={<ProfileSkeleton />}><ProfilePage user={user} onUpdate={handleLogin} /></Suspense> : <Navigate to="/" />} />
             <Route path="/profile/:userId" element={user ? <Suspense fallback={<ProfileSkeleton />}><UserProfilePage user={user} /></Suspense> : <Navigate to="/" />} />
+            <Route path="/verify-selfie" element={user ? <Suspense fallback={<ProfileSkeleton />}><SelfieVerificationPage user={user} /></Suspense> : <Navigate to="/" />} />
             <Route path="/privacy" element={user ? <PrivacyPage user={user} onUpdate={handleLogin} /> : <Navigate to="/" />} />
             <Route path="/settings" element={user ? <SettingsPage user={user} /> : <Navigate to="/" />} />
             <Route path="/profile-viewers" element={user ? <ProfileViewersPage user={user} /> : <Navigate to="/" />} />

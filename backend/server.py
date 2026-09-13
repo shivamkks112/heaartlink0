@@ -6232,6 +6232,146 @@ async def submit_selfie_verification(data: SelfieVerificationRequest):
     invalidate_user_cache(data.user_id)
     return {"message": "Selfie submitted for verification"}
 
+
+@api_router.post("/user/verify-selfie-ai")
+async def verify_selfie_ai(request: Request):
+    """AI-powered selfie verification — compares selfie with profile photo using Gemini vision."""
+    data = await request.json()
+    user_id = data.get("user_id")
+    selfie_base64 = data.get("selfie_base64")
+    
+    if not user_id or not selfie_base64:
+        raise HTTPException(status_code=400, detail="user_id and selfie_base64 required")
+    
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Get profile photo for comparison
+    profile_photo = user.get("profile_picture") or (user.get("photos", []) or [None])[0]
+    if not profile_photo:
+        raise HTTPException(status_code=400, detail="No profile photo found. Please upload a profile photo first.")
+    
+    # Clean base64 data
+    selfie_clean = selfie_base64
+    if "," in selfie_clean:
+        selfie_clean = selfie_clean.split(",", 1)[1]
+    
+    profile_clean = profile_photo
+    if "," in profile_clean:
+        profile_clean = profile_clean.split(",", 1)[1]
+    
+    # AI Face Comparison using Gemini Vision
+    EMERGENT_KEY = os.environ.get("EMERGENT_LLM_KEY")
+    if not EMERGENT_KEY:
+        # Fallback to manual review
+        await db.users.update_one({"id": user_id}, {"$set": {
+            "selfie_verification_url": f"data:image/jpeg;base64,{selfie_clean[:100]}...",
+            "selfie_verification_status": "pending",
+            "selfie_submitted_at": datetime.now(timezone.utc).isoformat()
+        }})
+        invalidate_user_cache(user_id)
+        return {"status": "pending", "message": "Selfie submitted for manual review"}
+    
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
+        
+        chat = LlmChat(
+            api_key=EMERGENT_KEY,
+            session_id=f"face_verify_{user_id}_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
+            system_message="""You are a face verification AI for a dating app. You compare two photos to determine if they show the SAME person.
+
+RULES:
+1. Compare facial features: eyes, nose, mouth shape, face shape, skin tone
+2. Ignore: lighting, angle, makeup, glasses, background, expression
+3. Be STRICT but fair — same person with different selfie angles should still match
+4. Respond ONLY in JSON format
+
+OUTPUT FORMAT:
+{"match": true/false, "confidence": 0-100, "reason": "brief reason"}
+
+- confidence >= 75: MATCH (same person)
+- confidence 40-74: UNCERTAIN (needs manual review)
+- confidence < 40: NO MATCH (different person)"""
+        )
+        chat.with_model("gemini", "gemini-2.5-flash")
+        
+        # Send both images for comparison
+        profile_img = ImageContent(image_base64=profile_clean)
+        selfie_img = ImageContent(image_base64=selfie_clean)
+        
+        user_msg = UserMessage(
+            text="Compare these two photos. Image 1 is the profile photo. Image 2 is the live selfie. Are they the same person? Respond in JSON only.",
+            file_contents=[profile_img, selfie_img]
+        )
+        
+        response = await chat.send_message(user_msg)
+        resp_text = str(response).strip()
+        
+        # Parse JSON response
+        import json as json_module
+        start = resp_text.find('{')
+        end = resp_text.rfind('}') + 1
+        if start >= 0 and end > start:
+            result = json_module.loads(resp_text[start:end])
+        else:
+            result = {"match": False, "confidence": 0, "reason": "AI response parse failed"}
+        
+        is_match = result.get("match", False)
+        confidence = result.get("confidence", 0)
+        reason = result.get("reason", "")
+        
+        now = datetime.now(timezone.utc).isoformat()
+        
+        if confidence >= 75 and is_match:
+            # AUTO-VERIFY: High confidence match
+            await db.users.update_one({"id": user_id}, {"$set": {
+                "selfie_verification_status": "verified",
+                "verified": True,
+                "verification_status": "verified",
+                "trust_badge_level": "high",
+                "selfie_verified_at": now,
+                "selfie_submitted_at": now,
+                "selfie_ai_confidence": confidence,
+                "selfie_ai_reason": reason,
+            }})
+            invalidate_user_cache(user_id)
+            return {"status": "verified", "confidence": confidence, "message": "Verification successful! You are now verified."}
+        
+        elif confidence >= 40:
+            # UNCERTAIN: Send to admin for manual review
+            await db.users.update_one({"id": user_id}, {"$set": {
+                "selfie_verification_status": "pending",
+                "selfie_submitted_at": now,
+                "selfie_ai_confidence": confidence,
+                "selfie_ai_reason": reason,
+                "selfie_verification_url": f"data:image/jpeg;base64,{selfie_clean}",
+            }})
+            invalidate_user_cache(user_id)
+            return {"status": "pending", "confidence": confidence, "message": "Selfie submitted. Under review — you'll be notified soon."}
+        
+        else:
+            # NO MATCH: Reject
+            await db.users.update_one({"id": user_id}, {"$set": {
+                "selfie_verification_status": "rejected",
+                "selfie_submitted_at": now,
+                "selfie_ai_confidence": confidence,
+                "selfie_ai_reason": reason,
+            }})
+            invalidate_user_cache(user_id)
+            return {"status": "rejected", "confidence": confidence, "message": "Selfie doesn't match your profile photo. Please try again with a clear face selfie."}
+    
+    except Exception as e:
+        logging.error(f"AI selfie verification failed: {e}")
+        # Fallback to manual review on AI failure
+        await db.users.update_one({"id": user_id}, {"$set": {
+            "selfie_verification_status": "pending",
+            "selfie_submitted_at": datetime.now(timezone.utc).isoformat(),
+            "selfie_verification_url": f"data:image/jpeg;base64,{selfie_clean}",
+        }})
+        invalidate_user_cache(user_id)
+        return {"status": "pending", "message": "Selfie submitted for review."}
+
 @api_router.get("/admin/pending-verifications")
 async def get_pending_verifications():
     """Get all users with pending selfie verification"""
