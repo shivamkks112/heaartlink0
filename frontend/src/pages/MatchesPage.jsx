@@ -293,7 +293,10 @@ const MatchesPage = ({ user }) => {
   };
 
   useEffect(() => {
-    setLoading(true);
+    // Only show loading on very first load (no data at all)
+    const hasData = matches.length > 0 || conversations.length > 0 || activeUsers.length > 0;
+    if (!hasData) setLoading(true);
+    
     if (activeTab === 'matches') {
       fetchMatches();
     } else if (activeTab === 'messages') {
