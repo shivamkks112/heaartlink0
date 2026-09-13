@@ -3800,9 +3800,9 @@ async def discover_users(user_id: str, limit: int = 10, relationship_intent: str
         # Shared lifestyle
         p_lifestyle = set(profile.get("lifestyle_tags", []))
         score += len(current_lifestyle & p_lifestyle) * 8
-        # Verified profile bonus
+        # Verified profile bonus — HIGH priority so verification feels rewarding
         if profile.get("verified"):
-            score += 20
+            score += 50
         # Online / recently active bonus
         if profile.get("is_online"):
             score += 25
