@@ -293,35 +293,7 @@ const ProfilePage = ({ user, onUpdate }) => {
       toast.info('Your profile is already verified!');
       return;
     }
-
-    setVerifying(true);
-    try {
-      const response = await axios.post(`${API}/profile/${user.id}/verify`);
-      
-      // Update profile with verification status
-      const updatedProfile = {
-        ...profile,
-        verification_status: response.data.status,
-        verified: response.data.status === 'verified'
-      };
-      
-      setProfile(updatedProfile);
-      setFormData(updatedProfile);
-      onUpdate(updatedProfile);
-      localStorage.setItem('user', JSON.stringify(updatedProfile));
-      
-      if (response.data.status === 'verified') {
-        toast.success('🎉 ' + response.data.message);
-      } else {
-        toast.error('❌ ' + response.data.message);
-      }
-    } catch (error) {
-      const errorMsg = error.response?.data?.detail || 'Failed to request verification. Please try again.';
-      toast.error(errorMsg);
-      console.error('Verification error:', error);
-    } finally {
-      setVerifying(false);
-    }
+    navigate('/verify-selfie');
   };
 
   return (
