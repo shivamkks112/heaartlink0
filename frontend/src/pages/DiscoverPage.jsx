@@ -45,7 +45,7 @@ const DiscoverPage = ({ user }) => {
   const swipeAnimation = useRef(null);
 
   const DAILY_SWIPE_LIMIT = 50;
-  const shouldShowAds = user?.gender === 'male' && !user?.is_premium && !user?.isPremium;
+  const shouldShowAds = user?.gender?.toLowerCase() === 'male' && !user?.is_premium && !user?.isPremium;
   const minSwipeDistance = 50;
 
   const fetchProfiles = async () => {

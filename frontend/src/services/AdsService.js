@@ -21,7 +21,7 @@ const AD_CONFIG = {
   BANNER_ID: 'ca-app-pub-3735972538807236/9418160097',
 };
 
-const SWIPES_BEFORE_AD = 6;
+const SWIPES_BEFORE_AD = 3;
 const EXTRA_SWIPES_REWARD = 10;
 
 // Ad states

@@ -144,7 +144,7 @@ const UserCard = ({ u, onBlock, onUnblock, onDelete, onView, onResetPassword, on
             {u.gender || 'Unknown'}
           </span>
           <span>{u.age || '?'} yrs</span>
-          <span>• {u.location || 'Unknown'}</span>
+          <span>• {u.location || 'Location not set'}</span>
         </div>
         
         <div className="flex items-center gap-3 mt-2 text-xs">
