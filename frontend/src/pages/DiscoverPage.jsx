@@ -319,7 +319,7 @@ const DiscoverPage = ({ user }) => {
 
   if (loading) {
     return (
-      <div className="h-[100%] bg-[#0a0a0a] flex flex-col" style={{ height: 'calc(100vh - var(--nav-total, 86px))' }}>
+      <div className="h-[100%] bg-[#0a0a0a] flex flex-col" style={{ height: 'calc(100vh - var(--nav-total, 86px))', paddingTop: 'env(safe-area-inset-top, 0px)' }}>
         {shellTop}
         <div className="flex-1 min-h-0 flex flex-col items-center justify-center p-2 gap-4">
           <div className="w-full h-[75%] max-w-md rounded-3xl overflow-hidden bg-gray-800/60 animate-pulse relative">
@@ -340,7 +340,7 @@ const DiscoverPage = ({ user }) => {
 
   if (!currentProfile) {
     return (
-      <div className="h-[100%] bg-[#0a0a0a] flex flex-col" style={{ height: 'calc(100vh - var(--nav-total, 86px))' }}>
+      <div className="h-[100%] bg-[#0a0a0a] flex flex-col" style={{ height: 'calc(100vh - var(--nav-total, 86px))', paddingTop: 'env(safe-area-inset-top, 0px)' }}>
         {shellTop}
         <div className="flex-1 min-h-0 flex items-center justify-center px-8">
           <div className="text-center m3-animate-in" data-testid="no-profiles">
@@ -374,7 +374,7 @@ const DiscoverPage = ({ user }) => {
   }
 
   return (
-    <div className="h-[100%] bg-[#0a0a0a] flex flex-col" style={{ height: 'calc(100vh - var(--nav-total, 86px))' }}>
+    <div className="h-[100%] bg-[#0a0a0a] flex flex-col" style={{ height: 'calc(100vh - var(--nav-total, 86px))', paddingTop: 'env(safe-area-inset-top, 0px)' }}>
       {shellTop}
       
       {/* Girls Complete Profile Nudge */}
