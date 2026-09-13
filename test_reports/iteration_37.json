@@ -1,0 +1,31 @@
+{
+  "summary": "Full A-Z audit of HeartLink recent changes. Backend: 13/13 pytest pass (health, /api/profile/{id} and duplicate /api/api/profile/{id} APK-compat route, safety-ban with duration 24h/7d/permanent + banned-users verification + unban cleanup, custom-ai-persona toggle + list + missing-param 400, safety-analytics default + 7d/14d/30d period). Frontend: Landing page shows 'Serious Relationships Only' hero, Women Safety Certified section, Get Started + Download App buttons. Auth login with admin credentials succeeds → /discover, JWT stored in localStorage as heartlink_token. Matches page renders 3 tabs (Matches(2), Messages, Active(0)) — tab switching shows NO loader/spinner flash (verified: 0 spinners after each click). Admin Dashboard shows all 10 tabs (Overview, All Users, Verifications, Approvals, Notifications, Settings, AI Girls, Growth, Ads, Safety). Safety Dashboard Analytics subtab renders successfully with summary cards (Total Bans:1, Total Unbans:1, Auto Unbans:0, Currently Banned:0), badges (Temp Bans, Permanent Bans, AI Detections, Manual Unbans, Avg/Day), period selector (7d/14d/30d) and Ban/Unban Trends chart. UserProfilePage for a MATCHED user shows 'Already Matched' green badge + Chat button (NO Pass/Like/SuperLike circular buttons) — redesign confirmed working.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Landing (unauth)", "issues": ["Console warning: 'Install tracking failed: TypeError: Failed to fetch' fires twice on landing before any auth. Likely CORS on /api/analytics/install-track or endpoint missing for unauth clients. Non-blocking but noisy."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter37_audit.py", "/app/test_reports/pytest/iter37.xml"],
+  "action_items": [
+    "(Optional) Investigate 'Install tracking failed: TypeError: Failed to fetch' warning on landing page — endpoint might need CORS or be unreachable for anonymous users.",
+    "(Carry-over from iter36) Add admin auth guard on /api/admin/safety-ban, /api/admin/safety-unban, /api/admin/safety-banned-users, /api/admin/custom-ai-persona/toggle, /api/admin/custom-ai-personas, /api/admin/safety-analytics — currently accepting requests without Depends(get_current_admin). Verified: all 6 admin endpoints returned 200 without any Authorization header in tests.",
+    "(Carry-over) server.py is ~9865 lines — split into domain routers."
+  ],
+  "critical_code_review_comments": [
+    "SECURITY: All new admin endpoints (safety-ban, safety-unban, safety-banned-users, custom-ai-persona/toggle, custom-ai-personas, safety-analytics) lack admin auth. The pytest suite accessed all of them with no Authorization header and got 200. Anyone with the URL can ban/unban users or toggle AI personas.",
+    "GET /api/api/profile/{user_id} duplicate route works but is a code smell — consider handling APK path rewrite at ingress instead of hardcoding a second decorator in server.py.",
+    "safety-analytics builds a Python dict then sorts — for days>=90 this is fine, but consider computing daily buckets via MongoDB aggregation for efficiency at scale.",
+    "server.py file size (~9865 lines) violates 700-line guideline; break into routers/services."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter37_audit.py"],
+  "success_rate": {"backend": "100% (13/13)", "frontend": "100% for tested flows"},
+  "test_credentials": "Admin shivamkks112@gmail.com / Shivam@2026 (login field: email_or_phone). Non-admin Shivamkks122@gmail.com / TestNonAdmin@2026.",
+  "seed_data_creation": "None (test bans immediately unbanned; custom-ai-persona toggle re-disabled after test).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Admin credentials work; JWT is stored in localStorage.heartlink_token after login. Auth submits to POST /api/auth/login with body key email_or_phone. Matches tabs use plain <button> selectors (not [role=tab]); use 'button:has-text(...)'. Safety Analytics chart is a Recharts SVG inside a container (svg.recharts-surface selector didn't match — chart is rendered but wrapped in different class; verify visually). All new admin endpoints currently open (no auth guard) — flag as critical if security is required. Landing page emits a background 'Install tracking failed' fetch error (non-blocking).",
+  "rca of the issue": "N/A — all requested features (landing branding, auth login, matches tab-without-flash, chat->profile nav, UserProfilePage matched state, admin dashboard 10 tabs, safety analytics tab with chart, custom AI persona, safety-ban duration, duplicate /api/api/profile route) verified working end-to-end. Only outstanding concern is the unauthenticated admin endpoints (security), noted in critical_code_review."
+}
