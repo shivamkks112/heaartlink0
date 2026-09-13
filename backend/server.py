@@ -156,6 +156,41 @@ class AdminAuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         return await call_next(request)
 
+
+# ═══════════════════════════════════════════════════════════════
+# ADMIN AUTH DEPENDENCY — reusable guard for admin-only endpoints
+# ═══════════════════════════════════════════════════════════════
+async def require_admin(request: Request) -> dict:
+    """Extract token, verify JWT, check is_admin. Returns admin user dict."""
+    token = None
+    # 1. Authorization: Bearer header
+    auth_header = request.headers.get("authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:]
+    # 2. X-Admin-Id header fallback — lookup user directly
+    admin_id = request.headers.get("x-admin-id", "")
+    # 3. admin_uid query param fallback
+    if not token and not admin_id:
+        admin_id = request.query_params.get("admin_uid", "")
+    
+    user = None
+    if token:
+        payload = verify_access_token(token)
+        if not payload:
+            raise HTTPException(status_code=401, detail="Invalid or expired token")
+        user_id = payload.get("user_id")
+        if user_id:
+            user = await db.users.find_one({"id": user_id}, {"_id": 0, "id": 1, "is_admin": 1, "name": 1})
+    elif admin_id:
+        user = await db.users.find_one({"id": admin_id}, {"_id": 0, "id": 1, "is_admin": 1, "name": 1})
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    if not user.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    return user
+
 # === SECURITY HEADERS MIDDLEWARE ===
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
@@ -8416,7 +8451,7 @@ async def get_notification_analytics_chart(days: int = 7):
 # ==========================================
 
 @api_router.post("/admin/auto-chat/enable")
-async def enable_auto_chat(request: Request):
+async def enable_auto_chat(request: Request, admin: dict = Depends(require_admin)):
     """Enable stealth AI auto-chat for a real user account."""
     data = await request.json()
     user_id = data.get("user_id")
@@ -8434,7 +8469,7 @@ async def enable_auto_chat(request: Request):
 
 
 @api_router.post("/admin/auto-chat/disable")
-async def disable_auto_chat(request: Request):
+async def disable_auto_chat(request: Request, admin: dict = Depends(require_admin)):
     """Disable stealth AI auto-chat for a user."""
     data = await request.json()
     user_id = data.get("user_id")
@@ -8446,7 +8481,7 @@ async def disable_auto_chat(request: Request):
 
 
 @api_router.get("/admin/auto-chat/list")
-async def list_auto_chat_users():
+async def list_auto_chat_users(admin: dict = Depends(require_admin)):
     """List all users with stealth auto-chat enabled."""
     users = await db.users.find(
         {"auto_chat_enabled": True, "is_ai_profile": {"$ne": True}},
@@ -8461,7 +8496,7 @@ async def list_auto_chat_users():
 # ==========================================
 
 @api_router.post("/admin/custom-ai-persona/toggle")
-async def toggle_custom_ai_persona(request: Request):
+async def toggle_custom_ai_persona(request: Request, admin: dict = Depends(require_admin)):
     """Toggle custom AI persona for a user. Auto-enables stealth chat if needed."""
     data = await request.json()
     user_id = data.get("user_id")
@@ -8483,7 +8518,7 @@ async def toggle_custom_ai_persona(request: Request):
 
 
 @api_router.get("/admin/custom-ai-personas")
-async def list_custom_ai_personas():
+async def list_custom_ai_personas(admin: dict = Depends(require_admin)):
     """List all users with custom AI persona enabled."""
     users = await db.users.find(
         {"custom_ai_persona": True},
@@ -8754,7 +8789,7 @@ async def get_girls_referral_tracking():
 # ==========================================
 
 @api_router.post("/admin/safety-ban")
-async def safety_ban_user(request: Request):
+async def safety_ban_user(request: Request, admin: dict = Depends(require_admin)):
     """Ban a user — supports temporary (24h/7d) or permanent."""
     data = await request.json()
     user_id = data.get("user_id")
@@ -8792,7 +8827,7 @@ async def safety_ban_user(request: Request):
 
 
 @api_router.post("/admin/safety-unban")
-async def safety_unban_user(request: Request):
+async def safety_unban_user(request: Request, admin: dict = Depends(require_admin)):
     """Unban a user — clears ALL block flags + resets safety warnings."""
     data = await request.json()
     user_id = data.get("user_id")
@@ -8817,7 +8852,7 @@ async def safety_unban_user(request: Request):
 
 
 @api_router.get("/admin/safety-banned-users")
-async def get_safety_banned_users():
+async def get_safety_banned_users(admin: dict = Depends(require_admin)):
     """List all users banned via safety system."""
     banned = await db.users.find(
         {"$or": [{"is_blocked": True}, {"is_permanently_banned": True}]},
@@ -8830,7 +8865,7 @@ async def get_safety_banned_users():
 
 
 @api_router.get("/admin/user-chat-history/{user_id}")
-async def get_admin_user_chat_history(user_id: str, limit: int = 50):
+async def get_admin_user_chat_history(user_id: str, limit: int = 50, admin: dict = Depends(require_admin)):
     """Admin: Get banned user's recent chat history across ALL matches for review."""
     user = await db.users.find_one({"id": user_id}, {"_id": 0, "id": 1, "name": 1, "email": 1})
     if not user:
@@ -8905,7 +8940,7 @@ async def get_night_safety(user_id: str):
 
 
 @api_router.get("/admin/safety-reports")
-async def get_safety_reports(limit: int = 50):
+async def get_safety_reports(limit: int = 50, admin: dict = Depends(require_admin)):
     """Admin: Get recent safety reports (AI detections + safe word triggers)."""
     reports = await db.safety_reports.find(
         {}, {"_id": 0}
@@ -8927,7 +8962,7 @@ async def get_safety_reports(limit: int = 50):
 
 
 @api_router.get("/admin/safety-analytics")
-async def get_safety_analytics(days: int = 30):
+async def get_safety_analytics(days: int = 30, admin: dict = Depends(require_admin)):
     """Admin: Ban/unban trends over time for Smart Ban Analytics chart."""
     now = datetime.now(timezone.utc)
     cutoff = (now - timedelta(days=days)).isoformat()
@@ -9018,7 +9053,7 @@ async def get_safety_analytics(days: int = 30):
 
 
 @api_router.put("/admin/safety-config")
-async def update_safety_config(request: Request):
+async def update_safety_config(request: Request, admin: dict = Depends(require_admin)):
     """Admin: Update safety configuration (safe words, etc)."""
     data = await request.json()
     allowed = {"safe_words", "creepy_detection_enabled", "night_mode_default", "auto_ban_threshold"}
