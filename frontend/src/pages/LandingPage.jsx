@@ -9,6 +9,9 @@ const LandingPage = () => {
   const navigate = useNavigate();
   const [openFaq, setOpenFaq] = useState(null);
   const [boysCount, setBoysCount] = useState(null);
+  
+  // Detect if running inside Capacitor (app) or browser (website)
+  const isApp = typeof window !== 'undefined' && window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
 
   useEffect(() => {
     axios.get(`${API}/stats/boys-waiting`).then(r => setBoysCount(r.data)).catch(() => {});
@@ -65,6 +68,68 @@ const LandingPage = () => {
     }
   ];
 
+  // ═══════════════════════════════════════════
+  // APP LANDING — Clean, minimal, no scroll
+  // ═══════════════════════════════════════════
+  if (isApp) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center px-6 relative overflow-hidden"
+        style={{ background: 'linear-gradient(135deg, #0a0a0a 0%, #1a0a1a 50%, #0a0a0a 100%)', paddingTop: 'env(safe-area-inset-top, 0px)' }}
+        data-testid="app-landing"
+      >
+        {/* Subtle glow */}
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-80 h-80 bg-pink-500/10 rounded-full blur-[100px]" />
+        
+        <div className="relative z-10 text-center space-y-6 max-w-sm mx-auto">
+          {/* Logo */}
+          <div className="flex justify-center mb-2">
+            <div className="bg-gradient-to-br from-pink-500 to-orange-500 p-4 rounded-3xl shadow-2xl">
+              <Heart className="w-12 h-12 text-white" fill="white" />
+            </div>
+          </div>
+
+          <div>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-pink-400 via-rose-400 to-orange-400 bg-clip-text text-transparent">
+              HeartLink
+            </h1>
+            <p className="text-base text-gray-400 mt-2 font-medium">Serious Relationships Only</p>
+          </div>
+
+          {/* Trust line */}
+          <div className="flex items-center justify-center gap-4 text-gray-500 text-xs">
+            <span className="flex items-center gap-1"><Shield className="w-3.5 h-3.5 text-purple-400" /> Verified</span>
+            <span className="flex items-center gap-1"><CheckCircle className="w-3.5 h-3.5 text-green-400" /> Safe</span>
+            <span className="flex items-center gap-1"><Star className="w-3.5 h-3.5 text-yellow-400" /> 4.5 Rating</span>
+          </div>
+
+          {/* CTA Buttons */}
+          <div className="space-y-3 pt-4">
+            <Button
+              onClick={() => navigate('/auth?tab=signup')}
+              className="w-full py-4 rounded-2xl text-base font-bold text-white shadow-lg shadow-pink-500/25 active:scale-[0.97] transition-transform"
+              style={{ background: 'linear-gradient(135deg, #D6336C 0%, #E8590C 100%)' }}
+              data-testid="app-get-started-btn"
+            >
+              Get Started
+            </Button>
+            <button
+              onClick={() => navigate('/auth?tab=login')}
+              className="w-full py-3.5 rounded-2xl text-sm font-semibold text-gray-400 border border-gray-700/50 active:bg-white/5 transition-colors"
+              data-testid="app-login-btn"
+            >
+              Already have an account? <span className="text-pink-400">Login</span>
+            </button>
+          </div>
+
+          <p className="text-[10px] text-gray-600 pt-2">India's safest dating app for women</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ═══════════════════════════════════════════
+  // WEBSITE LANDING — Full marketing page
+  // ═══════════════════════════════════════════
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
