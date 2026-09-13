@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-import { Camera, User, Heart, MapPin, Calendar, Briefcase, GraduationCap, Ruler, Dumbbell, Wine, Cigarette, CheckCircle, Shield, Sparkles, ChevronRight, Search, Share2, Gift, Settings, LogOut, Crown } from 'lucide-react';
+import { Camera, User, Heart, MapPin, Calendar, Briefcase, GraduationCap, Ruler, Dumbbell, Wine, Cigarette, CheckCircle, Shield, Sparkles, ChevronRight, Search, Share2, Gift, Settings, LogOut, Crown, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
 import { useNavigate } from 'react-router-dom';
@@ -385,23 +385,19 @@ const ProfilePage = ({ user, onUpdate }) => {
                   <span className="text-sm font-medium">Verified</span>
                 </div>
               )}
-              {!profile.verified && (
+              {!profile.verified && profile.selfie_verification_status === 'pending' && (
+                <div className="flex items-center gap-1.5 bg-yellow-500/30 px-3 py-1.5 rounded-full">
+                  <Clock className="w-4 h-4 text-yellow-200" />
+                  <span className="text-sm font-medium text-yellow-100">Verification Pending</span>
+                </div>
+              )}
+              {!profile.verified && profile.selfie_verification_status !== 'pending' && (
                 <Button
                   onClick={handleRequestVerification}
-                  disabled={verifying}
                   className="flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-full text-sm font-medium transition-all"
                 >
-                  {verifying ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>Verifying...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Shield className="w-4 h-4" />
-                      <span>{profile.verification_status === 'pending' ? 'Retry Verification' : 'Get Verified'}</span>
-                    </>
-                  )}
+                  <Shield className="w-4 h-4" />
+                  <span>{profile.selfie_verification_status === 'rejected' ? 'Retry Verification' : 'Get Verified'}</span>
                 </Button>
               )}
             </div>
