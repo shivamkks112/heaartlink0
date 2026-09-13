@@ -733,6 +733,11 @@ const MatchesPage = ({ user }) => {
                               <h3 className="font-bold text-sm truncate" style={{ color: 'var(--m3-on-surface)' }}>
                                 {conv.user.name}, {conv.user.age}
                               </h3>
+                              {conv.user.verified && (
+                                <span className="flex-shrink-0 w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center" title="Verified">
+                                  <CheckCircle className="w-3 h-3 text-white" />
+                                </span>
+                              )}
                               <span className="text-[10px] flex-shrink-0" style={{ color: 'var(--m3-outline)' }}>
                                 {statusInfo.label}
                               </span>
