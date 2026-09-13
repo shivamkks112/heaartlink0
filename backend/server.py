@@ -2607,6 +2607,7 @@ async def delete_account_request(request: DeleteAccountRequest):
 
 # Profile Routes
 @api_router.get("/profile/{user_id}")
+@api_router.get("/api/profile/{user_id}")
 async def get_profile(user_id: str):
     """Get user profile - OPTIMIZED with caching"""
     # Check cache first
@@ -4103,6 +4104,7 @@ async def _post_match_tasks(match_id, user_id, target_id, user_name, target_name
 
 
 @api_router.post("/action/{user_id}")
+@api_router.post("/api/action/{user_id}")
 async def user_action(user_id: str, action: LikeAction):
     # Check if there's an existing record where target user liked current user
     existing_like = await db.matches.find_one({
