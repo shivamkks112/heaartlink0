@@ -249,34 +249,23 @@ const MatchesPage = ({ user }) => {
     try {
       const response = await axios.get(`${API}/matches/${user.id}`);
       setMatches(response.data);
-      setLoading(false);
     } catch (error) {
-      console.error('❌ Error fetching matches:', error);
-      toast.error('Failed to load matches');
-      setLoading(false);
+      console.error('Error fetching matches:', error);
     }
   };
 
   const fetchConversations = async () => {
     try {
-      // Use the efficient single-query conversations endpoint
       const response = await axios.get(`${API}/conversations/${user.id}`);
       const activeConversations = response.data || [];
-      
       setConversations(activeConversations);
-      
-      // Store unread counts
       const counts = {};
       activeConversations.forEach(conv => {
         counts[conv.match_id] = conv.unreadCount || 0;
       });
       setUnreadCounts(counts);
-      
-      setLoading(false);
     } catch (error) {
       console.error('Error fetching conversations:', error);
-      toast.error('Failed to load messages');
-      setLoading(false);
     }
   };
 
@@ -284,36 +273,51 @@ const MatchesPage = ({ user }) => {
     try {
       const response = await axios.get(`${API}/active-users/${user.id}`);
       setActiveUsers(response.data || []);
-      setLoading(false);
     } catch (error) {
       console.error('Failed to load active users:', error);
       setActiveUsers([]);
-      setLoading(false);
     }
   };
 
+  // ── INITIAL LOAD: Fetch ALL data at once — no reload on tab switch ──
   useEffect(() => {
-    // Only show loading on very first load (no data at all)
-    const hasData = matches.length > 0 || conversations.length > 0 || activeUsers.length > 0;
-    if (!hasData) setLoading(true);
-    
-    if (activeTab === 'matches') {
-      fetchMatches();
-    } else if (activeTab === 'messages') {
-      fetchConversations();
-    } else {
-      fetchActiveUsers();
-    }
-    
-    // Real-time listeners
+    let cancelled = false;
+    const loadAll = async () => {
+      try {
+        const [matchRes, convRes, activeRes] = await Promise.allSettled([
+          axios.get(`${API}/matches/${user.id}`),
+          axios.get(`${API}/conversations/${user.id}`),
+          axios.get(`${API}/active-users/${user.id}`),
+        ]);
+        if (cancelled) return;
+        if (matchRes.status === 'fulfilled') setMatches(matchRes.value.data || []);
+        if (convRes.status === 'fulfilled') {
+          const convs = convRes.value.data || [];
+          setConversations(convs);
+          const counts = {};
+          convs.forEach(c => { counts[c.match_id] = c.unreadCount || 0; });
+          setUnreadCounts(counts);
+        }
+        if (activeRes.status === 'fulfilled') setActiveUsers(activeRes.value.data || []);
+      } catch (e) {
+        console.error('Load all failed:', e);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    loadAll();
+    return () => { cancelled = true; };
+  }, [user.id]); // Only on mount / user change
+
+  // ── REAL-TIME LISTENERS: WebSocket updates — no API refetch ──
+  useEffect(() => {
     const unsubMatch = wsService.on('new_match', () => {
-      if (activeTab === 'matches') fetchMatches();
+      fetchMatches();
       toast.success('New match! Check your matches tab');
     });
     
     const unsubMsg = wsService.on('new_message', (msg) => {
       if (!msg) return;
-      // Inline update: update the specific conversation's lastMessage and unreadCount
       setConversations(prev => {
         const idx = prev.findIndex(c => c.match_id === msg.match_id);
         if (idx >= 0) {
@@ -324,7 +328,6 @@ const MatchesPage = ({ user }) => {
             unreadCount: msg.sender_id !== user.id ? (updated[idx].unreadCount || 0) + 1 : updated[idx].unreadCount,
             hasMessages: true,
           };
-          // Re-sort: newest first
           updated.sort((a, b) => {
             const tA = a.lastMessage?.created_at ? new Date(a.lastMessage.created_at) : new Date(0);
             const tB = b.lastMessage?.created_at ? new Date(b.lastMessage.created_at) : new Date(0);
@@ -332,11 +335,9 @@ const MatchesPage = ({ user }) => {
           });
           return updated;
         }
-        // Conversation not found — first message in this match, schedule refetch
         setTimeout(() => fetchConversations(), 200);
         return prev;
       });
-      // Update unread count
       if (msg.sender_id !== user.id && msg.match_id) {
         setUnreadCounts(prev => ({
           ...prev,
@@ -346,7 +347,6 @@ const MatchesPage = ({ user }) => {
     });
     
     const unsubStatus = wsService.on('status_update', (data) => {
-      // Update online status in real-time across all tabs (instant, no API call)
       setMatches(prev => prev.map(m => 
         m.user?.id === data.user_id 
           ? { ...m, user: { ...m.user, is_online: data.is_online, last_active: data.last_active } }
@@ -357,7 +357,6 @@ const MatchesPage = ({ user }) => {
           ? { ...c, user: { ...c.user, is_online: data.is_online, last_active: data.last_active } }
           : c
       ));
-      // Update activeUsers inline instead of refetching
       setActiveUsers(prev => prev.map(u =>
         u.id === data.user_id ? { ...u, is_online: data.is_online, last_active: data.last_active } : u
       ));
@@ -369,45 +368,44 @@ const MatchesPage = ({ user }) => {
       unsubStatus();
     };
     // eslint-disable-next-line
-  }, [activeTab]);
+  }, [user.id]);
 
-  // Always fetch active user count on mount (for tab label)
+  // ── BACKGROUND SILENT REFRESH: every 30s, no loading indicator ──
   useEffect(() => {
-    const fetchActiveCount = async () => {
+    const silentRefresh = async () => {
       try {
-        const response = await axios.get(`${API}/active-users/${user.id}`);
-        setActiveUsers(response.data || []);
+        const [matchRes, convRes, activeRes] = await Promise.allSettled([
+          axios.get(`${API}/matches/${user.id}`),
+          axios.get(`${API}/conversations/${user.id}`),
+          axios.get(`${API}/active-users/${user.id}`),
+        ]);
+        if (matchRes.status === 'fulfilled') setMatches(matchRes.value.data || []);
+        if (convRes.status === 'fulfilled') {
+          const convs = convRes.value.data || [];
+          setConversations(convs);
+          const counts = {};
+          convs.forEach(c => { counts[c.match_id] = c.unreadCount || 0; });
+          setUnreadCounts(counts);
+        }
+        if (activeRes.status === 'fulfilled') setActiveUsers(activeRes.value.data || []);
       } catch (e) { /* silent */ }
     };
-    fetchActiveCount();
-    // Refresh count every 30s regardless of which tab is selected
-    const interval = setInterval(fetchActiveCount, 30000);
+    const interval = setInterval(silentRefresh, 30000);
     return () => clearInterval(interval);
   }, [user.id]); // eslint-disable-line
 
-  // Refresh conversations when page becomes visible (e.g., coming back from chat)
+  // Refresh conversations when page becomes visible (coming back from chat)
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && activeTab === 'messages') {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
         fetchConversations();
+        fetchMatches();
       }
     };
-    
-    const handleFocus = () => {
-      if (activeTab === 'messages') {
-        fetchConversations();
-      }
-    };
-    
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleFocus);
-    
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleFocus);
-    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
     // eslint-disable-next-line
-  }, [activeTab]);
+  }, []);
 
   // Calculate total unread messages
   const totalUnread = useMemo(() => Object.values(unreadCounts).reduce((sum, count) => sum + count, 0), [unreadCounts]);
