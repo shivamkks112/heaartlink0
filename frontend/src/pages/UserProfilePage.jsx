@@ -24,13 +24,13 @@ const UserProfilePage = ({ user }) => {
   const fetchUserProfile = async () => {
     try {
       console.log('🔍 Fetching user profile:', userId);
-      const response = await axios.get(`${API}/api/profile/${userId}`);
+      const response = await axios.get(`${API}/profile/${userId}`);
       console.log('✅ Profile data:', response.data);
       setProfileUser(response.data);
     } catch (error) {
       console.error('❌ Error fetching profile:', error);
       toast.error('Failed to load profile');
-      navigate('/matches');
+      navigate(-1);
     } finally {
       setLoading(false);
     }
@@ -45,7 +45,7 @@ const UserProfilePage = ({ user }) => {
     setActionLoading(true);
     try {
       console.log(`💖 Sending ${action} to user:`, userId);
-      const response = await axios.post(`${API}/api/action/${user.id}`, {
+      const response = await axios.post(`${API}/action/${user.id}`, {
         target_user_id: userId,
         action: action
       });
