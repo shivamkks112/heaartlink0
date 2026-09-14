@@ -7715,40 +7715,45 @@ async def activate_subscription(user_id: str, plan_id: str, order_id: str = None
 
 @api_router.get("/subscription/status/{user_id}")
 async def get_subscription_status(user_id: str):
-    """Get user's subscription status"""
+    """Get user's subscription status with all states."""
     user = await db.users.find_one({"id": user_id})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
     is_premium = user.get("is_premium", False)
+    sub_status = user.get("subscription_status", "none")
     
-    # Check if subscription expired
+    # Live expiry check
     if is_premium and user.get("premium_end"):
-        end_date = datetime.fromisoformat(user["premium_end"].replace("Z", "+00:00"))
-        if datetime.now(timezone.utc) > end_date:
-            # Subscription expired, update user
-            await db.users.update_one(
-                {"id": user_id},
-                {"$set": {"is_premium": False}}
-            )
-            invalidate_user_cache(user_id)
-            is_premium = False
+        try:
+            end_date = datetime.fromisoformat(user["premium_end"].replace("Z", "+00:00"))
+            if datetime.now(timezone.utc) > end_date:
+                await db.users.update_one({"id": user_id}, {"$set": {"is_premium": False, "subscription_status": "expired"}})
+                invalidate_user_cache(user_id)
+                is_premium = False
+                sub_status = "expired"
+        except Exception:
+            pass
     
     return {
         "user_id": user_id,
         "is_premium": is_premium,
-        "subscription_status": user.get("subscription_status", "none"),
+        "subscription_status": sub_status,
         "plan": user.get("premium_plan"),
+        "product_id": user.get("subscription_product_id"),
+        "base_plan_id": user.get("subscription_base_plan_id"),
         "started_at": user.get("premium_start"),
         "expires_at": user.get("premium_end"),
         "purchase_source": user.get("premium_source", "unknown"),
+        "auto_renew_enabled": user.get("auto_renew_enabled"),
+        "last_verified_at": user.get("last_verified_at"),
         "features": {
             "no_ads": is_premium,
             "unlimited_swipes": is_premium,
             "see_who_liked": is_premium,
             "profile_boost": is_premium,
             "super_likes": is_premium,
-            "rewind": is_premium
+            "rewind": is_premium,
         }
     }
 
@@ -7757,13 +7762,15 @@ async def get_subscription_status(user_id: str):
 async def verify_google_play_purchase(request: Request):
     """
     Verify Google Play purchase and activate premium.
-    Stores purchase token for server-side verification.
+    Product: heartlink_premium_monthly | Plan: monthly | Offer: trial3days
     """
     data = await request.json()
     user_id = data.get("user_id")
-    product_id = data.get("product_id")
+    product_id = data.get("product_id", "heartlink_premium_monthly")
     purchase_token = data.get("purchase_token")
     transaction_id = data.get("transaction_id")
+    base_plan_id = data.get("base_plan_id", "monthly")
+    offer_id = data.get("offer_id", "")
     
     if not user_id or not purchase_token:
         raise HTTPException(status_code=400, detail="user_id and purchase_token required")
@@ -7772,56 +7779,54 @@ async def verify_google_play_purchase(request: Request):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Check for duplicate purchase token
+    # Idempotent — don't charge twice
     existing = await db.subscription_orders.find_one({"purchase_token": purchase_token, "status": "completed"})
     if existing:
-        return {"success": True, "message": "Purchase already verified", "is_premium": True}
+        return {"success": True, "message": "Purchase already verified", "is_premium": True, "subscription_status": existing.get("subscription_status", "active"), "expires_at": existing.get("expires_at")}
     
     now = datetime.now(timezone.utc).isoformat()
     
-    # Determine if trial (first-time subscriber)
-    has_previous_sub = await db.subscription_orders.find_one({
-        "user_id": user_id, "status": "completed", "source": "google_play"
-    })
-    is_trial = not has_previous_sub
+    # Determine trial vs paid based on offer_id
+    is_trial = offer_id == "trial3days" or (not await db.subscription_orders.find_one({"user_id": user_id, "status": "completed", "source": "google_play"}))
+    sub_status = "trialing" if is_trial else "active"
     
-    # Calculate subscription period (30 days, or 3 days for trial)
-    trial_days = 3 if is_trial else 0
     subscription_days = 30
     expiry = (datetime.now(timezone.utc) + timedelta(days=subscription_days)).isoformat()
-    trial_end = (datetime.now(timezone.utc) + timedelta(days=trial_days)).isoformat() if is_trial else None
+    trial_end = (datetime.now(timezone.utc) + timedelta(days=3)).isoformat() if is_trial else None
     
-    # Store purchase record
     order_doc = {
         "id": str(uuid.uuid4()),
         "user_id": user_id,
-        "product_id": product_id or "heartlink_premium_monthly",
+        "product_id": product_id,
+        "base_plan_id": base_plan_id,
+        "offer_id": offer_id,
         "purchase_token": purchase_token,
         "transaction_id": transaction_id,
         "source": "google_play",
         "status": "completed",
-        "subscription_status": "trialing" if is_trial else "active",
-        "amount": 49,
+        "subscription_status": sub_status,
         "currency": "INR",
         "is_trial": is_trial,
         "trial_end": trial_end,
         "created_at": now,
         "verified_at": now,
         "expires_at": expiry,
+        "auto_renew_enabled": True,
     }
     await db.subscription_orders.insert_one(order_doc)
     
-    # Activate premium on user
     await db.users.update_one({"id": user_id}, {"$set": {
         "is_premium": True,
         "premium_plan": "monthly",
         "premium_source": "google_play",
         "premium_start": now,
         "premium_end": expiry,
-        "subscription_status": "trialing" if is_trial else "active",
-        "subscription_product_id": product_id or "heartlink_premium_monthly",
+        "subscription_status": sub_status,
+        "subscription_product_id": product_id,
+        "subscription_base_plan_id": base_plan_id,
         "purchase_token": purchase_token,
         "last_verified_at": now,
+        "auto_renew_enabled": True,
         "premium_features": ["unlimited_swipes", "no_ads", "see_who_liked", "super_likes", "boost", "rewind"],
         "grace_notif_sent": False,
         "winback_sent": False,

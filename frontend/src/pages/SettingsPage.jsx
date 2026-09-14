@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { ArrowLeft, UserX, BellOff, Mail, Phone, Link2, CheckCircle, AlertCircle, Shield, Eye, EyeOff, MessageSquare, Clock, Camera, Sun, Moon, Monitor } from 'lucide-react';
+import { ArrowLeft, UserX, BellOff, Mail, Phone, Link2, CheckCircle, AlertCircle, Shield, Eye, EyeOff, MessageSquare, Clock, Camera, Sun, Moon, Monitor, Crown, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -285,6 +285,43 @@ const SettingsPage = ({ user, setUser }) => {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Premium Subscription Section */}
+        <div className="bg-white rounded-xl p-4 shadow-sm" data-testid="premium-settings-section">
+          <h2 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+            <Crown className="w-5 h-5 text-amber-500" />
+            HeartLink Premium
+          </h2>
+          {user?.is_premium ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 bg-amber-50 px-3 py-2 rounded-lg">
+                <CheckCircle className="w-4 h-4 text-amber-600" />
+                <span className="text-sm font-semibold text-amber-800">
+                  {user?.subscription_status === 'trialing' ? 'Trial Active' : 'Premium Active'}
+                </span>
+              </div>
+              <button
+                onClick={() => {
+                  const pkg = 'com.heartlink.app';
+                  window.open(`https://play.google.com/store/account/subscriptions?sku=heartlink_premium_monthly&package=${pkg}`, '_system');
+                }}
+                className="w-full flex items-center justify-between bg-gray-50 hover:bg-gray-100 px-4 py-3 rounded-xl transition-colors"
+                data-testid="manage-subscription-settings"
+              >
+                <span className="text-sm font-medium text-gray-700">Manage Subscription</span>
+                <ExternalLink className="w-4 h-4 text-gray-400" />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => navigate('/premium')}
+              className="w-full bg-gradient-to-r from-amber-400 to-orange-500 text-white px-4 py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2"
+              data-testid="upgrade-premium-settings"
+            >
+              <Crown className="w-4 h-4" /> Upgrade to Premium
+            </button>
+          )}
         </div>
 
         {/* Account Linking Section */}

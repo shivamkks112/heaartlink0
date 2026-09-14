@@ -1,10 +1,10 @@
 /**
  * HeartLink Premium — Google Play Billing
- * ₹49/month, 3-day free trial
+ * Product: heartlink_premium_monthly | Plan: monthly | Offer: trial3days
  */
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Crown, Check, ArrowLeft, Heart, Eye, Zap, Shield, Star, Ban, Loader2, RotateCcw, X } from 'lucide-react';
+import { Crown, Check, ArrowLeft, Heart, Eye, Zap, Shield, Star, Ban, Loader2, RotateCcw, X, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
@@ -27,6 +27,8 @@ const PremiumPage = ({ user, onUpdate }) => {
   const [restoring, setRestoring] = useState(false);
   const [billingReady, setBillingReady] = useState(false);
   const [subStatus, setSubStatus] = useState(null);
+  const [displayPrice, setDisplayPrice] = useState('₹49');
+  const [trialInfo, setTrialInfo] = useState({ hasTrial: true, trialDuration: '3 days' });
 
   useEffect(() => {
     initBilling();
@@ -36,6 +38,13 @@ const PremiumPage = ({ user, onUpdate }) => {
   const initBilling = async () => {
     const ready = await playBillingService.initialize();
     setBillingReady(ready);
+    if (ready) {
+      const product = await playBillingService.getProduct();
+      if (product) {
+        setDisplayPrice(playBillingService.getDisplayPrice());
+        setTrialInfo(playBillingService.getTrialInfo());
+      }
+    }
   };
 
   const checkStatus = async () => {
@@ -47,32 +56,28 @@ const PremiumPage = ({ user, onUpdate }) => {
   const handlePurchase = async () => {
     if (!user?.id) return;
     setLoading(true);
-    
     try {
       if (!billingReady) {
         toast.error('Google Play billing is currently unavailable. Please try again.');
         return;
       }
-
       const result = await playBillingService.purchaseSubscription();
-      
       if (result.success) {
         toast.info('Verifying your purchase...');
         const verification = await playBillingService.verifyAndActivate(user.id, result);
-        
         if (verification.success) {
           toast.success(verification.message || 'Premium activated!');
-          const updatedUser = { ...user, is_premium: true, isPremium: true, subscription_status: verification.subscription_status };
+          const updatedUser = { ...user, is_premium: true, subscription_status: verification.subscription_status };
           if (onUpdate) onUpdate(updatedUser);
           localStorage.setItem('user', JSON.stringify(updatedUser));
-          setSubStatus({ is_premium: true, subscription_status: verification.subscription_status });
+          setSubStatus({ is_premium: true, subscription_status: verification.subscription_status, expires_at: verification.expires_at });
         } else {
           toast.error(verification.error || 'Purchase verification failed. Please try again.');
         }
       } else if (result.error === 'cancelled') {
-        // User cancelled — do nothing
+        // User cancelled — silent
       } else {
-        toast.error(result.error || 'Purchase could not be completed. Please try again.');
+        toast.error(result.error);
       }
     } catch (error) {
       toast.error('Something went wrong. Please try again.');
@@ -84,10 +89,8 @@ const PremiumPage = ({ user, onUpdate }) => {
   const handleRestore = async () => {
     if (!user?.id) return;
     setRestoring(true);
-    
     try {
       const result = await playBillingService.restorePurchases();
-      
       if (result.success && result.purchases.length > 0) {
         const purchase = result.purchases[0];
         const verification = await playBillingService.verifyAndActivate(user.id, {
@@ -95,10 +98,9 @@ const PremiumPage = ({ user, onUpdate }) => {
           purchaseToken: purchase.purchaseToken || purchase.transactionId,
           transactionId: purchase.transactionId,
         });
-        
         if (verification.success) {
           toast.success('Premium restored successfully!');
-          const updatedUser = { ...user, is_premium: true, isPremium: true };
+          const updatedUser = { ...user, is_premium: true };
           if (onUpdate) onUpdate(updatedUser);
           localStorage.setItem('user', JSON.stringify(updatedUser));
           setSubStatus({ is_premium: true });
@@ -115,8 +117,10 @@ const PremiumPage = ({ user, onUpdate }) => {
     }
   };
 
-  const isPremium = user?.is_premium || user?.isPremium || subStatus?.is_premium;
+  const isPremium = user?.is_premium || subStatus?.is_premium;
   const isExpired = !isPremium && (subStatus?.subscription_status === 'expired' || user?.subscription_status === 'expired');
+  const isCancelled = subStatus?.subscription_status === 'cancelled';
+  const statusLabel = subStatus?.subscription_status === 'trialing' ? 'Trial' : subStatus?.subscription_status === 'active' ? 'Active' : subStatus?.subscription_status === 'cancelled' ? 'Cancelled (active until expiry)' : subStatus?.subscription_status === 'in_grace_period' ? 'Grace Period' : subStatus?.subscription_status === 'on_hold' ? 'On Hold' : subStatus?.subscription_status === 'paused' ? 'Paused' : '';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 page-with-bottom-nav" style={{ paddingTop: 'var(--safe-top, 24px)' }}>
@@ -124,22 +128,21 @@ const PremiumPage = ({ user, onUpdate }) => {
       <Navbar user={user} />
 
       <div className="max-w-lg mx-auto px-4 py-4 pb-8">
-        {/* Back */}
         <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-gray-400 mb-6">
           <ArrowLeft className="w-5 h-5" />
         </button>
 
-        {/* Premium Already Active */}
+        {/* ── ACTIVE PREMIUM ── */}
         {isPremium && (
-          <div className="text-center py-10 space-y-4">
+          <div className="text-center py-8 space-y-4">
             <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center shadow-lg shadow-amber-500/30">
               <Crown className="w-10 h-10 text-white" />
             </div>
             <h1 className="text-2xl font-bold text-white">You're Premium!</h1>
-            <p className="text-gray-400 text-sm">All premium features are unlocked</p>
+            {statusLabel && <p className="text-sm text-amber-400 font-medium">{statusLabel}</p>}
             {subStatus?.expires_at && (
               <p className="text-xs text-gray-500">
-                {subStatus.subscription_status === 'trialing' ? 'Trial ends' : 'Renews'}: {new Date(subStatus.expires_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
+                {isCancelled ? 'Access until' : subStatus?.subscription_status === 'trialing' ? 'Trial ends' : 'Renews'}: {new Date(subStatus.expires_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
               </p>
             )}
             <div className="grid grid-cols-2 gap-2 mt-6">
@@ -150,11 +153,17 @@ const PremiumPage = ({ user, onUpdate }) => {
                 </div>
               ))}
             </div>
-            <button onClick={() => navigate(-1)} className="mt-6 text-sm text-gray-500 underline">Go Back</button>
+            <button
+              onClick={() => playBillingService.openManageSubscriptions()}
+              className="mt-4 flex items-center justify-center gap-2 text-sm text-gray-400 hover:text-gray-200 mx-auto"
+              data-testid="manage-subscription-btn"
+            >
+              <ExternalLink className="w-4 h-4" /> Manage Subscription
+            </button>
           </div>
         )}
 
-        {/* Expired Premium */}
+        {/* ── EXPIRED ── */}
         {isExpired && (
           <div className="space-y-6">
             <div className="text-center">
@@ -164,7 +173,6 @@ const PremiumPage = ({ user, onUpdate }) => {
               <h1 className="text-2xl font-bold text-white">Premium Expired</h1>
               <p className="text-gray-400 text-sm mt-1">Your HeartLink Premium subscription has ended</p>
             </div>
-
             <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 space-y-2">
               <p className="text-sm text-red-300 font-semibold">You've lost access to:</p>
               {BENEFITS.map((b, i) => (
@@ -174,7 +182,6 @@ const PremiumPage = ({ user, onUpdate }) => {
                 </div>
               ))}
             </div>
-
             <Button
               onClick={handlePurchase}
               disabled={loading}
@@ -182,23 +189,17 @@ const PremiumPage = ({ user, onUpdate }) => {
               style={{ background: 'linear-gradient(135deg, #F59E0B 0%, #EF6C00 100%)' }}
               data-testid="resubscribe-btn"
             >
-              {loading ? (
-                <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Processing...</>
-              ) : (
-                'Re-subscribe — ₹49/month'
-              )}
+              {loading ? <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Processing...</> : `Re-subscribe — ${displayPrice}/month`}
             </Button>
-
             <button onClick={handleRestore} disabled={restoring} className="w-full flex items-center justify-center gap-2 py-3 text-sm text-gray-500">
               {restoring ? <><Loader2 className="w-4 h-4 animate-spin" /> Restoring...</> : <><RotateCcw className="w-4 h-4" /> Restore Purchases</>}
             </button>
           </div>
         )}
 
-        {/* Purchase Screen */}
+        {/* ── NEW PURCHASE ── */}
         {!isPremium && !isExpired && (
           <div className="space-y-6">
-            {/* Header */}
             <div className="text-center">
               <div className="w-16 h-16 mx-auto rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center mb-3 shadow-lg shadow-amber-500/20">
                 <Crown className="w-8 h-8 text-white" />
@@ -207,19 +208,19 @@ const PremiumPage = ({ user, onUpdate }) => {
               <p className="text-gray-400 text-sm mt-1">Find your perfect match faster</p>
             </div>
 
-            {/* Price Card */}
             <div className="bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/20 rounded-2xl p-5 text-center">
               <div className="flex items-baseline justify-center gap-1">
-                <span className="text-4xl font-bold text-white">₹49</span>
+                <span className="text-4xl font-bold text-white">{displayPrice}</span>
                 <span className="text-gray-400 text-sm">/month</span>
               </div>
-              <div className="mt-2 inline-flex items-center gap-1.5 bg-green-500/20 text-green-400 px-3 py-1 rounded-full text-xs font-semibold">
-                <Star className="w-3 h-3" /> 3-day free trial
-              </div>
-              <p className="text-[10px] text-gray-500 mt-2">After trial: ₹49/month. Cancel anytime.</p>
+              {trialInfo.hasTrial && (
+                <div className="mt-2 inline-flex items-center gap-1.5 bg-green-500/20 text-green-400 px-3 py-1 rounded-full text-xs font-semibold">
+                  <Star className="w-3 h-3" /> {trialInfo.trialDuration} free trial
+                </div>
+              )}
+              <p className="text-[10px] text-gray-500 mt-2">After trial: {displayPrice}/month. Cancel anytime from Google Play Store.</p>
             </div>
 
-            {/* Benefits */}
             <div className="space-y-2">
               {BENEFITS.map((b, i) => (
                 <div key={i} className="flex items-center gap-3 bg-white/5 rounded-xl px-4 py-3" data-testid={`benefit-${i}`}>
@@ -235,7 +236,6 @@ const PremiumPage = ({ user, onUpdate }) => {
               ))}
             </div>
 
-            {/* CTA */}
             <Button
               onClick={handlePurchase}
               disabled={loading}
@@ -243,30 +243,16 @@ const PremiumPage = ({ user, onUpdate }) => {
               style={{ background: 'linear-gradient(135deg, #F59E0B 0%, #EF6C00 100%)' }}
               data-testid="start-trial-btn"
             >
-              {loading ? (
-                <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Processing...</>
-              ) : (
-                'Start 3-Day Free Trial'
-              )}
+              {loading ? <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Processing...</> : 'Start 3-Day Free Trial'}
             </Button>
 
             <p className="text-center text-[10px] text-gray-600 leading-relaxed">
-              After your free trial, you'll be charged ₹49/month. Cancel anytime from Google Play Store. 
-              By subscribing, you agree to our Terms of Service and Privacy Policy.
+              After your free trial, you'll be charged {displayPrice}/month. Cancel anytime from Google Play Store.
+              Subscription automatically renews unless cancelled at least 24 hours before the end of the current period.
             </p>
 
-            {/* Restore */}
-            <button
-              onClick={handleRestore}
-              disabled={restoring}
-              className="w-full flex items-center justify-center gap-2 py-3 text-sm text-gray-500 hover:text-gray-300 transition-colors"
-              data-testid="restore-purchases-btn"
-            >
-              {restoring ? (
-                <><Loader2 className="w-4 h-4 animate-spin" /> Restoring...</>
-              ) : (
-                <><RotateCcw className="w-4 h-4" /> Restore Purchases</>
-              )}
+            <button onClick={handleRestore} disabled={restoring} className="w-full flex items-center justify-center gap-2 py-3 text-sm text-gray-500 hover:text-gray-300 transition-colors" data-testid="restore-purchases-btn">
+              {restoring ? <><Loader2 className="w-4 h-4 animate-spin" /> Restoring...</> : <><RotateCcw className="w-4 h-4" /> Restore Purchases</>}
             </button>
           </div>
         )}

@@ -2,20 +2,24 @@
  * Google Play Billing Service for HeartLink Premium
  * Uses @capgo/native-purchases for Capacitor Android
  * 
- * Product: heartlink_premium_monthly (₹49/month, 3-day trial)
+ * Product: heartlink_premium_monthly
+ * Base Plan: monthly
+ * Offer: trial3days (3-day free trial)
  */
 
 import { API } from '@/config/api';
 import axios from 'axios';
 
 const PRODUCT_ID = 'heartlink_premium_monthly';
-const PLAN_ID = 'heartlink-premium-base'; // Base plan ID in Play Console
+const PLAN_ID = 'monthly';
+const OFFER_ID = 'trial3days';
 
 class PlayBillingService {
   constructor() {
     this.initialized = false;
     this.NativePurchases = null;
     this.products = [];
+    this.productDetails = null;
   }
 
   isNative() {
@@ -28,7 +32,7 @@ class PlayBillingService {
   async initialize() {
     if (this.initialized) return true;
     if (!this.isNative()) {
-      console.log('PlayBilling: Not native platform, billing disabled');
+      console.log('PlayBilling: Not native platform');
       return false;
     }
 
@@ -36,15 +40,13 @@ class PlayBillingService {
       const mod = await import('@capgo/native-purchases');
       this.NativePurchases = mod.NativePurchases;
       
-      // Check if billing is supported
       const { supported } = await this.NativePurchases.isBillingSupported();
       if (!supported) {
-        console.log('PlayBilling: Billing not supported on this device');
+        console.log('PlayBilling: Billing not supported');
         return false;
       }
 
       this.initialized = true;
-      console.log('PlayBilling: Initialized successfully');
       return true;
     } catch (error) {
       console.error('PlayBilling: Init failed:', error);
@@ -63,6 +65,7 @@ class PlayBillingService {
       
       if (result.products && result.products.length > 0) {
         this.products = result.products;
+        this.productDetails = result.products[0];
         return result.products[0];
       }
       return null;
@@ -72,9 +75,28 @@ class PlayBillingService {
     }
   }
 
+  // Get display price from Play Store (source of truth)
+  getDisplayPrice() {
+    if (this.productDetails) {
+      return this.productDetails.price || this.productDetails.localizedPrice || '₹49';
+    }
+    return '₹49'; // Fallback only if product query hasn't run
+  }
+
+  getTrialInfo() {
+    if (this.productDetails?.introductoryPrice) {
+      return {
+        hasTrial: true,
+        trialDuration: this.productDetails.introductoryPrice.period || '3 days',
+        trialPrice: this.productDetails.introductoryPrice.price || 'Free',
+      };
+    }
+    return { hasTrial: true, trialDuration: '3 days', trialPrice: 'Free' };
+  }
+
   async purchaseSubscription() {
     if (!this.initialized || !this.NativePurchases) {
-      return { success: false, error: 'Billing not initialized' };
+      return { success: false, error: 'Google Play billing is currently unavailable. Please try again.' };
     }
 
     try {
@@ -82,6 +104,7 @@ class PlayBillingService {
         productIdentifier: PRODUCT_ID,
         productType: 'SUBS',
         planIdentifier: PLAN_ID,
+        offerIdentifier: OFFER_ID,
         quantity: 1,
       });
 
@@ -91,6 +114,8 @@ class PlayBillingService {
           transactionId: result.transactionId,
           productId: PRODUCT_ID,
           purchaseToken: result.purchaseToken || result.transactionId,
+          basePlanId: PLAN_ID,
+          offerId: OFFER_ID,
         };
       }
 
@@ -100,7 +125,7 @@ class PlayBillingService {
         return { success: false, error: 'cancelled' };
       }
       console.error('PlayBilling: Purchase failed:', error);
-      return { success: false, error: error.message || 'Purchase failed' };
+      return { success: false, error: error.message || 'Purchase could not be completed. Please try again.' };
     }
   }
 
@@ -113,7 +138,6 @@ class PlayBillingService {
       const result = await this.NativePurchases.restorePurchases();
       const purchases = result.purchases || [];
       
-      // Filter for our subscription
       const premiumPurchases = purchases.filter(p => 
         p.productIdentifier === PRODUCT_ID || p.productId === PRODUCT_ID
       );
@@ -132,11 +156,13 @@ class PlayBillingService {
         product_id: purchaseData.productId || PRODUCT_ID,
         purchase_token: purchaseData.purchaseToken || purchaseData.transactionId,
         transaction_id: purchaseData.transactionId,
+        base_plan_id: purchaseData.basePlanId || PLAN_ID,
+        offer_id: purchaseData.offerId || OFFER_ID,
       });
       return response.data;
     } catch (error) {
       console.error('PlayBilling: Server verification failed:', error);
-      return { success: false, error: error.response?.data?.detail || 'Verification failed' };
+      return { success: false, error: error.response?.data?.detail || 'Your Premium purchase is being verified. Please restart the app.' };
     }
   }
 
@@ -148,8 +174,15 @@ class PlayBillingService {
       return { is_premium: false, subscription_status: 'none' };
     }
   }
+
+  // Open Google Play subscription management
+  openManageSubscriptions() {
+    if (this.isNative()) {
+      window.open(`https://play.google.com/store/account/subscriptions?sku=${PRODUCT_ID}&package=com.heartlink.app`, '_system');
+    }
+  }
 }
 
 const playBillingService = new PlayBillingService();
 export default playBillingService;
-export { PRODUCT_ID, PLAN_ID };
+export { PRODUCT_ID, PLAN_ID, OFFER_ID };
