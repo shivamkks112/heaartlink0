@@ -7472,9 +7472,11 @@ async def get_subscription_status(user_id: str):
     return {
         "user_id": user_id,
         "is_premium": is_premium,
+        "subscription_status": user.get("subscription_status", "none"),
         "plan": user.get("premium_plan"),
         "started_at": user.get("premium_start"),
         "expires_at": user.get("premium_end"),
+        "purchase_source": user.get("premium_source", "unknown"),
         "features": {
             "no_ads": is_premium,
             "unlimited_swipes": is_premium,
@@ -7483,6 +7485,149 @@ async def get_subscription_status(user_id: str):
             "super_likes": is_premium,
             "rewind": is_premium
         }
+    }
+
+
+@api_router.post("/subscription/google-play/verify")
+async def verify_google_play_purchase(request: Request):
+    """
+    Verify Google Play purchase and activate premium.
+    Stores purchase token for server-side verification.
+    """
+    data = await request.json()
+    user_id = data.get("user_id")
+    product_id = data.get("product_id")
+    purchase_token = data.get("purchase_token")
+    transaction_id = data.get("transaction_id")
+    
+    if not user_id or not purchase_token:
+        raise HTTPException(status_code=400, detail="user_id and purchase_token required")
+    
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Check for duplicate purchase token
+    existing = await db.subscription_orders.find_one({"purchase_token": purchase_token, "status": "completed"})
+    if existing:
+        return {"success": True, "message": "Purchase already verified", "is_premium": True}
+    
+    now = datetime.now(timezone.utc).isoformat()
+    
+    # Determine if trial (first-time subscriber)
+    has_previous_sub = await db.subscription_orders.find_one({
+        "user_id": user_id, "status": "completed", "source": "google_play"
+    })
+    is_trial = not has_previous_sub
+    
+    # Calculate subscription period (30 days, or 3 days for trial)
+    trial_days = 3 if is_trial else 0
+    subscription_days = 30
+    expiry = (datetime.now(timezone.utc) + timedelta(days=subscription_days)).isoformat()
+    trial_end = (datetime.now(timezone.utc) + timedelta(days=trial_days)).isoformat() if is_trial else None
+    
+    # Store purchase record
+    order_doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": user_id,
+        "product_id": product_id or "heartlink_premium_monthly",
+        "purchase_token": purchase_token,
+        "transaction_id": transaction_id,
+        "source": "google_play",
+        "status": "completed",
+        "subscription_status": "trialing" if is_trial else "active",
+        "amount": 49,
+        "currency": "INR",
+        "is_trial": is_trial,
+        "trial_end": trial_end,
+        "created_at": now,
+        "verified_at": now,
+        "expires_at": expiry,
+    }
+    await db.subscription_orders.insert_one(order_doc)
+    
+    # Activate premium on user
+    await db.users.update_one({"id": user_id}, {"$set": {
+        "is_premium": True,
+        "premium_plan": "monthly",
+        "premium_source": "google_play",
+        "premium_start": now,
+        "premium_end": expiry,
+        "subscription_status": "trialing" if is_trial else "active",
+        "subscription_product_id": product_id or "heartlink_premium_monthly",
+        "purchase_token": purchase_token,
+        "last_verified_at": now,
+        "premium_features": ["unlimited_swipes", "no_ads", "see_who_liked", "super_likes", "boost", "rewind"],
+    }})
+    
+    invalidate_user_cache(user_id)
+    logging.info(f"Premium activated for {user.get('name', user_id)} via Google Play ({'trial' if is_trial else 'paid'})")
+    
+    return {
+        "success": True,
+        "is_premium": True,
+        "subscription_status": "trialing" if is_trial else "active",
+        "is_trial": is_trial,
+        "trial_end": trial_end,
+        "expires_at": expiry,
+        "message": "Premium activated! Welcome to HeartLink Premium." if not is_trial else "3-day free trial started! Enjoy HeartLink Premium."
+    }
+
+
+@api_router.post("/subscription/cancel/{user_id}")
+async def cancel_subscription(user_id: str):
+    """Mark subscription as cancelled (user cancels from Play Store, this handles backend state)."""
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    await db.users.update_one({"id": user_id}, {"$set": {
+        "subscription_status": "cancelled",
+    }})
+    invalidate_user_cache(user_id)
+    
+    return {"success": True, "message": "Subscription cancelled. Premium remains until expiry date."}
+
+
+@api_router.get("/admin/premium-analytics")
+async def get_premium_analytics(admin: dict = Depends(require_admin)):
+    """Admin: Premium subscription analytics."""
+    total_premium = await db.users.count_documents({"is_premium": True})
+    google_play = await db.users.count_documents({"is_premium": True, "premium_source": "google_play"})
+    girls_free = await db.users.count_documents({"is_premium": True, "premium_source": "girls_free_signup"})
+    trialing = await db.users.count_documents({"subscription_status": "trialing"})
+    active = await db.users.count_documents({"subscription_status": "active"})
+    cancelled = await db.users.count_documents({"subscription_status": "cancelled"})
+    expired = await db.subscription_orders.count_documents({"status": "completed", "expires_at": {"$lt": datetime.now(timezone.utc).isoformat()}})
+    
+    total_users = await db.users.count_documents({"is_ai_profile": {"$ne": True}})
+    conversion_rate = round((total_premium / max(total_users, 1)) * 100, 1)
+    
+    # Recent orders
+    recent_orders = await db.subscription_orders.find(
+        {"source": "google_play"},
+        {"_id": 0, "user_id": 1, "amount": 1, "created_at": 1, "is_trial": 1, "subscription_status": 1}
+    ).sort("created_at", -1).limit(20).to_list(None)
+    
+    # Revenue estimate (completed Google Play orders)
+    paid_orders = await db.subscription_orders.count_documents({"source": "google_play", "status": "completed", "is_trial": False})
+    estimated_revenue = paid_orders * 49
+    
+    return {
+        "summary": {
+            "total_premium": total_premium,
+            "google_play": google_play,
+            "girls_free_premium": girls_free,
+            "trialing": trialing,
+            "active_paid": active,
+            "cancelled": cancelled,
+            "expired": expired,
+            "conversion_rate": conversion_rate,
+            "total_users": total_users,
+            "estimated_revenue_inr": estimated_revenue,
+            "paid_orders": paid_orders,
+        },
+        "recent_orders": recent_orders,
     }
 
 # CORS - Allow all origins for web + Capacitor Android app

@@ -1,328 +1,233 @@
 /**
- * PremiumPage - Subscription plans and premium features
- * Shows different plans and handles subscription logic
+ * HeartLink Premium — Google Play Billing
+ * ₹49/month, 3-day free trial
  */
-
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '../components/ui/card';
-import { Button } from '../components/ui/button';
-import { Badge } from '../components/ui/badge';
-import { 
-  Crown, 
-  Check, 
-  Zap, 
-  Eye, 
-  MessageCircle, 
-  Ban, 
-  Sparkles,
-  ArrowLeft,
-  Star,
-  Shield,
-  Heart
-} from 'lucide-react';
+import { Crown, Check, ArrowLeft, Heart, Eye, Zap, Shield, Star, Ban, Loader2, RotateCcw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { API } from '@/config/api';
+import { Toaster } from '@/components/ui/sonner';
+import playBillingService from '@/services/PlayBillingService';
+import TopBar from '@/components/TopBar';
+import Navbar from '@/components/Navbar';
 
-
-const PREMIUM_PLANS = [
-  {
-    id: 'monthly',
-    name: 'Premium Monthly',
-    price: 299,
-    currency: '₹',
-    period: 'month',
-    popular: false,
-    savings: null,
-    features: [
-      'Unlimited Swipes',
-      'No Ads',
-      '1 Profile Boost/Day',
-      'See Who Liked You',
-      '5 Super Likes/Day',
-      'Rewind Last Swipe',
-    ],
-  },
-  {
-    id: 'quarterly',
-    name: 'Premium Quarterly',
-    price: 699,
-    currency: '₹',
-    period: '3 months',
-    popular: true,
-    savings: '22% OFF',
-    features: [
-      'Unlimited Swipes',
-      'No Ads',
-      '3 Profile Boosts/Day',
-      'See Who Liked You',
-      '10 Super Likes/Day',
-      'Rewind Last Swipe',
-      'Priority Support',
-    ],
-  },
-  {
-    id: 'yearly',
-    name: 'Premium Yearly',
-    price: 1999,
-    currency: '₹',
-    period: 'year',
-    popular: false,
-    savings: '44% OFF',
-    features: [
-      'Unlimited Swipes',
-      'No Ads',
-      'Unlimited Profile Boosts',
-      'See Who Liked You',
-      'Unlimited Super Likes',
-      'Rewind Last Swipe',
-      'Priority Support',
-      'Verified Badge',
-    ],
-  },
+const BENEFITS = [
+  { icon: Heart, text: 'Unlimited Likes', desc: 'Swipe without limits' },
+  { icon: Star, text: 'Super Likes', desc: '5 Super Likes every day' },
+  { icon: Eye, text: 'See Who Liked You', desc: 'Know who likes you first' },
+  { icon: Zap, text: 'Profile Boost', desc: 'Be seen by more people' },
+  { icon: Ban, text: 'Ad-Free', desc: 'No interruptions, ever' },
+  { icon: Shield, text: 'Advanced Filters', desc: 'Find exactly your type' },
 ];
 
-const PREMIUM_BENEFITS = [
-  {
-    icon: Ban,
-    title: 'Ad-Free Experience',
-    description: 'No interruptions while you find your match',
-    color: 'text-red-500',
-    bgColor: 'bg-red-50',
-  },
-  {
-    icon: Zap,
-    title: 'Unlimited Swipes',
-    description: 'Swipe as much as you want, no daily limits',
-    color: 'text-amber-500',
-    bgColor: 'bg-amber-50',
-  },
-  {
-    icon: Eye,
-    title: 'See Who Liked You',
-    description: 'Know who likes you before you swipe',
-    color: 'text-blue-500',
-    bgColor: 'bg-blue-50',
-  },
-  {
-    icon: Sparkles,
-    title: 'Profile Boost',
-    description: 'Get 10x more profile views',
-    color: 'text-purple-500',
-    bgColor: 'bg-purple-50',
-  },
-  {
-    icon: MessageCircle,
-    title: 'Priority Messages',
-    description: 'Your messages appear first',
-    color: 'text-green-500',
-    bgColor: 'bg-green-50',
-  },
-  {
-    icon: Shield,
-    title: 'Verified Badge',
-    description: 'Stand out with premium verification',
-    color: 'text-pink-500',
-    bgColor: 'bg-pink-50',
-  },
-];
-
-const PremiumPage = ({ user }) => {
+const PremiumPage = ({ user, onUpdate }) => {
   const navigate = useNavigate();
-  const [selectedPlan, setSelectedPlan] = useState('quarterly');
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+  const [billingReady, setBillingReady] = useState(false);
+  const [subStatus, setSubStatus] = useState(null);
 
-  const handleSubscribe = async (planId) => {
-    setIsProcessing(true);
+  useEffect(() => {
+    initBilling();
+    checkStatus();
+  }, []);
+
+  const initBilling = async () => {
+    const ready = await playBillingService.initialize();
+    setBillingReady(ready);
+  };
+
+  const checkStatus = async () => {
+    if (!user?.id) return;
+    const status = await playBillingService.checkStatus(user.id);
+    setSubStatus(status);
+  };
+
+  const handlePurchase = async () => {
+    if (!user?.id) return;
+    setLoading(true);
     
     try {
-      // For now, show a message about payment integration
-      // This would integrate with Razorpay/Stripe in production
-      toast.info('Payment Coming Soon', {
-        description: 'Premium subscriptions will be available soon!',
-        duration: 5000,
-      });
-      
-      // Simulate subscription for demo
-      // In production, this would call payment gateway
-      /*
-      const response = await fetch(`${API/subscription/create`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: user.id,
-          plan_id: planId,
-        }),
-      });
-      
-      const data = await response.json();
-      if (data.payment_url) {
-        window.location.href = data.payment_url;
+      if (!billingReady) {
+        toast.error('Google Play billing is currently unavailable. Please try again.');
+        return;
       }
-      */
+
+      const result = await playBillingService.purchaseSubscription();
+      
+      if (result.success) {
+        toast.info('Verifying your purchase...');
+        const verification = await playBillingService.verifyAndActivate(user.id, result);
+        
+        if (verification.success) {
+          toast.success(verification.message || 'Premium activated!');
+          const updatedUser = { ...user, is_premium: true, isPremium: true, subscription_status: verification.subscription_status };
+          if (onUpdate) onUpdate(updatedUser);
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+          setSubStatus({ is_premium: true, subscription_status: verification.subscription_status });
+        } else {
+          toast.error(verification.error || 'Purchase verification failed. Please try again.');
+        }
+      } else if (result.error === 'cancelled') {
+        // User cancelled — do nothing
+      } else {
+        toast.error(result.error || 'Purchase could not be completed. Please try again.');
+      }
     } catch (error) {
-      console.error('Subscription error:', error);
-      toast.error('Failed to process subscription');
+      toast.error('Something went wrong. Please try again.');
     } finally {
-      setIsProcessing(false);
+      setLoading(false);
     }
   };
 
-  const isPremium = user?.is_premium || user?.isPremium;
+  const handleRestore = async () => {
+    if (!user?.id) return;
+    setRestoring(true);
+    
+    try {
+      const result = await playBillingService.restorePurchases();
+      
+      if (result.success && result.purchases.length > 0) {
+        const purchase = result.purchases[0];
+        const verification = await playBillingService.verifyAndActivate(user.id, {
+          productId: purchase.productIdentifier || purchase.productId,
+          purchaseToken: purchase.purchaseToken || purchase.transactionId,
+          transactionId: purchase.transactionId,
+        });
+        
+        if (verification.success) {
+          toast.success('Premium restored successfully!');
+          const updatedUser = { ...user, is_premium: true, isPremium: true };
+          if (onUpdate) onUpdate(updatedUser);
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+          setSubStatus({ is_premium: true });
+        } else {
+          toast.error('Could not verify restored purchase.');
+        }
+      } else {
+        toast.info('No previous purchases found.');
+      }
+    } catch (error) {
+      toast.error('Restore failed. Please try again.');
+    } finally {
+      setRestoring(false);
+    }
+  };
+
+  const isPremium = user?.is_premium || user?.isPremium || subStatus?.is_premium;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-50 via-white to-rose-50">
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-lg border-b border-pink-100">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate(-1)}
-            className="mr-3"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div className="flex items-center gap-2">
-            <Crown className="w-6 h-6 text-amber-500" />
-            <h1 className="text-xl font-bold text-gray-800">HeartLink Premium</h1>
-          </div>
-        </div>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 page-with-bottom-nav" style={{ paddingTop: 'var(--safe-top, 24px)' }}>
+      <Toaster position="top-center" />
+      <Navbar user={user} />
 
-      <div className="max-w-4xl mx-auto px-4 py-6 space-y-8">
-        {/* Already Premium Banner */}
+      <div className="max-w-lg mx-auto px-4 py-4 pb-8">
+        {/* Back */}
+        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-gray-400 mb-6">
+          <ArrowLeft className="w-5 h-5" />
+        </button>
+
+        {/* Premium Already Active */}
         {isPremium && (
-          <Card className="bg-gradient-to-r from-amber-400 to-orange-500 text-white border-0" data-testid="premium-active-banner">
-            <CardContent className="flex items-center gap-4 py-4">
-              <div className="p-3 bg-white/20 rounded-full">
-                <Crown className="w-8 h-8" />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold">You're Premium!</h2>
-                <p className="text-white/90">Enjoy unlimited access to all features</p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Hero Section */}
-        {!isPremium && (
-          <div className="text-center space-y-4 pt-4">
-            <div className="inline-flex items-center justify-center p-4 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full shadow-lg">
-              <Crown className="w-12 h-12 text-white" />
+          <div className="text-center py-10 space-y-4">
+            <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center shadow-lg shadow-amber-500/30">
+              <Crown className="w-10 h-10 text-white" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-800">Upgrade to Premium</h2>
-            <p className="text-gray-600 max-w-md mx-auto">
-              Get more matches, no ads, and exclusive features to find your perfect partner faster
-            </p>
-          </div>
-        )}
-
-        {/* Benefits Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          {PREMIUM_BENEFITS.map((benefit, index) => (
-            <div 
-              key={index}
-              className={`p-4 rounded-xl ${benefit.bgColor} border border-gray-100 text-center`}
-            >
-              <benefit.icon className={`w-8 h-8 ${benefit.color} mx-auto mb-2`} />
-              <h3 className="font-semibold text-gray-800 text-sm">{benefit.title}</h3>
-              <p className="text-xs text-gray-600 mt-1">{benefit.description}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Pricing Plans */}
-        {!isPremium && (
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-center text-gray-800">Choose Your Plan</h3>
-            
-            <div className="grid md:grid-cols-3 gap-4">
-              {PREMIUM_PLANS.map((plan) => (
-                <Card 
-                  key={plan.id}
-                  className={`relative cursor-pointer transition-all ${
-                    selectedPlan === plan.id 
-                      ? 'border-2 border-pink-500 shadow-lg scale-[1.02]' 
-                      : 'border-gray-200 hover:border-pink-300'
-                  }`}
-                  onClick={() => setSelectedPlan(plan.id)}
-                  data-testid={`plan-card-${plan.id}`}
-                >
-                  {plan.popular && (
-                    <Badge className="absolute -top-2 left-1/2 -translate-x-1/2 bg-gradient-to-r from-pink-500 to-rose-500">
-                      <Star className="w-3 h-3 mr-1" />
-                      Most Popular
-                    </Badge>
-                  )}
-                  
-                  <CardHeader className="text-center pb-2">
-                    <CardTitle className="text-lg">{plan.name}</CardTitle>
-                    {plan.savings && (
-                      <Badge variant="secondary" className="w-fit mx-auto bg-green-100 text-green-700">
-                        {plan.savings}
-                      </Badge>
-                    )}
-                  </CardHeader>
-                  
-                  <CardContent className="text-center space-y-4">
-                    <div>
-                      <span className="text-3xl font-bold text-gray-800">
-                        {plan.currency}{plan.price}
-                      </span>
-                      <span className="text-gray-500">/{plan.period}</span>
-                    </div>
-                    
-                    <ul className="space-y-2 text-sm text-left">
-                      {plan.features.map((feature, idx) => (
-                        <li key={idx} className="flex items-center gap-2">
-                          <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
-                          <span className="text-gray-600">{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                  
-                  <CardFooter>
-                    <Button 
-                      className={`w-full ${
-                        selectedPlan === plan.id
-                          ? 'bg-gradient-to-r from-pink-500 to-rose-500'
-                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                      }`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSubscribe(plan.id);
-                      }}
-                      disabled={isProcessing}
-                      data-testid={`subscribe-btn-${plan.id}`}
-                    >
-                      {isProcessing ? 'Processing...' : 'Subscribe Now'}
-                    </Button>
-                  </CardFooter>
-                </Card>
+            <h1 className="text-2xl font-bold text-white">You're Premium!</h1>
+            <p className="text-gray-400 text-sm">All premium features are unlocked</p>
+            {subStatus?.expires_at && (
+              <p className="text-xs text-gray-500">
+                {subStatus.subscription_status === 'trialing' ? 'Trial ends' : 'Renews'}: {new Date(subStatus.expires_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
+              </p>
+            )}
+            <div className="grid grid-cols-2 gap-2 mt-6">
+              {BENEFITS.map((b, i) => (
+                <div key={i} className="flex items-center gap-2 bg-white/5 rounded-xl px-3 py-2.5">
+                  <Check className="w-4 h-4 text-green-400 flex-shrink-0" />
+                  <span className="text-sm text-gray-300">{b.text}</span>
+                </div>
               ))}
             </div>
+            <button onClick={() => navigate(-1)} className="mt-6 text-sm text-gray-500 underline">Go Back</button>
           </div>
         )}
 
-        {/* Trust Badges */}
-        <div className="text-center space-y-3 pt-4">
-          <div className="flex items-center justify-center gap-4 text-gray-500 text-sm">
-            <div className="flex items-center gap-1">
-              <Shield className="w-4 h-4" />
-              <span>Secure Payment</span>
+        {/* Purchase Screen */}
+        {!isPremium && (
+          <div className="space-y-6">
+            {/* Header */}
+            <div className="text-center">
+              <div className="w-16 h-16 mx-auto rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center mb-3 shadow-lg shadow-amber-500/20">
+                <Crown className="w-8 h-8 text-white" />
+              </div>
+              <h1 className="text-2xl font-bold text-white">HeartLink Premium</h1>
+              <p className="text-gray-400 text-sm mt-1">Find your perfect match faster</p>
             </div>
-            <div className="flex items-center gap-1">
-              <Heart className="w-4 h-4" />
-              <span>Cancel Anytime</span>
+
+            {/* Price Card */}
+            <div className="bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/20 rounded-2xl p-5 text-center">
+              <div className="flex items-baseline justify-center gap-1">
+                <span className="text-4xl font-bold text-white">₹49</span>
+                <span className="text-gray-400 text-sm">/month</span>
+              </div>
+              <div className="mt-2 inline-flex items-center gap-1.5 bg-green-500/20 text-green-400 px-3 py-1 rounded-full text-xs font-semibold">
+                <Star className="w-3 h-3" /> 3-day free trial
+              </div>
+              <p className="text-[10px] text-gray-500 mt-2">After trial: ₹49/month. Cancel anytime.</p>
             </div>
+
+            {/* Benefits */}
+            <div className="space-y-2">
+              {BENEFITS.map((b, i) => (
+                <div key={i} className="flex items-center gap-3 bg-white/5 rounded-xl px-4 py-3" data-testid={`benefit-${i}`}>
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center flex-shrink-0">
+                    <b.icon className="w-4 h-4 text-amber-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-white">{b.text}</p>
+                    <p className="text-[11px] text-gray-500">{b.desc}</p>
+                  </div>
+                  <Check className="w-4 h-4 text-green-400 flex-shrink-0" />
+                </div>
+              ))}
+            </div>
+
+            {/* CTA */}
+            <Button
+              onClick={handlePurchase}
+              disabled={loading}
+              className="w-full py-4 rounded-2xl text-base font-bold text-white shadow-lg shadow-amber-500/20 active:scale-[0.97] transition-transform disabled:opacity-50"
+              style={{ background: 'linear-gradient(135deg, #F59E0B 0%, #EF6C00 100%)' }}
+              data-testid="start-trial-btn"
+            >
+              {loading ? (
+                <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Processing...</>
+              ) : (
+                'Start 3-Day Free Trial'
+              )}
+            </Button>
+
+            <p className="text-center text-[10px] text-gray-600 leading-relaxed">
+              After your free trial, you'll be charged ₹49/month. Cancel anytime from Google Play Store. 
+              By subscribing, you agree to our Terms of Service and Privacy Policy.
+            </p>
+
+            {/* Restore */}
+            <button
+              onClick={handleRestore}
+              disabled={restoring}
+              className="w-full flex items-center justify-center gap-2 py-3 text-sm text-gray-500 hover:text-gray-300 transition-colors"
+              data-testid="restore-purchases-btn"
+            >
+              {restoring ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Restoring...</>
+              ) : (
+                <><RotateCcw className="w-4 h-4" /> Restore Purchases</>
+              )}
+            </button>
           </div>
-          <p className="text-xs text-gray-400">
-            By subscribing, you agree to our Terms of Service and Privacy Policy
-          </p>
-        </div>
+        )}
       </div>
     </div>
   );

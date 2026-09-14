@@ -364,7 +364,7 @@ function App() {
             <Route path="/referral" element={user ? <ReferralPage user={user} /> : <Navigate to="/" />} />
             <Route path="/share-profile" element={user ? <ShareProfilePage user={user} /> : <Navigate to="/" />} />
             <Route path="/share-match" element={user ? <MatchShareCard user={user} /> : <Navigate to="/" />} />
-            <Route path="/premium" element={<Navigate to="/discover" />} />
+            <Route path="/premium" element={user ? <Suspense fallback={<ProfileSkeleton />}><PremiumPage user={user} onUpdate={handleLogin} /></Suspense> : <Navigate to="/" />} />
           </Routes>
           </Suspense>
           {/* Welcome Message Modal */}

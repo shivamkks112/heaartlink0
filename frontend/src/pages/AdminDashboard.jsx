@@ -271,6 +271,71 @@ const VerificationCard = ({ v, onVerify }) => {
   );
 };
 
+// Premium Analytics Panel
+const PremiumAnalyticsPanel = () => {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetch = async () => {
+      try {
+        const res = await adminApi.get('/admin/premium-analytics');
+        setData(res.data);
+      } catch (e) {
+        console.error('Premium analytics failed:', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetch();
+  }, []);
+
+  if (loading) return <div className="animate-pulse space-y-3"><div className="h-20 bg-gray-200 rounded-xl" /><div className="h-32 bg-gray-100 rounded-xl" /></div>;
+  if (!data) return <p className="text-gray-500 text-center py-8">Failed to load premium analytics</p>;
+
+  const s = data.summary || {};
+  return (
+    <div className="space-y-4" data-testid="premium-analytics-panel">
+      <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2"><Crown className="w-5 h-5 text-amber-500" /> Premium Analytics</h2>
+      
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { val: s.total_premium, label: 'Total Premium', color: 'text-amber-600', bg: 'bg-amber-50' },
+          { val: s.google_play, label: 'Google Play', color: 'text-blue-600', bg: 'bg-blue-50' },
+          { val: s.trialing, label: 'On Trial', color: 'text-green-600', bg: 'bg-green-50' },
+          { val: s.active_paid, label: 'Active Paid', color: 'text-purple-600', bg: 'bg-purple-50' },
+          { val: s.cancelled, label: 'Cancelled', color: 'text-red-600', bg: 'bg-red-50' },
+          { val: s.girls_free_premium, label: 'Girls Free', color: 'text-pink-600', bg: 'bg-pink-50' },
+          { val: `${s.conversion_rate}%`, label: 'Conversion', color: 'text-indigo-600', bg: 'bg-indigo-50' },
+          { val: `₹${s.estimated_revenue_inr || 0}`, label: 'Est. Revenue', color: 'text-emerald-600', bg: 'bg-emerald-50' },
+        ].map((c, i) => (
+          <div key={i} className={`${c.bg} rounded-xl p-3 border border-gray-100`}>
+            <p className={`text-2xl font-bold ${c.color}`}>{c.val}</p>
+            <p className="text-[10px] text-gray-500">{c.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {data.recent_orders?.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold text-gray-700 mb-2">Recent Orders</h3>
+          <div className="bg-white rounded-xl border divide-y max-h-60 overflow-y-auto">
+            {data.recent_orders.map((o, i) => (
+              <div key={i} className="px-4 py-2.5 flex items-center justify-between text-sm">
+                <span className="text-gray-700 font-medium">{o.user_id?.slice(0, 8)}...</span>
+                <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${o.is_trial ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                  {o.is_trial ? 'Trial' : '₹49'}
+                </span>
+                <span className="text-gray-400 text-xs">{o.created_at ? new Date(o.created_at).toLocaleDateString('en-IN') : '-'}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // User Detail Modal
 const UserDetailModal = ({ user, onClose }) => {
   if (!user) return null;
@@ -788,6 +853,13 @@ const AdminDashboard = ({ user }) => {
             data-testid="admin-safety-tab"
           >
             <Shield className="w-4 h-4 mr-2" /> Safety
+          </Button>
+          <Button
+            onClick={() => setActiveTab('premium')}
+            className={activeTab === 'premium' ? 'bg-amber-600' : 'bg-gray-200 text-gray-700'}
+            data-testid="admin-premium-tab"
+          >
+            <Crown className="w-4 h-4 mr-2" /> Premium
           </Button>
         </div>
 
@@ -1370,6 +1442,11 @@ const AdminDashboard = ({ user }) => {
 
       {activeTab === 'safety' && (
         <SafetyDashboard />
+      )}
+
+      {/* Premium Analytics Tab */}
+      {activeTab === 'premium' && (
+        <PremiumAnalyticsPanel />
       )}
 
       {/* Settings Tab - Feature Toggles */}

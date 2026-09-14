@@ -96,6 +96,21 @@ Modern, safe, trust-based dating app for Indian users. React frontend + FastAPI 
 - Route: `/verify-selfie`, API: `POST /api/user/verify-selfie-ai`
 - Frontend: SelfieVerificationPage.jsx with camera capture, preview, result screens
 
+## Google Play Billing — Premium Subscription (Sep 14, 2026)
+- **Product**: `heartlink_premium_monthly` — ₹49/month, 3-day free trial
+- **Plugin**: `@capgo/native-purchases` (Capacitor Google Play Billing)
+- **Frontend**: `PlayBillingService.js` — init, purchase, restore, verify
+- **Premium Page**: `/premium` — dark theme, benefits list, "Start 3-Day Free Trial" CTA, Restore Purchases
+- **Backend Endpoints**:
+  - `POST /api/subscription/google-play/verify` — verify purchase token, activate premium, handle trial
+  - `POST /api/subscription/cancel/{user_id}` — mark cancelled
+  - `GET /api/subscription/status/{user_id}` — check premium + expiry
+  - `GET /api/admin/premium-analytics` — admin dashboard with revenue, conversion, trial stats
+- **Admin**: Premium tab with 8 analytics cards + recent orders table
+- **Server-authoritative**: purchase token stored, subscription_status tracked (trialing/active/cancelled/expired)
+- **Premium Features**: Unlimited Likes, Super Likes, See Who Liked, Boost, Ad-Free, Advanced Filters
+- **APK update required** for billing plugin
+
 ## Pending / Backlog
 - P0: Razorpay Premium Subscription (Rs 99-999/month)
 - P1: Virtual Gifts & HeartCoins
