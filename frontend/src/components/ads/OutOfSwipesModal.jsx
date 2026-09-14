@@ -104,8 +104,8 @@ const OutOfSwipesModal = ({ isOpen, onClose, onSwipesAdded }) => {
             </button>
           )}
 
-          {/* Premium Option - HIDDEN FOR NOW */}
-          {/* <button
+          {/* Premium Option */}
+          <button
             onClick={() => {
               onClose();
               navigate('/premium');
@@ -118,12 +118,12 @@ const OutOfSwipesModal = ({ isOpen, onClose, onSwipesAdded }) => {
                 <Crown className="w-6 h-6" />
               </div>
               <div className="text-left">
-                <p className="font-bold text-lg">Premium Upgrade</p>
-                <p className="text-sm text-white/80">Unlimited swipes, no ads!</p>
+                <p className="font-bold text-lg">HeartLink Premium</p>
+                <p className="text-sm text-white/80">Unlimited swipes, no ads — ₹49/mo</p>
               </div>
             </div>
             <Sparkles className="w-6 h-6" />
-          </button> */}
+          </button>
 
           {/* Wait Option */}
           <div className="text-center pt-2">

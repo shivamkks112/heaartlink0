@@ -225,7 +225,7 @@ const DiscoverPage = ({ user }) => {
         const newCount = dailySwipeCount + 1;
         localStorage.setItem('heartlink_swipe_count', String(newCount));
         setDailySwipeCount(newCount);
-        if (newCount === DAILY_SWIPE_LIMIT - 5) toast.warning('Sirf 5 swipes bache hain!');
+        if (newCount === DAILY_SWIPE_LIMIT - 5) toast.warning('Sirf 5 swipes bache hain! Go Premium for unlimited ❤️', { action: { label: 'Premium', onClick: () => navigate('/premium') }, duration: 5000 });
       }
       if (shouldShowAds) {
         const adShown = await adsService.trackSwipe();

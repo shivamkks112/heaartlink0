@@ -329,7 +329,7 @@ const LikesYouPage = ({ user }) => {
                     </p>
                   </div>
                   {!crush.is_mutual && (
-                    <button className="px-3 py-2 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-xl text-xs font-bold" data-testid="reveal-crush-btn">
+                    <button onClick={() => navigate('/premium')} className="px-3 py-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-xl text-xs font-bold" data-testid="reveal-crush-btn">
                       <Crown className="w-3 h-3 inline mr-1" /> Reveal
                     </button>
                   )}
@@ -395,8 +395,8 @@ const LikesYouPage = ({ user }) => {
                 <Crown className="w-6 h-6 text-blue-500 mx-auto mb-2" />
                 <p className="font-bold text-gray-900">Upgrade to Premium</p>
                 <p className="text-sm text-gray-600 mt-1">Dekho kisne tumhari profile dekhi — full names, photos & more!</p>
-                <button className="mt-3 px-6 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-xl font-bold text-sm" data-testid="premium-viewers-btn">
-                  Coming Soon
+                <button onClick={() => navigate('/premium')} className="mt-3 px-6 py-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-xl font-bold text-sm" data-testid="premium-viewers-btn">
+                  Get Premium — ₹49/mo
                 </button>
               </div>
             )}
