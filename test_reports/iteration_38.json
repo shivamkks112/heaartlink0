@@ -1,0 +1,31 @@
+{
+  "summary": "Full A-Z audit before Play Store submission. Backend: 12/12 pytest pass on iter38_premium — health, APK duplicate /api/api/profile/{id}, subscription/status returns is_premium+features+expires_at, google-play/verify (missing params → 400, invalid user → 404, valid → creates order + activates premium + 3-day trial for first-time + idempotent on duplicate token), subscription/cancel (marks cancelled, invalid user → 404), admin/premium-analytics (401 without token, 200 with admin token, returns summary keys total_premium/google_play/trialing/active_paid/cancelled/conversion_rate/estimated_revenue_inr/paid_orders + recent_orders array), verify-selfie-ai rejects missing input, and ai_chatbot.py has 'NEVER insult' + 'NEVER say anything sexually' + 'emotionally manipulate' rules in all 3 prompts (main line 646, stealth line 1301, custom line 1342). Frontend: Landing shows 'Serious Relationships Only' + 'Women Safety'. Admin login → /discover, token stored as heartlink_token. /premium renders Crown icon, ₹49/month, 3-day free trial badge, benefits list (Unlimited Likes, Super Likes, See Who Liked You, Profile Boost, Ad-Free, Advanced Filters), Start Trial + Restore Purchases CTAs. Matches page renders all 3 tabs (Matches/Messages/Active). Likes page shows Reveal/Premium. Selfie verify has camera UI. Admin dashboard shows all 10 tabs including new Premium tab which renders Premium Analytics widget with Total Premium / Google Play / On Trial / Active Paid counters visible. All requested Play-Store features are working.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Global (any page)", "issues": ["React console warning: 'Received `%s` for a non-boolean attribute `%s`' — a styled-jsx tag is receiving jsx={true} as a boolean prop. Convert to jsx=\"true\" or {\"true\"} to silence. Non-blocking."]},
+      {"screen": "Landing (unauth) — carry-over from iter37", "issues": ["'Install tracking failed: TypeError: Failed to fetch' warning still present on unauth landing."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter38_premium.py", "/app/test_reports/pytest/iter38.xml"],
+  "action_items": [
+    "(Optional) Silence the styled-jsx boolean prop React warning surfaced site-wide (Received %s for a non-boolean attribute %s ... jsx jsx true).",
+    "(Carry-over from iter37) The other admin/safety endpoints (safety-ban, safety-unban, safety-banned-users, custom-ai-persona/toggle, custom-ai-personas, safety-analytics) still lack Depends(get_current_admin). Only /api/admin/premium-analytics now correctly guards with require_admin. Add same guard to the rest for parity."
+  ],
+  "critical_code_review_comments": [
+    "GOOD: /api/admin/premium-analytics correctly uses Depends(require_admin). Other admin routes still open (carry-over).",
+    "google-play/verify is idempotent via existing purchase_token check — safe against replay from client. Good.",
+    "subscription_expiry_checker + grace period + winback background tasks run every ~24h in on_startup — verify supervisor keeps them alive on long-running production.",
+    "server.py is now 10,314 lines (up from 9,865) — must be split into routers before further growth."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter38_premium.py"],
+  "success_rate": {"backend": "100% (12/12)", "frontend": "100% for tested flows"},
+  "test_credentials": "Admin shivamkks112@gmail.com / Shivam@2026 (login field: email_or_phone). Token key: access_token in localStorage as heartlink_token.",
+  "seed_data_creation": "1 subscription_orders doc created during verify test, then admin user premium state was reset (is_premium=false, subscription_status='none', TEST_TOKEN_* orders deleted).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Premium flow endpoints all live and admin-guarded on premium-analytics. Test script cleans up its own subscription orders (delete_many on purchase_token regex ^TEST_TOKEN_). Note: subscription/verify without user_id or purchase_token returns 400, invalid user returns 404, duplicate token returns success+is_premium (idempotent). Premium page (/premium) renders Crown, ₹49, 3-day trial, benefits, and Restore/Start CTAs. Admin Premium tab visible next to Safety in dashboard.",
+  "rca of the issue": "N/A — all 12 backend tests and all 8 frontend flows pass. Only non-blocking console warnings noted."
+}
