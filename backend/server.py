@@ -337,6 +337,45 @@ async def startup_event():
     # Auto-unban checker — runs every 30 min to unban expired temp bans
     asyncio.create_task(auto_unban_checker())
     logging.info("🔓 Auto-unban checker started")
+    
+    # Subscription expiry checker — runs every hour
+    asyncio.create_task(subscription_expiry_checker())
+    logging.info("💳 Subscription expiry checker started")
+
+
+async def subscription_expiry_checker():
+    """Background task: auto-expire premium when subscription period ends."""
+    first_run = True
+    while True:
+        try:
+            if not first_run:
+                await asyncio.sleep(60 * 60)  # Every hour
+            else:
+                await asyncio.sleep(30)
+                first_run = False
+            
+            now = datetime.now(timezone.utc).isoformat()
+            
+            # Find premium users whose subscription has expired
+            expired = await db.users.find({
+                "is_premium": True,
+                "premium_end": {"$ne": None, "$lte": now},
+                "subscription_status": {"$nin": ["expired"]},
+            }).to_list(None)
+            
+            for user in expired:
+                await db.users.update_one({"id": user["id"]}, {"$set": {
+                    "is_premium": False,
+                    "subscription_status": "expired",
+                    "premium_expired_at": now,
+                }})
+                invalidate_user_cache(user["id"])
+                logging.info(f"💳 Premium expired for {user.get('name', user['id'])}")
+            
+            if expired:
+                logging.info(f"💳 Subscription expiry check: {len(expired)} users expired")
+        except Exception as e:
+            logging.error(f"Subscription expiry checker error: {e}")
 
 
 async def auto_unban_checker():
