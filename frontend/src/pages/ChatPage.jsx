@@ -47,7 +47,9 @@ const ChatPage = ({ user }) => {
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportReason, setReportReason] = useState('');
   const [reportDetails, setReportDetails] = useState('');
-  const [reportSubmitting, setReportSubmitting] = useState(false); // Forces re-render for "last seen" label
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
+  const imageInputRef = useRef(null); // Forces re-render for "last seen" label
   const [nudgeDismissed, setNudgeDismissed] = useState(() => {
     try {
       const d = JSON.parse(localStorage.getItem('heartlink_nudge_dismissed') || '{}');
@@ -421,6 +423,49 @@ const ChatPage = ({ user }) => {
     }
   };
 
+  const handleImageSelect = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !otherUser) return;
+    if (!file.type.startsWith('image/')) { toast.error('Sirf images bhej sakte ho'); return; }
+    if (file.size > 5 * 1024 * 1024) { toast.error('Image 5MB se chhoti honi chahiye'); return; }
+    
+    setImageUploading(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64 = reader.result;
+        // Upload + AI moderation
+        const uploadRes = await axios.post(`${API}/chat/upload-image`, {
+          sender_id: user.id, match_id: matchId, image_base64: base64,
+        });
+        if (uploadRes.data.blocked) {
+          toast.error(uploadRes.data.message || 'Image blocked');
+          setImageUploading(false);
+          return;
+        }
+        if (uploadRes.data.success) {
+          // Send as image message
+          const imgMsg = {
+            match_id: matchId, sender_id: user.id, receiver_id: otherUser.id,
+            content: `[image:${uploadRes.data.image_path}]`,
+            message_type: 'image',
+          };
+          const tempMsg = { ...imgMsg, created_at: new Date().toISOString(), _temp: true };
+          setMessages(prev => [...prev, tempMsg]);
+          try {
+            await axios.post(`${API}/messages`, imgMsg);
+          } catch { toast.error('Image send failed'); }
+        }
+        setImageUploading(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      toast.error('Image upload failed');
+      setImageUploading(false);
+    }
+    if (imageInputRef.current) imageInputRef.current.value = '';
+  };
+
   const handleBlock = async () => {
     if (!otherUser) return;
     if (window.confirm(`Block ${otherUser.name}? They will be removed from your matches.`)) {
@@ -740,7 +785,18 @@ const ChatPage = ({ user }) => {
                           </div>
                         )}
                         
-                        <p className="text-sm whitespace-pre-wrap" style={{ wordBreak: 'break-word' }}>{msg.content}</p>
+                        <p className="text-sm whitespace-pre-wrap" style={{ wordBreak: 'break-word' }}>
+                          {msg.message_type === 'image' || msg.content?.startsWith('[image:') ? (
+                            <img
+                              src={`${API}/chat/image/${msg.content.replace('[image:', '').replace(']', '')}`}
+                              alt="Photo"
+                              className="rounded-xl max-w-[240px] max-h-[300px] object-cover cursor-pointer"
+                              loading="lazy"
+                              onClick={() => window.open(`${API}/chat/image/${msg.content.replace('[image:', '').replace(']', '')}`, '_blank')}
+                              data-testid="chat-image"
+                            />
+                          ) : msg.content}
+                        </p>
                         
                         <div className="flex items-center justify-end gap-1 mt-0.5">
                           <p className="text-[10px]" style={{ color: isOwn ? 'rgba(255,255,255,0.7)' : 'var(--m3-outline)' }}>
@@ -875,6 +931,17 @@ const ChatPage = ({ user }) => {
           </div>
         )}
         <form onSubmit={sendMessage} className="flex items-center gap-2 px-3 py-2.5">
+          <input type="file" ref={imageInputRef} accept="image/*" className="hidden" onChange={handleImageSelect} data-testid="image-input" />
+          <button
+            type="button"
+            onClick={() => imageInputRef.current?.click()}
+            disabled={imageUploading}
+            className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 active:scale-90 transition-transform bg-gradient-to-br from-blue-500 to-cyan-500 disabled:opacity-50"
+            data-testid="send-photo-btn"
+            title="Send Photo"
+          >
+            {imageUploading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Camera className="w-5 h-5 text-white" />}
+          </button>
           <button
             type="button"
             onClick={() => setShowGameMenu(true)}

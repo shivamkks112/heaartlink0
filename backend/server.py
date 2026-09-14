@@ -341,6 +341,63 @@ async def startup_event():
     # Subscription expiry checker — runs every hour
     asyncio.create_task(subscription_expiry_checker())
     logging.info("💳 Subscription expiry checker started")
+    
+    # Initialize Object Storage
+    try:
+        _init_object_storage()
+        logging.info("📦 Object Storage initialized")
+    except Exception as e:
+        logging.error(f"Object Storage init failed: {e}")
+
+
+# ═══ Object Storage Setup ═══
+import requests as http_requests
+
+_STORAGE_BASE = (os.environ.get("INTEGRATION_PROXY_URL") or "").strip() or "https://integrations.emergentagent.com"
+_STORAGE_URL = _STORAGE_BASE.rstrip("/") + "/objstore/api/v1/storage"
+_EMERGENT_KEY = os.environ.get("EMERGENT_LLM_KEY")
+_storage_key = None
+
+def _init_object_storage(force=False):
+    global _storage_key
+    if _storage_key and not force:
+        return _storage_key
+    resp = http_requests.post(f"{_STORAGE_URL}/init", json={"emergent_key": _EMERGENT_KEY}, timeout=30)
+    resp.raise_for_status()
+    _storage_key = resp.json()["storage_key"]
+    return _storage_key
+
+def _put_object(path, data, content_type):
+    key = _init_object_storage()
+    resp = http_requests.put(
+        f"{_STORAGE_URL}/objects/{path}",
+        headers={"X-Storage-Key": key, "Content-Type": content_type},
+        data=data, timeout=120
+    )
+    if resp.status_code == 404:
+        key = _init_object_storage(force=True)
+        resp = http_requests.put(
+            f"{_STORAGE_URL}/objects/{path}",
+            headers={"X-Storage-Key": key, "Content-Type": content_type},
+            data=data, timeout=120
+        )
+    resp.raise_for_status()
+    return resp.json()
+
+def _get_object(path):
+    key = _init_object_storage()
+    resp = http_requests.get(
+        f"{_STORAGE_URL}/objects/{path}",
+        headers={"X-Storage-Key": key}, timeout=60
+    )
+    if resp.status_code == 404:
+        key = _init_object_storage(force=True)
+        resp = http_requests.get(
+            f"{_STORAGE_URL}/objects/{path}",
+            headers={"X-Storage-Key": key}, timeout=60
+        )
+    resp.raise_for_status()
+    return resp.content, resp.headers.get("Content-Type", "application/octet-stream")
 
 
 async def subscription_expiry_checker():
@@ -5027,6 +5084,125 @@ async def react_to_message(message_id: str, data: MessageReaction):
     })
     
     return {"success": True, "reactions": reactions}
+
+
+@api_router.post("/chat/upload-image")
+async def upload_chat_image(request: Request):
+    """Upload image for chat + AI inappropriate content check."""
+    data = await request.json()
+    sender_id = data.get("sender_id")
+    match_id = data.get("match_id")
+    image_base64 = data.get("image_base64")  # data:image/jpeg;base64,...
+    
+    if not sender_id or not match_id or not image_base64:
+        raise HTTPException(status_code=400, detail="sender_id, match_id, image_base64 required")
+    
+    sender = await db.users.find_one({"id": sender_id})
+    if not sender:
+        raise HTTPException(status_code=404, detail="Sender not found")
+    
+    # Extract base64 data
+    if "," in image_base64:
+        header, b64data = image_base64.split(",", 1)
+        content_type = header.split(":")[1].split(";")[0] if ":" in header else "image/jpeg"
+    else:
+        b64data = image_base64
+        content_type = "image/jpeg"
+    
+    import json as json_mod
+    try:
+        image_bytes = base64.b64decode(b64data)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid image data")
+    
+    # Size limit: 5MB
+    if len(image_bytes) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Image too large. Max 5MB.")
+    
+    # AI Inappropriate Content Check using Gemini Vision
+    is_safe = True
+    moderation_reason = ""
+    EMERGENT_KEY = os.environ.get("EMERGENT_LLM_KEY")
+    if EMERGENT_KEY:
+        try:
+            from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
+            
+            chat = LlmChat(
+                api_key=EMERGENT_KEY,
+                session_id=f"img_mod_{sender_id}_{uuid.uuid4().hex[:8]}",
+                system_message="""You are a content moderation AI for a dating app. Check if the image is safe to send in chat.
+
+BLOCK if the image contains:
+- Nudity or sexually explicit content
+- Violence or gore
+- Drugs or illegal substances
+- Hate symbols
+- Spam or scam content
+
+ALLOW: Normal selfies, scenery, food, pets, memes, casual photos.
+
+Respond ONLY in JSON: {"safe": true/false, "reason": "brief reason"}"""
+            )
+            chat.with_model("gemini", "gemini-2.5-flash")
+            
+            img_content = ImageContent(image_base64=b64data)
+            msg = UserMessage(text="Is this image safe for a dating app chat?", file_contents=[img_content])
+            response = await chat.send_message(msg)
+            resp_text = str(response).strip()
+            
+            import json as json_mod
+            start = resp_text.find('{')
+            end = resp_text.rfind('}') + 1
+            if start >= 0 and end > start:
+                result = json_mod.loads(resp_text[start:end])
+                is_safe = result.get("safe", True)
+                moderation_reason = result.get("reason", "")
+        except Exception as e:
+            logging.error(f"Image moderation failed: {e}")
+            is_safe = True  # Allow on AI failure
+    
+    if not is_safe:
+        # Log the blocked image
+        await db.safety_reports.insert_one({
+            "type": "image_blocked",
+            "sender_id": sender_id,
+            "sender_name": sender.get("name"),
+            "match_id": match_id,
+            "reason": moderation_reason,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+        return {"success": False, "blocked": True, "message": "Image blocked — inappropriate content detected. Please send appropriate images only."}
+    
+    # Upload to Object Storage
+    ext = content_type.split("/")[-1] if "/" in content_type else "jpeg"
+    if ext == "jpeg":
+        ext = "jpg"
+    storage_path = f"heartlink/chat/{match_id}/{uuid.uuid4().hex}.{ext}"
+    
+    try:
+        result = _put_object(storage_path, image_bytes, content_type)
+        image_path = result.get("path", storage_path)
+    except Exception as e:
+        logging.error(f"Image upload to storage failed: {e}")
+        raise HTTPException(status_code=500, detail="Image upload failed. Please try again.")
+    
+    return {
+        "success": True,
+        "image_path": image_path,
+        "content_type": content_type,
+        "size": len(image_bytes),
+    }
+
+
+@api_router.get("/chat/image/{path:path}")
+async def get_chat_image(path: str):
+    """Serve chat image from Object Storage."""
+    try:
+        data, content_type = _get_object(path)
+        return Response(content=data, media_type=content_type)
+    except Exception as e:
+        logging.error(f"Image download failed: {e}")
+        raise HTTPException(status_code=404, detail="Image not found")
 
 
 
