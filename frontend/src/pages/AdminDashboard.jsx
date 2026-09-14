@@ -336,6 +336,50 @@ const PremiumAnalyticsPanel = () => {
   );
 };
 
+// Premium Overview Widget for Overview tab
+const PremiumOverviewWidget = () => {
+  const [data, setData] = useState(null);
+
+  useEffect(() => {
+    adminApi.get('/admin/premium-analytics').then(r => setData(r.data)).catch(() => {});
+  }, []);
+
+  if (!data) return null;
+  const s = data.summary || {};
+
+  return (
+    <div className="bg-white rounded-xl shadow-md p-6">
+      <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+        <Crown className="w-5 h-5 text-amber-500" /> Premium Overview
+      </h3>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+        <div className="bg-amber-50 rounded-xl p-3">
+          <p className="text-2xl font-bold text-amber-600">{s.total_premium || 0}</p>
+          <p className="text-[10px] text-gray-500">Total Premium</p>
+        </div>
+        <div className="bg-green-50 rounded-xl p-3">
+          <p className="text-2xl font-bold text-green-600">{s.trialing || 0}</p>
+          <p className="text-[10px] text-gray-500">On Trial</p>
+        </div>
+        <div className="bg-blue-50 rounded-xl p-3">
+          <p className="text-2xl font-bold text-blue-600">{s.active_paid || 0}</p>
+          <p className="text-[10px] text-gray-500">Paid Active</p>
+        </div>
+        <div className="bg-emerald-50 rounded-xl p-3">
+          <p className="text-2xl font-bold text-emerald-600">₹{s.estimated_revenue_inr || 0}</p>
+          <p className="text-[10px] text-gray-500">Est. Revenue</p>
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-2 text-xs">
+        <span className="px-2.5 py-1 rounded-full bg-red-50 text-red-600 font-medium">Cancelled: {s.cancelled || 0}</span>
+        <span className="px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 font-medium">Expired: {s.expired || 0}</span>
+        <span className="px-2.5 py-1 rounded-full bg-pink-50 text-pink-600 font-medium">Girls Free: {s.girls_free_premium || 0}</span>
+        <span className="px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-600 font-medium">Conversion: {s.conversion_rate || 0}%</span>
+      </div>
+    </div>
+  );
+};
+
 // User Detail Modal
 const UserDetailModal = ({ user, onClose }) => {
   if (!user) return null;
@@ -1021,6 +1065,9 @@ const AdminDashboard = ({ user }) => {
                 )}
               </div>
             </div>
+
+            {/* Premium Revenue Widget */}
+            <PremiumOverviewWidget />
           </div>
         )}
 
