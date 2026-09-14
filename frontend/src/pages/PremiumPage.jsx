@@ -4,7 +4,7 @@
  */
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Crown, Check, ArrowLeft, Heart, Eye, Zap, Shield, Star, Ban, Loader2, RotateCcw } from 'lucide-react';
+import { Crown, Check, ArrowLeft, Heart, Eye, Zap, Shield, Star, Ban, Loader2, RotateCcw, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
@@ -116,6 +116,7 @@ const PremiumPage = ({ user, onUpdate }) => {
   };
 
   const isPremium = user?.is_premium || user?.isPremium || subStatus?.is_premium;
+  const isExpired = !isPremium && (subStatus?.subscription_status === 'expired' || user?.subscription_status === 'expired');
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 page-with-bottom-nav" style={{ paddingTop: 'var(--safe-top, 24px)' }}>
@@ -153,8 +154,49 @@ const PremiumPage = ({ user, onUpdate }) => {
           </div>
         )}
 
+        {/* Expired Premium */}
+        {isExpired && (
+          <div className="space-y-6">
+            <div className="text-center">
+              <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-gray-600 to-gray-700 flex items-center justify-center mb-3">
+                <Crown className="w-10 h-10 text-gray-400" />
+              </div>
+              <h1 className="text-2xl font-bold text-white">Premium Expired</h1>
+              <p className="text-gray-400 text-sm mt-1">Your HeartLink Premium subscription has ended</p>
+            </div>
+
+            <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 space-y-2">
+              <p className="text-sm text-red-300 font-semibold">You've lost access to:</p>
+              {BENEFITS.map((b, i) => (
+                <div key={i} className="flex items-center gap-2 text-gray-500 text-sm">
+                  <X className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
+                  <span>{b.text}</span>
+                </div>
+              ))}
+            </div>
+
+            <Button
+              onClick={handlePurchase}
+              disabled={loading}
+              className="w-full py-4 rounded-2xl text-base font-bold text-white shadow-lg shadow-amber-500/20 active:scale-[0.97] transition-transform disabled:opacity-50"
+              style={{ background: 'linear-gradient(135deg, #F59E0B 0%, #EF6C00 100%)' }}
+              data-testid="resubscribe-btn"
+            >
+              {loading ? (
+                <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Processing...</>
+              ) : (
+                'Re-subscribe — ₹49/month'
+              )}
+            </Button>
+
+            <button onClick={handleRestore} disabled={restoring} className="w-full flex items-center justify-center gap-2 py-3 text-sm text-gray-500">
+              {restoring ? <><Loader2 className="w-4 h-4 animate-spin" /> Restoring...</> : <><RotateCcw className="w-4 h-4" /> Restore Purchases</>}
+            </button>
+          </div>
+        )}
+
         {/* Purchase Screen */}
-        {!isPremium && (
+        {!isPremium && !isExpired && (
           <div className="space-y-6">
             {/* Header */}
             <div className="text-center">
