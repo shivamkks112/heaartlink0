@@ -580,6 +580,11 @@ const ChatPage = ({ user }) => {
                         </svg>
                       </span>
                     )}
+                    {otherUser.is_premium && (
+                      <span className="flex-shrink-0 w-4 h-4 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
+                        <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5z"/></svg>
+                      </span>
+                    )}
                   </div>
                 </div>
               </button>

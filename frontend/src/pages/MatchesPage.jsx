@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
-import { Heart, MessageCircle, Sparkles, Users, Zap, Mail, Shield, AlertTriangle, X, CheckCircle, Share2, ArrowUpDown, Clock, Filter } from 'lucide-react';
+import { Heart, MessageCircle, Sparkles, Users, Zap, Mail, Shield, AlertTriangle, X, CheckCircle, Share2, ArrowUpDown, Clock, Filter, Crown } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
@@ -584,6 +584,11 @@ const MatchesPage = ({ user }) => {
                           <CheckCircle className="w-3 h-3" /> Verified
                         </div>
                       )}
+                      {match.user.is_premium && (
+                        <div className="absolute top-3 left-3 w-6 h-6 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-md">
+                          <Crown className="w-3.5 h-3.5 text-white" />
+                        </div>
+                      )}
                     </div>
 
                     <div className="p-4">
@@ -736,6 +741,11 @@ const MatchesPage = ({ user }) => {
                               {conv.user.verified && (
                                 <span className="flex-shrink-0 w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center" title="Verified">
                                   <CheckCircle className="w-3 h-3 text-white" />
+                                </span>
+                              )}
+                              {conv.user.is_premium && (
+                                <span className="flex-shrink-0 w-4 h-4 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center" title="Premium">
+                                  <Crown className="w-2.5 h-2.5 text-white" />
                                 </span>
                               )}
                               <span className="text-[10px] flex-shrink-0" style={{ color: 'var(--m3-outline)' }}>

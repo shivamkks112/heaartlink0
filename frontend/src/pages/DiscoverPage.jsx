@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
-import { Heart, X, MapPin, Play, Star, SlidersHorizontal, Flame } from 'lucide-react';
+import { Heart, X, MapPin, Play, Star, SlidersHorizontal, Flame, Crown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
@@ -526,6 +526,11 @@ const DiscoverPage = ({ user }) => {
               <div className="flex items-center gap-2">
                 <h2 className="text-[28px] font-bold text-white leading-none tracking-tight">{currentProfile.name}</h2>
                 <span className="text-[22px] text-white/70 font-light">{currentProfile.age}</span>
+                {currentProfile.is_premium && (
+                  <span className="w-5 h-5 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center flex-shrink-0" title="Premium">
+                    <Crown className="w-3 h-3 text-white" />
+                  </span>
+                )}
                 <OnlineStatus isOnline={currentProfile.is_online} lastActive={currentProfile.last_active} size="sm" showText={false} />
               </div>
               {currentProfile.location && (
