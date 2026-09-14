@@ -374,6 +374,30 @@ async def subscription_expiry_checker():
             
             if expired:
                 logging.info(f"💳 Subscription expiry check: {len(expired)} users expired")
+            
+            # Grace period notification — 1 day before expiry
+            tomorrow = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()
+            expiring_soon = await db.users.find({
+                "is_premium": True,
+                "premium_end": {"$ne": None, "$lte": tomorrow, "$gt": now},
+                "grace_notif_sent": {"$ne": True},
+            }, {"_id": 0, "id": 1, "name": 1, "fcm_token": 1}).to_list(None)
+            
+            grace_msgs = [
+                ("Premium expires tomorrow!", "Renew now to keep unlimited likes, no ads & more."),
+                ("Don't lose your premium perks", "Your HeartLink Premium ends tomorrow. Tap to renew."),
+            ]
+            for u in expiring_soon:
+                if u.get("fcm_token"):
+                    try:
+                        title, body = random.choice(grace_msgs)
+                        await fcm_service.send_push_notification(
+                            u["fcm_token"], title, body,
+                            data={"type": "grace_period", "route": "/premium"})
+                        await db.users.update_one({"id": u["id"]}, {"$set": {"grace_notif_sent": True}})
+                        logging.info(f"💳 Grace period notification sent to {u.get('name', u['id'])}")
+                    except Exception:
+                        pass
         except Exception as e:
             logging.error(f"Subscription expiry checker error: {e}")
 
