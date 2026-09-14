@@ -7861,6 +7861,148 @@ async def cancel_subscription(user_id: str):
     return {"success": True, "message": "Subscription cancelled. Premium remains until expiry date."}
 
 
+# ═══════════════════════════════════════════════════════════════
+# GOOGLE PLAY RTDN — Real-Time Developer Notifications Webhook
+# ═══════════════════════════════════════════════════════════════
+
+# Notification type mapping
+SUBSCRIPTION_NOTIF_TYPES = {
+    1: "recovered",        # Recovered from account hold
+    2: "renewed",          # Subscription renewed
+    3: "canceled",         # Subscription cancelled
+    4: "purchased",        # New purchase
+    5: "on_hold",          # Account hold (payment failed)
+    6: "in_grace_period",  # Grace period (payment retrying)
+    7: "restarted",        # Restarted from cancelled/paused
+    8: "price_change_confirmed",
+    9: "deferred",
+    10: "paused",
+    11: "pause_schedule_changed",
+    12: "revoked",         # Refunded/revoked
+    13: "expired",         # Subscription expired
+}
+
+@api_router.post("/webhooks/google-play")
+async def google_play_rtdn_webhook(request: Request):
+    """
+    Google Play RTDN webhook via Pub/Sub push subscription.
+    Receives subscription state changes and updates user premium status.
+    Returns 200 immediately to prevent Pub/Sub retry loops.
+    """
+    try:
+        body = await request.json()
+        message = body.get("message", {})
+        message_id = message.get("messageId", "")
+        
+        # Deduplicate by messageId
+        if message_id:
+            existing = await db.rtdn_logs.find_one({"message_id": message_id})
+            if existing:
+                return Response(status_code=200)
+        
+        # Decode base64 payload
+        encoded_data = message.get("data", "")
+        if not encoded_data:
+            return Response(status_code=200)
+        
+        decoded = json.loads(base64.b64decode(encoded_data).decode("utf-8"))
+        package_name = decoded.get("packageName", "")
+        
+        sub_notif = decoded.get("subscriptionNotification")
+        if not sub_notif:
+            # Not a subscription notification (could be test or voided purchase)
+            return Response(status_code=200)
+        
+        purchase_token = sub_notif.get("purchaseToken", "")
+        notif_type = sub_notif.get("notificationType", 0)
+        subscription_id = sub_notif.get("subscriptionId", "")
+        
+        type_name = SUBSCRIPTION_NOTIF_TYPES.get(notif_type, f"unknown_{notif_type}")
+        now = datetime.now(timezone.utc).isoformat()
+        
+        # Log the notification
+        log_doc = {
+            "message_id": message_id,
+            "package_name": package_name,
+            "subscription_id": subscription_id,
+            "purchase_token": purchase_token,
+            "notification_type": notif_type,
+            "type_name": type_name,
+            "raw_data": decoded,
+            "processed_at": now,
+        }
+        await db.rtdn_logs.insert_one(log_doc)
+        
+        # Find user by purchase_token
+        user = await db.users.find_one({"purchase_token": purchase_token})
+        if not user:
+            # Try finding via subscription_orders
+            order = await db.subscription_orders.find_one({"purchase_token": purchase_token})
+            if order:
+                user = await db.users.find_one({"id": order["user_id"]})
+        
+        if not user:
+            logging.warning(f"RTDN: No user found for purchase_token {purchase_token[:20]}...")
+            return Response(status_code=200)
+        
+        user_id = user["id"]
+        update_fields = {"last_verified_at": now}
+        
+        # Handle each notification type
+        if notif_type in (1, 2, 4, 7):
+            # RECOVERED, RENEWED, PURCHASED, RESTARTED → activate premium
+            update_fields["is_premium"] = True
+            update_fields["subscription_status"] = "active"
+            update_fields["premium_end"] = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
+            update_fields["auto_renew_enabled"] = True
+            if notif_type == 4:
+                update_fields["premium_start"] = now
+                update_fields["premium_source"] = "google_play"
+            logging.info(f"RTDN: {type_name} — Premium activated for {user.get('name', user_id)}")
+        
+        elif notif_type == 3:
+            # CANCELED → keep premium until expiry, mark cancelled
+            update_fields["subscription_status"] = "cancelled"
+            update_fields["auto_renew_enabled"] = False
+            logging.info(f"RTDN: cancelled — {user.get('name', user_id)} (premium until expiry)")
+        
+        elif notif_type == 5:
+            # ON_HOLD → payment failed, pause premium
+            update_fields["is_premium"] = False
+            update_fields["subscription_status"] = "on_hold"
+            logging.info(f"RTDN: on_hold — Premium paused for {user.get('name', user_id)}")
+        
+        elif notif_type == 6:
+            # IN_GRACE_PERIOD → keep premium, payment retrying
+            update_fields["subscription_status"] = "in_grace_period"
+            update_fields["is_premium"] = True
+            logging.info(f"RTDN: grace_period — {user.get('name', user_id)}")
+        
+        elif notif_type == 10:
+            # PAUSED → user paused subscription
+            update_fields["subscription_status"] = "paused"
+            update_fields["auto_renew_enabled"] = False
+            logging.info(f"RTDN: paused — {user.get('name', user_id)}")
+        
+        elif notif_type in (12, 13):
+            # REVOKED or EXPIRED → remove premium
+            update_fields["is_premium"] = False
+            update_fields["subscription_status"] = "expired" if notif_type == 13 else "revoked"
+            update_fields["premium_expired_at"] = now
+            update_fields["grace_notif_sent"] = False
+            update_fields["winback_sent"] = False
+            logging.info(f"RTDN: {type_name} — Premium removed for {user.get('name', user_id)}")
+        
+        await db.users.update_one({"id": user_id}, {"$set": update_fields})
+        invalidate_user_cache(user_id)
+        
+    except Exception as e:
+        logging.error(f"RTDN webhook error: {e}")
+    
+    # Always return 200 to prevent Pub/Sub retries
+    return Response(status_code=200)
+
+
 @api_router.get("/admin/premium-analytics")
 async def get_premium_analytics(admin: dict = Depends(require_admin)):
     """Admin: Premium subscription analytics."""
