@@ -377,25 +377,6 @@ const DiscoverPage = ({ user }) => {
     <div className="h-[100%] bg-[#0a0a0a] flex flex-col" style={{ height: 'calc(100vh - var(--nav-total, 86px))', paddingTop: 'var(--safe-top, 24px)' }}>
       {shellTop}
       
-      {/* Girls Complete Profile Nudge — below safe area, above card */}
-      {user?.gender?.toLowerCase() === 'female' && (!user?.profile_picture || !user?.location || !user?.bio) && (
-        <div
-          className="mx-3 mt-1 mb-1 bg-gradient-to-r from-pink-500/90 to-purple-500/90 backdrop-blur-sm rounded-2xl px-4 py-2.5 flex items-center gap-3 cursor-pointer active:scale-[0.98] transition-transform flex-shrink-0"
-          onClick={() => navigate('/profile')}
-          data-testid="girls-profile-nudge"
-        >
-          <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0">
-            <span className="text-sm font-bold">3x</span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-white">Complete profile = 3x more matches!</p>
-            <p className="text-[10px] text-white/70">
-              {!user?.profile_picture ? 'Add photo' : ''}{!user?.profile_picture && !user?.location ? ', ' : ''}{!user?.location ? 'Add location' : ''}{(!user?.profile_picture || !user?.location) && !user?.bio ? ', ' : ''}{!user?.bio ? 'Add bio' : ''} — tap here
-            </p>
-          </div>
-          <span className="text-white/80 text-lg">&rarr;</span>
-        </div>
-      )}
 
       {/* City Filter Bottom Sheet */}
       {showFilter && (

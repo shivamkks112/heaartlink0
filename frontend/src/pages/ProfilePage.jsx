@@ -404,6 +404,24 @@ const ProfilePage = ({ user, onUpdate }) => {
           </div>
 
           {/* Profile Completeness */}
+          {/* 3x Matches Nudge — for girls with incomplete profile */}
+          {profile?.gender?.toLowerCase() === 'female' && (!profile?.profile_picture || !profile?.location || !profile?.bio) && (
+            <div
+              className="mx-4 mt-4 bg-gradient-to-r from-pink-500 to-purple-500 rounded-2xl px-4 py-3 flex items-center gap-3 cursor-pointer active:scale-[0.98] transition-transform"
+              onClick={() => { const el = document.querySelector('[data-testid="profile-completeness"]'); if (el) el.scrollIntoView({ behavior: 'smooth' }); }}
+              data-testid="girls-profile-nudge"
+            >
+              <div className="w-9 h-9 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0">
+                <span className="text-base font-bold text-white">3x</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-white">Complete profile = 3x more matches!</p>
+                <p className="text-[10px] text-white/70">
+                  {!profile?.profile_picture ? 'Add photo' : ''}{!profile?.profile_picture && !profile?.location ? ', ' : ''}{!profile?.location ? 'Add location' : ''}{(!profile?.profile_picture || !profile?.location) && !profile?.bio ? ', ' : ''}{!profile?.bio ? 'Add bio' : ''}
+                </p>
+              </div>
+            </div>
+          )}
           {completeness && completeness.score < 100 && (
             <div className="px-6 py-5 border-b" style={{ background: 'var(--m3-surface-container-low)', borderColor: 'var(--m3-outline-variant)' }} data-testid="profile-completeness">
               <div className="flex items-center justify-between mb-3">
