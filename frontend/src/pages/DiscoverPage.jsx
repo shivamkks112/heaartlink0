@@ -319,7 +319,7 @@ const DiscoverPage = ({ user }) => {
 
   if (loading) {
     return (
-      <div className="h-[100%] bg-[#0a0a0a] flex flex-col" style={{ height: 'calc(100vh - var(--nav-total, 86px))' }}>
+      <div className="h-[100%] bg-[#0a0a0a] flex flex-col" style={{ height: 'calc(100vh - var(--nav-total, 86px))', paddingTop: 'var(--safe-top, 24px)' }}>
         {shellTop}
         <div className="flex-1 min-h-0 flex flex-col items-center justify-center p-2 gap-4">
           <div className="w-full h-[75%] max-w-md rounded-3xl overflow-hidden bg-gray-800/60 animate-pulse relative">
@@ -340,7 +340,7 @@ const DiscoverPage = ({ user }) => {
 
   if (!currentProfile) {
     return (
-      <div className="h-[100%] bg-[#0a0a0a] flex flex-col" style={{ height: 'calc(100vh - var(--nav-total, 86px))' }}>
+      <div className="h-[100%] bg-[#0a0a0a] flex flex-col" style={{ height: 'calc(100vh - var(--nav-total, 86px))', paddingTop: 'var(--safe-top, 24px)' }}>
         {shellTop}
         <div className="flex-1 min-h-0 flex items-center justify-center px-8">
           <div className="text-center m3-animate-in" data-testid="no-profiles">
@@ -374,9 +374,29 @@ const DiscoverPage = ({ user }) => {
   }
 
   return (
-    <div className="h-[100%] bg-[#0a0a0a] flex flex-col" style={{ height: 'calc(100vh - var(--nav-total, 86px))' }}>
+    <div className="h-[100%] bg-[#0a0a0a] flex flex-col" style={{ height: 'calc(100vh - var(--nav-total, 86px))', paddingTop: 'var(--safe-top, 24px)' }}>
       {shellTop}
       
+      {/* Girls Complete Profile Nudge — below safe area, above card */}
+      {user?.gender?.toLowerCase() === 'female' && (!user?.profile_picture || !user?.location || !user?.bio) && (
+        <div
+          className="mx-3 mt-1 mb-1 bg-gradient-to-r from-pink-500/90 to-purple-500/90 backdrop-blur-sm rounded-2xl px-4 py-2.5 flex items-center gap-3 cursor-pointer active:scale-[0.98] transition-transform flex-shrink-0"
+          onClick={() => navigate('/profile')}
+          data-testid="girls-profile-nudge"
+        >
+          <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0">
+            <span className="text-sm font-bold">3x</span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-white">Complete profile = 3x more matches!</p>
+            <p className="text-[10px] text-white/70">
+              {!user?.profile_picture ? 'Add photo' : ''}{!user?.profile_picture && !user?.location ? ', ' : ''}{!user?.location ? 'Add location' : ''}{(!user?.profile_picture || !user?.location) && !user?.bio ? ', ' : ''}{!user?.bio ? 'Add bio' : ''} — tap here
+            </p>
+          </div>
+          <span className="text-white/80 text-lg">&rarr;</span>
+        </div>
+      )}
+
       {/* City Filter Bottom Sheet */}
       {showFilter && (
         <div className="fixed inset-0 z-[80]" data-testid="city-filter-sheet">
@@ -455,7 +475,7 @@ const DiscoverPage = ({ user }) => {
             data-testid="city-filter-btn"
             className="absolute right-3 z-[15] w-10 h-10 rounded-full flex items-center justify-center backdrop-blur-md transition-all active:scale-90"
             style={{ 
-              top: 'calc(var(--safe-top, 24px) + 8px)',
+              top: '8px',
               background: cityFilter ? 'rgba(236,72,153,0.9)' : 'rgba(0,0,0,0.4)',
               border: '1.5px solid rgba(255,255,255,0.2)',
             }}
@@ -464,14 +484,14 @@ const DiscoverPage = ({ user }) => {
           </button>
           {cityFilter && (
             <div className="absolute right-14 z-[15] px-2.5 py-1 rounded-full text-[11px] font-bold text-white backdrop-blur-md" 
-              style={{ top: 'calc(var(--safe-top, 24px) + 12px)', background: 'rgba(236,72,153,0.8)' }}>
+              style={{ top: '12px', background: 'rgba(236,72,153,0.8)' }}>
               {cityFilter}
             </div>
           )}
 
           {/* Photo indicators */}
           {hasMultiplePhotos && (
-            <div className="absolute left-3 right-3 flex gap-1 z-[15]" style={{ top: 'calc(var(--safe-top, 24px) + 2px)' }}>
+            <div className="absolute left-3 right-3 flex gap-1 z-[15]" style={{ top: '2px' }}>
               {allPhotos.map((_, i) => (
                 <div key={i} className={`h-[3px] flex-1 rounded-full transition-colors ${i === photoIndex ? 'bg-white' : 'bg-white/30'}`} />
               ))}
@@ -490,14 +510,14 @@ const DiscoverPage = ({ user }) => {
           {!user?.is_premium && !user?.isPremium && (
             <div className="absolute left-3 bg-black/50 backdrop-blur-sm text-white text-[11px] px-2.5 py-1 rounded-full z-[15] font-medium" 
               data-testid="swipe-counter"
-              style={{ top: 'calc(var(--safe-top, 24px) + 8px)' }}>
+              style={{ top: '8px' }}>
               {Math.max(0, DAILY_SWIPE_LIMIT - dailySwipeCount)}{extraSwipes > 0 && <span className="text-emerald-400"> +{extraSwipes}</span>}
             </div>
           )}
 
           {/* Verified badge */}
           {currentProfile.verified && (
-            <div className="absolute left-3 z-[15]" style={{ top: 'calc(var(--safe-top, 24px) + 36px)' }}><VerifiedBadge size="md" showText={false} /></div>
+            <div className="absolute left-3 z-[15]" style={{ top: '36px' }}><VerifiedBadge size="md" showText={false} /></div>
           )}
 
           {/* Swipe labels */}
@@ -561,18 +581,6 @@ const DiscoverPage = ({ user }) => {
             </div>
 
             {/* Action buttons — floating glass dock */}
-            {/* Girls Complete Profile Nudge — above action buttons */}
-            {user?.gender?.toLowerCase() === 'female' && (!user?.profile_picture || !user?.location || !user?.bio) && (
-              <div
-                className="mx-4 mb-2 bg-gradient-to-r from-pink-500/80 to-purple-500/80 backdrop-blur-md rounded-xl px-3 py-2 flex items-center gap-2 cursor-pointer active:scale-[0.97] transition-transform"
-                onClick={() => navigate('/profile')}
-                data-testid="girls-profile-nudge"
-              >
-                <span className="text-sm font-bold text-white/90">3x</span>
-                <p className="text-xs font-semibold text-white/90 flex-1">Complete profile = 3x more matches!</p>
-                <span className="text-white/70 text-sm">&rarr;</span>
-              </div>
-            )}
             <div
               className="flex justify-center items-center z-20"
               style={{
