@@ -399,6 +399,31 @@ async def subscription_expiry_checker():
                         logging.info(f"💳 Grace period notification sent to {u.get('name', u['id'])}")
                     except Exception:
                         pass
+            
+            # Win-back push — 3 days after premium expired
+            three_days_ago = (datetime.now(timezone.utc) - timedelta(days=3)).isoformat()
+            winback_users = await db.users.find({
+                "is_premium": False,
+                "subscription_status": "expired",
+                "premium_expired_at": {"$ne": None, "$lte": three_days_ago},
+                "winback_sent": {"$ne": True},
+            }, {"_id": 0, "id": 1, "name": 1, "fcm_token": 1}).to_list(50)
+            
+            winback_msgs = [
+                ("We miss you!", "Come back to HeartLink Premium — unlimited likes & no ads await you."),
+                ("Your matches miss you", "Re-subscribe to Premium and get back to unlimited swiping."),
+                ("Premium perks are waiting", "Rejoin HeartLink Premium — your matches are growing!"),
+            ]
+            for u in winback_users:
+                if u.get("fcm_token"):
+                    try:
+                        title, body = random.choice(winback_msgs)
+                        await fcm_service.send_push_notification(
+                            u["fcm_token"], title, body,
+                            data={"type": "winback", "route": "/premium"})
+                        await db.users.update_one({"id": u["id"]}, {"$set": {"winback_sent": True}})
+                    except Exception:
+                        pass
         except Exception as e:
             logging.error(f"Subscription expiry checker error: {e}")
 
@@ -7622,6 +7647,8 @@ async def verify_google_play_purchase(request: Request):
         "purchase_token": purchase_token,
         "last_verified_at": now,
         "premium_features": ["unlimited_swipes", "no_ads", "see_who_liked", "super_likes", "boost", "rewind"],
+        "grace_notif_sent": False,
+        "winback_sent": False,
     }})
     
     invalidate_user_cache(user_id)
