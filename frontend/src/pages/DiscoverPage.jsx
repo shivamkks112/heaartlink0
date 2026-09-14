@@ -319,7 +319,7 @@ const DiscoverPage = ({ user }) => {
 
   if (loading) {
     return (
-      <div className="h-[100%] bg-[#0a0a0a] flex flex-col" style={{ height: 'calc(100vh - var(--nav-total, 86px))', paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+      <div className="h-[100%] bg-[#0a0a0a] flex flex-col" style={{ height: 'calc(100vh - var(--nav-total, 86px))' }}>
         {shellTop}
         <div className="flex-1 min-h-0 flex flex-col items-center justify-center p-2 gap-4">
           <div className="w-full h-[75%] max-w-md rounded-3xl overflow-hidden bg-gray-800/60 animate-pulse relative">
@@ -340,7 +340,7 @@ const DiscoverPage = ({ user }) => {
 
   if (!currentProfile) {
     return (
-      <div className="h-[100%] bg-[#0a0a0a] flex flex-col" style={{ height: 'calc(100vh - var(--nav-total, 86px))', paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+      <div className="h-[100%] bg-[#0a0a0a] flex flex-col" style={{ height: 'calc(100vh - var(--nav-total, 86px))' }}>
         {shellTop}
         <div className="flex-1 min-h-0 flex items-center justify-center px-8">
           <div className="text-center m3-animate-in" data-testid="no-profiles">
@@ -374,28 +374,8 @@ const DiscoverPage = ({ user }) => {
   }
 
   return (
-    <div className="h-[100%] bg-[#0a0a0a] flex flex-col" style={{ height: 'calc(100vh - var(--nav-total, 86px))', paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+    <div className="h-[100%] bg-[#0a0a0a] flex flex-col" style={{ height: 'calc(100vh - var(--nav-total, 86px))' }}>
       {shellTop}
-      
-      {/* Girls Complete Profile Nudge */}
-      {user?.gender?.toLowerCase() === 'female' && (!user?.profile_picture || !user?.location || !user?.bio) && (
-        <div
-          className="mx-3 mt-2 mb-1 bg-gradient-to-r from-pink-500/90 to-purple-500/90 backdrop-blur-sm rounded-2xl px-4 py-3 flex items-center gap-3 cursor-pointer active:scale-[0.98] transition-transform"
-          onClick={() => navigate('/profile')}
-          data-testid="girls-profile-nudge"
-        >
-          <div className="w-9 h-9 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0">
-            <span className="text-lg">3x</span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-white">Complete profile = 3x more matches!</p>
-            <p className="text-[10px] text-white/70">
-              {!user?.profile_picture ? 'Add photo' : ''}{!user?.profile_picture && !user?.location ? ', ' : ''}{!user?.location ? 'Add location' : ''}{(!user?.profile_picture || !user?.location) && !user?.bio ? ', ' : ''}{!user?.bio ? 'Add bio' : ''} — tap here
-            </p>
-          </div>
-          <span className="text-white/80 text-lg">&rarr;</span>
-        </div>
-      )}
       
       {/* City Filter Bottom Sheet */}
       {showFilter && (
@@ -581,6 +561,18 @@ const DiscoverPage = ({ user }) => {
             </div>
 
             {/* Action buttons — floating glass dock */}
+            {/* Girls Complete Profile Nudge — above action buttons */}
+            {user?.gender?.toLowerCase() === 'female' && (!user?.profile_picture || !user?.location || !user?.bio) && (
+              <div
+                className="mx-4 mb-2 bg-gradient-to-r from-pink-500/80 to-purple-500/80 backdrop-blur-md rounded-xl px-3 py-2 flex items-center gap-2 cursor-pointer active:scale-[0.97] transition-transform"
+                onClick={() => navigate('/profile')}
+                data-testid="girls-profile-nudge"
+              >
+                <span className="text-sm font-bold text-white/90">3x</span>
+                <p className="text-xs font-semibold text-white/90 flex-1">Complete profile = 3x more matches!</p>
+                <span className="text-white/70 text-sm">&rarr;</span>
+              </div>
+            )}
             <div
               className="flex justify-center items-center z-20"
               style={{
