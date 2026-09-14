@@ -368,6 +368,7 @@ async def subscription_expiry_checker():
                     "is_premium": False,
                     "subscription_status": "expired",
                     "premium_expired_at": now,
+                    "grace_notif_sent": False,
                 }})
                 invalidate_user_cache(user["id"])
                 logging.info(f"💳 Premium expired for {user.get('name', user['id'])}")
