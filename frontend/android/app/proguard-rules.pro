@@ -112,6 +112,14 @@
 -dontwarn okhttp3.**
 -dontwarn okio.**
 
+# ======================== GOOGLE PLAY BILLING ========================
+
+-keep class com.android.billingclient.** { *; }
+-keep class com.android.vending.billing.** { *; }
+-dontwarn com.android.billingclient.**
+-keep class ee.nicko.native_purchases.** { *; }
+-dontwarn ee.nicko.native_purchases.**
+
 # ======================== GOOGLE PLAY SERVICES ========================
 
 -keep class com.google.android.gms.common.** { *; }

@@ -39,8 +39,10 @@ HeartLink is a trust-based dating app for the Indian market. Core focus areas: m
 - [x] In-Chat Photo Sharing (Emergent Object Storage + Gemini Vision moderation)
 - [x] Profile Page Premium Golden Card Upsell
 - [x] Like/Superlike Notification Deduplication
-- [x] Duplicate FCM Notification Fix — Messages (WS trigger removed)
-- [x] Duplicate FCM Notification Fix — Verification (Legacy calls removed, 2026-09-16)
+- [x] Duplicate FCM Fix — Messages (WS trigger removed)
+- [x] Duplicate FCM Fix — Verification approve/reject (Legacy calls removed, 2026-09-16)
+- [x] Selfie Verification reject FCM modernized (2026-09-16)
+- [x] Google Play Billing Android registration fix — cap sync + ProGuard rules (2026-09-16, APK rebuild needed)
 
 ## Pending / In Progress
 - [ ] Server.py Refactoring (P1, deferred) — Break into /app/backend/routes/
@@ -72,3 +74,5 @@ HeartLink is a trust-based dating app for the Indian market. Core focus areas: m
 - Phone OTP must stay removed
 - New admin endpoints must use Depends(require_admin)
 - Duplicate FCM triggers when adding new notification paths — always check both legacy and modern paths
+- After installing new Capacitor plugins, always run `npx cap sync android` to register them
+- ProGuard rules must be added for any new native library in release builds
