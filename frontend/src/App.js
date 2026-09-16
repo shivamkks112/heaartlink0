@@ -14,44 +14,30 @@ import { DiscoverSkeleton, MatchesSkeleton, ChatSkeleton, ProfileSkeleton, Quick
 // Critical pages - loaded immediately (lightweight)
 import LandingPage from '@/pages/LandingPage';
 
-// Auth page - lazy loaded (has heavy dependencies)
-const AuthPage = lazy(() => import('@/pages/AuthPage'));
+// Core pages — eagerly loaded for instant navigation
+import DiscoverPage from '@/pages/DiscoverPage';
+import MatchesPage from '@/pages/MatchesPage';
+import LikesYouPage from '@/pages/LikesYouPage';
+import ChatPage from '@/pages/ChatPage';
+import ProfilePage from '@/pages/ProfilePage';
+import UserProfilePage from '@/pages/UserProfilePage';
+import PremiumPage from '@/pages/PremiumPage';
 
-// Lazy loaded pages - loaded on demand
+// Auth & Admin — lazy (heavy, rarely revisited)
+const AuthPage = lazy(() => import('@/pages/AuthPage'));
 const ForgotPasswordPage = lazy(() => import('@/pages/ForgotPasswordPage'));
 const CompleteProfilePage = lazy(() => import('@/pages/CompleteProfilePage'));
 const AdminDashboard = lazy(() => import('@/pages/AdminDashboard'));
 const MandatoryPhotoPage = lazy(() => import('@/pages/MandatoryPhotoPage'));
-const DiscoverPage = lazy(() => import('@/pages/DiscoverPage'));
-const MatchesPage = lazy(() => import('@/pages/MatchesPage'));
-const LikesYouPage = lazy(() => import('@/pages/LikesYouPage'));
-const ChatPage = lazy(() => import('@/pages/ChatPage'));
-const ProfilePage = lazy(() => import('@/pages/ProfilePage'));
-const UserProfilePage = lazy(() => import('@/pages/UserProfilePage'));
 const SelfieVerificationPage = lazy(() => import('@/pages/SelfieVerificationPage'));
 const PrivacyPage = lazy(() => import('@/pages/PrivacyPage'));
 const SettingsPage = lazy(() => import('@/pages/SettingsPage'));
 const PrivacyPolicyPage = lazy(() => import('@/pages/PrivacyPolicyPage'));
 
-// Prefetch notification-critical pages so they're instant on notification tap
-if (typeof window !== 'undefined') {
-  requestIdleCallback?.(() => {
-    import('@/pages/ChatPage');
-    import('@/pages/MatchesPage');
-    import('@/pages/LikesYouPage');
-    import('@/pages/DiscoverPage');
-  }) || setTimeout(() => {
-    import('@/pages/ChatPage');
-    import('@/pages/MatchesPage');
-    import('@/pages/LikesYouPage');
-    import('@/pages/DiscoverPage');
-  }, 2000);
-}
 const DataDeletionPage = lazy(() => import('@/pages/DataDeletionPage'));
 const TermsPage = lazy(() => import('@/pages/TermsPage'));
 const ProfileViewersPage = lazy(() => import('@/pages/ProfileViewersPage'));
 const ProfileEnhancementPage = lazy(() => import('@/pages/ProfileEnhancementPage'));
-const PremiumPage = lazy(() => import('@/pages/PremiumPage'));
 const NotificationsPage = lazy(() => import('@/pages/NotificationsPage'));
 const ReferralPage = lazy(() => import('@/pages/ReferralPage'));
 const ShareProfilePage = lazy(() => import('@/pages/ShareProfilePage'));
@@ -349,12 +335,12 @@ function App() {
             <Route path="/admin" element={user && user.is_admin ? <AdminDashboard user={user} /> : <Navigate to="/" />} />
             
             {/* All protected routes */}
-            <Route path="/discover" element={user ? <Suspense fallback={<DiscoverSkeleton />}><DiscoverPage user={user} /></Suspense> : <Navigate to="/" />} />
-            <Route path="/matches" element={user ? <Suspense fallback={<MatchesSkeleton />}><MatchesPage user={user} /></Suspense> : <Navigate to="/" />} />
-            <Route path="/likes" element={user ? <Suspense fallback={<MatchesSkeleton />}><LikesYouPage user={user} /></Suspense> : <Navigate to="/" />} />
-            <Route path="/chat/:matchId" element={user ? <Suspense fallback={<ChatSkeleton />}><ErrorBoundary><ChatPage user={user} /></ErrorBoundary></Suspense> : <Navigate to="/" />} />
-            <Route path="/profile" element={user ? <Suspense fallback={<ProfileSkeleton />}><ProfilePage user={user} onUpdate={handleLogin} /></Suspense> : <Navigate to="/" />} />
-            <Route path="/profile/:userId" element={user ? <Suspense fallback={<ProfileSkeleton />}><UserProfilePage user={user} /></Suspense> : <Navigate to="/" />} />
+            <Route path="/discover" element={user ? <DiscoverPage user={user} /> : <Navigate to="/" />} />
+            <Route path="/matches" element={user ? <MatchesPage user={user} /> : <Navigate to="/" />} />
+            <Route path="/likes" element={user ? <LikesYouPage user={user} /> : <Navigate to="/" />} />
+            <Route path="/chat/:matchId" element={user ? <ErrorBoundary><ChatPage user={user} /></ErrorBoundary> : <Navigate to="/" />} />
+            <Route path="/profile" element={user ? <ProfilePage user={user} onUpdate={handleLogin} /> : <Navigate to="/" />} />
+            <Route path="/profile/:userId" element={user ? <UserProfilePage user={user} /> : <Navigate to="/" />} />
             <Route path="/verify-selfie" element={user ? <Suspense fallback={<ProfileSkeleton />}><SelfieVerificationPage user={user} /></Suspense> : <Navigate to="/" />} />
             <Route path="/privacy" element={user ? <PrivacyPage user={user} onUpdate={handleLogin} /> : <Navigate to="/" />} />
             <Route path="/settings" element={user ? <SettingsPage user={user} /> : <Navigate to="/" />} />
@@ -364,7 +350,7 @@ function App() {
             <Route path="/referral" element={user ? <ReferralPage user={user} /> : <Navigate to="/" />} />
             <Route path="/share-profile" element={user ? <ShareProfilePage user={user} /> : <Navigate to="/" />} />
             <Route path="/share-match" element={user ? <MatchShareCard user={user} /> : <Navigate to="/" />} />
-            <Route path="/premium" element={user ? <Suspense fallback={<ProfileSkeleton />}><PremiumPage user={user} onUpdate={handleLogin} /></Suspense> : <Navigate to="/" />} />
+            <Route path="/premium" element={user ? <PremiumPage user={user} onUpdate={handleLogin} /> : <Navigate to="/" />} />
           </Routes>
           </Suspense>
           {/* Welcome Message Modal */}
