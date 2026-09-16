@@ -4408,6 +4408,17 @@ async def user_action(user_id: str, action: LikeAction):
         user2 = await db.users.find_one({"id": action.target_user_id})
         
         if action.action == "superlike":
+            # If already liked, upgrade to superlike — don't send duplicate notification
+            existing_like = await db.matches.find_one({"user1_id": user_id, "user2_id": action.target_user_id, "is_superlike": False})
+            if existing_like:
+                await db.matches.update_one({"_id": existing_like["_id"]}, {"$set": {"is_superlike": True}})
+                # Remove previous like notification
+                await db.notifications.delete_many({
+                    "user_id": action.target_user_id,
+                    "type": "like",
+                    "data.user_id": user_id,
+                })
+            
             # Notify target user via WebSocket
             await manager.send_message(action.target_user_id, {
                 "type": "superlike",
@@ -4426,6 +4437,11 @@ async def user_action(user_id: str, action: LikeAction):
                 {"user_id": user_id, "action": "open_likes", "route": "/likes"}
             )
         elif action.action == "like":
+            # Check if already superliked — don't downgrade notification
+            existing_superlike = await db.matches.find_one({"user1_id": user_id, "user2_id": action.target_user_id, "is_superlike": True})
+            if existing_superlike:
+                return {"action": "liked"}  # Already superliked, skip like notification
+            
             # Send WebSocket notification for regular likes
             await manager.send_message(action.target_user_id, {
                 "type": "new_like",
