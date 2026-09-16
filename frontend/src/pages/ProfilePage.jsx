@@ -403,6 +403,46 @@ const ProfilePage = ({ user, onUpdate }) => {
             </div>
           </div>
 
+          {/* ═══ PREMIUM CARD — Prominent, always visible ═══ */}
+          {!profile.is_premium && (
+            <div
+              className="mx-4 mt-4 bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl p-4 cursor-pointer active:scale-[0.98] transition-transform shadow-lg shadow-amber-500/20"
+              onClick={() => navigate('/premium')}
+              data-testid="premium-profile-card"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0">
+                  <Crown className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-base font-bold text-white">Get HeartLink Premium</p>
+                  <p className="text-xs text-white/80">Unlimited Likes, No Ads, See Who Liked You</p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-white/70" />
+              </div>
+            </div>
+          )}
+          {profile.is_premium && (
+            <div
+              className="mx-4 mt-4 bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-4 cursor-pointer active:scale-[0.98] transition-transform border border-amber-500/30"
+              onClick={() => navigate('/premium')}
+              data-testid="premium-active-card"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center flex-shrink-0">
+                  <Crown className="w-5 h-5 text-white" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-bold text-white">HeartLink Premium</p>
+                  <p className="text-xs text-amber-400">
+                    {profile.subscription_status === 'trialing' ? 'Trial Active' : 'Active'} — Manage
+                  </p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-gray-500" />
+              </div>
+            </div>
+          )}
+
           {/* Profile Completeness */}
           {/* 3x Matches Nudge — for girls with incomplete profile */}
           {profile?.gender?.toLowerCase() === 'female' && (!profile?.profile_picture || !profile?.location || !profile?.bio) && (

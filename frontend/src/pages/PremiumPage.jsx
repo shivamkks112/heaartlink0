@@ -58,7 +58,12 @@ const PremiumPage = ({ user, onUpdate }) => {
     setLoading(true);
     try {
       if (!billingReady) {
-        toast.error('Google Play billing is currently unavailable. Please try again.');
+        // Only show error on native Android, not web/preview
+        if (playBillingService.isNative()) {
+          toast.error('Google Play billing is currently unavailable. Please try again.');
+        } else {
+          toast.info('Premium subscription is available on the HeartLink Android app.');
+        }
         return;
       }
       const result = await playBillingService.purchaseSubscription();
