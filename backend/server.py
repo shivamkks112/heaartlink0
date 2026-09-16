@@ -63,7 +63,6 @@ load_dotenv(ROOT_DIR / '.env', override=False)  # Don't override K8s environment
 
 # Now import firebase_config after env vars are loaded
 from firebase_config import (
-    send_verification_notification,
     send_notification_to_multiple,
     send_promotional_notification,
     send_daily_reminder,
@@ -3611,18 +3610,11 @@ async def admin_verify_user(verification: AdminVerification):
             "timestamp": datetime.now(timezone.utc).isoformat()
         })
         
-        # Send push notification via FCM (legacy)
-        if user.get('fcm_token'):
-            send_verification_notification(
-                token=user['fcm_token'],
-                status="approved"
-            )
-        
-        # Send via OneSignal (primary)
+        # Send push notification via FCM
         try:
             await fcm_service.notify_verification(db, verification.user_id, "approved")
         except Exception as e:
-            logger.error(f"OneSignal verification notification failed: {e}")
+            logger.error(f"Verification notification failed: {e}")
         
         # Store in-app notification
         await create_in_app_notification(
@@ -3658,18 +3650,11 @@ async def admin_verify_user(verification: AdminVerification):
             "timestamp": datetime.now(timezone.utc).isoformat()
         })
         
-        # Send push notification via FCM (legacy)
-        if user.get('fcm_token'):
-            send_verification_notification(
-                token=user['fcm_token'],
-                status="rejected"
-            )
-        
-        # Send via OneSignal (primary)
+        # Send push notification via FCM
         try:
             await fcm_service.notify_verification(db, verification.user_id, "rejected", verification.reason or "")
         except Exception as e:
-            logger.error(f"OneSignal rejection notification failed: {e}")
+            logger.error(f"Verification rejection notification failed: {e}")
         
         # Store in-app notification
         await create_in_app_notification(
@@ -5711,32 +5696,12 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
             # Send back to sender (for confirmation)
             await manager.send_message(user_id, message_payload)
             
-            # Send push notification to receiver — always send FCM (frontend handles dedup)
+            # NOTE: FCM push notification handled by HTTP POST /api/messages endpoint
+            # Do NOT send FCM here to prevent duplicate notifications
+            
+            # Fetch receiver/sender for AI checks only
             receiver = await db.users.find_one({"id": message_data["receiver_id"]})
             sender = await db.users.find_one({"id": user_id})
-            
-            if receiver and sender:
-                muted_users = receiver.get('muted_users', [])
-                if user_id not in muted_users:
-                    # Throttle: max 1 FCM per sender→receiver per 10s
-                    throttle_key = f"msg_fcm_{user_id}_{message_data['receiver_id']}"
-                    last_sent = getattr(manager, '_fcm_throttle', {}).get(throttle_key, 0)
-                    import time as _time
-                    now_ts = _time.time()
-                    if now_ts - last_sent > 10:
-                        if not hasattr(manager, '_fcm_throttle'):
-                            manager._fcm_throttle = {}
-                        manager._fcm_throttle[throttle_key] = now_ts
-                        try:
-                            await fcm_service.notify_new_message(
-                                db,
-                                receiver_id=message_data["receiver_id"],
-                                sender_name=sender['name'],
-                                preview=message_data["content"],
-                                match_id=message_data.get("match_id", "")
-                            )
-                        except Exception as e:
-                            logger.error(f"FCM message notification failed: {e}")
             
             # AI Chatbot: If receiver is AI, generate auto-reply
             if receiver and receiver.get("is_ai_profile") and receiver.get("is_active_ai"):
@@ -6752,9 +6717,15 @@ async def admin_verify_selfie(data: VerifySelfieRequest):
             }}
         )
         
-        # Send notification
-        if user.get('fcm_token'):
-            send_verification_notification(user['fcm_token'], "rejected")
+        # Send notification via FCM
+        try:
+            await fcm_service.send_to_user(db, 
+                user_id=data.user_id,
+                title="Selfie Verification Not Approved",
+                message=f"Reason: {data.reason}" if data.reason else "Please try again with a clearer selfie."
+            )
+        except Exception as e:
+            logger.error(f"Selfie rejection notification failed: {e}")
         
         invalidate_user_cache(data.user_id)
         return {"message": "Selfie verification rejected", "reason": data.reason}

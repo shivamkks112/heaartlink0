@@ -1,128 +1,74 @@
-# HeartLink - India's #1 Safe Dating App — PRD
+# HeartLink — Product Requirements Document
 
-## Overview
-Modern, safe, trust-based dating app for Indian users. React frontend + FastAPI backend + MongoDB + Capacitor Android.
+## Original Problem Statement
+HeartLink is a trust-based dating app for the Indian market. Core focus areas: monetization (Google Play Billing Premium), user safety (AI Selfie Verification, Smart Ban Analytics), AI chatbot enhancements (Custom Personas, Spam/Emoji reduction), UI/UX polishing, and core engagement features (Photo sharing in chat).
+
+## Auth Rules
+- Email OTP is the ONLY allowed authentication method
+- Phone OTP is permanently banned
 
 ## Tech Stack
-- Frontend: React 18 + Tailwind + Shadcn/UI + Material 3
-- Backend: FastAPI (Python 3.11) + MongoDB (motor async)
-- Mobile: Capacitor 7 (Android API 36)
+- Frontend: React (Capacitor for Android, targeting API 36, minSdk 23)
+- Backend: FastAPI + MongoDB
+- Real-time: WebSockets
 - Push: Firebase Cloud Messaging (FCM)
-- AI: emergentintegrations (Gemini/Claude)
+- Payments: Google Play Billing (`@capgo/native-purchases`)
+- AI: Gemini/Claude via `emergentintegrations` (chat, moderation, selfie verification)
+- Ads: AdMob (Capacitor Community Plugin)
 
-## Production Architecture
-- Mobile App: https://www.heartlink.co.in
-- Web Production: https://dating-app-debug-1.emergent.host (SAME DB)
-- Preview: https://trust-based-deploy.preview.emergentagent.com (separate local DB)
+## Key Constraints
+- Android minSdkVersion = 23 (API 23, Android 6.0) — DO NOT increase
+- Premium uses real Google Play Billing — DO NOT mock
+- Core pages use eager loading (no Suspense/lazy) — DO NOT revert
+- server.py is 10,600+ lines — needs refactoring into /app/backend/routes/
 
-## Auth
-- Email OTP is the ONLY allowed authentication method
-- Phone OTP is permanently removed
-- Login field: `email_or_phone` (POST /api/auth/login)
+## Completed Features (All Tested)
+- [x] Auto-Unban Timer + Smart Ban Analytics Chart (Admin Panel)
+- [x] Custom AI Persona (shivamkks545@gmail.com) + Admin Toggle
+- [x] AI Chatbot Spam Reduction (no double messaging, minimal emojis)
+- [x] System Safety Warnings (red in-chat bubbles)
+- [x] Chat Profile Navigation Bug Fix (double /api/api/ fallback)
+- [x] Matches/Active/Messages tabs instant switch (eager loading)
+- [x] AI Photo Verification System (Selfie match via Gemini)
+- [x] Verified User Ranking Bonus (+50 Discover score)
+- [x] Android Safe-Area Inset Fixes
+- [x] AdMob Ad Fix (gender capitalization bug)
+- [x] Google Play Billing Premium (Rs49/month, 3-day trial, RTDN webhooks)
+- [x] Premium Analytics Widget (Admin Dashboard)
+- [x] Android API 23 compatibility restored
+- [x] In-Chat Photo Sharing (Emergent Object Storage + Gemini Vision moderation)
+- [x] Profile Page Premium Golden Card Upsell
+- [x] Like/Superlike Notification Deduplication
+- [x] Duplicate FCM Notification Fix — Messages (WS trigger removed)
+- [x] Duplicate FCM Notification Fix — Verification (Legacy calls removed, 2026-09-16)
 
-## Key Features (All Implemented)
-- Core Dating (Discover, Likes, Matches, Chat, Crush, Boost, Games)
-- Chat/Match Filters, Smart Nudge, Show Password
-- Admin Dashboard with Growth & Acquisition Analytics
-- Install Tracking, Signup Funnel, Acquisition Source Attribution
-- Weekly Growth Email Digest (auto Monday 9 AM IST + manual trigger)
-- 7-Day Retention Chart
-- Smart Welcome Message System (new user + returning user + admin controls)
-- WebSocket real-time messaging, Read receipts, Typing indicator
-- Firebase push notifications, Daily rewards, Referral system
-- All safety features preserved
+## Pending / In Progress
+- [ ] Server.py Refactoring (P1, deferred) — Break into /app/backend/routes/
 
-## Realtime Messaging Architecture (Sep 3, 2026)
-### Changes Made
-- **Single WebSocket per user**: ChatPage now uses global `wsService` instead of opening its own WS connection
-- **WebSocketService.js**: Handles ALL event types centrally
-- **Ping/heartbeat**: Client pings every 25s, backend updates `last_active` in DB
-- **Badge count fix**: Own message echo no longer inflates sender's unread badge count
+## Upcoming Tasks (P1)
+- [ ] Virtual Gifts & HeartCoins — In-app currency for virtual gifts
 
-## AI Chatbot Girls — 40 Profiles (Sep 5, 2026)
-- 40 AI girl profiles with AI-generated Indian face photos across 40 cities
-- Personality types: flirty_fun, sweet_caring, witty_smart
-- Proactive messaging: AI sends 1st message (1-4hr delay)
-- Human-like behavior: varied message lengths, natural typos, filler words
+## Future/Backlog
+- [ ] P2: AI Trust Score algorithm
+- [ ] P3: Video Intros (15-second profile videos)
+- [ ] P4: Live Location Share (Capacitor/App update required)
 
-## Safety System (Sep 12, 2026)
-### Auto-Unban Timer
-- Admin can ban users with duration: 24 hours, 7 days, or permanent
-- `ban_expires_at` field stored on user document
-- Background `auto_unban_checker()` runs every 30 min (first run on startup)
-- Expired temp bans auto-unban user, reset warnings
-- Safety Dashboard shows ban duration badge on banned user cards
+## Key API Endpoints
+- `/api/google-play/verify` — Play Billing verification
+- `/api/webhooks/google-play` — RTDN webhook
+- `/api/user/submit-selfie-verification-ai` — Selfie verification
+- `/api/messages` — Chat messages (supports image_base64)
+- `/api/fcm/register-token` — FCM token registration
+- `/api/admin/verify-selfie` — Admin selfie verification
 
-### Ban Duration Modal
-- Clicking "Ban User" anywhere in Safety Dashboard opens a modal
-- 3 options: 24 Hours (orange), 7 Days (red), Permanent (black)
-- Auto-unban applies to 24h and 7d bans only
+## Key DB Collections
+- `users`: is_premium, subscription_status, premium_end_date, selfie_verification_status, custom_ai_persona, fcm_token
+- `messages`: match_id, sender_id, receiver_id, content, image fields
+- `matches`: user1_id, user2_id, matched, is_superlike, compatibility_score
+- `safety_reports`: Ban tracking metrics
+- `in_app_notifications`: user_id, title, body, type, data
 
-### Smart Ban Analytics (Sep 12, 2026)
-- New "Analytics" tab in Safety Dashboard
-- Backend: `GET /api/admin/safety-analytics?days=30` — aggregates ban/unban events daily
-- 4 summary cards: Total Bans, Total Unbans, Auto Unbans, Currently Banned
-- Breakdown tags: Temp/Permanent bans, AI detections, Manual unbans, Avg/day
-- Period selector: 7d, 14d, 30d
-- Bar chart: Red (bans), Green (unbans), Blue (auto-unbans) per day
-
-## Custom AI Persona System (Sep 12, 2026)
-- Dedicated **Sparkles ✨ button** in All Users tab for Custom AI Persona toggle
-- Separate from Stealth Auto-Chat (Zap ⚡) — Custom AI controls the personality prompt
-- Backend: `POST /api/admin/custom-ai-persona/toggle` — enables/disables, auto-enables stealth chat if needed
-- Backend: `GET /api/admin/custom-ai-personas` — lists all users with custom persona
-- `ai_chatbot.py` checks `custom_ai_persona` flag on user document (not hardcoded email)
-- `CUSTOM_PERSONA_SHIVAM` prompt: ultra-natural girl-like Hinglish, shy, moody, flirty, typos, dramatic
-
-## Serious Relationship Branding (Sep 12, 2026)
-- Landing page: "Serious Relationships Only" hero text
-- "For Serious Relationships Only" badge
-- "No hookups — only meaningful relationships" tagline
-- FAQ updated for serious relationship positioning
-
-## Server Architecture
-- `/app/backend/server.py` — Main server (~9700 lines)
-- `/app/backend/routes/ads.py` — Ad system (184 lines)
-- `/app/backend/routes/games.py` — Play With Match (136 lines)
-- `/app/backend/routes/boost.py` — Profile boost (79 lines)
-- `/app/backend/routes/welcome.py` — Welcome messages (143 lines)
-- `/app/backend/ai_chatbot.py` — 40 AI profiles + stealth system + custom persona
-- `/app/backend/safety_module.py` — AI content detection, night mode, SOS
-
-## AI Selfie Verification (Sep 13, 2026)
-- User takes selfie via camera → AI compares with profile photo using Gemini Vision
-- Auto-verify (confidence >= 75%), admin review (40-74%), reject (<40%)
-- Verified badge activates on profile
-- Route: `/verify-selfie`, API: `POST /api/user/verify-selfie-ai`
-- Frontend: SelfieVerificationPage.jsx with camera capture, preview, result screens
-
-## Google Play Billing — Premium Subscription (Sep 14, 2026)
-- **Product**: `heartlink_premium_monthly` — ₹49/month, 3-day free trial
-- **Plugin**: `@capgo/native-purchases` (Capacitor Google Play Billing)
-- **Frontend**: `PlayBillingService.js` — init, purchase, restore, verify
-- **Premium Page**: `/premium` — dark theme, benefits list, "Start 3-Day Free Trial" CTA, Restore Purchases
-- **Backend Endpoints**:
-  - `POST /api/subscription/google-play/verify` — verify purchase token, activate premium, handle trial
-  - `POST /api/subscription/cancel/{user_id}` — mark cancelled
-  - `GET /api/subscription/status/{user_id}` — check premium + expiry
-  - `GET /api/admin/premium-analytics` — admin dashboard with revenue, conversion, trial stats
-- **Admin**: Premium tab with 8 analytics cards + recent orders table
-- **Server-authoritative**: purchase token stored, subscription_status tracked (trialing/active/cancelled/expired)
-- **Premium Features**: Unlimited Likes, Super Likes, See Who Liked, Boost, Ad-Free, Advanced Filters
-- **APK update required** for billing plugin
-
-## Pending / Backlog
-- P0: Razorpay Premium Subscription (Rs 99-999/month)
-- P1: Virtual Gifts & HeartCoins
-- P1: Server Cleanup Phase 3 (server.py modularization)
-- P3: AI Trust Score Algorithm
-- P4: Video Intros (15-second profile videos)
-- P5: Live Location Share
-
-## Critical Rules
-- Email OTP ONLY — no Phone OTP
-- No WebP conversion — preserve PNG assets
-- No Banner Ads on Discover page
-- No APK updates — solve via backend/web changes
-- Silent Social Media Block: 30-day block, no warning to receiver
-- Respond to user in Hinglish
+## Known Recurrence Patterns
+- Phone OTP must stay removed
+- New admin endpoints must use Depends(require_admin)
+- Duplicate FCM triggers when adding new notification paths — always check both legacy and modern paths
