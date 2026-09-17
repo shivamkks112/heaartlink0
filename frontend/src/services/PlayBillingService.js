@@ -127,34 +127,66 @@ class PlayBillingService {
     }
 
     try {
-      // Build purchase options
+      // First check for existing purchases that might block new ones
+      try {
+        const existing = await this.NativePurchases.getPurchases({ productType: 'SUBS' });
+        if (existing?.purchases?.length > 0) {
+          const activeSub = existing.purchases.find(p =>
+            (p.productIdentifier === PRODUCT_ID || p.planIdentifier === PRODUCT_ID) &&
+            p.purchaseState === '1'
+          );
+          if (activeSub) {
+            console.log('[Billing] Active subscription already exists:', activeSub.transactionId);
+            return {
+              success: true,
+              transactionId: activeSub.transactionId,
+              productId: PRODUCT_ID,
+              purchaseToken: activeSub.purchaseToken || activeSub.transactionId,
+              orderId: activeSub.orderId,
+              basePlanId: PLAN_ID,
+              offerId: OFFER_ID,
+              alreadyOwned: true,
+            };
+          }
+          // Check for pending purchase
+          const pendingSub = existing.purchases.find(p =>
+            (p.productIdentifier === PRODUCT_ID || p.planIdentifier === PRODUCT_ID) &&
+            p.purchaseState === '0'
+          );
+          if (pendingSub) {
+            return { success: false, error: 'Your purchase is pending payment confirmation. Please check your payment method and try again.' };
+          }
+        }
+      } catch (e) {
+        console.log('[Billing] getPurchases check skipped:', e?.message);
+      }
+
+      // Build purchase options — for subs, planIdentifier is REQUIRED
       const purchaseOptions = {
         productIdentifier: PRODUCT_ID,
         productType: 'SUBS',
+        planIdentifier: PLAN_ID,
         quantity: 1,
       };
 
-      // Use offerToken from getProducts if available (required for subscriptions with offers)
+      // Pass offerToken from getProducts if available
       if (this.productDetails?.offerToken) {
         purchaseOptions.offerToken = this.productDetails.offerToken;
-        console.log('[Billing] Using offerToken from product details');
       }
 
-      // Pass planIdentifier if available
-      if (this.productDetails?.identifier) {
-        purchaseOptions.planIdentifier = this.productDetails.identifier;
-      }
-
-      console.log('[Billing] Purchasing with options:', JSON.stringify({
-        ...purchaseOptions,
-        offerToken: purchaseOptions.offerToken ? 'present' : 'missing'
+      console.log('[Billing] Purchasing:', JSON.stringify({
+        productIdentifier: purchaseOptions.productIdentifier,
+        planIdentifier: purchaseOptions.planIdentifier,
+        hasOfferToken: !!purchaseOptions.offerToken,
       }));
 
       const result = await this.NativePurchases.purchaseProduct(purchaseOptions);
       console.log('[Billing] Purchase result:', JSON.stringify({
         transactionId: result.transactionId,
+        purchaseState: result.purchaseState,
         purchaseToken: result.purchaseToken ? 'present' : 'missing',
         orderId: result.orderId,
+        isAcknowledged: result.isAcknowledged,
       }));
 
       if (result.transactionId) {
@@ -169,14 +201,40 @@ class PlayBillingService {
         };
       }
 
-      return { success: false, error: 'Purchase incomplete — no transaction ID received' };
+      return { success: false, error: 'Purchase did not complete. Please try again.' };
     } catch (error) {
       const msg = error?.message || String(error);
+      console.error('[Billing] Purchase error:', msg, JSON.stringify(error));
+
       if (msg.includes('cancelled') || msg.includes('CANCELLED') || error?.code === 'USER_CANCELLED') {
         return { success: false, error: 'cancelled' };
       }
-      console.error('[Billing] Purchase failed:', msg);
-      return { success: false, error: msg || 'Purchase could not be completed. Please try again.' };
+      if (msg.includes('ITEM_ALREADY_OWNED') || msg.includes('already owned')) {
+        // Try to get existing purchase to verify
+        try {
+          const existing = await this.NativePurchases.getPurchases({ productType: 'SUBS' });
+          const sub = (existing?.purchases || []).find(p =>
+            p.productIdentifier === PRODUCT_ID || p.planIdentifier === PRODUCT_ID
+          );
+          if (sub) {
+            return {
+              success: true,
+              transactionId: sub.transactionId,
+              productId: PRODUCT_ID,
+              purchaseToken: sub.purchaseToken || sub.transactionId,
+              orderId: sub.orderId,
+              basePlanId: PLAN_ID,
+              offerId: OFFER_ID,
+              alreadyOwned: true,
+            };
+          }
+        } catch (e2) { /* fallthrough */ }
+        return { success: false, error: 'You already have an active subscription. Please restore your purchase.' };
+      }
+      if (msg.includes('not purchased')) {
+        return { success: false, error: 'Purchase could not be completed. Please check your payment method in Google Play and try again.' };
+      }
+      return { success: false, error: msg || 'Purchase failed. Please try again.' };
     }
   }
 

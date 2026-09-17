@@ -78,7 +78,11 @@ const PremiumPage = ({ user, onUpdate }) => {
       }
       const result = await playBillingService.purchaseSubscription();
       if (result.success) {
-        toast.info('Verifying your purchase...');
+        if (result.alreadyOwned) {
+          toast.info('Restoring your existing subscription...');
+        } else {
+          toast.info('Verifying your purchase...');
+        }
         const verification = await playBillingService.verifyAndActivate(user.id, result);
         if (verification.success) {
           toast.success(verification.message || 'Premium activated!');
