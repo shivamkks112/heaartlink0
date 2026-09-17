@@ -44,6 +44,8 @@ const PremiumPage = ({ user, onUpdate }) => {
         setDisplayPrice(playBillingService.getDisplayPrice());
         setTrialInfo(playBillingService.getTrialInfo());
       }
+    } else if (playBillingService.isNative()) {
+      console.warn('[PremiumPage] Billing init failed:', playBillingService.getInitError());
     }
   };
 
@@ -58,13 +60,21 @@ const PremiumPage = ({ user, onUpdate }) => {
     setLoading(true);
     try {
       if (!billingReady) {
-        // Only show error on native Android, not web/preview
         if (playBillingService.isNative()) {
-          toast.error('Google Play billing is currently unavailable. Please try again.');
+          const initErr = playBillingService.getInitError();
+          toast.error(`Billing unavailable: ${initErr || 'Please restart the app and try again.'}`);
+          // Retry initialization once
+          const retryReady = await playBillingService.initialize();
+          if (retryReady) {
+            setBillingReady(true);
+            await playBillingService.getProduct();
+          } else {
+            return;
+          }
         } else {
           toast.info('Premium subscription is available on the HeartLink Android app.');
+          return;
         }
-        return;
       }
       const result = await playBillingService.purchaseSubscription();
       if (result.success) {

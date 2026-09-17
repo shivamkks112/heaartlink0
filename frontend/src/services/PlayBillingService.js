@@ -20,6 +20,7 @@ class PlayBillingService {
     this.NativePurchases = null;
     this.products = [];
     this.productDetails = null;
+    this._initError = null;
   }
 
   isNative() {
@@ -32,24 +33,30 @@ class PlayBillingService {
   async initialize() {
     if (this.initialized) return true;
     if (!this.isNative()) {
-      console.log('PlayBilling: Not native platform');
+      console.log('[Billing] Not native platform, skipping');
       return false;
     }
 
     try {
       const mod = await import('@capgo/native-purchases');
       this.NativePurchases = mod.NativePurchases;
-      
-      const { supported } = await this.NativePurchases.isBillingSupported();
-      if (!supported) {
-        console.log('PlayBilling: Billing not supported');
+      console.log('[Billing] Plugin loaded');
+
+      const result = await this.NativePurchases.isBillingSupported();
+      console.log('[Billing] isBillingSupported result:', JSON.stringify(result));
+
+      if (!result.isBillingSupported) {
+        this._initError = 'BillingClient not supported on this device';
+        console.warn('[Billing]', this._initError);
         return false;
       }
 
       this.initialized = true;
+      console.log('[Billing] Initialized successfully');
       return true;
     } catch (error) {
-      console.error('PlayBilling: Init failed:', error);
+      this._initError = error?.message || String(error);
+      console.error('[Billing] Init failed:', this._initError);
       return false;
     }
   }
@@ -58,32 +65,48 @@ class PlayBillingService {
     if (!this.initialized || !this.NativePurchases) return null;
 
     try {
+      console.log('[Billing] Querying product:', PRODUCT_ID);
       const result = await this.NativePurchases.getProducts({
         productIdentifiers: [PRODUCT_ID],
         productType: 'SUBS',
       });
-      
+
+      console.log('[Billing] getProducts result:', JSON.stringify(result));
+
       if (result.products && result.products.length > 0) {
         this.products = result.products;
-        this.productDetails = result.products[0];
-        return result.products[0];
+        // Find the offer with trial (trial3days) or fall back to first product
+        const trialOffer = result.products.find(p => p.offerId === OFFER_ID);
+        this.productDetails = trialOffer || result.products[0];
+        console.log('[Billing] Selected product:', JSON.stringify({
+          identifier: this.productDetails.identifier,
+          planIdentifier: this.productDetails.planIdentifier,
+          offerId: this.productDetails.offerId,
+          offerToken: this.productDetails.offerToken ? 'present' : 'missing',
+          priceString: this.productDetails.priceString,
+          price: this.productDetails.price,
+        }));
+        return this.productDetails;
       }
+      console.warn('[Billing] No products returned for:', PRODUCT_ID);
       return null;
     } catch (error) {
-      console.error('PlayBilling: getProducts failed:', error);
+      console.error('[Billing] getProducts failed:', error?.message || error);
       return null;
     }
   }
 
-  // Get display price from Play Store (source of truth)
   getDisplayPrice() {
     if (this.productDetails) {
-      return this.productDetails.price || this.productDetails.localizedPrice || '₹49';
+      return this.productDetails.priceString || `₹${this.productDetails.price}` || '₹49';
     }
-    return '₹49'; // Fallback only if product query hasn't run
+    return '₹49';
   }
 
   getTrialInfo() {
+    if (this.productDetails?.offerId === OFFER_ID) {
+      return { hasTrial: true, trialDuration: '3 days', trialPrice: 'Free' };
+    }
     if (this.productDetails?.introductoryPrice) {
       return {
         hasTrial: true,
@@ -94,19 +117,45 @@ class PlayBillingService {
     return { hasTrial: true, trialDuration: '3 days', trialPrice: 'Free' };
   }
 
+  getInitError() {
+    return this._initError;
+  }
+
   async purchaseSubscription() {
     if (!this.initialized || !this.NativePurchases) {
-      return { success: false, error: 'Google Play billing is currently unavailable. Please try again.' };
+      return { success: false, error: `Google Play billing unavailable: ${this._initError || 'not initialized'}` };
     }
 
     try {
-      const result = await this.NativePurchases.purchaseProduct({
+      // Build purchase options
+      const purchaseOptions = {
         productIdentifier: PRODUCT_ID,
         productType: 'SUBS',
-        planIdentifier: PLAN_ID,
-        offerIdentifier: OFFER_ID,
         quantity: 1,
-      });
+      };
+
+      // Use offerToken from getProducts if available (required for subscriptions with offers)
+      if (this.productDetails?.offerToken) {
+        purchaseOptions.offerToken = this.productDetails.offerToken;
+        console.log('[Billing] Using offerToken from product details');
+      }
+
+      // Pass planIdentifier if available
+      if (this.productDetails?.identifier) {
+        purchaseOptions.planIdentifier = this.productDetails.identifier;
+      }
+
+      console.log('[Billing] Purchasing with options:', JSON.stringify({
+        ...purchaseOptions,
+        offerToken: purchaseOptions.offerToken ? 'present' : 'missing'
+      }));
+
+      const result = await this.NativePurchases.purchaseProduct(purchaseOptions);
+      console.log('[Billing] Purchase result:', JSON.stringify({
+        transactionId: result.transactionId,
+        purchaseToken: result.purchaseToken ? 'present' : 'missing',
+        orderId: result.orderId,
+      }));
 
       if (result.transactionId) {
         return {
@@ -114,18 +163,20 @@ class PlayBillingService {
           transactionId: result.transactionId,
           productId: PRODUCT_ID,
           purchaseToken: result.purchaseToken || result.transactionId,
+          orderId: result.orderId,
           basePlanId: PLAN_ID,
           offerId: OFFER_ID,
         };
       }
 
-      return { success: false, error: 'Purchase incomplete' };
+      return { success: false, error: 'Purchase incomplete — no transaction ID received' };
     } catch (error) {
-      if (error.message?.includes('cancelled') || error.code === 'USER_CANCELLED') {
+      const msg = error?.message || String(error);
+      if (msg.includes('cancelled') || msg.includes('CANCELLED') || error?.code === 'USER_CANCELLED') {
         return { success: false, error: 'cancelled' };
       }
-      console.error('PlayBilling: Purchase failed:', error);
-      return { success: false, error: error.message || 'Purchase could not be completed. Please try again.' };
+      console.error('[Billing] Purchase failed:', msg);
+      return { success: false, error: msg || 'Purchase could not be completed. Please try again.' };
     }
   }
 
@@ -135,17 +186,34 @@ class PlayBillingService {
     }
 
     try {
-      const result = await this.NativePurchases.restorePurchases();
+      // Use getPurchases instead of restorePurchases (which returns void)
+      const result = await this.NativePurchases.getPurchases({
+        productType: 'SUBS',
+      });
+      console.log('[Billing] getPurchases result:', JSON.stringify(result));
+
       const purchases = result.purchases || [];
-      
-      const premiumPurchases = purchases.filter(p => 
-        p.productIdentifier === PRODUCT_ID || p.productId === PRODUCT_ID
+      const premiumPurchases = purchases.filter(p =>
+        p.productIdentifier === PRODUCT_ID ||
+        p.planIdentifier === PRODUCT_ID
       );
-      
+
       return { success: true, purchases: premiumPurchases };
     } catch (error) {
-      console.error('PlayBilling: Restore failed:', error);
-      return { success: false, purchases: [] };
+      console.error('[Billing] getPurchases failed:', error?.message || error);
+      // Fallback: try restorePurchases (triggers re-sync with store)
+      try {
+        await this.NativePurchases.restorePurchases();
+        // After restore, try getPurchases again
+        const result = await this.NativePurchases.getPurchases({ productType: 'SUBS' });
+        const purchases = (result.purchases || []).filter(p =>
+          p.productIdentifier === PRODUCT_ID || p.planIdentifier === PRODUCT_ID
+        );
+        return { success: true, purchases };
+      } catch (e2) {
+        console.error('[Billing] Restore fallback failed:', e2?.message || e2);
+        return { success: false, purchases: [] };
+      }
     }
   }
 
@@ -161,7 +229,7 @@ class PlayBillingService {
       });
       return response.data;
     } catch (error) {
-      console.error('PlayBilling: Server verification failed:', error);
+      console.error('[Billing] Server verification failed:', error?.message);
       return { success: false, error: error.response?.data?.detail || 'Your Premium purchase is being verified. Please restart the app.' };
     }
   }
@@ -175,10 +243,14 @@ class PlayBillingService {
     }
   }
 
-  // Open Google Play subscription management
   openManageSubscriptions() {
-    if (this.isNative()) {
-      window.open(`https://play.google.com/store/account/subscriptions?sku=${PRODUCT_ID}&package=com.heartlink.app`, '_system');
+    if (this.isNative() && this.NativePurchases) {
+      // Prefer native method
+      try {
+        this.NativePurchases.manageSubscriptions();
+      } catch {
+        window.open(`https://play.google.com/store/account/subscriptions?sku=${PRODUCT_ID}&package=com.heartlink.app`, '_system');
+      }
     }
   }
 }
