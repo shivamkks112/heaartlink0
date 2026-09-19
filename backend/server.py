@@ -3871,7 +3871,9 @@ async def discover_users(user_id: str, limit: int = 10, relationship_intent: str
         "values": 1, "lifestyle_tags": 1,
         "gender_lock_enabled": 1, "show_to_gender": 1, "hide_profile_from_gender": 1,
         "boost_active": 1, "boost_end": 1,
-        "latitude": 1, "longitude": 1
+        "latitude": 1, "longitude": 1,
+        "profile_prompts": 1, "ladies_first_enabled": 1,
+        "selfie_verification_status": 1,
     }
     
     users = await db.users.find(query, discover_projection).limit(limit * 3).to_list(None)
@@ -5219,6 +5221,21 @@ async def send_message_http(message_data: Message):
     
     # Skip safety checks if receiver is an AI profile
     is_ai_receiver = receiver.get("is_ai_profile", False)
+    
+    # === LADIES FIRST MODE CHECK ===
+    if not is_ai_receiver and receiver.get("ladies_first_enabled"):
+        sender_gender = sender.get("gender", "").lower()
+        if sender_gender == "male":
+            # Check if girl has already sent a message in this match
+            girl_msg = await db.messages.find_one({
+                "match_id": message_data.match_id,
+                "sender_id": message_data.receiver_id
+            })
+            if not girl_msg:
+                raise HTTPException(
+                    status_code=403,
+                    detail="This user has Ladies First enabled. Wait for her to message first."
+                )
     
     # === WOMEN SAFETY MODE CHECKS ===
     if not is_ai_receiver and receiver.get("women_safety_mode"):
@@ -10614,6 +10631,160 @@ async def push_update_notification(request: Request):
     except Exception as e:
         logger.error(f"Update push notification error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==================== PROFILE PROMPTS (Hinge-style) ====================
+
+PROMPT_QUESTIONS = [
+    "My ideal weekend looks like...",
+    "A life goal of mine is...",
+    "My most controversial opinion is...",
+    "I'm looking for someone who...",
+    "The way to my heart is...",
+    "My hidden talent is...",
+    "Two truths and a lie...",
+    "Best travel story...",
+    "My comfort food is...",
+    "I geek out on...",
+    "My love language is...",
+    "Change my mind about...",
+    "Biggest green flag in a person...",
+    "After work you'll find me...",
+    "I bet you can't guess that I...",
+]
+
+@api_router.get("/profile-prompts/questions")
+async def get_prompt_questions():
+    """Get available prompt questions for profiles"""
+    return {"questions": PROMPT_QUESTIONS}
+
+@api_router.post("/profile-prompts/{user_id}")
+async def save_profile_prompts(user_id: str, request: Request):
+    """Save user's profile prompts (max 3)"""
+    data = await request.json()
+    prompts = data.get("prompts", [])
+
+    if len(prompts) > 3:
+        raise HTTPException(status_code=400, detail="Maximum 3 prompts allowed")
+
+    validated = []
+    for p in prompts:
+        q = p.get("question", "").strip()
+        a = p.get("answer", "").strip()
+        if q and a and len(a) <= 300:
+            validated.append({"question": q, "answer": a})
+
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {"profile_prompts": validated}}
+    )
+    invalidate_user_cache(user_id)
+    return {"success": True, "prompts": validated}
+
+@api_router.get("/profile-prompts/{user_id}")
+async def get_profile_prompts(user_id: str):
+    """Get user's profile prompts"""
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "profile_prompts": 1})
+    return {"prompts": user.get("profile_prompts", []) if user else []}
+
+
+# ==================== LADIES FIRST MODE ====================
+
+@api_router.post("/user/{user_id}/ladies-first")
+async def toggle_ladies_first(user_id: str, request: Request):
+    """Toggle Ladies First mode — only girls can enable"""
+    data = await request.json()
+    enabled = data.get("enabled", False)
+
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "gender": 1})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if user.get("gender", "").lower() != "female":
+        raise HTTPException(status_code=403, detail="Ladies First is only available for female users")
+
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {"ladies_first_enabled": enabled}}
+    )
+    invalidate_user_cache(user_id)
+    return {"success": True, "ladies_first_enabled": enabled}
+
+
+# ==================== GIRL DAILY REWARDS ====================
+
+@api_router.post("/rewards/daily-checkin/{user_id}")
+async def daily_checkin_reward(user_id: str):
+    """Daily check-in reward for girls — coins and superlikes"""
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "gender": 1, "name": 1, "last_daily_reward": 1, "reward_streak": 1, "heart_coins": 1, "daily_superlikes_bonus": 1})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Check if already claimed today
+    now = datetime.now(timezone.utc)
+    ist_offset = timedelta(hours=5, minutes=30)
+    now_ist = now + ist_offset
+    today_str = now_ist.strftime("%Y-%m-%d")
+
+    last_reward = user.get("last_daily_reward", "")
+    if last_reward == today_str:
+        return {"success": False, "message": "Aaj ka reward already claim ho chuka hai", "already_claimed": True}
+
+    # Calculate streak
+    yesterday_str = (now_ist - timedelta(days=1)).strftime("%Y-%m-%d")
+    old_streak = user.get("reward_streak", 0)
+    new_streak = (old_streak + 1) if last_reward == yesterday_str else 1
+
+    # Rewards based on streak and gender
+    is_girl = user.get("gender", "").lower() == "female"
+    base_coins = 10 if is_girl else 5
+    streak_bonus = min(new_streak, 7) * (3 if is_girl else 1)
+    total_coins = base_coins + streak_bonus
+    superlikes_bonus = 1 if is_girl and new_streak >= 3 else 0
+
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {
+            "last_daily_reward": today_str,
+            "reward_streak": new_streak,
+        },
+        "$inc": {
+            "heart_coins": total_coins,
+            "daily_superlikes_bonus": superlikes_bonus,
+        }}
+    )
+
+    return {
+        "success": True,
+        "coins_earned": total_coins,
+        "superlikes_earned": superlikes_bonus,
+        "streak": new_streak,
+        "total_coins": user.get("heart_coins", 0) + total_coins,
+        "is_girl_bonus": is_girl,
+        "message": f"{'🎉' if is_girl else ''} {total_coins} HeartCoins earned!" + (f" + {superlikes_bonus} SuperLike!" if superlikes_bonus else "")
+    }
+
+@api_router.get("/rewards/status/{user_id}")
+async def get_reward_status(user_id: str):
+    """Get user's reward status"""
+    user = await db.users.find_one({"id": user_id}, {
+        "_id": 0, "heart_coins": 1, "reward_streak": 1,
+        "last_daily_reward": 1, "gender": 1, "daily_superlikes_bonus": 1
+    })
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    now_ist = datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)
+    today_str = now_ist.strftime("%Y-%m-%d")
+    can_claim = user.get("last_daily_reward", "") != today_str
+
+    return {
+        "heart_coins": user.get("heart_coins", 0),
+        "streak": user.get("reward_streak", 0),
+        "can_claim_today": can_claim,
+        "is_girl": user.get("gender", "").lower() == "female",
+        "superlikes_bonus": user.get("daily_superlikes_bonus", 0),
+    }
 
 
 app.include_router(api_router)

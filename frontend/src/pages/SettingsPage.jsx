@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { ArrowLeft, UserX, BellOff, Mail, Phone, Link2, CheckCircle, AlertCircle, Shield, Eye, EyeOff, MessageSquare, Clock, Camera, Sun, Moon, Monitor, Crown, ExternalLink } from 'lucide-react';
+import { ArrowLeft, UserX, BellOff, Mail, Phone, Link2, CheckCircle, AlertCircle, Shield, Eye, EyeOff, MessageSquare, Clock, Camera, Sun, Moon, Monitor, Crown, ExternalLink, Flame, Gift } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -14,6 +14,87 @@ import {
 import { useTheme } from '@/hooks/useTheme';
 
 import { BACKEND_URL, API } from '@/config/api';
+
+const DailyRewardsWidget = ({ userId, isGirl }) => {
+  const [status, setStatus] = useState(null);
+  const [claiming, setClaiming] = useState(false);
+
+  useEffect(() => {
+    if (userId) {
+      axios.get(`${API}/rewards/status/${userId}`).then(r => setStatus(r.data)).catch(() => {});
+    }
+  }, [userId]);
+
+  const claimReward = async () => {
+    setClaiming(true);
+    try {
+      const res = await axios.post(`${API}/rewards/daily-checkin/${userId}`);
+      if (res.data.success) {
+        toast.success(res.data.message);
+        setStatus(prev => ({ ...prev, can_claim_today: false, streak: res.data.streak, heart_coins: res.data.total_coins }));
+      } else {
+        toast.info(res.data.message);
+      }
+    } catch { toast.error('Try again later'); }
+    setClaiming(false);
+  };
+
+  if (!status) return null;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm text-gray-600">HeartCoins: <span className="font-bold text-amber-600">{status.heart_coins || 0}</span></p>
+          <p className="text-xs text-gray-400">Streak: {status.streak || 0} day{status.streak !== 1 ? 's' : ''}</p>
+        </div>
+        {isGirl && <span className="text-[10px] bg-pink-100 text-pink-600 px-2 py-0.5 rounded-full font-medium">2x Girl Bonus</span>}
+      </div>
+      <button
+        onClick={claimReward}
+        disabled={!status.can_claim_today || claiming}
+        className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-all ${status.can_claim_today ? 'bg-gradient-to-r from-orange-400 to-amber-500 text-white active:scale-[0.97]' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
+        data-testid="claim-daily-reward"
+      >
+        {claiming ? 'Claiming...' : status.can_claim_today ? 'Claim Daily Reward' : 'Already Claimed Today'}
+      </button>
+    </div>
+  );
+};
+
+const LadiesFirstToggle = ({ userId, initialEnabled }) => {
+  const [enabled, setEnabled] = useState(initialEnabled || false);
+  const [loading, setLoading] = useState(false);
+
+  const toggle = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.post(`${API}/user/${userId}/ladies-first`, { enabled: !enabled });
+      if (res.data.success) {
+        setEnabled(!enabled);
+        toast.success(!enabled ? 'Ladies First enabled — boys wait for your message first' : 'Ladies First disabled');
+      }
+    } catch (e) { toast.error(e.response?.data?.detail || 'Failed'); }
+    setLoading(false);
+  };
+
+  return (
+    <div className="space-y-2">
+      <p className="text-sm text-gray-600">Jab ON ho, sirf tum pehle message kar sakti ho. Boys ko wait karna padega.</p>
+      <div className="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-xl">
+        <span className="text-sm font-medium text-gray-700">{enabled ? 'Active' : 'Off'}</span>
+        <button
+          onClick={toggle}
+          disabled={loading}
+          className={`w-12 h-6 rounded-full transition-colors relative ${enabled ? 'bg-purple-500' : 'bg-gray-300'}`}
+          data-testid="ladies-first-toggle"
+        >
+          <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${enabled ? 'left-[26px]' : 'left-0.5'}`} />
+        </button>
+      </div>
+    </div>
+  );
+};
 
 const SettingsPage = ({ user, setUser }) => {
   const navigate = useNavigate();
@@ -323,6 +404,26 @@ const SettingsPage = ({ user, setUser }) => {
             </button>
           )}
         </div>
+
+        {/* Daily Rewards Section */}
+        <div className="bg-white rounded-xl p-4 shadow-sm" data-testid="daily-rewards-section">
+          <h2 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+            <Flame className="w-5 h-5 text-orange-500" />
+            Daily Rewards
+          </h2>
+          <DailyRewardsWidget userId={user?.id} isGirl={user?.gender?.toLowerCase() === 'female'} />
+        </div>
+
+        {/* Ladies First Mode — Girls Only */}
+        {user?.gender?.toLowerCase() === 'female' && (
+          <div className="bg-white rounded-xl p-4 shadow-sm" data-testid="ladies-first-section">
+            <h2 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+              <Shield className="w-5 h-5 text-purple-500" />
+              Ladies First
+            </h2>
+            <LadiesFirstToggle userId={user?.id} initialEnabled={user?.ladies_first_enabled} />
+          </div>
+        )}
 
         {/* Account Linking Section */}
         <div className="bg-white rounded-xl p-4 shadow-sm">

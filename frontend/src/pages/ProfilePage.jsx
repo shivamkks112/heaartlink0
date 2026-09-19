@@ -12,6 +12,7 @@ import { storage } from '@/firebase/config';
 import { INDIAN_STATES, CITIES_BY_STATE, POPULAR_CITIES } from '@/data/indianCities';
 
 import { BACKEND_URL, API } from '@/config/api';
+import ProfilePromptsEditor from '@/components/ProfilePromptsEditor';
 
 // Boost Button Component
 const BoostButton = ({ userId }) => {
@@ -737,6 +738,9 @@ const ProfilePage = ({ user, onUpdate }) => {
               </div>
               <ChevronRight className="w-5 h-5 text-purple-500 group-hover:translate-x-1 transition-transform" />
             </button>
+
+            {/* Profile Prompts — Conversation Starters */}
+            <ProfilePromptsEditor userId={profile.id} existingPrompts={profile.profile_prompts} />
 
             {/* Invite Friends */}
             <button

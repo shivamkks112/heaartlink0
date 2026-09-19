@@ -174,6 +174,21 @@ const UserProfilePage = ({ user }) => {
               </div>
             </div>
           )}
+
+          {/* Profile Prompts — Conversation Starters */}
+          {profileUser.profile_prompts?.length > 0 && (
+            <div data-testid="user-profile-prompts">
+              <h3 className="text-sm font-semibold text-gray-900 mb-2">Conversation Starters</h3>
+              <div className="space-y-2">
+                {profileUser.profile_prompts.map((prompt, i) => (
+                  <div key={i} className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl px-3 py-2.5 border border-blue-100">
+                    <p className="text-[10px] text-blue-400 font-medium uppercase tracking-wider">{prompt.question}</p>
+                    <p className="text-sm text-gray-800 mt-0.5 leading-snug">{prompt.answer}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Action Buttons — compact, rounded */}

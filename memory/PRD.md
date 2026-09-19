@@ -1,7 +1,7 @@
 # HeartLink — Product Requirements Document
 
 ## Original Problem Statement
-HeartLink is a trust-based dating app for the Indian market. Core focus areas: monetization (Google Play Billing Premium), user safety (AI Selfie Verification, Smart Ban Analytics), AI chatbot enhancements (Custom Personas, Spam/Emoji reduction), UI/UX polishing, and core engagement features (Photo sharing in chat).
+HeartLink is a trust-based dating app for the Indian market. Core focus areas: monetization (Google Play Billing Premium), user safety (AI Selfie Verification, Smart Ban Analytics), AI chatbot enhancements, UI/UX polishing, girl retention features, and core engagement features.
 
 ## Auth Rules
 - Email OTP is the ONLY allowed authentication method
@@ -13,59 +13,46 @@ HeartLink is a trust-based dating app for the Indian market. Core focus areas: m
 - Real-time: WebSockets
 - Push: Firebase Cloud Messaging (FCM)
 - Payments: Google Play Billing (`@capgo/native-purchases@8.7.0`)
-- AI: Gemini/Claude via `emergentintegrations` (chat, moderation, selfie verification)
+- AI: Gemini/Claude via `emergentintegrations`
 - Ads: AdMob (Capacitor Community Plugin)
 
 ## Key Constraints
-- Android minSdkVersion = 23 (API 23, Android 6.0) — DO NOT increase
+- Android minSdkVersion = 23 — DO NOT increase
 - Premium uses real Google Play Billing — DO NOT mock
-- Core pages use eager loading (no Suspense/lazy) — DO NOT revert
-- server.py is 10,600+ lines — needs refactoring into /app/backend/routes/
+- Core pages use eager loading — DO NOT revert
+- server.py is 10,600+ lines — needs refactoring
 
 ## Completed Features
-- [x] Auto-Unban Timer + Smart Ban Analytics Chart (Admin Panel)
-- [x] Custom AI Persona + Admin Toggle
-- [x] AI Chatbot Spam Reduction (no double messaging, minimal emojis)
-- [x] System Safety Warnings (red in-chat bubbles)
-- [x] Chat Profile Navigation Bug Fix
-- [x] Matches/Active/Messages tabs instant switch (eager loading)
-- [x] AI Photo Verification System (Selfie match via Gemini)
-- [x] Verified User Ranking Bonus (+50 Discover score)
-- [x] Android Safe-Area Inset Fixes
-- [x] AdMob Ad Fix (gender capitalization bug)
-- [x] Google Play Billing Premium (Rs49/month, 3-day trial, RTDN webhooks)
-- [x] Premium Analytics Widget (Admin Dashboard)
-- [x] Android API 23 compatibility restored
-- [x] In-Chat Photo Sharing (Emergent Object Storage + Gemini Vision moderation)
-- [x] Profile Page Premium Golden Card Upsell
-- [x] Like/Superlike Notification Deduplication
-- [x] Duplicate FCM Fix — Messages + Verification
+- [x] All previous features (Premium, AI Verification, Photo Sharing, etc.)
+- [x] Duplicate FCM Notification fixes
 - [x] Google Play Billing API fixes (isBillingSupported, offerToken, ProGuard)
-- [x] **6 Realistic "neutral_real" AI Profiles** (Ayesha, Radhika, Tara, Pooja, Megha, Kriti) — 2026-09-18
-- [x] **Enhanced emotional safety rules** for all AI chatbot profiles — 2026-09-18
+- [x] 6 Realistic "neutral_real" AI Profiles
+- [x] **Profile Prompts (Hinge-style)** — 15 questions, 3 per profile, shown on Discover+Profile (2026-09-19)
+- [x] **Ladies First Mode** — Girls-only toggle, enforced in messaging (2026-09-19)
+- [x] **Girl Daily Rewards** — HeartCoins system, 2x girl bonus, streak tracking (2026-09-19)
+- [x] **Frontend: ProfilePromptsEditor, DailyRewardsWidget, LadiesFirstToggle** (2026-09-19)
 
 ## AI Chatbot Personality Types
-- `flirty_fun` — Playful, teasing, confident
-- `sweet_caring` — Caring, emotional, supportive
-- `witty_smart` — Sharp, sarcastic, intellectual
-- `neutral_real` — **NEW** — Normal, realistic, supportive, minimal emojis, no over-flirting
+- `flirty_fun`, `sweet_caring`, `witty_smart`, `neutral_real` (NEW)
+
+## Key New API Endpoints
+- `GET /api/profile-prompts/questions` — Get 15 prompt questions
+- `POST /api/profile-prompts/{user_id}` — Save prompts (max 3)
+- `GET /api/profile-prompts/{user_id}` — Get user's prompts
+- `POST /api/user/{user_id}/ladies-first` — Toggle Ladies First (girls only)
+- `POST /api/rewards/daily-checkin/{user_id}` — Claim daily reward
+- `GET /api/rewards/status/{user_id}` — Get reward status
 
 ## Pending / In Progress
-- [ ] Server.py Refactoring (P1, deferred) — Break into /app/backend/routes/
-- [ ] Google Play VKYC verification (User side - pending)
+- [ ] Server.py Refactoring (P1, deferred)
+- [ ] Google Play VKYC verification (User side)
 
-## Upcoming Tasks (P1)
-- [ ] Virtual Gifts & HeartCoins — In-app currency for virtual gifts
+## Upcoming Tasks
+- [ ] P1: Virtual Gifts & HeartCoins spending system
+- [ ] P1: Profile Prompts on Onboarding flow
+- [ ] P1: Girl Referral bonus (extra coins for girl→girl referrals)
 
 ## Future/Backlog
 - [ ] P2: AI Trust Score algorithm
 - [ ] P3: Video Intros (15-second profile videos)
-- [ ] P4: Live Location Share (Capacitor/App update required)
-
-## Known Recurrence Patterns
-- Phone OTP must stay removed
-- New admin endpoints must use Depends(require_admin)
-- Duplicate FCM triggers — always check both legacy and modern paths
-- After installing new Capacitor plugins, run `npx cap sync android`
-- ProGuard rules must be added for new native libraries
-- `@capgo/native-purchases` field names differ from common assumptions — always check type definitions
+- [ ] P4: Live Location Share

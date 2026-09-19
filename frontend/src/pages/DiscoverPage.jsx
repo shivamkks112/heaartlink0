@@ -551,6 +551,17 @@ const DiscoverPage = ({ user }) => {
               {currentProfile.bio && (
                 <p className="text-white/70 text-sm mt-2 line-clamp-2 leading-relaxed">{currentProfile.bio}</p>
               )}
+              {/* Profile Prompts — Hinge-style conversation starters */}
+              {currentProfile.profile_prompts?.length > 0 && (
+                <div className="mt-2.5 space-y-1.5" data-testid="profile-prompts">
+                  {currentProfile.profile_prompts.slice(0, 2).map((prompt, i) => (
+                    <div key={i} className="bg-white/10 backdrop-blur-md rounded-xl px-3 py-2 border border-white/15">
+                      <p className="text-white/50 text-[10px] font-medium uppercase tracking-wider">{prompt.question}</p>
+                      <p className="text-white text-sm leading-snug mt-0.5">{prompt.answer}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
               <div className="flex flex-wrap gap-1.5 mt-2.5">
                 {currentProfile.shared_interests_count > 0 && (
                   <span className="bg-pink-500/25 backdrop-blur-md text-pink-200 text-[12px] font-bold px-3 py-1 rounded-lg border border-pink-400/30" data-testid="shared-interests-badge">
