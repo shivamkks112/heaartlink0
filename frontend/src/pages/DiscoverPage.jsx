@@ -12,6 +12,37 @@ import wsService from '@/services/WebSocketService';
 import { VerifiedBadge, OnlineStatus } from '@/components/badges/VerifiedBadge';
 import MatchAnimation from '@/components/MatchAnimation';
 
+const SafetyScoreBadge = ({ profile }) => {
+  let score = 0;
+  let factors = [];
+
+  if (profile.verified) { score += 35; factors.push('Verified'); }
+  if (profile.selfie_verification_status === 'verified') { score += 30; factors.push('Selfie Verified'); }
+  if (profile.trust_badge_level === 'high') { score += 20; factors.push('High Trust'); }
+  else if (profile.trust_badge_level === 'medium') { score += 10; }
+  if (profile.profile_prompts?.length > 0) { score += 10; factors.push('Prompts'); }
+  if (profile.bio && profile.bio.length > 20) { score += 5; }
+
+  score = Math.min(score, 100);
+
+  if (score < 20) return null;
+
+  const color = score >= 70 ? 'from-green-500/30 to-emerald-500/30 border-green-400/40 text-green-300'
+    : score >= 40 ? 'from-yellow-500/30 to-amber-500/30 border-yellow-400/40 text-yellow-300'
+    : 'from-gray-500/20 to-gray-500/20 border-gray-400/30 text-gray-400';
+
+  const label = score >= 70 ? 'High Safety' : score >= 40 ? 'Moderate' : 'Basic';
+  const icon = score >= 70 ? '🛡' : score >= 40 ? '🔰' : '';
+
+  return (
+    <div className={`inline-flex items-center gap-1 bg-gradient-to-r ${color} backdrop-blur-md px-2 py-0.5 rounded-full border text-[10px] font-semibold mt-1`} data-testid="safety-score-badge">
+      {icon && <span>{icon}</span>}
+      <span>{label}</span>
+      {factors.length > 0 && <span className="opacity-60">· {factors[0]}</span>}
+    </div>
+  );
+};
+
 import { BACKEND_URL, API } from '@/config/api';
 import { cacheDiscoverProfiles, getCachedDiscoverProfiles } from '@/utils/cacheManager';
 import { POPULAR_CITIES } from '@/data/indianCities';
@@ -535,6 +566,8 @@ const DiscoverPage = ({ user }) => {
                 )}
                 <OnlineStatus isOnline={currentProfile.is_online} lastActive={currentProfile.last_active} size="sm" showText={false} />
               </div>
+              {/* Safety Score Badge */}
+              <SafetyScoreBadge profile={currentProfile} />
               {currentProfile.location && (
                 <div className="flex items-center gap-1.5 mt-1.5">
                   <MapPin className="w-3.5 h-3.5 text-white/50" />

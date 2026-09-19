@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Heart, Mail, Phone, Lock, User, MapPin, Calendar, ArrowRight, Shield, Camera, Upload, X, Eye, EyeOff } from 'lucide-react';
+import { Heart, Mail, Phone, Lock, User, MapPin, Calendar, ArrowRight, Shield, Camera, Upload, X, Eye, EyeOff, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -307,6 +307,21 @@ const AuthPage = ({ onLogin }) => {
         profile_picture: photoURL || '',
         installation_id: getStoredInstallId()
       };
+
+      // Build profile prompts from signup form
+      const profilePrompts = [];
+      if (signupData.prompt1_q && signupData.prompt1_a?.trim()) {
+        profilePrompts.push({ question: signupData.prompt1_q, answer: signupData.prompt1_a.trim() });
+      }
+      if (signupData.prompt2_q && signupData.prompt2_a?.trim()) {
+        profilePrompts.push({ question: signupData.prompt2_q, answer: signupData.prompt2_a.trim() });
+      }
+      if (profilePrompts.length > 0) {
+        submitData.profile_prompts = profilePrompts;
+      }
+      // Clean temp prompt fields
+      delete submitData.prompt1_q; delete submitData.prompt1_a;
+      delete submitData.prompt2_q; delete submitData.prompt2_a;
       
       // API call with timeout (15 seconds)
       const response = await axios.post(`${API}/auth/signup`, submitData, { timeout: 15000 });
@@ -324,6 +339,13 @@ const AuthPage = ({ onLogin }) => {
       await onLogin(userData);
       toast.dismiss();
       toast.success(`Welcome to HeartLink, ${userData.name}!`);
+
+      // Save profile prompts if user filled them during signup
+      if (submitData.profile_prompts?.length > 0) {
+        try {
+          await axios.post(`${API}/profile-prompts/${userData.id}`, { prompts: submitData.profile_prompts });
+        } catch (e) { console.warn('Prompts save after signup:', e); }
+      }
       
       // Apply referral code if provided
       if (signupData.referral_code && signupData.referral_code.trim()) {
@@ -654,6 +676,72 @@ const AuthPage = ({ onLogin }) => {
                       <p className="text-[10px] text-amber-600">See Who Liked, Crush Reveal, Extra Boosts — all FREE</p>
                     </div>
                   )}
+
+                  {/* Profile Prompts — Conversation Starters (shown for girls prominently, optional for boys) */}
+                  <div className={`border-2 rounded-xl p-3 space-y-2 ${signupData.gender === 'female' ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}>
+                    <div className="flex items-center gap-2">
+                      <MessageCircle className="w-4 h-4 text-blue-500" />
+                      <p className="text-sm font-semibold text-gray-800">Conversation Starters {signupData.gender === 'female' && <span className="text-[10px] text-blue-500 ml-1">helps you get better matches!</span>}</p>
+                    </div>
+                    <p className="text-[10px] text-gray-500">Pick a question and answer it — boys can start chats based on this</p>
+
+                    {/* Prompt 1 */}
+                    <select
+                      value={signupData.prompt1_q || ''}
+                      onChange={(e) => setSignupData({...signupData, prompt1_q: e.target.value})}
+                      className="w-full p-2.5 rounded-lg border border-gray-200 text-sm bg-white"
+                      data-testid="signup-prompt1-select"
+                    >
+                      <option value="">Pick a question...</option>
+                      <option value="My ideal weekend looks like...">My ideal weekend looks like...</option>
+                      <option value="The way to my heart is...">The way to my heart is...</option>
+                      <option value="I'm looking for someone who...">I'm looking for someone who...</option>
+                      <option value="My hidden talent is...">My hidden talent is...</option>
+                      <option value="Best travel story...">Best travel story...</option>
+                      <option value="My comfort food is...">My comfort food is...</option>
+                      <option value="I geek out on...">I geek out on...</option>
+                      <option value="After work you'll find me...">After work you'll find me...</option>
+                    </select>
+                    {signupData.prompt1_q && (
+                      <input
+                        type="text"
+                        value={signupData.prompt1_a || ''}
+                        onChange={(e) => setSignupData({...signupData, prompt1_a: e.target.value})}
+                        placeholder="Your answer..."
+                        maxLength={150}
+                        className="w-full p-2.5 rounded-lg border border-gray-200 text-sm"
+                        data-testid="signup-prompt1-answer"
+                      />
+                    )}
+
+                    {/* Prompt 2 (optional) */}
+                    {signupData.prompt1_q && signupData.prompt1_a && (
+                      <>
+                        <select
+                          value={signupData.prompt2_q || ''}
+                          onChange={(e) => setSignupData({...signupData, prompt2_q: e.target.value})}
+                          className="w-full p-2.5 rounded-lg border border-gray-200 text-sm bg-white"
+                          data-testid="signup-prompt2-select"
+                        >
+                          <option value="">Add another (optional)...</option>
+                          {["My ideal weekend looks like...","The way to my heart is...","I'm looking for someone who...","My hidden talent is...","Best travel story...","My comfort food is...","I geek out on...","After work you'll find me..."]
+                            .filter(q => q !== signupData.prompt1_q)
+                            .map((q, i) => <option key={i} value={q}>{q}</option>)}
+                        </select>
+                        {signupData.prompt2_q && (
+                          <input
+                            type="text"
+                            value={signupData.prompt2_a || ''}
+                            onChange={(e) => setSignupData({...signupData, prompt2_a: e.target.value})}
+                            placeholder="Your answer..."
+                            maxLength={150}
+                            className="w-full p-2.5 rounded-lg border border-gray-200 text-sm"
+                            data-testid="signup-prompt2-answer"
+                          />
+                        )}
+                      </>
+                    )}
+                  </div>
                   
                   {/* Age Verification */}
                   <div className="bg-orange-50 border-2 border-orange-200 rounded-xl p-3">
