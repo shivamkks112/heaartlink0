@@ -163,6 +163,11 @@ const ChatPage = ({ user }) => {
   useEffect(() => {
     let cancelled = false;
 
+    // Ensure WS is connected when entering chat
+    if (user?.id && !wsService.isConnected) {
+      wsService.connect(user.id);
+    }
+
     const init = async () => {
       try {
         // Try conversations first (has lastMessage data), fallback to matches for new chats
@@ -254,6 +259,33 @@ const ChatPage = ({ user }) => {
     const interval = setInterval(() => setTimeTick(t => t + 1), 30000);
     return () => clearInterval(interval);
   }, []);
+
+  // Refresh messages when app comes back to foreground (Android background → foreground)
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && matchId && user?.id) {
+        // Quick fetch to catch any missed messages
+        axios.get(`${API}/messages/${matchId}?user_id=${user.id}&limit=50`)
+          .then(res => {
+            const freshMsgs = res.data || [];
+            if (freshMsgs.length > 0) {
+              setMessages(prev => {
+                const lastPrevId = prev[prev.length - 1]?.id;
+                const lastFreshId = freshMsgs[freshMsgs.length - 1]?.id;
+                if (lastPrevId !== lastFreshId) {
+                  return freshMsgs; // New messages found, replace
+                }
+                return prev;
+              });
+            }
+          }).catch(() => {});
+        // Mark as read
+        axios.post(`${API}/messages/${matchId}/mark-read/${user.id}`).catch(() => {});
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [matchId, user?.id]);
 
   const sendScreenshotAlert = async () => {
     try {
@@ -379,7 +411,7 @@ const ChatPage = ({ user }) => {
     
     if (wsSent) {
       // WS.send() succeeded locally, but the connection might be dead (zombie WS).
-      // Set a 4s timeout — if no echo arrives, retry via HTTP to guarantee delivery.
+      // Set a 3s timeout — if no echo arrives, retry via HTTP to guarantee delivery.
       const fallbackTimer = setTimeout(async () => {
         pendingWsMessages.current.delete(messageContent);
         try {
@@ -401,7 +433,7 @@ const ChatPage = ({ user }) => {
           setMessages(prev => prev.filter(msg => !msg._temp || msg.content !== messageContent));
           toast.error('Message send failed');
         }
-      }, 4000);
+      }, 3000);
       pendingWsMessages.current.set(messageContent, fallbackTimer);
     } else {
       // WS not connected — immediate HTTP fallback

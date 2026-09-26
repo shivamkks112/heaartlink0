@@ -17,14 +17,46 @@ class WebSocketService {
     this.ws = null;
     this.userId = null;
     this.reconnectAttempts = 0;
-    this.maxReconnectAttempts = 15;
-    this.reconnectDelay = 2000;
+    this.maxReconnectAttempts = 30;
+    this.reconnectDelay = 1000;
     this.listeners = new Map();
     this.isConnected = false;
     this.onlineUsers = new Set();
     this.badgeCounts = { likes_count: 0, unread_messages: 0, notification_count: 0 };
     this.pingInterval = null;
     this._connecting = false;
+    this._setupVisibilityHandler();
+  }
+
+  // Auto-reconnect when app comes to foreground (critical for Android)
+  _setupVisibilityHandler() {
+    if (typeof document === 'undefined') return;
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && this.userId) {
+        // App came to foreground — force reconnect if dead
+        if (!this.isConnected || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
+          console.log('[WS] App resumed, reconnecting...');
+          this._connecting = false;
+          this.connect(this.userId);
+        } else {
+          // Connection seems alive — send a ping to verify
+          try { this.ws.send(JSON.stringify({ type: 'ping' })); } catch(e) {
+            this._connecting = false;
+            this.connect(this.userId);
+          }
+        }
+      }
+    });
+    // Capacitor-specific: resume event fires when Android app comes back
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resume', () => {
+        if (this.userId) {
+          console.log('[WS] Capacitor resume, reconnecting...');
+          this._connecting = false;
+          this.connect(this.userId);
+        }
+      });
+    }
   }
 
   connect(userId) {
@@ -50,21 +82,20 @@ class WebSocketService {
         this.reconnectAttempts = 0;
         this.emit('connected', { userId });
         
-        // Ping every 25s to keep connection alive AND update last_active on server
-        // Also detect zombie connections — if pong doesn't come back, reconnect
+        // Ping every 20s to keep connection alive
         clearInterval(this.pingInterval);
         this._lastPongAt = Date.now();
         this.pingInterval = setInterval(() => {
           if (this.ws?.readyState === WebSocket.OPEN) {
-            // If no pong received in 35s (ping is 25s + 10s grace), connection is dead
-            if (Date.now() - this._lastPongAt > 35000) {
-              console.warn('WS zombie detected — no pong in 35s, reconnecting');
+            // If no pong in 15s, connection is dead — reconnect fast
+            if (Date.now() - this._lastPongAt > 15000) {
+              console.warn('[WS] Dead connection detected, reconnecting...');
               try { this.ws.close(); } catch(e) {}
               return;
             }
             this.ws.send(JSON.stringify({ type: 'ping' }));
           }
-        }, 25000);
+        }, 20000);
       };
 
       this.ws.onmessage = (event) => {
@@ -178,7 +209,8 @@ class WebSocketService {
   attemptReconnect() {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) return;
     this.reconnectAttempts++;
-    const delay = Math.min(this.reconnectDelay * Math.pow(1.5, this.reconnectAttempts - 1), 30000);
+    // Fast reconnect: 1s, 1.5s, 2s, 3s... max 10s (not 30s)
+    const delay = Math.min(this.reconnectDelay * Math.pow(1.3, this.reconnectAttempts - 1), 10000);
     setTimeout(() => {
       if (this.userId && !this.isConnected) this.connect(this.userId);
     }, delay);
