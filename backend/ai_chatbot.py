@@ -841,7 +841,7 @@ async def seed_ai_profiles(db):
 
 
 async def auto_match_ai_profiles(db, user_id: str, user_gender: str, user_looking_for: str):
-    """Auto-match 3-4 AI girl profiles with a new user. AI girls send first 1-2 messages."""
+    """Auto-match 3-4 AI girl profiles prioritizing nearby cities for relatable conversations."""
     flags = await db.app_settings.find_one({"type": "feature_flags"}, {"_id": 0})
     if flags and not flags.get("ai_chatbot", True):
         return
@@ -849,16 +849,45 @@ async def auto_match_ai_profiles(db, user_id: str, user_gender: str, user_lookin
     if user_gender == "female" or user_looking_for != "female":
         return
 
+    # Fetch user's city for proximity matching
+    user_doc = await db.users.find_one({"id": user_id}, {"_id": 0, "location": 1})
+    user_city = user_doc.get("location", "") if user_doc else ""
+    user_city_key = _get_city_key(user_city)
+    nearby_cities = _get_nearby_cities(user_city_key) if user_city_key else []
+
     ai_girls = await db.users.find(
         {"is_ai_profile": True, "is_active_ai": True, "gender": "female"},
-        {"_id": 0, "id": 1, "name": 1}
+        {"_id": 0, "id": 1, "name": 1, "location": 1}
     ).to_list(None)
 
     if not ai_girls:
         return
 
-    num_matches = min(random.randint(3, 4), len(ai_girls))
-    selected = random.sample(ai_girls, num_matches)
+    # Categorize AI girls by proximity
+    same_city = []
+    nearby = []
+    others = []
+    for g in ai_girls:
+        g_city_key = _get_city_key(g.get("location", ""))
+        if g_city_key and g_city_key == user_city_key:
+            same_city.append(g)
+        elif g_city_key and g_city_key in nearby_cities:
+            nearby.append(g)
+        else:
+            others.append(g)
+
+    random.shuffle(same_city)
+    random.shuffle(nearby)
+    random.shuffle(others)
+
+    # Priority: 1-2 same city, 1-2 nearby, rest random (total 3-4)
+    num_matches = random.randint(3, 4)
+    selected = []
+    for pool in [same_city, nearby, others]:
+        for g in pool:
+            if len(selected) >= num_matches:
+                break
+            selected.append(g)
 
     for ai_girl in selected:
         existing_match = await db.matches.find_one({
@@ -870,6 +899,15 @@ async def auto_match_ai_profiles(db, user_id: str, user_gender: str, user_lookin
         if existing_match:
             continue
 
+        # Higher compatibility for same/nearby city
+        g_city_key = _get_city_key(ai_girl.get("location", ""))
+        if g_city_key == user_city_key:
+            compat = round(random.uniform(85, 98), 1)
+        elif g_city_key in nearby_cities:
+            compat = round(random.uniform(78, 92), 1)
+        else:
+            compat = round(random.uniform(70, 88), 1)
+
         match_id = str(uuid.uuid4())
         match_doc = {
             "id": match_id,
@@ -879,14 +917,13 @@ async def auto_match_ai_profiles(db, user_id: str, user_gender: str, user_lookin
             "user2_liked": True,
             "matched": True,
             "is_superlike": False,
-            "compatibility_score": round(random.uniform(75, 95), 1),
+            "compatibility_score": compat,
             "ai_analysis": "Great compatibility! You both share similar interests.",
             "created_at": datetime.now(timezone.utc).isoformat(),
             "is_ai_match": True
         }
         await db.matches.insert_one(match_doc)
 
-        # AI girl sends 1-2 proactive messages
         asyncio.create_task(
             _send_ai_first_messages(db, match_id, ai_girl["id"], user_id, ai_girl["name"])
         )
@@ -898,7 +935,7 @@ async def auto_match_ai_profiles(db, user_id: str, user_gender: str, user_lookin
     except Exception:
         pass
 
-    logger.info(f"Auto-matched {len(selected)} AI girls with user {user_id}")
+    logger.info(f"Auto-matched {len(selected)} AI girls with user {user_id} (city: {user_city})")
 
 
 async def auto_match_stealth_users(db, user_id: str, user_gender: str, user_looking_for: str):
@@ -1202,6 +1239,128 @@ CITY_VIBES = {
     "bareilly": {"food": "samosa, nahari, biryani, zarda", "places": "Fun City, Dargah-e-Ala Hazrat, Trivati Nath Mandir", "vibe": "nath nagri, rohilkhand, UP vibes", "slang": "bhaiya, yaar"},
 }
 
+# ─── CITY PROXIMITY CLUSTERS (for nearby city matching) ───
+CITY_CLUSTERS = {
+    "ncr": ["delhi", "noida", "gurgaon", "ghaziabad", "faridabad", "meerut"],
+    "maharashtra": ["mumbai", "pune", "nashik", "nagpur"],
+    "south_karnataka": ["bangalore", "mysore", "mangalore"],
+    "tamil_nadu": ["chennai", "coimbatore", "madurai", "trichy", "tiruchirappalli"],
+    "kerala": ["kochi", "thiruvananthapuram", "trivandrum"],
+    "telangana_ap": ["hyderabad", "vizag", "visakhapatnam"],
+    "west_bengal": ["kolkata", "siliguri"],
+    "rajasthan": ["jaipur", "jodhpur", "udaipur"],
+    "punjab": ["chandigarh", "ludhiana", "amritsar", "jalandhar"],
+    "up_central": ["lucknow", "kanpur", "allahabad", "prayagraj", "varanasi", "agra", "bareilly"],
+    "mp": ["bhopal", "indore"],
+    "jharkhand_bihar": ["ranchi", "jamshedpur", "dhanbad", "patna"],
+    "northeast": ["guwahati", "shillong", "siliguri"],
+    "uttarakhand": ["dehradun", "shimla"],
+    "gujarat": ["ahmedabad", "surat"],
+    "odisha": ["bhubaneswar", "cuttack"],
+    "chhattisgarh": ["raipur"],
+    "jk": ["jammu", "srinagar"],
+    "goa": ["goa"],
+}
+
+def _get_nearby_cities(user_city_key: str) -> list:
+    """Get list of nearby city keys for a given city."""
+    nearby = []
+    for cluster_name, cities in CITY_CLUSTERS.items():
+        if user_city_key in cities:
+            nearby.extend(cities)
+    return list(set(nearby))
+
+# ─── REGIONAL LANGUAGE DETECTION ───
+REGIONAL_LANG_MAP = {
+    # South India — Tamil influence
+    "chennai": "tamil", "coimbatore": "tamil", "madurai": "tamil",
+    "trichy": "tamil", "tiruchirappalli": "tamil",
+    # South India — Telugu influence
+    "hyderabad": "telugu", "vizag": "telugu", "visakhapatnam": "telugu",
+    # South India — Kannada influence
+    "bangalore": "kannada", "mysore": "kannada", "mangalore": "kannada",
+    # South India — Malayalam influence
+    "kochi": "malayalam", "thiruvananthapuram": "malayalam", "trivandrum": "malayalam",
+    # East India — Bengali influence
+    "kolkata": "bengali", "siliguri": "bengali",
+    # Northeast — Mix
+    "guwahati": "assamese", "shillong": "english_heavy",
+    # Punjab — Punjabi influence
+    "chandigarh": "punjabi", "ludhiana": "punjabi", "amritsar": "punjabi", "jalandhar": "punjabi",
+    # Gujarat — Gujarati influence
+    "ahmedabad": "gujarati", "surat": "gujarati",
+    # Odisha
+    "bhubaneswar": "odia", "cuttack": "odia",
+    # Kashmir
+    "srinagar": "kashmiri",
+}
+
+REGIONAL_LANG_PROMPTS = {
+    "tamil": "User SOUTH INDIA (Tamil region) se hai. Kabhi kabhi Tamil words naturally mix karo jaise real Chennai/Coimbatore ki ladki karti hai — 'da', 'machan', 'apdiye', 'seri'. But mostly Hinglish hi bol. Agar user Tamil mein likh raha hai toh usse thoda Tamil mein reply karo.",
+    "telugu": "User SOUTH INDIA (Telugu region) se hai. Kabhi 'ra', 'enti', 'baaga' jaise Telugu words mix karo naturally. But mostly Hinglish. Agar user Telugu mein likhta hai toh respond in that language.",
+    "kannada": "User SOUTH INDIA (Kannada region) se hai. 'Guru', 'macha', 'heli', 'sari' jaise Kannada words naturally mix karo. Mostly Hinglish but acknowledge their south indian roots.",
+    "malayalam": "User KERALA se hai. 'Machane', 'chetta', 'pwoli', 'adipoli' jaise Malayalam words use karo casually. Mostly Hinglish but respect their Kerala identity.",
+    "bengali": "User BENGAL se hai. Kabhi 'dada', 'bondhu', 'ki khobor', 'darun' jaise Bengali words use karo naturally. Rosogolla aur phuchka ke references aa sakte hai. Mostly Hinglish.",
+    "assamese": "User NORTHEAST (Assam) se hai. Very respectful reh. Northeast culture appreciate kar. 'Bohut bhaal', 'ki hol' jaise Assamese words use kr sakti hai kabhi kabhi.",
+    "english_heavy": "User NORTHEAST se hai. English zyada use karo Hinglish ke saath. Northeast ka culture appreciate karo — music, food, nature ke baare mein baat ho sakti hai.",
+    "punjabi": "User PUNJAB se hai. 'Oye', 'veere', 'kiddaan', 'balle balle', 'sohni', 'tussi' jaise Punjabi words freely mix karo. Punjabiyon jaisi energy rakh but overdone mat kr. Mostly Hinglish with Punjabi touch.",
+    "gujarati": "User GUJARAT se hai. 'Ben', 'bhai', 'kem cho', 'majama' jaise Gujarati words kabhi kabhi use karo. Garba, navratri, food references naturally aayenge.",
+    "odia": "User ODISHA se hai. 'Kemiti acho', 'bhai' jaise Odia words thode use karo. Mostly Hinglish. Odisha ki culture appreciate karo.",
+    "kashmiri": "User KASHMIR se hai. Beautiful place appreciate karo. 'Kya baat hai yaar', wazwan, dal lake references naturally. Mostly Hinglish.",
+}
+
+# ─── FESTIVAL CALENDAR ───
+FESTIVALS = [
+    # January
+    {"name": "Makar Sankranti / Pongal / Lohri", "month": 1, "day_start": 13, "day_end": 15, "regions": "all", "vibe": "dhoom hai — patang, pongal, lohri celebrations"},
+    {"name": "Republic Day", "month": 1, "day_start": 26, "day_end": 26, "regions": "all", "vibe": "desh bhakti mode on, parade, holiday"},
+    # February
+    {"name": "Valentine's Week", "month": 2, "day_start": 7, "day_end": 14, "regions": "all", "vibe": "valentine's week — roses, proposals, dates, single logon ka dard haha"},
+    # March
+    {"name": "Holi", "month": 3, "day_start": 10, "day_end": 15, "regions": "all", "vibe": "holi ki dhamaal — rang, gujiya, thandai, bura na mano holi hai"},
+    {"name": "Ugadi / Gudi Padwa", "month": 3, "day_start": 28, "day_end": 31, "regions": "south", "vibe": "new year celebrations — south indian style"},
+    # April
+    {"name": "Baisakhi / Vishu / Bihu", "month": 4, "day_start": 13, "day_end": 15, "regions": "all", "vibe": "harvest festival vibes — bhangra, new beginnings"},
+    # May-June
+    {"name": "Eid ul-Fitr", "month": 5, "day_start": 28, "day_end": 31, "regions": "all", "vibe": "eid mubarak — sewaiyaan, biryani, family time"},
+    # August
+    {"name": "Raksha Bandhan", "month": 8, "day_start": 8, "day_end": 10, "regions": "all", "vibe": "bhai-behen ka pyaar, gifts, family"},
+    {"name": "Independence Day", "month": 8, "day_start": 15, "day_end": 15, "regions": "all", "vibe": "jai hind, tiranga, desh bhakti"},
+    {"name": "Janmashtami", "month": 8, "day_start": 24, "day_end": 26, "regions": "all", "vibe": "janmashtami — dahi handi, kanha, matki"},
+    {"name": "Onam", "month": 8, "day_start": 25, "day_end": 31, "regions": "south", "vibe": "onam — sadya, pookalam, vallamkali, kerala pride"},
+    # September
+    {"name": "Ganesh Chaturthi", "month": 9, "day_start": 5, "day_end": 15, "regions": "all", "vibe": "ganpati bappa morya — modak, visarjan, dhol"},
+    # October
+    {"name": "Navratri / Durga Puja / Garba", "month": 10, "day_start": 1, "day_end": 12, "regions": "all", "vibe": "navratri — garba nights (Gujarat), durga puja pandal hopping (Bengal), dandiya, fasting"},
+    {"name": "Dussehra / Vijayadashami", "month": 10, "day_start": 12, "day_end": 14, "regions": "all", "vibe": "ravan dahan, vijay ka jashn, good over evil"},
+    {"name": "Karwa Chauth", "month": 10, "day_start": 20, "day_end": 21, "regions": "all", "vibe": "karwa chauth — chand dekhna, fasting for love"},
+    # November
+    {"name": "Diwali", "month": 11, "day_start": 1, "day_end": 5, "regions": "all", "vibe": "happy diwali — diyas, mithai, patakhe (ya nhi?), rangoli, safai, lights everywhere"},
+    {"name": "Chhath Puja", "month": 11, "day_start": 7, "day_end": 8, "regions": "all", "vibe": "chhath maiya — ghat pe surya puja, bihari/UP pride, devotion"},
+    # December
+    {"name": "Christmas & New Year", "month": 12, "day_start": 23, "day_end": 31, "regions": "all", "vibe": "merry christmas, new year plans, resolutions, party mode, cold weather cozy vibes"},
+]
+
+def _get_active_festivals() -> str:
+    """Get currently active festivals for system prompt injection."""
+    now_ist = datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)
+    month = now_ist.month
+    day = now_ist.day
+
+    active = []
+    for f in FESTIVALS:
+        if f["month"] == month and f["day_start"] <= day <= f["day_end"]:
+            active.append(f)
+
+    if not active:
+        return ""
+
+    lines = "ABHI FESTIVAL SEASON CHAL RHA HAI! Naturally mention karo (force mat karo):\n"
+    for f in active:
+        lines += f"- {f['name']}: {f['vibe']}\n"
+    lines += "Agar user festival ke baare mein baat kare toh engage ho. Khud se har msg mein festival mat ghusao.\n"
+    return lines
+
 def _get_city_key(location_str):
     """Extract city key from location string."""
     if not location_str:
@@ -1297,6 +1456,17 @@ def _get_ai_system_prompt(ai_user: dict, user_data: dict = None) -> str:
     if user_data:
         user_data["_ai_name"] = ai_user.get("name", "")
     user_context = _build_user_context(user_data, ai_user.get("location", "")) if user_data else ""
+    
+    # Add regional language hint
+    user_city_key = _get_city_key(user_data.get("location", "")) if user_data else None
+    regional_lang = REGIONAL_LANG_MAP.get(user_city_key, None) if user_city_key else None
+    if regional_lang and regional_lang in REGIONAL_LANG_PROMPTS:
+        user_context += "\n" + REGIONAL_LANG_PROMPTS[regional_lang] + "\n"
+    
+    # Add active festivals
+    festival_ctx = _get_active_festivals()
+    if festival_ctx:
+        user_context += "\n" + festival_ctx
     
     user_city = user_data.get("location", "") if user_data else ""
 
