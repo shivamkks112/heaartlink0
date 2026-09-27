@@ -721,6 +721,8 @@ Interests: {interests}
 
 {personality_prompt}
 
+{user_context}
+
 GOLDEN RULES:
 
 1. REAL PERSON — tu AI/bot nahi hai. Agar puche: "haha kya baat kar raha hai 😂 irl milke dikha doongi"
@@ -728,7 +730,7 @@ GOLDEN RULES:
 2. HINGLISH — jaise asli indian ladkiyan type karti hai. "yrr", "haan", "nhi", "kya", "acha", "hmm", "bruh". Kabhi Hindi heavy, kabhi English heavy. Grammar perfect NAHI honi chahiye.
 
 3. REPLY LENGTH — ye CRITICAL hai:
-   - 60% replies: SHORT — "haha", "sahi hai", "acha?", "hmm interesting", "noo yaar 😭", "omg same"
+   - 60% replies: SHORT — "haha", "sahi hai", "acha?", "hmm interesting", "noo yaar", "omg same"
    - 25% replies: MEDIUM — 1-2 line max
    - 15% replies: LONGER — 2-4 lines only jab topic genuinely exciting ho
    NEVER har reply mein 3+ lines likho. Real ladkiyan chote chote msg krti hai mostly.
@@ -736,22 +738,26 @@ GOLDEN RULES:
 4. TYPING PATTERNS:
    - Lowercase mostly — "haan yaar", NOT "Haan yaar"
    - Short forms — "toh", "nhi", "krte", "kya", "yrr", "msg", "pic", "acha", "hmm"
-   - Emojis SPARINGLY — max 1-2 per msg, kabhi zero. "😂" "😭" "🤣" "💀" "🥺" "😏"
+   - Emojis BAHUT KAM — max 1 per msg, mostly zero. Sirf "haha" "lol" use karo emoji ki jagah.
    - NO exclamation marks every line. Real log aise nhi likhte.
 
 5. CONVERSATION FEEL:
    - Puche toh batao, nhi puche toh DONT ask question back har baar. Real log nhi krte.
    - Kabhi bus react karo — "haha nice", "oh achaaa", "damn"
    - Topic change naturally — "arey btw aaj kuch weird hua mere sath"
-   - Kabhi tease karo — "tum toh bore kr rhe ho 😂 kuch interesting batao"
+   - USER KI CITY ke baare mein baat karo naturally — local food, places, weather mention karo jab relevant ho
+   - Agar user aur tum SAME city se ho: "arey hum toh same city se hai! kahan rehte ho?"
+   - Agar DIFFERENT city se ho: "achaa {user_city} se ho? wahan ka [famous thing] try kiya hai?"
 
 6. THINGS TO AVOID:
    - NEVER use "!" in every sentence
    - NEVER ask "how about you?" or "what about you?" pattern repeatedly
    - NEVER sound customer service — "That's wonderful!", "How delightful!"
-   - NEVER use "hehe" — real indian girls use "haha" or "😂" or "lol"
+   - NEVER use "hehe" — real indian girls use "haha" or "lol"
    - NEVER be preachy or give advice unless asked
    - NEVER use bold/italic formatting
+   - NEVER use emojis in every message. Most messages should have ZERO emojis.
+   - NEVER repeat city references in every message. Mention once naturally, then move on.
 
 7. Tu {name} hai. Real ladki. Dating app pe. Act like it.
 
@@ -1135,8 +1141,103 @@ async def _send_ai_first_messages(db, match_id: str, ai_id: str, user_id: str, a
                 pass
 
 
-def _get_ai_system_prompt(ai_user: dict) -> str:
-    """Build personality-specific system prompt."""
+# City-specific knowledge for natural conversations
+CITY_VIBES = {
+    "delhi": {"food": "chole bhature, butter chicken, paranthe wali gali", "places": "CP, Hauz Khas, India Gate, Sarojini", "vibe": "Delhi ki garmi, metro rush, street food culture", "slang": "bhai, yaar, bc (softly)"},
+    "mumbai": {"food": "vada pav, pav bhaji, cutting chai", "places": "Marine Drive, Bandra, Juhu, Gateway", "vibe": "local trains, sea breeze, hustle culture, rain", "slang": "bro, yaar, tapri chai"},
+    "bangalore": {"food": "filter coffee, dosa, bisi bele bath", "places": "Koramangala, Indiranagar, Cubbon Park, MG Road", "vibe": "IT crowd, traffic, pleasant weather, pubs", "slang": "macha, guru"},
+    "pune": {"food": "misal pav, vada pav, shresbury biscuits", "places": "FC Road, Koregaon Park, Sinhagad Fort", "vibe": "college town, hills, pleasant weather", "slang": "yaar, dude"},
+    "hyderabad": {"food": "biryani, haleem, irani chai, double ka meetha", "places": "Charminar, Hussain Sagar, Hi-Tech City", "vibe": "biryani capital, IT hub, nawabi culture", "slang": "bhai, nakko"},
+    "chennai": {"food": "filter coffee, idli sambar, dosa, chettinad chicken", "places": "Marina Beach, T Nagar, Mylapore", "vibe": "temples, beach, south indian culture", "slang": "da, machan"},
+    "kolkata": {"food": "rosogolla, mishti doi, phuchka, rolls", "places": "Victoria Memorial, Park Street, Howrah Bridge", "vibe": "adda culture, durga puja, art", "slang": "dada, bondhu"},
+    "jaipur": {"food": "dal baati churma, pyaaz kachori, lassi", "places": "Hawa Mahal, Amer Fort, Nahargarh", "vibe": "pink city, heritage, rajasthani culture", "slang": "sa, hukum"},
+    "ahmedabad": {"food": "dhokla, fafda, undhiyu, thepla", "places": "Sabarmati, Law Garden, Kankaria Lake", "vibe": "garba, navratri, gujarati food culture", "slang": "bhai, yaar"},
+    "lucknow": {"food": "tunday kebab, biryani, chai, basket chaat", "places": "Hazratganj, Bara Imambara, Aminabad", "vibe": "tehzeeb, nawabi culture, pehle aap", "slang": "janab, bhai"},
+    "chandigarh": {"food": "chole bhature, amritsari kulcha, lassi", "places": "Sukhna Lake, Rock Garden, Sector 17", "vibe": "clean city, punjabi vibes, planned city", "slang": "oye, kiddaan, veere"},
+    "goa": {"food": "fish curry rice, vindaloo, feni, bebinca", "places": "Baga, Anjuna, Old Goa, Palolem", "vibe": "beaches, sunsets, susegad life, parties", "slang": "bro, chill"},
+    "indore": {"food": "poha jalebi, bhutte ka kees, sarafa bazaar", "places": "Rajwada, Sarafa, Patalpani", "vibe": "street food capital, MP culture", "slang": "bhaiya, yaar"},
+    "patna": {"food": "litti chokha, sattu paratha, thekua", "places": "Golghar, Mahavir Mandir, Gandhi Maidan", "vibe": "bihari pride, UPSC culture, simplicity", "slang": "bhaiya, yaar"},
+    "varanasi": {"food": "kachori sabzi, thandai, banarasi paan, lassi", "places": "Dashashwamedh Ghat, Kashi Vishwanath, BHU", "vibe": "spiritual capital, ganga aarti, ancient vibes", "slang": "bhaiya, ka haal ba"},
+    "bhopal": {"food": "poha, bhutte ka kees, biryani", "places": "Upper Lake, Van Vihar, old Bhopal", "vibe": "city of lakes, nawabi touch", "slang": "bhai, yaar"},
+    "nagpur": {"food": "saoji, tarri poha, santra barfi", "places": "Deekshabhoomi, Futala Lake, Ambazari", "vibe": "orange city, center of india", "slang": "bhai, ya"},
+    "surat": {"food": "locho, undhiyu, ghari, surti cuisine", "places": "Dumas Beach, Dutch Garden, Surat Castle", "vibe": "diamond city, fast growing, gujarati food", "slang": "bhai, ben"},
+    "noida": {"food": "same as delhi — rajma chawal, momos, rolls", "places": "DLF Mall, Botanical Garden, Film City", "vibe": "corporate life, delhi NCR vibes", "slang": "bro, yaar"},
+    "gurgaon": {"food": "same as delhi — butter chicken, chole", "places": "Cyber Hub, Kingdom of Dreams, Ambience Mall", "vibe": "corporate hub, nightlife, gym culture", "slang": "bro, dude"},
+    "shimla": {"food": "siddu, babru, madra, hot chocolate", "places": "Mall Road, Ridge, Jakhu Temple", "vibe": "hill station, snowfall, cold weather, cozy", "slang": "yaar, bhai"},
+    "dehradun": {"food": "maggi, momos, bal mithai, singori", "places": "Robber's Cave, Sahastradhara, Rajaji Park", "vibe": "doon valley, pleasant weather, chill vibe", "slang": "bhai, yaar"},
+}
+
+def _get_city_key(location_str):
+    """Extract city key from location string."""
+    if not location_str:
+        return None
+    loc = location_str.lower().strip()
+    for city in CITY_VIBES:
+        if city in loc:
+            return city
+    # Check common alternate names
+    alt_names = {"bengaluru": "bangalore", "bombay": "mumbai", "calcutta": "kolkata", "madras": "chennai", "gurugram": "gurgaon"}
+    for alt, real in alt_names.items():
+        if alt in loc:
+            return real
+    return None
+
+def _build_user_context(user_data: dict, ai_location: str) -> str:
+    """Build user-specific context for AI system prompt."""
+    if not user_data:
+        return ""
+    
+    user_city = user_data.get("location", "")
+    user_name = user_data.get("name", "User")
+    user_age = user_data.get("age", "")
+    user_interests = user_data.get("interests", [])
+    user_bio = user_data.get("bio", "")
+    
+    ctx = f"USER INFO — Jo ladka tujhse baat kr rha hai:\n"
+    ctx += f"- Naam: {user_name}"
+    if user_age: ctx += f", {user_age} saal"
+    if user_city: ctx += f", {user_city} se"
+    ctx += "\n"
+    if user_interests:
+        ctx += f"- Interests: {', '.join(user_interests[:5])}\n"
+    if user_bio:
+        ctx += f"- Bio: {user_bio[:100]}\n"
+    
+    # City-specific awareness
+    user_city_key = _get_city_key(user_city)
+    ai_city_key = _get_city_key(ai_location)
+    
+    if user_city_key and user_city_key in CITY_VIBES:
+        cv = CITY_VIBES[user_city_key]
+        ctx += f"\nUSKI CITY ({user_city}) KE BAARE MEIN TERA KNOWLEDGE:\n"
+        ctx += f"- Famous food: {cv['food']}\n"
+        ctx += f"- Popular places: {cv['places']}\n"
+        ctx += f"- City vibe: {cv['vibe']}\n"
+        ctx += f"NATURALLY in baat karo jab relevant ho. Force mat karo. Jaise ek real ladki karti — 'achaa tum {user_city} se ho? wahan ka [food/place] try kiya?'\n"
+    
+    if user_city_key and ai_city_key:
+        if user_city_key == ai_city_key:
+            ctx += f"TUM DONO SAME CITY SE HO! Isko naturally mention karo — 'arey hum toh same city se hai haha'\n"
+        else:
+            ctx += f"Tum {ai_location} se ho, wo {user_city} se. Long distance ka topic naturally aa sakta hai.\n"
+    
+    # Shared interests
+    ai_interests_lower = []
+    for p in AI_PROFILES:
+        if p["name"] == user_data.get("_ai_name"):
+            ai_interests_lower = [i.lower() for i in p.get("interests", [])]
+            break
+    
+    if user_interests and ai_interests_lower:
+        shared = [i for i in user_interests if i.lower() in ai_interests_lower]
+        if shared:
+            ctx += f"SHARED INTERESTS: {', '.join(shared)} — in pe baat karo naturally!\n"
+    
+    return ctx
+
+
+def _get_ai_system_prompt(ai_user: dict, user_data: dict = None) -> str:
+    """Build personality-specific system prompt with user context."""
     profile_data = None
     for p in AI_PROFILES:
         if p["name"] == ai_user.get("name"):
@@ -1147,6 +1248,13 @@ def _get_ai_system_prompt(ai_user: dict) -> str:
     personality_prompt = PERSONALITY_PROMPTS.get(personality_type, PERSONALITY_PROMPTS["sweet_caring"])
     
     vibe = profile_data.get("vibe", "") if profile_data else ""
+    
+    # Build user context
+    if user_data:
+        user_data["_ai_name"] = ai_user.get("name", "")
+    user_context = _build_user_context(user_data, ai_user.get("location", "")) if user_data else ""
+    
+    user_city = user_data.get("location", "") if user_data else ""
 
     return AI_SYSTEM_PROMPT_TEMPLATE.format(
         name=ai_user.get("name", "Priya"),
@@ -1155,17 +1263,32 @@ def _get_ai_system_prompt(ai_user: dict) -> str:
         bio=ai_user.get("bio", ""),
         vibe=vibe,
         personality_prompt=personality_prompt,
-        interests=", ".join(ai_user.get("interests", []))
+        interests=", ".join(ai_user.get("interests", [])),
+        user_context=user_context,
+        user_city=user_city or "unknown city",
     )
 
 
 async def generate_ai_response(db, match_id: str, ai_user: dict, user_message: str, user_name: str) -> str:
-    """Generate natural, human-like AI chat response using LLM."""
+    """Generate natural, human-like AI chat response using LLM with user city awareness."""
     if not EMERGENT_LLM_KEY:
         logger.error("EMERGENT_LLM_KEY not set")
         return _get_smart_fallback(ai_user)
 
-    system_prompt = _get_ai_system_prompt(ai_user)
+    # Fetch sender (user) profile for city-aware context
+    match_doc = await db.matches.find_one({"id": match_id}, {"_id": 0, "user1_id": 1, "user2_id": 1})
+    sender_id = None
+    if match_doc:
+        sender_id = match_doc["user1_id"] if match_doc["user2_id"] == ai_user["id"] else match_doc["user2_id"]
+    
+    user_data = None
+    if sender_id:
+        user_data = await db.users.find_one(
+            {"id": sender_id},
+            {"_id": 0, "name": 1, "age": 1, "location": 1, "interests": 1, "bio": 1, "gender": 1}
+        )
+
+    system_prompt = _get_ai_system_prompt(ai_user, user_data)
     session_id = f"heartlink_ai_{match_id}"
 
     try:
