@@ -1165,6 +1165,41 @@ CITY_VIBES = {
     "gurgaon": {"food": "same as delhi — butter chicken, chole", "places": "Cyber Hub, Kingdom of Dreams, Ambience Mall", "vibe": "corporate hub, nightlife, gym culture", "slang": "bro, dude"},
     "shimla": {"food": "siddu, babru, madra, hot chocolate", "places": "Mall Road, Ridge, Jakhu Temple", "vibe": "hill station, snowfall, cold weather, cozy", "slang": "yaar, bhai"},
     "dehradun": {"food": "maggi, momos, bal mithai, singori", "places": "Robber's Cave, Sahastradhara, Rajaji Park", "vibe": "doon valley, pleasant weather, chill vibe", "slang": "bhai, yaar"},
+    # ─── Tier-2 Cities (25+ new) ───
+    "ranchi": {"food": "litti chokha, dhuska, rugra sabzi, thekua", "places": "Ranchi Lake, Rock Garden, Hundru Falls, Tagore Hill", "vibe": "jharkhand pride, waterfalls, tribal culture, dhoni ka sheher", "slang": "bhai, yaar, re"},
+    "raipur": {"food": "fara, chila, muthiya, bore baasi", "places": "Marine Drive, Naya Raipur, Purkhauti Muktangan", "vibe": "chhattisgarh capital, growing city, simple life", "slang": "bhaiya, dai"},
+    "agra": {"food": "petha, bedai, jalebi, mughlai paratha", "places": "Taj Mahal, Agra Fort, Mehtab Bagh, Kinari Bazaar", "vibe": "city of love, taj mahal, mughal history", "slang": "bhai, yaar"},
+    "kanpur": {"food": "samosa, thaggu ke laddu, naasta", "places": "Phool Bagh, Allen Forest Zoo, Moti Jheel", "vibe": "industrial city, leather hub, UP vibes", "slang": "bhaiya, yaar"},
+    "vizag": {"food": "bamboo chicken, punugulu, seafood, boorelu", "places": "RK Beach, Kailasagiri, Araku Valley, Submarine Museum", "vibe": "vizag steel city, beaches, andhra vibe, pleasant weather", "slang": "bro, anna"},
+    "visakhapatnam": {"food": "bamboo chicken, punugulu, seafood, boorelu", "places": "RK Beach, Kailasagiri, Araku Valley", "vibe": "city of destiny, beaches, andhra culture", "slang": "bro, anna"},
+    "coimbatore": {"food": "kari dosa, kothu parotta, filter coffee, annapoorna", "places": "Brookefields, RS Puram, Marudhamalai Temple", "vibe": "manchester of south india, textile city, chill", "slang": "da, machan, bro"},
+    "mysore": {"food": "mysore pak, dosa, filter coffee, bisi bele bath", "places": "Mysore Palace, Chamundi Hills, Brindavan Gardens", "vibe": "palace city, cultural capital, yoga", "slang": "guru, macha"},
+    "thiruvananthapuram": {"food": "puttu kadala, appam stew, payasam, banana chips", "places": "Kovalam Beach, Padmanabhaswamy Temple, Napier Museum", "vibe": "kerala capital, temples, backwaters, communist culture", "slang": "chetta, machane"},
+    "kochi": {"food": "appam, fish curry, parotta, biryani", "places": "Fort Kochi, Marine Drive, Lulu Mall, Jew Town", "vibe": "queen of arabian sea, cosmopolitan, spice trade", "slang": "mone, machane"},
+    "mangalore": {"food": "ghee roast, neer dosa, fish curry, gadbad ice cream", "places": "Panambur Beach, Kadri Temple, St Aloysius Chapel", "vibe": "coastal karnataka, tulu culture, seafood paradise", "slang": "bro, yaar"},
+    "nashik": {"food": "misal pav, sabudana vada, thalipeeth", "places": "Sula Vineyards, Panchvati, Trimbakeshwar, Grape farms", "vibe": "wine capital, religious, grape city", "slang": "bhai, ya"},
+    "jodhpur": {"food": "dal baati churma, mirchi vada, makhaniya lassi", "places": "Mehrangarh Fort, Jaswant Thada, Clock Tower", "vibe": "blue city, rajput heritage, desert vibes", "slang": "sa, bhai"},
+    "udaipur": {"food": "dal baati, gatte ki sabzi, ghevar", "places": "Lake Pichola, City Palace, Fateh Sagar", "vibe": "city of lakes, romantic, venice of the east", "slang": "sa, bhai"},
+    "amritsar": {"food": "amritsari kulcha, lassi, langar, chole bhature", "places": "Golden Temple, Jallianwala Bagh, Wagah Border", "vibe": "spiritual, punjabi culture, seva, food capital", "slang": "oye, paaji, bai"},
+    "ludhiana": {"food": "chole bhature, makki ki roti sarso ka saag, pakode", "places": "Lodhi Fort, Punjab Agricultural University, Tiger Zoo", "vibe": "industrial city, punjabi culture, hosiery hub", "slang": "oye, veere, bai"},
+    "jalandhar": {"food": "samosa, chole, lassi, pinni", "places": "Wonderland, Devi Talab Mandir, Rangla Punjab", "vibe": "sports city, punjabi heartland", "slang": "oye, bai, veere"},
+    "allahabad": {"food": "kachori sabzi, samosa, chaat, chai", "places": "Sangam, Anand Bhavan, Allahabad Fort", "vibe": "prayagraj, spiritual, IIT culture, kumbh", "slang": "bhaiya, yaar"},
+    "prayagraj": {"food": "kachori sabzi, samosa, chaat, chai", "places": "Sangam, Anand Bhavan, Triveni Ghat", "vibe": "spiritual city, confluence of rivers, history", "slang": "bhaiya, yaar"},
+    "guwahati": {"food": "thali, pitha, masor tenga, bamboo shoot", "places": "Kamakhya Temple, Brahmaputra, Fancy Bazaar", "vibe": "gateway to northeast, brahmaputra, assamese culture", "slang": "da, bhai"},
+    "shillong": {"food": "jadoh, tungrymbai, momos, kwai", "places": "Don Bosco Museum, Ward Lake, Elephant Falls", "vibe": "scotland of east, music capital, khasi culture, rain", "slang": "bro, dude"},
+    "siliguri": {"food": "momos, thukpa, sel roti, gundruk", "places": "Mahananda Wildlife, Hong Kong Market, Sevoke Road", "vibe": "gateway to northeast, tea gardens, hills nearby", "slang": "bhai, dai"},
+    "jammu": {"food": "rajma chawal, kaladi, dogra thali, patisa", "places": "Vaishno Devi, Bahu Fort, Mubarak Mandi", "vibe": "temple city, dogra culture, gateway to kashmir", "slang": "bhai, yaar"},
+    "srinagar": {"food": "rogan josh, dum aloo, kahwa, wazwan", "places": "Dal Lake, Mughal Gardens, Shankaracharya Temple", "vibe": "paradise on earth, shikaras, houseboats, kashmir", "slang": "bro, yaar"},
+    "trivandrum": {"food": "puttu kadala, appam stew, payasam, banana chips", "places": "Kovalam, Padmanabhaswamy, Napier Museum", "vibe": "kerala capital, beach, temples", "slang": "chetta, machane"},
+    "madurai": {"food": "jigarthanda, kari dosa, kothu parotta, nonbu kanji", "places": "Meenakshi Temple, Thirumalai Nayak Palace", "vibe": "temple city, tamil culture, ancient history", "slang": "da, machan, anna"},
+    "tiruchirappalli": {"food": "chettinad chicken, kothu parotta, filter coffee", "places": "Rock Fort, Srirangam Temple, Kallanai Dam", "vibe": "trichy, temple town, old tamil city", "slang": "da, anna"},
+    "trichy": {"food": "chettinad chicken, kothu parotta, filter coffee", "places": "Rock Fort, Srirangam, Kallanai Dam", "vibe": "temple town, peaceful, south tamil culture", "slang": "da, anna"},
+    "bhubaneswar": {"food": "dalma, pakhala, chhena poda, mudhi mansa", "places": "Lingaraj Temple, Udayagiri Caves, Nandankanan Zoo", "vibe": "temple city, odisha capital, smart city", "slang": "bhai, yaar"},
+    "cuttack": {"food": "dahibara aludum, chhena poda, bara ghuguni", "places": "Barabati Fort, Dhabaleswar Temple, Netaji Birthplace", "vibe": "millennium city, filigree work, odisha culture", "slang": "bhai, yaar"},
+    "jamshedpur": {"food": "litti chokha, puchka, bihari thali", "places": "Jubilee Park, Dimna Lake, Dalma Wildlife", "vibe": "tata nagar, steel city, clean planned city", "slang": "bhai, yaar, re"},
+    "dhanbad": {"food": "litti chokha, samosa, chai, puchka", "places": "Topchanchi Lake, Panchet Dam, Maithon Dam", "vibe": "coal capital, industrial, jharkhand", "slang": "bhai, yaar"},
+    "meerut": {"food": "gazak, revdi, samosa, petha", "places": "Hastinapur, Augarnath Temple, Suraj Kund Park", "vibe": "sports city, ancient history, UP", "slang": "bhaiya, yaar"},
+    "bareilly": {"food": "samosa, nahari, biryani, zarda", "places": "Fun City, Dargah-e-Ala Hazrat, Trivati Nath Mandir", "vibe": "nath nagri, rohilkhand, UP vibes", "slang": "bhaiya, yaar"},
 }
 
 def _get_city_key(location_str):
@@ -1176,7 +1211,16 @@ def _get_city_key(location_str):
         if city in loc:
             return city
     # Check common alternate names
-    alt_names = {"bengaluru": "bangalore", "bombay": "mumbai", "calcutta": "kolkata", "madras": "chennai", "gurugram": "gurgaon"}
+    alt_names = {
+        "bengaluru": "bangalore", "bombay": "mumbai", "calcutta": "kolkata",
+        "madras": "chennai", "gurugram": "gurgaon", "prayagraj": "prayagraj",
+        "trivandrum": "trivandrum", "vizag": "vizag",
+        "visakhapatnam": "visakhapatnam", "trichy": "trichy",
+        "tiruchirappalli": "tiruchirappalli", "tatanagar": "jamshedpur",
+        "tata nagar": "jamshedpur", "cochin": "kochi", "ernakulam": "kochi",
+        "greater noida": "noida", "navi mumbai": "mumbai", "thane": "mumbai",
+        "faridabad": "gurgaon", "ghaziabad": "noida",
+    }
     for alt, real in alt_names.items():
         if alt in loc:
             return real
