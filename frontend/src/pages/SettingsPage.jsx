@@ -374,25 +374,27 @@ const SettingsPage = ({ user, setUser }) => {
             <Crown className="w-5 h-5 text-amber-500" />
             HeartLink Premium
           </h2>
-          {user?.is_premium ? (
+          {(user?.is_premium || user?.gender?.toLowerCase() === 'female') ? (
             <div className="space-y-3">
               <div className="flex items-center gap-2 bg-amber-50 px-3 py-2 rounded-lg">
                 <CheckCircle className="w-4 h-4 text-amber-600" />
                 <span className="text-sm font-semibold text-amber-800">
-                  {user?.subscription_status === 'trialing' ? 'Trial Active' : 'Premium Active'}
+                  {user?.gender?.toLowerCase() === 'female' ? 'Free for Girls' : user?.subscription_status === 'trialing' ? 'Trial Active' : 'Premium Active'}
                 </span>
               </div>
-              <button
-                onClick={() => {
-                  const pkg = 'com.heartlink.app';
-                  window.open(`https://play.google.com/store/account/subscriptions?sku=heartlink_premium_monthly&package=${pkg}`, '_system');
-                }}
-                className="w-full flex items-center justify-between bg-gray-50 hover:bg-gray-100 px-4 py-3 rounded-xl transition-colors"
-                data-testid="manage-subscription-settings"
-              >
-                <span className="text-sm font-medium text-gray-700">Manage Subscription</span>
-                <ExternalLink className="w-4 h-4 text-gray-400" />
-              </button>
+              {user?.gender?.toLowerCase() !== 'female' && (
+                <button
+                  onClick={() => {
+                    const pkg = 'com.heartlink.app';
+                    window.open(`https://play.google.com/store/account/subscriptions?sku=heartlink_premium_monthly&package=${pkg}`, '_system');
+                  }}
+                  className="w-full flex items-center justify-between bg-gray-50 hover:bg-gray-100 px-4 py-3 rounded-xl transition-colors"
+                  data-testid="manage-subscription-settings"
+                >
+                  <span className="text-sm font-medium text-gray-700">Manage Subscription</span>
+                  <ExternalLink className="w-4 h-4 text-gray-400" />
+                </button>
+              )}
             </div>
           ) : (
             <button

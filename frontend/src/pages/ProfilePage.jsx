@@ -91,8 +91,9 @@ const ProfilePage = ({ user, onUpdate }) => {
   const [citySearch, setCitySearch] = useState('');
   const [showCityDropdown, setShowCityDropdown] = useState(false);
   
-  // Check if user is premium
-  const isPremium = user?.is_premium || user?.isPremium;
+  // Check if user is premium (girls are always premium)
+  const isGirl = user?.gender?.toLowerCase() === 'female';
+  const isPremium = user?.is_premium || user?.isPremium || isGirl;
 
   // Get cities based on selected state
   const availableCities = useMemo(() => {
@@ -404,8 +405,8 @@ const ProfilePage = ({ user, onUpdate }) => {
             </div>
           </div>
 
-          {/* ═══ PREMIUM CARD — Prominent, always visible ═══ */}
-          {!profile.is_premium && (
+          {/* ═══ PREMIUM CARD — Girls see "Free Premium Active", Boys see upgrade CTA ═══ */}
+          {!profile.is_premium && !isGirl && (
             <div
               className="mx-4 mt-4 bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl p-4 cursor-pointer active:scale-[0.98] transition-transform shadow-lg shadow-amber-500/20"
               onClick={() => navigate('/premium')}
@@ -423,7 +424,7 @@ const ProfilePage = ({ user, onUpdate }) => {
               </div>
             </div>
           )}
-          {profile.is_premium && (
+          {(profile.is_premium || isGirl) && (
             <div
               className="mx-4 mt-4 bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-4 cursor-pointer active:scale-[0.98] transition-transform border border-amber-500/30"
               onClick={() => navigate('/premium')}
@@ -436,7 +437,7 @@ const ProfilePage = ({ user, onUpdate }) => {
                 <div className="flex-1">
                   <p className="text-sm font-bold text-white">HeartLink Premium</p>
                   <p className="text-xs text-amber-400">
-                    {profile.subscription_status === 'trialing' ? 'Trial Active' : 'Active'} — Manage
+                    {isGirl ? 'Free for Girls' : profile.subscription_status === 'trialing' ? 'Trial Active' : 'Active'}
                   </p>
                 </div>
                 <ChevronRight className="w-4 h-4 text-gray-500" />

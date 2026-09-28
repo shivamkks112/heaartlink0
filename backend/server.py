@@ -51,7 +51,7 @@ from models.schemas import (
 from services.helpers import (
     is_indian_location, INDIAN_STATES, INDIAN_CITIES,
     hash_password, verify_password,
-    clean_user_data, serialize_user_for_response,
+    clean_user_data, serialize_user_for_response, is_user_premium,
     sanitize_mongo_input,
     mask_phone_email, check_money_scam,
     create_in_app_notification,
@@ -4694,11 +4694,11 @@ async def get_profile_viewers_enhanced(user_id: str, is_premium: bool = False):
             {"_id": 0, "id": 1, "name": 1, "age": 1, "profile_picture": 1, "location": 1, "gender": 1}
         )
         if viewer:
-            # Check if user is premium
-            user = await db.users.find_one({"id": user_id}, {"_id": 0, "is_premium": 1})
-            is_user_premium = user.get("is_premium", False) if user else False
+            # Check if user is premium (females are always premium)
+            user = await db.users.find_one({"id": user_id}, {"_id": 0, "is_premium": 1, "gender": 1})
+            user_has_premium = is_user_premium(user)
             
-            if is_user_premium or is_premium:
+            if user_has_premium or is_premium:
                 viewers.append({
                     "user": viewer,
                     "viewed_at": v.get("viewed_at"),
@@ -7839,24 +7839,29 @@ async def get_subscription_status(user_id: str):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    is_premium = user.get("is_premium", False)
+    is_premium_flag = user.get("is_premium", False)
     sub_status = user.get("subscription_status", "none")
     
-    # Live expiry check
-    if is_premium and user.get("premium_end"):
+    # Female users are ALWAYS premium — no subscription needed
+    if user.get("gender", "").lower() == "female":
+        is_premium_flag = True
+        sub_status = sub_status if sub_status != "none" else "girls_free"
+    
+    # Live expiry check (only for non-female paid users)
+    if is_premium_flag and user.get("premium_end") and user.get("gender", "").lower() != "female":
         try:
             end_date = datetime.fromisoformat(user["premium_end"].replace("Z", "+00:00"))
             if datetime.now(timezone.utc) > end_date:
                 await db.users.update_one({"id": user_id}, {"$set": {"is_premium": False, "subscription_status": "expired"}})
                 invalidate_user_cache(user_id)
-                is_premium = False
+                is_premium_flag = False
                 sub_status = "expired"
         except Exception:
             pass
     
     return {
         "user_id": user_id,
-        "is_premium": is_premium,
+        "is_premium": is_premium_flag,
         "subscription_status": sub_status,
         "plan": user.get("premium_plan"),
         "product_id": user.get("subscription_product_id"),
@@ -7867,12 +7872,12 @@ async def get_subscription_status(user_id: str):
         "auto_renew_enabled": user.get("auto_renew_enabled"),
         "last_verified_at": user.get("last_verified_at"),
         "features": {
-            "no_ads": is_premium,
-            "unlimited_swipes": is_premium,
-            "see_who_liked": is_premium,
-            "profile_boost": is_premium,
-            "super_likes": is_premium,
-            "rewind": is_premium,
+            "no_ads": is_premium_flag,
+            "unlimited_swipes": is_premium_flag,
+            "see_who_liked": is_premium_flag,
+            "profile_boost": is_premium_flag,
+            "super_likes": is_premium_flag,
+            "rewind": is_premium_flag,
         }
     }
 

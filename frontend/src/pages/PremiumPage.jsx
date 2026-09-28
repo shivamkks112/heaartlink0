@@ -137,9 +137,13 @@ const PremiumPage = ({ user, onUpdate }) => {
   };
 
   const isPremium = user?.is_premium || subStatus?.is_premium;
-  const isExpired = !isPremium && (subStatus?.subscription_status === 'expired' || user?.subscription_status === 'expired');
+  const isGirl = user?.gender?.toLowerCase() === 'female';
+  const isExpired = !isPremium && !isGirl && (subStatus?.subscription_status === 'expired' || user?.subscription_status === 'expired');
   const isCancelled = subStatus?.subscription_status === 'cancelled';
-  const statusLabel = subStatus?.subscription_status === 'trialing' ? 'Trial' : subStatus?.subscription_status === 'active' ? 'Active' : subStatus?.subscription_status === 'cancelled' ? 'Cancelled (active until expiry)' : subStatus?.subscription_status === 'in_grace_period' ? 'Grace Period' : subStatus?.subscription_status === 'on_hold' ? 'On Hold' : subStatus?.subscription_status === 'paused' ? 'Paused' : '';
+  const statusLabel = isGirl ? 'Girls Free Forever' : subStatus?.subscription_status === 'trialing' ? 'Trial' : subStatus?.subscription_status === 'active' ? 'Active' : subStatus?.subscription_status === 'cancelled' ? 'Cancelled (active until expiry)' : subStatus?.subscription_status === 'in_grace_period' ? 'Grace Period' : subStatus?.subscription_status === 'on_hold' ? 'On Hold' : subStatus?.subscription_status === 'paused' ? 'Paused' : '';
+
+  // Girls always see premium as active
+  const showAsPremium = isPremium || isGirl;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 page-with-bottom-nav" style={{ paddingTop: 'var(--safe-top, 24px)' }}>
@@ -152,14 +156,15 @@ const PremiumPage = ({ user, onUpdate }) => {
         </button>
 
         {/* ── ACTIVE PREMIUM ── */}
-        {isPremium && (
+        {showAsPremium && (
           <div className="text-center py-8 space-y-4">
             <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center shadow-lg shadow-amber-500/30">
               <Crown className="w-10 h-10 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-white">You're Premium!</h1>
+            <h1 className="text-2xl font-bold text-white">{isGirl ? 'Premium Free for You!' : "You're Premium!"}</h1>
             {statusLabel && <p className="text-sm text-amber-400 font-medium">{statusLabel}</p>}
-            {subStatus?.expires_at && (
+            {isGirl && <p className="text-xs text-gray-400">HeartLink pe girls ko sab premium features FREE milte hai</p>}
+            {!isGirl && subStatus?.expires_at && (
               <p className="text-xs text-gray-500">
                 {isCancelled ? 'Access until' : subStatus?.subscription_status === 'trialing' ? 'Trial ends' : 'Renews'}: {new Date(subStatus.expires_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
               </p>
@@ -172,13 +177,15 @@ const PremiumPage = ({ user, onUpdate }) => {
                 </div>
               ))}
             </div>
-            <button
-              onClick={() => playBillingService.openManageSubscriptions()}
-              className="mt-4 flex items-center justify-center gap-2 text-sm text-gray-400 hover:text-gray-200 mx-auto"
-              data-testid="manage-subscription-btn"
-            >
-              <ExternalLink className="w-4 h-4" /> Manage Subscription
-            </button>
+            {!isGirl && (
+              <button
+                onClick={() => playBillingService.openManageSubscriptions()}
+                className="mt-4 flex items-center justify-center gap-2 text-sm text-gray-400 hover:text-gray-200 mx-auto"
+                data-testid="manage-subscription-btn"
+              >
+                <ExternalLink className="w-4 h-4" /> Manage Subscription
+              </button>
+            )}
           </div>
         )}
 
@@ -217,7 +224,7 @@ const PremiumPage = ({ user, onUpdate }) => {
         )}
 
         {/* ── NEW PURCHASE ── */}
-        {!isPremium && !isExpired && (
+        {!showAsPremium && !isExpired && (
           <div className="space-y-6">
             <div className="text-center">
               <div className="w-16 h-16 mx-auto rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center mb-3 shadow-lg shadow-amber-500/20">

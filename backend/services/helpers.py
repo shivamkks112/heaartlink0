@@ -107,7 +107,7 @@ def clean_user_data(user_data: dict) -> dict:
 
 
 def serialize_user_for_response(user_dict: dict, exclude_password: bool = True) -> dict:
-    """Serialize user data for API responses"""
+    """Serialize user data for API responses. Female users always get premium."""
     user_dict.pop('_id', None)
     if exclude_password:
         user_dict.pop('password_hash', None)
@@ -115,7 +115,20 @@ def serialize_user_for_response(user_dict: dict, exclude_password: bool = True) 
         user_dict.pop('password_reset_code', None)
         user_dict.pop('password_reset_expires', None)
     cleaned = clean_user_data(user_dict)
+    # Female users are always premium — no purchase needed
+    if cleaned.get("gender", "").lower() == "female":
+        cleaned["is_premium"] = True
+        cleaned["subscription_status"] = cleaned.get("subscription_status") or "girls_free"
     return cleaned
+
+
+def is_user_premium(user: dict) -> bool:
+    """Check if user has premium access. Female users always have premium."""
+    if not user:
+        return False
+    if user.get("gender", "").lower() == "female":
+        return True
+    return user.get("is_premium", False)
 
 
 def sanitize_mongo_input(data):
