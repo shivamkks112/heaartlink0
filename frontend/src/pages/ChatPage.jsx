@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import axios from 'axios';
-import { Send, ArrowLeft, Shield, Flag, BellOff, Bell, MoreVertical, Trash2, AlertTriangle, Camera, Clock, Check, CheckCheck, Heart as HeartIcon, SmilePlus, Gamepad2, Sparkles } from 'lucide-react';
+import { Send, ArrowLeft, Shield, Flag, BellOff, Bell, MoreVertical, Trash2, AlertTriangle, Camera, Clock, Check, CheckCheck, Heart as HeartIcon, SmilePlus, Gamepad2, Sparkles, Brain, X } from 'lucide-react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -50,6 +50,8 @@ const ChatPage = ({ user }) => {
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
   const imageInputRef = useRef(null); // Forces re-render for "last seen" label
+  const [aiMemory, setAiMemory] = useState(null);
+  const [showMemory, setShowMemory] = useState(false);
   const [nudgeDismissed, setNudgeDismissed] = useState(() => {
     try {
       const d = JSON.parse(localStorage.getItem('heartlink_nudge_dismissed') || '{}');
@@ -259,6 +261,15 @@ const ChatPage = ({ user }) => {
     const interval = setInterval(() => setTimeTick(t => t + 1), 30000);
     return () => clearInterval(interval);
   }, []);
+
+  // Fetch AI memory (non-blocking, background)
+  useEffect(() => {
+    if (matchId && otherUser?.is_ai_profile) {
+      axios.get(`${API}/ai-memory/${matchId}`).then(r => {
+        if (r.data?.has_memory) setAiMemory(r.data.facts);
+      }).catch(() => {});
+    }
+  }, [matchId, otherUser?.is_ai_profile]);
 
   // Refresh messages when app comes back to foreground (Android background → foreground)
   useEffect(() => {
@@ -570,12 +581,21 @@ const ChatPage = ({ user }) => {
 
   if (loading) {
     return (
-      <div style={{ width: '100%', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: surfaceLow }}>
-        <div className="flex flex-col items-center gap-3 m3-animate-in">
-          <div className="w-12 h-12 rounded-full m3-skeleton"></div>
-          <div className="w-32 h-4 m3-skeleton rounded-full"></div>
-          <div className="w-20 h-3 m3-skeleton rounded-full mt-1"></div>
+      <div style={{ width: '100%', height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', backgroundColor: surfaceLow }}>
+        <div className="flex-shrink-0 bg-gradient-to-r from-pink-500 via-rose-500 to-orange-500 shadow-lg" style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 24px)' }}>
+          <div className="max-w-2xl mx-auto px-2 py-2.5">
+            <div className="flex items-center gap-2">
+              <button onClick={() => navigate('/matches')} className="p-3 rounded-full" style={{ minWidth: '44px', minHeight: '44px' }}>
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+              </button>
+              <div className="flex items-center gap-2 flex-1">
+                <div className="w-9 h-9 rounded-full bg-white/20" />
+                <div><div className="w-24 h-3 bg-white/20 rounded-full" /><div className="w-14 h-2 bg-white/10 rounded-full mt-1.5" /></div>
+              </div>
+            </div>
+          </div>
         </div>
+        <div style={{ flex: 1 }} />
       </div>
     );
   }
@@ -674,6 +694,11 @@ const ChatPage = ({ user }) => {
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
+                {aiMemory && aiMemory.length > 0 && (
+                  <DropdownMenuItem onClick={() => setShowMemory(!showMemory)} className="cursor-pointer text-purple-600">
+                    <Brain className="w-4 h-4 mr-2" />She remembers...
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onClick={handleMute} className="cursor-pointer">
                   {isMuted ? (<><Bell className="w-4 h-4 mr-2" />Unmute Notifications</>) : (<><BellOff className="w-4 h-4 mr-2" />Mute Notifications</>)}
                 </DropdownMenuItem>
@@ -695,6 +720,27 @@ const ChatPage = ({ user }) => {
         style={{ flex: '1 1 0%', minHeight: 0, backgroundColor: surfaceLow }}
         data-testid="messages-container"
       >
+        {/* AI Memory Card — "She remembers..." */}
+        {showMemory && aiMemory && aiMemory.length > 0 && (
+          <div className="mb-3 rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(135deg, #7C3AED15, #EC489915)' }} data-testid="ai-memory-card">
+            <div className="px-4 py-3">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Brain className="w-4 h-4 text-purple-500" />
+                  <span className="text-xs font-bold text-purple-700">{otherUser?.name?.split(' ')[0]} remembers...</span>
+                </div>
+                <button onClick={() => setShowMemory(false)} className="text-gray-400 p-1">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <div className="space-y-1">
+                {aiMemory.map((fact, i) => (
+                  <p key={i} className="text-xs text-gray-600 pl-2 border-l-2 border-purple-200">{fact}</p>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
         {messages.length === 0 ? (
           <div className="text-center py-8 px-4" data-testid="icebreakers-section">
             <p style={{ color: 'var(--m3-on-surface-variant)' }} className="text-sm mb-5 font-medium">Start the conversation!</p>

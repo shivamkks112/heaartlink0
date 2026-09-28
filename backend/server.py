@@ -10932,6 +10932,16 @@ async def get_weekly_highlights(user_id: str):
     }
 
 
+@api_router.get("/ai-memory/{match_id}")
+async def get_ai_memory(match_id: str):
+    """Get AI conversation memory — what she remembers about the user."""
+    memory = await db.ai_conversation_memory.find_one({"match_id": match_id}, {"_id": 0})
+    if not memory or not memory.get("facts"):
+        return {"facts": [], "has_memory": False}
+    return {"facts": memory["facts"], "has_memory": True, "updated_at": memory.get("updated_at")}
+
+
+
 
 app.include_router(api_router)
 
