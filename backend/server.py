@@ -327,6 +327,10 @@ async def startup_event():
     asyncio.create_task(weekly_growth_email_scheduler())
     logging.info("📧 Weekly growth email scheduler started")
     
+    # Start weekly highlights notification scheduler
+    asyncio.create_task(weekly_highlights_scheduler())
+    logging.info("📊 Weekly highlights notification scheduler started")
+    
     # Auto-send update notification if app version changed
     asyncio.create_task(auto_update_notification())
     
@@ -1335,6 +1339,117 @@ async def _send_weekly_growth_digest():
         
     except Exception as e:
         logging.error(f"Weekly growth digest error: {e}")
+
+
+async def weekly_highlights_scheduler():
+    """Send weekly highlights push notification to all active users every Sunday 6 PM IST."""
+    while True:
+        try:
+            now = datetime.now(timezone.utc)
+            ist_offset = timedelta(hours=5, minutes=30)
+            now_ist = now + ist_offset
+            
+            # Calculate next Sunday 6 PM IST
+            days_until_sunday = (6 - now_ist.weekday()) % 7
+            if days_until_sunday == 0 and now_ist.hour >= 18:
+                days_until_sunday = 7
+            
+            next_sunday = now_ist.replace(hour=18, minute=0, second=0, microsecond=0) + timedelta(days=days_until_sunday)
+            sleep_seconds = (next_sunday - now_ist).total_seconds()
+            
+            logging.info(f"📊 Weekly highlights: sleeping {sleep_seconds/3600:.1f}h until Sunday 6PM IST")
+            await asyncio.sleep(max(sleep_seconds, 60))
+            
+            await _send_weekly_highlights()
+            
+        except Exception as e:
+            logging.error(f"Weekly highlights scheduler error: {e}")
+            await asyncio.sleep(3600)
+
+
+async def _send_weekly_highlights():
+    """Send personalized weekly highlights notification to each active user."""
+    try:
+        week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+        
+        # Get all non-AI users who have been active recently
+        active_users = await db.users.find(
+            {"is_ai_profile": {"$ne": True}, "fcm_token": {"$exists": True, "$ne": None}},
+            {"_id": 0, "id": 1, "name": 1, "fcm_token": 1, "gender": 1}
+        ).to_list(None)
+        
+        sent_count = 0
+        for user in active_users:
+            try:
+                user_id = user["id"]
+                
+                # Count likes received this week
+                likes_received = await db.matches.count_documents({
+                    "user2_id": user_id,
+                    "user1_liked": True,
+                    "created_at": {"$gte": week_ago}
+                })
+                
+                # Count profile views this week
+                views_received = await db.in_app_notifications.count_documents({
+                    "user_id": user_id,
+                    "type": "profile_view",
+                    "created_at": {"$gte": week_ago}
+                })
+                
+                # Count new matches this week
+                new_matches = await db.matches.count_documents({
+                    "$or": [{"user1_id": user_id}, {"user2_id": user_id}],
+                    "matched": True,
+                    "created_at": {"$gte": week_ago}
+                })
+                
+                # Count messages received
+                msgs_received = await db.messages.count_documents({
+                    "receiver_id": user_id,
+                    "created_at": {"$gte": week_ago}
+                })
+                
+                # Build notification message
+                if likes_received == 0 and views_received == 0 and new_matches == 0:
+                    continue  # Skip users with no activity
+                
+                parts = []
+                if likes_received > 0:
+                    parts.append(f"{likes_received} likes")
+                if views_received > 0:
+                    parts.append(f"{views_received} profile views")
+                if new_matches > 0:
+                    parts.append(f"{new_matches} new matches")
+                if msgs_received > 0:
+                    parts.append(f"{msgs_received} messages")
+                
+                summary = ", ".join(parts)
+                first_name = user.get("name", "").split()[0] if user.get("name") else "Hey"
+                
+                title = f"{first_name}, tumhara week kaisa raha!"
+                body = f"Is hafte: {summary}. Kholke dekho kaun interested hai!"
+                
+                await fcm_service.send_to_user(
+                    db, user_id,
+                    title=title,
+                    message=body,
+                    data={"type": "weekly_highlights", "route": "/likes"}
+                )
+                sent_count += 1
+                
+                # Small delay to avoid FCM rate limits
+                if sent_count % 50 == 0:
+                    await asyncio.sleep(2)
+                    
+            except Exception as e:
+                logging.error(f"Weekly highlight for {user.get('id','?')}: {e}")
+                continue
+        
+        logging.info(f"📊 Weekly highlights sent to {sent_count}/{len(active_users)} users")
+        
+    except Exception as e:
+        logging.error(f"Weekly highlights error: {e}")
 
 
 async def notification_scheduler():
@@ -10785,6 +10900,37 @@ async def get_reward_status(user_id: str):
         "is_girl": user.get("gender", "").lower() == "female",
         "superlikes_bonus": user.get("daily_superlikes_bonus", 0),
     }
+
+
+@api_router.get("/weekly-highlights/{user_id}")
+async def get_weekly_highlights(user_id: str):
+    """Get user's weekly activity highlights."""
+    week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+
+    likes = await db.matches.count_documents({
+        "user2_id": user_id, "user1_liked": True,
+        "created_at": {"$gte": week_ago}
+    })
+    views = await db.in_app_notifications.count_documents({
+        "user_id": user_id, "type": "profile_view",
+        "created_at": {"$gte": week_ago}
+    })
+    matches = await db.matches.count_documents({
+        "$or": [{"user1_id": user_id}, {"user2_id": user_id}],
+        "matched": True, "created_at": {"$gte": week_ago}
+    })
+    msgs = await db.messages.count_documents({
+        "receiver_id": user_id, "created_at": {"$gte": week_ago}
+    })
+
+    return {
+        "likes_received": likes,
+        "profile_views": views,
+        "new_matches": matches,
+        "messages_received": msgs,
+        "period": "last_7_days"
+    }
+
 
 
 app.include_router(api_router)

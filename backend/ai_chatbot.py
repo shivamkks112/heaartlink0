@@ -1672,7 +1672,7 @@ def _get_ai_system_prompt(ai_user: dict, user_data: dict = None) -> str:
 
 
 async def generate_ai_response(db, match_id: str, ai_user: dict, user_message: str, user_name: str) -> str:
-    """Generate natural, human-like AI chat response using LLM with user city awareness."""
+    """Generate natural, human-like AI chat response using LLM with user city awareness and conversation memory."""
     if not EMERGENT_LLM_KEY:
         logger.error("EMERGENT_LLM_KEY not set")
         return _get_smart_fallback(ai_user)
@@ -1693,11 +1693,20 @@ async def generate_ai_response(db, match_id: str, ai_user: dict, user_message: s
     system_prompt = _get_ai_system_prompt(ai_user, user_data)
     session_id = f"heartlink_ai_{match_id}"
 
+    # Load conversation memory (persistent facts about this user)
+    memory_doc = await db.ai_conversation_memory.find_one({"match_id": match_id}, {"_id": 0})
+    memory_context = ""
+    if memory_doc and memory_doc.get("facts"):
+        memory_context = "\nTUMHARI YAADEIN — Jo tum pehle ki baatcheet se jaanti ho (NATURALLY use karo, repeat mat karo):\n"
+        for fact in memory_doc["facts"][:10]:
+            memory_context += f"- {fact}\n"
+        memory_context += "In baaton ko yaad rakh. Reference karo jab relevant ho. But har msg mein mat ghusao.\n"
+
     try:
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
             session_id=session_id,
-            system_message=system_prompt
+            system_message=system_prompt + memory_context
         )
         chat.with_model("gemini", "gemini-2.5-flash")
 
@@ -1735,15 +1744,13 @@ async def generate_ai_response(db, match_id: str, ai_user: dict, user_message: s
         
         # Remove ALL markdown formatting
         response_text = response_text.replace("**", "").replace("*", "").replace("__", "").replace("~~", "")
-        # Remove quotes that LLM adds
         if response_text.startswith('"') and response_text.endswith('"'):
             response_text = response_text[1:-1]
         
-        # Truncate long responses — real girls don't write essays
+        # Truncate long responses
         if len(response_text) > 250:
-            # Cut at last sentence/phrase boundary
             cut = response_text[:250]
-            for sep in ['. ', '! ', '? ', '😂 ', '😏 ', '\n']:
+            for sep in ['. ', '! ', '? ', '\n']:
                 idx = cut.rfind(sep)
                 if idx > 100:
                     response_text = cut[:idx + len(sep)].strip()
@@ -1751,11 +1758,92 @@ async def generate_ai_response(db, match_id: str, ai_user: dict, user_message: s
             else:
                 response_text = cut.strip()
 
+        # Update conversation memory in background (every 8 messages)
+        msg_count = await db.messages.count_documents({"match_id": match_id})
+        if msg_count > 0 and msg_count % 8 == 0:
+            asyncio.create_task(_update_conversation_memory(db, match_id, ai_user, user_name, recent_msgs))
+
         return response_text
 
     except Exception as e:
         logger.error(f"AI response generation failed: {e}")
         return _get_smart_fallback(ai_user)
+
+
+async def _update_conversation_memory(db, match_id: str, ai_user: dict, user_name: str, recent_msgs: list):
+    """Extract and store key facts from conversation for long-term memory."""
+    try:
+        # Build conversation text from user messages only
+        user_texts = []
+        for msg in recent_msgs:
+            if msg["sender_id"] != ai_user["id"] and msg.get("content"):
+                user_texts.append(msg["content"])
+        
+        if len(user_texts) < 3:
+            return
+        
+        conversation_text = "\n".join(user_texts[-15:])
+        
+        # Load existing facts
+        existing = await db.ai_conversation_memory.find_one({"match_id": match_id}, {"_id": 0, "facts": 1})
+        old_facts = existing.get("facts", []) if existing else []
+        old_facts_str = "\n".join(old_facts) if old_facts else "none yet"
+        
+        extract_prompt = f"""User '{user_name}' ke recent messages se KEY FACTS extract karo. Sirf important personal details jo yaad rakhni chahiye.
+
+EXISTING FACTS (already known):
+{old_facts_str}
+
+USER'S RECENT MESSAGES:
+{conversation_text}
+
+Extract 3-5 NEW facts (jo existing mein nahi hai). Format: short bullet points in Hinglish.
+Examples: "IT mein kaam krta hai", "Biryani psand hai", "Bangalore mein shift hua recently", "Sister ki shaadi hai next month", "Cricket dekhta hai", "Akela rehta hai"
+
+Only output the new facts, one per line. If nothing new found, output: NONE"""
+
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f"memory_extract_{match_id}",
+            system_message="Tu ek fact extractor hai. User ke messages se important personal facts extract kr. Short, clear, Hinglish mein."
+        )
+        chat.with_model("gemini", "gemini-2.5-flash")
+        
+        result = await chat.send_message(UserMessage(text=extract_prompt))
+        result_text = str(result).strip()
+        
+        if "NONE" in result_text.upper() or len(result_text) < 5:
+            return
+        
+        # Parse new facts
+        new_facts = []
+        for line in result_text.split("\n"):
+            line = line.strip().lstrip("- ").lstrip("• ").strip()
+            if line and len(line) > 5 and len(line) < 150 and "NONE" not in line.upper():
+                # Remove markdown
+                line = line.replace("**", "").replace("*", "")
+                new_facts.append(line)
+        
+        if not new_facts:
+            return
+        
+        # Merge with existing, keep max 15 facts
+        all_facts = old_facts + new_facts
+        all_facts = all_facts[-15:]  # Keep latest 15
+        
+        await db.ai_conversation_memory.update_one(
+            {"match_id": match_id},
+            {"$set": {
+                "match_id": match_id,
+                "facts": all_facts,
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }},
+            upsert=True
+        )
+        logger.info(f"Updated AI memory for match {match_id}: {len(new_facts)} new facts")
+        
+    except Exception as e:
+        logger.error(f"Memory update failed for {match_id}: {e}")
 
 
 def _get_smart_fallback(ai_user: dict) -> str:
