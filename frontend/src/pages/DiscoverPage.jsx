@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
-import { Heart, X, MapPin, Play, Star, SlidersHorizontal, Flame, Crown } from 'lucide-react';
+import { Heart, X, MapPin, Play, Star, SlidersHorizontal, Flame, Crown, Undo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
@@ -70,6 +70,10 @@ const DiscoverPage = ({ user }) => {
   const [extraSwipes, setExtraSwipes] = useState(0);
   const [swipesUntilAd, setSwipesUntilAd] = useState(SWIPES_BEFORE_AD);
   const [showingAd, setShowingAd] = useState(false);
+  // Undo swipe state
+  const [lastSwipedProfile, setLastSwipedProfile] = useState(null);
+  const [lastSwipeAction, setLastSwipeAction] = useState(null);
+  const [undoing, setUndoing] = useState(false);
   const [cityFilter, setCityFilter] = useState('');
   const [showFilter, setShowFilter] = useState(false);
 
@@ -258,7 +262,15 @@ const DiscoverPage = ({ user }) => {
 
     // INSTANT: advance card immediately — native feel
     const targetProfile = profiles[currentIndex];
+    const prevIndex = currentIndex;
     actionInFlight.current = true;
+    
+    // Save for undo (only like/pass, not superlike/crush)
+    if (action === 'like' || action === 'pass') {
+      setLastSwipedProfile({ profile: targetProfile, index: prevIndex, action });
+      setLastSwipeAction(action);
+    }
+    
     advanceCard();
 
     // Haptic feedback for native feel
@@ -312,6 +324,40 @@ const DiscoverPage = ({ user }) => {
       }
     })();
   };
+
+  // ── UNDO SWIPE (Premium Only) ──
+  const handleUndo = async () => {
+    if (!lastSwipedProfile || undoing) return;
+    const isPremiumUser = user?.is_premium || user?.isPremium || user?.gender?.toLowerCase() === 'female';
+    if (!isPremiumUser) {
+      toast.error('Undo is a Premium feature. Upgrade to use it!', { action: { label: 'Premium', onClick: () => navigate('/premium') } });
+      return;
+    }
+
+    setUndoing(true);
+    try {
+      // Call backend to undo the action
+      await axios.post(`${API}/action/${user.id}/undo`, {
+        target_user_id: lastSwipedProfile.profile.id,
+      });
+
+      // Reinsert profile back at current position
+      setProfiles(prev => {
+        const updated = [...prev];
+        updated.splice(currentIndex, 0, lastSwipedProfile.profile);
+        return updated;
+      });
+      setCurrentIndex(prev => prev); // Stay at current (which now has the restored profile)
+      setPhotoIndex(0);
+      setLastSwipedProfile(null);
+      setLastSwipeAction(null);
+      try { navigator?.vibrate?.(10); } catch(e) {}
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Undo failed');
+    }
+    setUndoing(false);
+  };
+
 
   const handleMatchAnimationClose = () => { setShowMatchAnimation(false); setMatchedUserData(null); setMatchCompatibilityScore(null); setMatchIdForChat(null); };
   const handleStartChatFromMatch = () => { setShowMatchAnimation(false); if (matchIdForChat) navigate(`/chat/${matchIdForChat}`); else if (matchedUserData) navigate('/matches'); };
@@ -701,6 +747,23 @@ const DiscoverPage = ({ user }) => {
                   boxShadow: '0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08)',
                 }}
               >
+                {/* UNDO Button (Premium Only — shows only when last swipe exists) */}
+                {lastSwipedProfile && (
+                  <button
+                    data-testid="undo-btn"
+                    onClick={handleUndo}
+                    disabled={undoing}
+                    className="group relative rounded-full flex items-center justify-center active:scale-[0.75] transition-transform duration-75"
+                    style={{
+                      width: '40px', height: '40px',
+                      background: 'linear-gradient(145deg, rgba(255,255,255,0.15), rgba(255,255,255,0.05))',
+                      border: '1.5px solid rgba(255,200,50,0.4)',
+                    }}
+                  >
+                    <Undo2 className="w-4 h-4 text-amber-400" />
+                  </button>
+                )}
+
                 {/* PASS Button */}
                 <button
                   data-testid="pass-btn"

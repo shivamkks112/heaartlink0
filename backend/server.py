@@ -4479,6 +4479,61 @@ async def _post_match_tasks(match_id, user_id, target_id, user_name, target_name
 
 
 
+
+@api_router.post("/action/{user_id}/undo")
+async def undo_action(user_id: str, request: Request):
+    """Undo last swipe action — Premium only. Removes the like/pass record."""
+    data = await request.json()
+    target_user_id = data.get("target_user_id")
+    
+    if not target_user_id:
+        raise HTTPException(status_code=400, detail="target_user_id required")
+    
+    # Check premium
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "is_premium": 1, "gender": 1})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if not is_user_premium(user):
+        raise HTTPException(status_code=403, detail="Undo is a Premium feature")
+    
+    # Remove any match/action record between these users (where this user initiated)
+    # Case 1: User liked target — remove the match record
+    result = await db.matches.delete_one({
+        "user1_id": user_id,
+        "user2_id": target_user_id,
+        "matched": False  # Only undo non-mutual matches (can't undo a mutual match)
+    })
+    
+    # Case 2: User was second to like (mutual match already happened) — can't undo
+    if result.deleted_count == 0:
+        # Check if there's a mutual match
+        mutual = await db.matches.find_one({
+            "$or": [
+                {"user1_id": user_id, "user2_id": target_user_id, "matched": True},
+                {"user1_id": target_user_id, "user2_id": user_id, "matched": True}
+            ]
+        })
+        if mutual:
+            raise HTTPException(status_code=400, detail="Can't undo — you already matched! Unmatch from chat instead.")
+    
+    # Also remove from swipe history / pass records
+    await db.swipe_history.delete_one({
+        "user_id": user_id,
+        "target_user_id": target_user_id
+    })
+    
+    # Remove related notification
+    await db.in_app_notifications.delete_many({
+        "user_id": target_user_id,
+        "data.from_user_id": user_id,
+        "type": {"$in": ["new_like", "superlike"]}
+    })
+    
+    invalidate_user_cache(user_id)
+    
+    return {"success": True, "message": "Swipe undone! Profile restored."}
+
+
 @api_router.post("/action/{user_id}")
 @api_router.post("/api/action/{user_id}")
 async def user_action(user_id: str, action: LikeAction):
