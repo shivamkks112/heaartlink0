@@ -11182,6 +11182,9 @@ async def submit_payment_screenshot(request: Request):
     if not user_id or not screenshot_base64:
         raise HTTPException(status_code=400, detail="User ID and screenshot required")
 
+    if not utr_number:
+        raise HTTPException(status_code=400, detail="UTR / Transaction ID is required")
+
     user = await db.users.find_one({"id": user_id}, {"_id": 0, "name": 1, "email": 1})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")

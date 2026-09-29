@@ -406,7 +406,7 @@ const ProfilePage = ({ user, onUpdate }) => {
           </div>
 
           {/* ═══ PREMIUM CARD — Girls see "Free Premium Active", Boys see upgrade CTA ═══ */}
-          {!profile.is_premium && !isGirl && (
+          {!isPremium && (
             <div
               className="mx-4 mt-4 bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl p-4 cursor-pointer active:scale-[0.98] transition-transform shadow-lg shadow-amber-500/20"
               onClick={() => navigate('/premium')}
@@ -424,7 +424,7 @@ const ProfilePage = ({ user, onUpdate }) => {
               </div>
             </div>
           )}
-          {(profile.is_premium || isGirl) && (
+          {isPremium && (
             <div
               className="mx-4 mt-4 bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-4 cursor-pointer active:scale-[0.98] transition-transform border border-amber-500/30"
               onClick={() => navigate('/premium')}

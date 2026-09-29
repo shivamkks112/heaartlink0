@@ -381,6 +381,7 @@ const PaymentScreenshotUpload = ({ userId, onSuccess }) => {
 
   const handleSubmit = async () => {
     if (!screenshotPreview) { toast.error('Payment screenshot upload karo'); return; }
+    if (!utrNumber.trim()) { toast.error('UTR / Transaction ID daalna zaroori hai'); return; }
     setSubmitting(true);
     try {
       const res = await axios.post(`${API}/payment/submit-screenshot`, {
@@ -503,14 +504,15 @@ const PaymentScreenshotUpload = ({ userId, onSuccess }) => {
           type="text"
           value={utrNumber}
           onChange={e => setUtrNumber(e.target.value)}
-          placeholder="UTR / Transaction ID (optional)"
+          placeholder="UTR / Transaction ID *"
           className="w-full bg-white/5 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white placeholder-gray-500"
           data-testid="utr-input"
+          required
         />
 
         <button
           onClick={handleSubmit}
-          disabled={submitting || !screenshotPreview}
+          disabled={submitting || !screenshotPreview || !utrNumber.trim()}
           className="w-full py-3 bg-green-500 text-white rounded-xl text-sm font-bold disabled:opacity-50 active:scale-95 transition-transform"
           data-testid="submit-payment-btn"
         >
