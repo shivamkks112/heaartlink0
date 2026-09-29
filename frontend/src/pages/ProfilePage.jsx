@@ -91,9 +91,9 @@ const ProfilePage = ({ user, onUpdate }) => {
   const [citySearch, setCitySearch] = useState('');
   const [showCityDropdown, setShowCityDropdown] = useState(false);
   
-  // Check if user is premium (girls are always premium)
+  // Check if user is premium (girls are always premium) — check both user prop AND profile from API
   const isGirl = user?.gender?.toLowerCase() === 'female';
-  const isPremium = user?.is_premium || user?.isPremium || isGirl;
+  const isPremium = user?.is_premium || user?.isPremium || isGirl || profile?.is_premium;
 
   // Get cities based on selected state
   const availableCities = useMemo(() => {
@@ -173,6 +173,11 @@ const ProfilePage = ({ user, onUpdate }) => {
       const response = await axios.get(`${API}/profile/${user.id}`);
       setProfile(response.data);
       setFormData(response.data);
+      // Sync premium status to parent if API says premium but user prop doesn't
+      if (response.data.is_premium && !user?.is_premium && onUpdate) {
+        const updatedUser = { ...user, is_premium: true, subscription_status: response.data.subscription_status || 'active' };
+        onUpdate(updatedUser);
+      }
     } catch (error) {
       console.error('Profile fetch error:', error.response?.data || error.message);
       setFetchError(true);
