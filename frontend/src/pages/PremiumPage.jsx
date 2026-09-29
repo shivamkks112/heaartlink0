@@ -280,8 +280,62 @@ const PremiumPage = ({ user, onUpdate }) => {
             <button onClick={handleRestore} disabled={restoring} className="w-full flex items-center justify-center gap-2 py-3 text-sm text-gray-500 hover:text-gray-300 transition-colors" data-testid="restore-purchases-btn">
               {restoring ? <><Loader2 className="w-4 h-4 animate-spin" /> Restoring...</> : <><RotateCcw className="w-4 h-4" /> Restore Purchases</>}
             </button>
+
+            {/* Promo Code Section */}
+            <PromoCodeInput userId={user?.id} onSuccess={(data) => {
+              toast.success(data.message);
+              const updatedUser = { ...user, is_premium: true, subscription_status: 'promo_code' };
+              if (onUpdate) onUpdate(updatedUser);
+              localStorage.setItem('user', JSON.stringify(updatedUser));
+              setSubStatus({ is_premium: true, subscription_status: 'promo_code', expires_at: data.expires_at });
+            }} />
           </div>
         )}
+      </div>
+    </div>
+  );
+};
+
+const PromoCodeInput = ({ userId, onSuccess }) => {
+  const [code, setCode] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleRedeem = async () => {
+    if (!code.trim()) { toast.error('Enter a promo code'); return; }
+    setLoading(true);
+    try {
+      const res = await axios.post(`${API}/promo/redeem`, { user_id: userId, code: code.trim() });
+      if (res.data.success) {
+        onSuccess(res.data);
+        setCode('');
+      }
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Invalid code');
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="border border-dashed border-gray-600 rounded-xl p-4 space-y-2" data-testid="promo-code-section">
+      <p className="text-xs text-gray-400 text-center">Have a promo code?</p>
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={code}
+          onChange={e => setCode(e.target.value.toUpperCase())}
+          placeholder="Enter code"
+          maxLength={20}
+          className="flex-1 bg-white/5 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white placeholder-gray-500 uppercase tracking-wider"
+          data-testid="promo-code-input"
+        />
+        <button
+          onClick={handleRedeem}
+          disabled={loading || !code.trim()}
+          className="px-4 py-2.5 bg-amber-500 text-white rounded-lg text-sm font-bold disabled:opacity-50 active:scale-95 transition-transform"
+          data-testid="promo-redeem-btn"
+        >
+          {loading ? '...' : 'Redeem'}
+        </button>
       </div>
     </div>
   );

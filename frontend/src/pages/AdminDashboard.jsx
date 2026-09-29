@@ -8,7 +8,7 @@ import {
   Eye, MessageCircle, Heart, Shield, Crown,
   Activity, BarChart3, PieChart, ClipboardCheck, Settings,
   Bot, Power, RotateCcw, KeyRound, Download, Send, Flame,
-  DollarSign, BarChart2, Target, Tv, Zap, Sparkles
+  DollarSign, BarChart2, Target, Tv, Zap, Sparkles, Gift
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -498,6 +498,11 @@ const AdminDashboard = ({ user }) => {
   const [showBlockModal, setShowBlockModal] = useState(false);
   const [showUserDetail, setShowUserDetail] = useState(false);
   const [blockReason, setBlockReason] = useState('');
+  // Promo codes
+  const [promoCodes, setPromoCodes] = useState([]);
+  const [newPromoCode, setNewPromoCode] = useState('');
+  const [newPromoDays, setNewPromoDays] = useState(30);
+  const [newPromoMaxUses, setNewPromoMaxUses] = useState(100);
   const [blockPermanent, setBlockPermanent] = useState(false);
   const [genderFilter, setGenderFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -559,6 +564,36 @@ const AdminDashboard = ({ user }) => {
       toast.error('Failed to toggle AI profile');
     }
   };
+
+  const fetchPromoCodes = useCallback(async () => {
+    try {
+      const res = await adminApi.get('/admin/promo-codes');
+      setPromoCodes(res.data || []);
+    } catch (e) { console.error('Promo fetch error:', e); }
+  }, []);
+
+  const createPromoCode = async () => {
+    if (!newPromoCode.trim()) { toast.error('Enter a code'); return; }
+    try {
+      await adminApi.post('/admin/promo-codes/create', {
+        code: newPromoCode.trim(),
+        days: newPromoDays,
+        max_uses: newPromoMaxUses,
+      });
+      toast.success(`Code "${newPromoCode.toUpperCase()}" created!`);
+      setNewPromoCode('');
+      fetchPromoCodes();
+    } catch (e) { toast.error(e.response?.data?.detail || 'Failed'); }
+  };
+
+  const deactivatePromoCode = async (code) => {
+    try {
+      await adminApi.delete(`/admin/promo-codes/${code}`);
+      toast.success(`Code ${code} deactivated`);
+      fetchPromoCodes();
+    } catch (e) { toast.error('Failed'); }
+  };
+
 
   const deleteAiProfile = async (profileId, name) => {
     if (!window.confirm(`Kya aap "${name}" AI profile delete karna chahte ho? Iske saare matches aur messages bhi delete ho jayenge.`)) return;
@@ -691,6 +726,8 @@ const AdminDashboard = ({ user }) => {
       fetchFeatureFlags();
     } else if (activeTab === 'ai-profiles') {
       fetchAiProfiles();
+    } else if (activeTab === 'promo-codes') {
+      fetchPromoCodes();
     }
   }, [activeTab, fetchUsers, fetchPendingVerifications, fetchVerifiedUsers, fetchFeatureFlags, fetchAiProfiles]);
 
@@ -876,6 +913,13 @@ const AdminDashboard = ({ user }) => {
             data-testid="admin-ai-profiles-tab"
           >
             <Bot className="w-4 h-4 mr-2" /> AI Girls
+          </Button>
+          <Button
+            onClick={() => setActiveTab('promo-codes')}
+            className={activeTab === 'promo-codes' ? 'bg-amber-500' : 'bg-gray-200 text-gray-700'}
+            data-testid="admin-promo-tab"
+          >
+            <Gift className="w-4 h-4 mr-2" /> Promo Codes
           </Button>
           <Button
             onClick={() => setActiveTab('growth')}
@@ -1477,6 +1521,62 @@ const AdminDashboard = ({ user }) => {
       {activeTab === 'ads' && (
         <AdAnalyticsPanel />
       )}
+
+      {activeTab === 'promo-codes' && (
+        <div className="space-y-6" data-testid="admin-promo-panel">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Promo Codes</h2>
+            <p className="text-sm text-gray-500 mt-1">Create and manage promo codes for premium activation</p>
+          </div>
+
+          {/* Create New Code */}
+          <div className="bg-white rounded-xl p-4 shadow-sm border space-y-3">
+            <h3 className="font-semibold text-gray-800">Create New Code</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <input
+                value={newPromoCode}
+                onChange={e => setNewPromoCode(e.target.value.toUpperCase())}
+                placeholder="Code (e.g. HEARTLINK30)"
+                className="col-span-2 border rounded-lg px-3 py-2 text-sm uppercase"
+                data-testid="create-promo-code-input"
+              />
+              <div>
+                <label className="text-xs text-gray-500">Days</label>
+                <input type="number" value={newPromoDays} onChange={e => setNewPromoDays(parseInt(e.target.value) || 30)} className="w-full border rounded-lg px-3 py-2 text-sm" min={1} max={365} />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500">Max Uses</label>
+                <input type="number" value={newPromoMaxUses} onChange={e => setNewPromoMaxUses(parseInt(e.target.value) || 1)} className="w-full border rounded-lg px-3 py-2 text-sm" min={1} max={10000} />
+              </div>
+            </div>
+            <Button onClick={createPromoCode} className="w-full bg-amber-500 hover:bg-amber-600" data-testid="create-promo-btn">
+              Create Promo Code
+            </Button>
+          </div>
+
+          {/* Active Codes */}
+          <div className="space-y-2">
+            {promoCodes.length === 0 ? (
+              <p className="text-center text-gray-400 py-8">No promo codes yet. Create one above!</p>
+            ) : (
+              promoCodes.map((p, i) => (
+                <div key={i} className={`bg-white rounded-xl p-4 shadow-sm border flex items-center justify-between ${!p.is_active ? 'opacity-50' : ''}`}>
+                  <div>
+                    <p className="font-bold text-gray-900 font-mono tracking-wider">{p.code}</p>
+                    <p className="text-xs text-gray-500">{p.days} days | Used: {p.used_count}/{p.max_uses} | {p.is_active ? 'Active' : 'Inactive'}</p>
+                  </div>
+                  {p.is_active && (
+                    <Button onClick={() => deactivatePromoCode(p.code)} variant="outline" size="sm" className="text-red-500 border-red-200">
+                      Deactivate
+                    </Button>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
 
       {activeTab === 'growth' && (
         <div className="space-y-6">

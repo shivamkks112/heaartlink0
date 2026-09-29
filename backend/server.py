@@ -10943,6 +10943,119 @@ async def daily_checkin_reward(user_id: str):
         "message": f"{'🎉' if is_girl else ''} {total_coins} HeartCoins earned!" + (f" + {superlikes_bonus} SuperLike!" if superlikes_bonus else "")
     }
 
+
+# ==================== PROMO CODE SYSTEM ====================
+
+@api_router.post("/admin/promo-codes/create")
+async def create_promo_code(request: Request, admin: dict = Depends(require_admin)):
+    """Admin: Create a new promo code for premium activation."""
+    data = await request.json()
+    code = data.get("code", "").strip().upper()
+    days = data.get("days", 30)
+    max_uses = data.get("max_uses", 1)
+    description = data.get("description", "")
+
+    if not code or len(code) < 4:
+        raise HTTPException(status_code=400, detail="Code must be at least 4 characters")
+    if days < 1 or days > 365:
+        raise HTTPException(status_code=400, detail="Days must be between 1 and 365")
+
+    existing = await db.promo_codes.find_one({"code": code})
+    if existing:
+        raise HTTPException(status_code=400, detail="Code already exists")
+
+    promo = {
+        "code": code,
+        "days": days,
+        "max_uses": max_uses,
+        "used_count": 0,
+        "used_by": [],
+        "description": description,
+        "is_active": True,
+        "created_by": admin["id"],
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.promo_codes.insert_one(promo)
+    return {"success": True, "code": code, "days": days, "max_uses": max_uses}
+
+
+@api_router.get("/admin/promo-codes")
+async def list_promo_codes(admin: dict = Depends(require_admin)):
+    """Admin: List all promo codes."""
+    codes = await db.promo_codes.find({}, {"_id": 0}).sort("created_at", -1).to_list(None)
+    return codes
+
+
+@api_router.delete("/admin/promo-codes/{code}")
+async def delete_promo_code(code: str, admin: dict = Depends(require_admin)):
+    """Admin: Delete/deactivate a promo code."""
+    result = await db.promo_codes.update_one({"code": code.upper()}, {"$set": {"is_active": False}})
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Code not found")
+    return {"success": True, "message": f"Code {code} deactivated"}
+
+
+@api_router.post("/promo/redeem")
+async def redeem_promo_code(request: Request):
+    """User: Redeem a promo code for premium activation."""
+    data = await request.json()
+    user_id = data.get("user_id", "").strip()
+    code = data.get("code", "").strip().upper()
+
+    if not user_id or not code:
+        raise HTTPException(status_code=400, detail="User ID and code required")
+
+    # Find the promo code
+    promo = await db.promo_codes.find_one({"code": code, "is_active": True})
+    if not promo:
+        raise HTTPException(status_code=404, detail="Invalid or expired promo code")
+
+    # Check max uses
+    if promo["used_count"] >= promo["max_uses"]:
+        raise HTTPException(status_code=400, detail="This code has reached its maximum usage limit")
+
+    # Check if user already used this code
+    if user_id in promo.get("used_by", []):
+        raise HTTPException(status_code=400, detail="You have already used this code")
+
+    # Find user
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Activate premium
+    days = promo["days"]
+    now = datetime.now(timezone.utc)
+    premium_end = now + timedelta(days=days)
+
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {
+            "is_premium": True,
+            "subscription_status": "promo_code",
+            "premium_start": now.isoformat(),
+            "premium_end": premium_end.isoformat(),
+            "premium_source": f"promo_{code}",
+            "premium_plan": f"{days}_day_promo",
+        }}
+    )
+
+    # Update promo code usage
+    await db.promo_codes.update_one(
+        {"code": code},
+        {"$inc": {"used_count": 1}, "$push": {"used_by": user_id}}
+    )
+
+    invalidate_user_cache(user_id)
+
+    return {
+        "success": True,
+        "message": f"Premium activated for {days} days!",
+        "days": days,
+        "expires_at": premium_end.isoformat(),
+    }
+
+
 @api_router.get("/rewards/status/{user_id}")
 async def get_reward_status(user_id: str):
     """Get user's reward status"""
