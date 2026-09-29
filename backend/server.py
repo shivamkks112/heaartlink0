@@ -162,29 +162,26 @@ class AdminAuthMiddleware(BaseHTTPMiddleware):
 async def require_admin(request: Request) -> dict:
     """Extract token, verify JWT, check is_admin. Returns admin user dict."""
     token = None
-    # 1. Authorization: Bearer header
+    # ONLY accept Authorization: Bearer header — no header/query param shortcuts
     auth_header = request.headers.get("authorization", "")
     if auth_header.startswith("Bearer "):
         token = auth_header[7:]
-    # 2. X-Admin-Id header fallback — lookup user directly
-    admin_id = request.headers.get("x-admin-id", "")
-    # 3. admin_uid query param fallback
-    if not token and not admin_id:
-        admin_id = request.query_params.get("admin_uid", "")
     
-    user = None
-    if token:
-        payload = verify_access_token(token)
-        if not payload:
-            raise HTTPException(status_code=401, detail="Invalid or expired token")
-        user_id = payload.get("user_id")
-        if user_id:
-            user = await db.users.find_one({"id": user_id}, {"_id": 0, "id": 1, "is_admin": 1, "name": 1})
-    elif admin_id:
-        user = await db.users.find_one({"id": admin_id}, {"_id": 0, "id": 1, "is_admin": 1, "name": 1})
+    if not token:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    payload = verify_access_token(token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    
+    user_id = payload.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token payload")
+    
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "id": 1, "is_admin": 1, "name": 1})
     
     if not user:
-        raise HTTPException(status_code=401, detail="Authentication required")
+        raise HTTPException(status_code=401, detail="User not found")
     if not user.get("is_admin"):
         raise HTTPException(status_code=403, detail="Admin access required")
     
@@ -2006,6 +2003,7 @@ async def signup(request: Request, user_data: UserSignup):
     - Strong password hashing with bcrypt
     - JWT token generation
     """
+    await check_auth_rate_limit(request, limit=5, window=600)
     client_ip = request.client.host if request.client else "unknown"
     
     # Verify email OTP was completed before allowing signup
@@ -2287,6 +2285,7 @@ async def login(request: Request, credentials: UserLogin):
     - JWT token based authentication
     - Password rehashing for migration
     """
+    await check_auth_rate_limit(request, limit=10, window=300)
     client_ip = request.client.host if request.client else "unknown"
     
     # Find user by email or phone
@@ -2565,8 +2564,9 @@ async def phone_signup(data: PhoneSignup):
 
 
 @api_router.post("/auth/forgot-password")
-async def forgot_password(request: ForgotPasswordRequest):
+async def forgot_password(req: Request, request: ForgotPasswordRequest):
     """Request password reset - generates 6-digit OTP"""
+    await check_auth_rate_limit(req, limit=5, window=600)
     # Find user
     user = await db.users.find_one({
         "$or": [
@@ -3646,7 +3646,7 @@ async def get_chat_messages(match_id: str, user_id: str, limit: int = 50, skip: 
 # NOTE: Main /admin/all-users endpoint with pagination is defined later in the file
 
 @api_router.post("/admin/make-admin/{user_id}")
-async def make_user_admin(user_id: str):
+async def make_user_admin(user_id: str, admin: dict = Depends(require_admin)):
     """Make a user admin (for testing purposes)"""
     user = await db.users.find_one({"id": user_id})
     if not user:
@@ -3660,7 +3660,7 @@ async def make_user_admin(user_id: str):
     return {"message": f"User {user['name']} is now an admin"}
 
 @api_router.post("/admin/make-admin-by-email")
-async def make_user_admin_by_email(email: str = "admin@heartlink.com"):
+async def make_user_admin_by_email(email: str = "admin@heartlink.com", admin: dict = Depends(require_admin)):
     """Make a user admin by email (for testing purposes)"""
     user = await db.users.find_one({"email": email})
     if not user:
@@ -3674,7 +3674,7 @@ async def make_user_admin_by_email(email: str = "admin@heartlink.com"):
     return {"message": f"User {user['name']} with email {email} is now an admin"}
 
 @api_router.get("/admin/users")
-async def get_users_for_verification(status: str = "pending"):
+async def get_users_for_verification(status: str = "pending", admin: dict = Depends(require_admin)):
     """Get users by verification status for admin review"""
     query = {"verification_status": status}
     users = await db.users.find(query).limit(100).to_list(None)
@@ -3698,7 +3698,7 @@ async def get_users_for_verification(status: str = "pending"):
     } for u in users]
 
 @api_router.post("/admin/verify-user")
-async def admin_verify_user(verification: AdminVerification):
+async def admin_verify_user(verification: AdminVerification, admin: dict = Depends(require_admin)):
     """Admin manually verifies or rejects a user"""
     user = await db.users.find_one({"id": verification.user_id})
     if not user:
@@ -3786,7 +3786,7 @@ async def admin_verify_user(verification: AdminVerification):
         raise HTTPException(status_code=400, detail="Invalid action")
 
 @api_router.get("/admin/stats")
-async def get_admin_stats():
+async def get_admin_stats(admin: dict = Depends(require_admin)):
     """Get verification statistics"""
     total_users = await db.users.count_documents({})
     pending = await db.users.count_documents({"verification_status": "pending"})
@@ -6225,7 +6225,7 @@ async def screenshot_alert(user_id: str, screenshotter_id: str):
 
 # === ADMIN: USER MANAGEMENT ===
 @api_router.put("/admin/user-settings")
-async def admin_update_user(updates: AdminUserUpdate):
+async def admin_update_user(updates: AdminUserUpdate, admin: dict = Depends(require_admin)):
     """Admin endpoint to update user safety settings"""
     user = await db.users.find_one({"id": updates.user_id})
     if not user:
@@ -6258,7 +6258,7 @@ async def admin_update_user(updates: AdminUserUpdate):
     return {"message": "User settings updated", "updates": update_dict}
 
 @api_router.get("/admin/pending-intros")
-async def get_pending_intros():
+async def get_pending_intros(admin: dict = Depends(require_admin)):
     """Get users with voice/video intros pending approval"""
     users = await db.users.find({
         "$or": [
@@ -6276,7 +6276,7 @@ async def get_pending_intros():
     } for u in users]
 
 @api_router.get("/admin/high-risk-users")
-async def get_high_risk_users():
+async def get_high_risk_users(admin: dict = Depends(require_admin)):
     """Get users with risk_score > 50"""
     users = await db.users.find({"risk_score": {"$gt": 50}}).limit(100).to_list(None)
     
@@ -6404,7 +6404,7 @@ async def get_all_users(
 
 # === ADMIN: DASHBOARD STATS ===
 @api_router.get("/admin/dashboard-stats")
-async def get_dashboard_stats(response: Response):
+async def get_dashboard_stats(response: Response, admin: dict = Depends(require_admin)):
     """Get comprehensive dashboard statistics - always fresh, no cache"""
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     response.headers["Pragma"] = "no-cache"
@@ -6515,7 +6515,7 @@ async def get_dashboard_stats(response: Response):
 
 # === ADMIN: DELETE USER ===
 @api_router.delete("/admin/user/{user_id}")
-async def admin_delete_user(user_id: str):
+async def admin_delete_user(user_id: str, admin: dict = Depends(require_admin)):
     """Permanently delete a user and all their data"""
     user = await db.users.find_one({"id": user_id})
     if not user:
@@ -6546,7 +6546,7 @@ async def admin_delete_user(user_id: str):
 
 # === ADMIN: BLOCK/UNBLOCK USER ===
 @api_router.post("/admin/user/{user_id}/block")
-async def admin_block_user(user_id: str, permanent: bool = False, reason: str = ""):
+async def admin_block_user(user_id: str, permanent: bool = False, reason: str = "", admin: dict = Depends(require_admin)):
     """Block or shadow ban a user"""
     user = await db.users.find_one({"id": user_id})
     if not user:
@@ -6574,7 +6574,7 @@ async def admin_block_user(user_id: str, permanent: bool = False, reason: str = 
         return {"message": f"User {user['name']} shadow banned"}
 
 @api_router.post("/admin/user/{user_id}/unblock")
-async def admin_unblock_user(user_id: str):
+async def admin_unblock_user(user_id: str, admin: dict = Depends(require_admin)):
     """Unblock a user"""
     user = await db.users.find_one({"id": user_id})
     if not user:
@@ -6596,7 +6596,7 @@ async def admin_unblock_user(user_id: str):
 
 
 @api_router.post("/admin/reset-user-password")
-async def admin_reset_user_password(request: AdminResetPasswordRequest):
+async def admin_reset_user_password(request: AdminResetPasswordRequest, admin: dict = Depends(require_admin)):
     """Admin endpoint to reset any user's password"""
     # Validate new password strength
     is_strong, message = validate_password_strength(request.new_password)
@@ -6788,7 +6788,7 @@ OUTPUT FORMAT:
         return {"status": "pending", "message": "Selfie submitted for review."}
 
 @api_router.get("/admin/pending-verifications")
-async def get_pending_verifications():
+async def get_pending_verifications(admin: dict = Depends(require_admin)):
     """Get all users with pending selfie verification"""
     users = await db.users.find({
         "selfie_verification_status": "pending"
@@ -6808,7 +6808,7 @@ async def get_pending_verifications():
 
 
 @api_router.post("/admin/verify-selfie")
-async def admin_verify_selfie(data: VerifySelfieRequest):
+async def admin_verify_selfie(data: VerifySelfieRequest, admin: dict = Depends(require_admin)):
     """Admin approves or rejects selfie verification"""
     user = await db.users.find_one({"id": data.user_id})
     if not user:
@@ -6866,7 +6866,7 @@ async def admin_verify_selfie(data: VerifySelfieRequest):
 
 
 @api_router.get("/admin/verified-users")
-async def get_verified_users(page: int = 1, limit: int = 20):
+async def get_verified_users(page: int = 1, limit: int = 20, admin: dict = Depends(require_admin)):
     """Get all verified users for potential re-verification"""
     skip = (page - 1) * limit
     
@@ -6893,7 +6893,7 @@ async def get_verified_users(page: int = 1, limit: int = 20):
 
 
 @api_router.post("/admin/request-reverify")
-async def admin_request_reverify(data: ReVerifyRequest):
+async def admin_request_reverify(data: ReVerifyRequest, admin: dict = Depends(require_admin)):
     """Admin requests user to re-verify (removes verified status)"""
     user = await db.users.find_one({"id": data.user_id})
     if not user:
@@ -6928,7 +6928,7 @@ async def admin_request_reverify(data: ReVerifyRequest):
 # ==================== PROFILE APPROVAL (Admin) ====================
 
 @api_router.get("/admin/pending-profiles")
-async def get_pending_profiles(page: int = 1, limit: int = 20):
+async def get_pending_profiles(page: int = 1, limit: int = 20, admin: dict = Depends(require_admin)):
     """Get profiles pending admin approval with pagination"""
     skip = (page - 1) * limit
     
@@ -6963,7 +6963,7 @@ async def get_pending_profiles(page: int = 1, limit: int = 20):
 
 
 @api_router.get("/admin/profile-approval-stats")
-async def get_profile_approval_stats():
+async def get_profile_approval_stats(admin: dict = Depends(require_admin)):
     """Get profile approval statistics - optimized with parallel queries"""
     # Run all count queries in parallel
     pending_task = db.users.count_documents({"profile_status": {"$in": ["pending", None]}})
@@ -6985,7 +6985,7 @@ async def get_profile_approval_stats():
 
 
 @api_router.post("/admin/approve-profile")
-async def admin_approve_profile(data: ProfileApprovalRequest):
+async def admin_approve_profile(data: ProfileApprovalRequest, admin: dict = Depends(require_admin)):
     """Admin approves or rejects a user profile"""
     user = await db.users.find_one({"id": data.user_id})
     if not user:
@@ -7051,7 +7051,7 @@ async def admin_approve_profile(data: ProfileApprovalRequest):
 
 
 @api_router.post("/admin/bulk-approve-profiles")
-async def bulk_approve_profiles(user_ids: List[str]):
+async def bulk_approve_profiles(user_ids: List[str], admin: dict = Depends(require_admin)):
     """Bulk approve multiple profiles"""
     result = await db.users.update_many(
         {"id": {"$in": user_ids}},
@@ -7117,7 +7117,7 @@ def check_women_safety_restrictions(sender: dict, receiver: dict) -> tuple:
 
 
 @api_router.post("/admin/send-notification")
-async def send_bulk_notification(data: BulkNotificationRequest):
+async def send_bulk_notification(data: BulkNotificationRequest, admin: dict = Depends(require_admin)):
     """
     Send notification to all users or specific group
     Target options: all, male, female, inactive
@@ -7177,7 +7177,7 @@ async def send_bulk_notification(data: BulkNotificationRequest):
     }
 
 @api_router.get("/admin/fcm-status")
-async def get_fcm_status():
+async def get_fcm_status(admin: dict = Depends(require_admin)):
     """Check how many users have FCM tokens"""
     total = await db.users.count_documents({})
     
@@ -7201,7 +7201,7 @@ async def get_fcm_status():
     }
 
 @api_router.get("/admin/fcm-debug")
-async def fcm_debug():
+async def fcm_debug(admin: dict = Depends(require_admin)):
     """Debug FCM configuration and Firebase status"""
     debug_info = {
         "firebase_initialized": False,
@@ -7235,7 +7235,7 @@ async def fcm_debug():
     return debug_info
 
 @api_router.post("/admin/send-test-to-user")
-async def send_test_to_specific_user(email: str):
+async def send_test_to_specific_user(email: str, admin: dict = Depends(require_admin)):
     """Send test notification to a specific user by email"""
     user = await db.users.find_one({"email": email})
     
@@ -7342,7 +7342,7 @@ async def delete_notification(notification_id: str, user_id: str):
 
 
 @api_router.post("/admin/send-notification-all")
-async def send_notification_all_methods(data: AdminNotificationWithEmail):
+async def send_notification_all_methods(data: AdminNotificationWithEmail, admin: dict = Depends(require_admin)):
     """
     Send notification using ALL available methods:
     1. FCM Push (for users with tokens)
@@ -7564,7 +7564,7 @@ async def get_notification_templates():
 
 
 @api_router.get("/admin/notification-templates")
-async def get_all_notification_templates():
+async def get_all_notification_templates(admin: dict = Depends(require_admin)):
     """Get all notification templates (pre-defined + custom) in array format"""
     # Convert engagement templates to array format
     engagement_templates = []
@@ -7591,7 +7591,7 @@ async def get_all_notification_templates():
 
 
 @api_router.get("/admin/custom-templates")
-async def get_custom_templates():
+async def get_custom_templates(admin: dict = Depends(require_admin)):
     """Get only custom templates from database"""
     templates = await db.notification_templates.find(
         {},
@@ -7601,7 +7601,7 @@ async def get_custom_templates():
 
 
 @api_router.post("/admin/notification-templates")
-async def create_notification_template(template: NotificationTemplateCreate):
+async def create_notification_template(template: NotificationTemplateCreate, admin: dict = Depends(require_admin)):
     """Create a custom notification template"""
     template_doc = {
         "id": str(uuid.uuid4()),
@@ -7627,7 +7627,7 @@ async def create_notification_template(template: NotificationTemplateCreate):
 
 
 @api_router.put("/admin/notification-templates/{template_id}")
-async def update_notification_template(template_id: str, template: NotificationTemplateCreate):
+async def update_notification_template(template_id: str, template: NotificationTemplateCreate, admin: dict = Depends(require_admin)):
     """Update a custom notification template"""
     result = await db.notification_templates.update_one(
         {"id": template_id},
@@ -7646,7 +7646,7 @@ async def update_notification_template(template_id: str, template: NotificationT
 
 
 @api_router.delete("/admin/notification-templates/{template_id}")
-async def delete_notification_template(template_id: str):
+async def delete_notification_template(template_id: str, admin: dict = Depends(require_admin)):
     """Delete a custom notification template"""
     result = await db.notification_templates.delete_one({"id": template_id})
     
@@ -7656,7 +7656,7 @@ async def delete_notification_template(template_id: str):
     return {"success": True, "message": "Template deleted"}
 
 @api_router.get("/admin/notification-history")
-async def get_notification_history(limit: int = 20):
+async def get_notification_history(limit: int = 20, admin: dict = Depends(require_admin)):
     """Get history of sent notifications"""
     logs = await db.notification_logs.find({}).sort("sent_at", -1).limit(limit).to_list(None)
     return [{
@@ -7670,7 +7670,7 @@ async def get_notification_history(limit: int = 20):
     } for log in logs]
 
 @api_router.post("/admin/schedule-notification")
-async def schedule_notification(data: ScheduledNotificationRequest):
+async def schedule_notification(data: ScheduledNotificationRequest, admin: dict = Depends(require_admin)):
     """Schedule a notification for later"""
     scheduled_doc = {
         "id": str(uuid.uuid4()),
@@ -7692,7 +7692,7 @@ async def schedule_notification(data: ScheduledNotificationRequest):
     }
 
 @api_router.get("/admin/scheduled-notifications")
-async def get_scheduled_notifications():
+async def get_scheduled_notifications(admin: dict = Depends(require_admin)):
     """Get all pending scheduled notifications"""
     notifications = await db.scheduled_notifications.find(
         {"status": "pending"}
@@ -7708,7 +7708,7 @@ async def get_scheduled_notifications():
     } for n in notifications]
 
 @api_router.delete("/admin/scheduled-notification/{notification_id}")
-async def cancel_scheduled_notification(notification_id: str):
+async def cancel_scheduled_notification(notification_id: str, admin: dict = Depends(require_admin)):
     """Cancel a scheduled notification"""
     result = await db.scheduled_notifications.update_one(
         {"id": notification_id},
@@ -8179,12 +8179,71 @@ app.add_middleware(
     max_age=600,
 )
 
+# ==================== SECURITY HARDENING ====================
+
+# Security headers middleware
+@app.middleware("http")
+async def security_headers(request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(self)"
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    return response
+
+# IP-based rate limiter for auth endpoints (in-memory, resets on restart)
+_auth_rate_limits = {}
+
+async def check_auth_rate_limit(request: Request, limit: int = 10, window: int = 300):
+    """Rate limit auth endpoints — max {limit} attempts per {window} seconds per IP."""
+    client_ip = request.client.host if request.client else "unknown"
+    key = f"{client_ip}:{request.url.path}"
+    now = datetime.now(timezone.utc).timestamp()
+    
+    if key not in _auth_rate_limits:
+        _auth_rate_limits[key] = []
+    
+    # Clean old entries
+    _auth_rate_limits[key] = [t for t in _auth_rate_limits[key] if now - t < window]
+    
+    if len(_auth_rate_limits[key]) >= limit:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Too many attempts. Please try again in {window // 60} minutes."
+        )
+    
+    _auth_rate_limits[key].append(now)
+
+# API key validation — reject requests with suspicious patterns
+@app.middleware("http")
+async def block_suspicious_requests(request, call_next):
+    path = request.url.path.lower()
+    # Block common attack paths
+    blocked_patterns = [
+        "/.env", "/wp-admin", "/wp-login", "/phpinfo", "/phpmyadmin",
+        "/.git", "/config", "/backup", "/debug", "/actuator",
+        "/eval", "/exec", "/$where", "/shell"
+    ]
+    for pattern in blocked_patterns:
+        if pattern in path:
+            return JSONResponse(status_code=403, content={"detail": "Forbidden"})
+    
+    # Block MongoDB injection in query params
+    query = str(request.url.query).lower()
+    if any(op in query for op in ["$where", "$regex", "$gt", "$lt", "$ne", "$or", "$and", "$exists"]):
+        return JSONResponse(status_code=400, content={"detail": "Invalid request"})
+    
+    return await call_next(request)
+
 
 # ADMIN: Complete Database Cleanup Endpoint (DANGEROUS - USE WITH CAUTION)
 
 
 @api_router.post("/admin/clear-all-data")
-async def clear_all_database_data(request: DatabaseClearRequest):
+async def clear_all_database_data(request: DatabaseClearRequest, admin: dict = Depends(require_admin)):
     """
     ⚠️ DANGER: This endpoint completely wipes ALL data from database
     Use only for testing/development purposes
@@ -8387,7 +8446,7 @@ async def daily_notification_scheduler():
 
 # API to manually trigger daily notifications (admin only)
 @api_router.post("/admin/trigger-daily-notification")
-async def trigger_daily_notification():
+async def trigger_daily_notification(admin: dict = Depends(require_admin)):
     """
     Manually trigger daily notifications (for testing)
     """
@@ -8401,7 +8460,7 @@ async def trigger_daily_notification():
 
 # API to check daily notification status
 @api_router.get("/admin/daily-notification-status")
-async def get_daily_notification_status():
+async def get_daily_notification_status(admin: dict = Depends(require_admin)):
     """
     Get status of daily notifications
     """
@@ -8537,7 +8596,7 @@ async def scheduled_notification_processor():
 
 
 @api_router.post("/admin/push/send")
-async def send_push_notification_api(data: PushNotificationRequest):
+async def send_push_notification_api(data: PushNotificationRequest, admin: dict = Depends(require_admin)):
     """Send push notification via FCM (Admin Panel)."""
     if data.target == "user_ids" and data.user_ids:
         result = await fcm_service.send_to_users(db, data.user_ids, data.title, data.message)
@@ -8557,22 +8616,22 @@ async def send_push_notification_api(data: PushNotificationRequest):
 
 # Keep old endpoint path for backward compatibility with frontend
 @api_router.post("/admin/onesignal/send")
-async def send_push_compat(data: PushNotificationRequest):
+async def send_push_compat(data: PushNotificationRequest, admin: dict = Depends(require_admin)):
     """Backward-compatible endpoint — routes to FCM."""
     return await send_push_notification_api(data)
 
 @api_router.post("/admin/push/send-to-user/{user_id}")
-async def send_push_to_single_user(user_id: str, title: str = "HeartLink", message: str = "Test"):
+async def send_push_to_single_user(user_id: str, title: str = "HeartLink", message: str = "Test", admin: dict = Depends(require_admin)):
     """Send push to a specific user via FCM."""
     return await fcm_service.send_to_user(db, user_id, title, message)
 
 @api_router.post("/admin/onesignal/send-to-user/{user_id}")
-async def send_push_to_single_user_compat(user_id: str, title: str = "HeartLink", message: str = "Test"):
+async def send_push_to_single_user_compat(user_id: str, title: str = "HeartLink", message: str = "Test", admin: dict = Depends(require_admin)):
     """Backward-compatible endpoint."""
     return await send_push_to_single_user(user_id, title, message)
 
 @api_router.get("/admin/push/status")
-async def get_push_status():
+async def get_push_status(admin: dict = Depends(require_admin)):
     """Check FCM push notification status."""
     total = await db.users.count_documents({})
     with_fcm = await db.users.count_documents({"fcm_token": {"$exists": True, "$nin": [None, ""]}})
@@ -8586,17 +8645,17 @@ async def get_push_status():
     }
 
 @api_router.get("/admin/onesignal/status")
-async def get_push_status_compat():
+async def get_push_status_compat(admin: dict = Depends(require_admin)):
     """Backward-compatible endpoint."""
     return await get_push_status()
 
 @api_router.post("/admin/push/test")
-async def test_push():
+async def test_push(admin: dict = Depends(require_admin)):
     """Send a test notification to all users via FCM."""
     return await fcm_service.send_to_all(db, "HeartLink", "Push notification system is working!")
 
 @api_router.post("/admin/onesignal/test")
-async def test_push_compat():
+async def test_push_compat(admin: dict = Depends(require_admin)):
     """Backward-compatible endpoint."""
     return await test_push()
 
@@ -8604,7 +8663,7 @@ async def test_push_compat():
 # ==================== ENGAGEMENT NOTIFICATION ENDPOINTS ====================
 
 @api_router.get("/admin/notifications/templates")
-async def get_engagement_notification_templates():
+async def get_engagement_notification_templates(admin: dict = Depends(require_admin)):
     """Get all available engagement notification templates"""
     return {
         "templates": fcm_service.ENGAGEMENT_TEMPLATES,
@@ -8645,7 +8704,7 @@ async def send_engagement_to_users(
 
 
 @api_router.get("/admin/notifications/inactive-users")
-async def get_inactive_users(days: int = 3):
+async def get_inactive_users(days: int = 3, admin: dict = Depends(require_admin)):
     """Get list of inactive users (haven't been active in X days)"""
     cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
     
@@ -8667,7 +8726,7 @@ async def get_inactive_users(days: int = 3):
 
 
 @api_router.post("/admin/notifications/send-to-inactive")
-async def send_notification_to_inactive_users(days: int = 3):
+async def send_notification_to_inactive_users(days: int = 3, admin: dict = Depends(require_admin)):
     """Send re-engagement notification to inactive users"""
     cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
     
@@ -8744,7 +8803,7 @@ async def send_custom_notification(
 
 
 @api_router.get("/admin/notifications/stats")
-async def get_notification_stats():
+async def get_notification_stats(admin: dict = Depends(require_admin)):
     """Get notification sending statistics"""
     # Get counts by type
     pipeline = [
@@ -8771,7 +8830,7 @@ async def get_notification_stats():
 
 
 @api_router.get("/admin/notifications/delivery-log")
-async def get_notification_delivery_log(limit: int = 50, notification_type: str = ""):
+async def get_notification_delivery_log(limit: int = 50, notification_type: str = "", admin: dict = Depends(require_admin)):
     """Get comprehensive notification delivery log for audit"""
     query = {}
     if notification_type:
@@ -9121,7 +9180,7 @@ async def claim_daily_reward(user_id: str):
 # ==========================================
 
 @api_router.get("/admin/ai-profiles")
-async def admin_get_ai_profiles():
+async def admin_get_ai_profiles(admin: dict = Depends(require_admin)):
     """Get all AI profiles for admin management."""
     profiles = await get_ai_profiles(db)
     # Get match counts and message counts for each profile
@@ -9138,7 +9197,7 @@ async def admin_get_ai_profiles():
     return result
 
 @api_router.delete("/admin/ai-profiles/{profile_id}")
-async def admin_delete_ai_profile(profile_id: str):
+async def admin_delete_ai_profile(profile_id: str, admin: dict = Depends(require_admin)):
     """Delete an AI profile and all related data."""
     success = await delete_ai_profile(db, profile_id)
     if not success:
@@ -9146,7 +9205,7 @@ async def admin_delete_ai_profile(profile_id: str):
     return {"message": "AI profile deleted successfully"}
 
 @api_router.put("/admin/ai-profiles/{profile_id}/toggle")
-async def admin_toggle_ai_profile(profile_id: str, data: dict):
+async def admin_toggle_ai_profile(profile_id: str, data: dict, admin: dict = Depends(require_admin)):
     """Enable or disable an AI profile."""
     is_active = data.get("is_active", True)
     success = await toggle_ai_profile(db, profile_id, is_active)
@@ -9155,7 +9214,7 @@ async def admin_toggle_ai_profile(profile_id: str, data: dict):
     return {"message": f"AI profile {'activated' if is_active else 'deactivated'}", "is_active": is_active}
 
 @api_router.post("/admin/ai-profiles/reseed")
-async def admin_reseed_ai_profiles():
+async def admin_reseed_ai_profiles(admin: dict = Depends(require_admin)):
     """Re-seed AI profiles (updates existing, creates missing)."""
     await seed_ai_profiles(db)
     return {"message": "AI profiles re-seeded successfully"}
@@ -9176,7 +9235,7 @@ DEFAULT_FEATURE_FLAGS = {
 }
 
 @api_router.get("/admin/feature-flags")
-async def get_feature_flags():
+async def get_feature_flags(admin: dict = Depends(require_admin)):
     """Get all feature flags (always merged with defaults)"""
     flags = await db.app_settings.find_one({"type": "feature_flags"}, {"_id": 0})
     if not flags:
@@ -9187,7 +9246,7 @@ async def get_feature_flags():
     return merged
 
 @api_router.put("/admin/feature-flags")
-async def update_feature_flags(data: dict):
+async def update_feature_flags(data: dict, admin: dict = Depends(require_admin)):
     """Update feature flags (admin only)"""
     allowed_keys = {"referral_system", "daily_rewards", "ai_chatbot", "new_user_gender_notifications", "new_user_notif_to_males", "new_user_notif_to_females", "crush_feature"}
     updates = {k: bool(v) for k, v in data.items() if k in allowed_keys}
@@ -9213,7 +9272,7 @@ async def update_feature_flags(data: dict):
 # ==========================================
 
 @api_router.get("/admin/notification-config")
-async def get_notification_config():
+async def get_notification_config(admin: dict = Depends(require_admin)):
     """Admin: Get notification settings + analytics."""
     config = await db.app_settings.find_one({"type": "notification_config"}, {"_id": 0})
     defaults = {
@@ -9250,7 +9309,7 @@ async def get_notification_config():
 
 
 @api_router.put("/admin/notification-config")
-async def update_notification_config(request: Request):
+async def update_notification_config(request: Request, admin: dict = Depends(require_admin)):
     """Admin: Update notification settings."""
     try:
         data = await request.json()
@@ -9281,7 +9340,7 @@ async def update_notification_config(request: Request):
 
 
 @api_router.get("/admin/notification-analytics-chart")
-async def get_notification_analytics_chart(days: int = 7):
+async def get_notification_analytics_chart(days: int = 7, admin: dict = Depends(require_admin)):
     """7-day notification analytics chart data from notification_logs."""
     now = datetime.now(timezone.utc)
     chart_data = []
@@ -9402,7 +9461,7 @@ async def list_custom_ai_personas(admin: dict = Depends(require_admin)):
 # ==========================================
 
 @api_router.get("/admin/signup-funnel")
-async def get_signup_funnel(days: int = 30):
+async def get_signup_funnel(days: int = 30, admin: dict = Depends(require_admin)):
     """Admin: Full signup funnel analytics — installs → OTP sent → OTP verified → signup complete, by gender."""
     cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
     
@@ -9552,7 +9611,7 @@ async def check_invite_girl_reward(request: Request):
 
 
 @api_router.get("/admin/girls-referral-tracking")
-async def get_girls_referral_tracking():
+async def get_girls_referral_tracking(admin: dict = Depends(require_admin)):
     """Admin: Full girls referral analytics — who invited whom, conversion rates."""
     
     # Total girls (real, not AI)
@@ -10136,7 +10195,7 @@ async def track_adfree_event(request: Request):
 
 
 @api_router.get("/admin/adfree-config")
-async def admin_get_adfree_config():
+async def admin_get_adfree_config(admin: dict = Depends(require_admin)):
     """Admin: Get ad-free reward config with analytics."""
     config = await db.app_settings.find_one({"type": "adfree_reward_config"}, {"_id": 0})
     if not config:
@@ -10149,7 +10208,7 @@ async def admin_get_adfree_config():
 
 
 @api_router.put("/admin/adfree-config")
-async def admin_update_adfree_config(request: Request):
+async def admin_update_adfree_config(request: Request, admin: dict = Depends(require_admin)):
     """Admin: Update ad-free reward config."""
     try:
         data = await request.json()
@@ -10219,7 +10278,7 @@ async def check_app_update(version_code: int = 0, version_name: str = ""):
 
 
 @api_router.get("/admin/app-update")
-async def get_app_update_config():
+async def get_app_update_config(admin: dict = Depends(require_admin)):
     """Admin: Get current app update configuration."""
     config = await db.app_settings.find_one({"type": "app_update_config"}, {"_id": 0})
     if not config:
@@ -10241,7 +10300,7 @@ async def get_app_update_config():
 
 
 @api_router.put("/admin/app-update")
-async def update_app_update_config(request: Request):
+async def update_app_update_config(request: Request, admin: dict = Depends(require_admin)):
     """Admin: Update app update configuration. Auto-sends push if version changed."""
     try:
         data = await request.json()
@@ -10316,7 +10375,7 @@ async def update_app_update_config(request: Request):
 
 
 @api_router.post("/admin/app-update/send-notification")
-async def send_app_update_notification(request: Request):
+async def send_app_update_notification(request: Request, admin: dict = Depends(require_admin)):
     """Admin: Send FCM push notification for app update to eligible users."""
     try:
         data = await request.json()
@@ -10481,7 +10540,7 @@ async def track_event(request: Request):
 
 
 @api_router.get("/admin/growth-stats")
-async def get_growth_stats(response: Response, period: str = "today"):
+async def get_growth_stats(response: Response, period: str = "today", admin: dict = Depends(require_admin)):
     """Get growth & acquisition stats for admin dashboard."""
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     
@@ -10615,7 +10674,7 @@ async def get_growth_stats(response: Response, period: str = "today"):
 
 
 @api_router.get("/admin/acquisition-table")
-async def get_acquisition_table(response: Response, page: int = 1, limit: int = 20):
+async def get_acquisition_table(response: Response, page: int = 1, limit: int = 20, admin: dict = Depends(require_admin)):
     """Get recent acquisition records for admin table."""
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     
@@ -10654,7 +10713,7 @@ async def get_acquisition_table(response: Response, page: int = 1, limit: int = 
 
 
 @api_router.get("/admin/retention-chart")
-async def get_retention_chart(response: Response, days: int = 7):
+async def get_retention_chart(response: Response, days: int = 7, admin: dict = Depends(require_admin)):
     """Get N-day retention data: for each cohort day, how many users came back on subsequent days."""
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     
@@ -10708,7 +10767,7 @@ async def get_retention_chart(response: Response, days: int = 7):
 
 
 @api_router.post("/admin/send-weekly-digest-now")
-async def send_weekly_digest_now():
+async def send_weekly_digest_now(admin: dict = Depends(require_admin)):
     """Manually trigger the weekly growth digest email (for testing)."""
     try:
         await _send_weekly_growth_digest()
@@ -10718,7 +10777,7 @@ async def send_weekly_digest_now():
 
 
 @api_router.post("/admin/push-update-notification")
-async def push_update_notification(request: Request):
+async def push_update_notification(request: Request, admin: dict = Depends(require_admin)):
     """Send app update push notification to ALL users."""
     try:
         data = await request.json()
