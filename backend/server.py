@@ -328,6 +328,10 @@ async def startup_event():
     asyncio.create_task(weekly_highlights_scheduler())
     logging.info("📊 Weekly highlights notification scheduler started")
     
+    # Start payment reminder scheduler
+    asyncio.create_task(payment_reminder_scheduler())
+    logging.info("💳 Payment reminder scheduler started")
+    
     # Auto-send update notification if app version changed
     asyncio.create_task(auto_update_notification())
     
@@ -1447,6 +1451,58 @@ async def _send_weekly_highlights():
         
     except Exception as e:
         logging.error(f"Weekly highlights error: {e}")
+
+
+async def payment_reminder_scheduler():
+    """Check pending payment requests every 6 hours. Send reminder if pending > 24 hours."""
+    while True:
+        try:
+            await asyncio.sleep(6 * 3600)  # Check every 6 hours
+            
+            now = datetime.now(timezone.utc)
+            cutoff_24h = (now - timedelta(hours=24)).isoformat()
+            cutoff_48h = (now - timedelta(hours=48)).isoformat()
+            
+            # Find pending requests older than 24h but newer than 48h (don't spam)
+            stale_requests = await db.payment_requests.find({
+                "status": "pending",
+                "created_at": {"$lte": cutoff_24h, "$gte": cutoff_48h},
+                "reminder_sent": {"$ne": True},
+            }, {"_id": 0}).to_list(None)
+            
+            sent = 0
+            for req in stale_requests:
+                try:
+                    await fcm_service.send_to_user(
+                        db, req["user_id"],
+                        title="Payment Verification Pending",
+                        message="Tumhara payment verify ho raha hai. Agar screenshot upload nahi kiya toh abhi karo!",
+                        data={"type": "payment_reminder", "route": "/premium"}
+                    )
+                    await db.payment_requests.update_one(
+                        {"id": req["id"]},
+                        {"$set": {"reminder_sent": True}}
+                    )
+                    sent += 1
+                except Exception:
+                    pass
+            
+            if sent > 0:
+                logging.info(f"💳 Payment reminders sent to {sent} users")
+                
+            # Auto-expire requests older than 7 days
+            expire_cutoff = (now - timedelta(days=7)).isoformat()
+            expired = await db.payment_requests.update_many(
+                {"status": "pending", "created_at": {"$lte": expire_cutoff}},
+                {"$set": {"status": "expired", "reviewed_at": now.isoformat()}}
+            )
+            if expired.modified_count > 0:
+                logging.info(f"💳 Expired {expired.modified_count} old payment requests")
+                
+        except Exception as e:
+            logging.error(f"Payment reminder scheduler error: {e}")
+            await asyncio.sleep(3600)
+
 
 
 async def notification_scheduler():

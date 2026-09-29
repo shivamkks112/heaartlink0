@@ -428,13 +428,43 @@ const PaymentScreenshotUpload = ({ userId, onSuccess }) => {
 
   return (
     <div className="border border-green-600/30 rounded-xl p-4 space-y-3 bg-green-500/5" data-testid="payment-upload-section">
-      <div className="text-center space-y-1">
+      <div className="text-center space-y-2">
         <p className="text-sm font-bold text-green-400">Pay ₹49 via UPI</p>
-        <p className="text-xs text-gray-400">Step 1: Pay to UPI ID below</p>
-        <div className="bg-white/10 rounded-lg px-3 py-2 inline-block">
-          <p className="text-sm font-mono text-white tracking-wide" data-testid="upi-id">{UPI_ID}</p>
+        
+        {/* Step 1: One-tap UPI Deep Link buttons */}
+        <p className="text-xs text-gray-400">Step 1: Tap to pay directly</p>
+        <div className="grid grid-cols-3 gap-2">
+          <a
+            href={`upi://pay?pa=${UPI_ID}&pn=HeartLink%20Premium&am=49&cu=INR&tn=HeartLink%20Premium%20Subscription`}
+            className="flex flex-col items-center gap-1 bg-white/10 rounded-xl py-3 active:scale-90 transition-transform"
+            data-testid="upi-pay-btn"
+          >
+            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-xs font-bold">UPI</div>
+            <span className="text-[10px] text-gray-300">Any UPI App</span>
+          </a>
+          <a
+            href={`tez://upi/pay?pa=${UPI_ID}&pn=HeartLink%20Premium&am=49&cu=INR&tn=HeartLink%20Premium`}
+            className="flex flex-col items-center gap-1 bg-white/10 rounded-xl py-3 active:scale-90 transition-transform"
+            data-testid="gpay-btn"
+          >
+            <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-sm">G</div>
+            <span className="text-[10px] text-gray-300">GPay</span>
+          </a>
+          <a
+            href={`phonepe://pay?pa=${UPI_ID}&pn=HeartLink%20Premium&am=49&cu=INR&tn=HeartLink%20Premium`}
+            className="flex flex-col items-center gap-1 bg-white/10 rounded-xl py-3 active:scale-90 transition-transform"
+            data-testid="phonepe-btn"
+          >
+            <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center text-white text-xs font-bold">Pe</div>
+            <span className="text-[10px] text-gray-300">PhonePe</span>
+          </a>
         </div>
-        <p className="text-[10px] text-gray-500">Copy this UPI ID → Open GPay/PhonePe → Pay ₹49</p>
+        
+        {/* Fallback: Manual UPI ID */}
+        <div className="bg-white/5 rounded-lg px-3 py-1.5 inline-flex items-center gap-2">
+          <p className="text-xs font-mono text-gray-400" data-testid="upi-id">{UPI_ID}</p>
+          <button onClick={() => { navigator.clipboard?.writeText(UPI_ID); toast.success('UPI ID copied!'); }} className="text-[10px] text-green-400 font-semibold">Copy</button>
+        </div>
       </div>
 
       <div className="border-t border-white/10 pt-3 space-y-2">
