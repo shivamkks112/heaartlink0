@@ -30,6 +30,7 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 - 56+ cities with vibes database
 
 ## Completed (Recent)
+- [x] **PremiumPage White Screen Fix** — Added missing `axios` import and `API` from `@/config/api` (was missing `/api` prefix too) (2026-09-29)
 - [x] **SettingsPage.jsx Syntax Error Fix** — Removed misplaced JSX comment inside button tag blocking production build (2026-09-29)
 
 ## Pending

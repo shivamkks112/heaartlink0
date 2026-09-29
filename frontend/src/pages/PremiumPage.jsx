@@ -4,7 +4,9 @@
  */
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { Crown, Check, ArrowLeft, Heart, Eye, Zap, Shield, Star, Ban, Loader2, RotateCcw, X, ExternalLink, Upload, Camera, Clock } from 'lucide-react';
+import { API } from '@/config/api';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
