@@ -409,8 +409,6 @@ const SettingsPage = ({ user, setUser }) => {
             onClick={() => navigate('/payment-history')}
             className="w-full flex items-center justify-between bg-gray-50 hover:bg-gray-100 px-4 py-3 rounded-xl transition-colors mt-2"
             data-testid="payment-history-link"
-
-        {/* Daily Rewards Section */}
           >
             <span className="text-sm font-medium text-gray-600">Payment & Subscription History</span>
             <ExternalLink className="w-4 h-4 text-gray-400" />
