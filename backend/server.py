@@ -11056,6 +11056,180 @@ async def redeem_promo_code(request: Request):
     }
 
 
+# ==================== MANUAL PAYMENT VERIFICATION ====================
+
+@api_router.post("/payment/submit-screenshot")
+async def submit_payment_screenshot(request: Request):
+    """User submits UPI payment screenshot for premium activation."""
+    data = await request.json()
+    user_id = data.get("user_id", "").strip()
+    screenshot_base64 = data.get("screenshot_base64", "")
+    utr_number = data.get("utr_number", "").strip()
+    amount = data.get("amount", 49)
+    payment_method = data.get("payment_method", "UPI")
+
+    if not user_id or not screenshot_base64:
+        raise HTTPException(status_code=400, detail="User ID and screenshot required")
+
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "name": 1, "email": 1})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Check for duplicate pending request
+    existing = await db.payment_requests.find_one({"user_id": user_id, "status": "pending"})
+    if existing:
+        raise HTTPException(status_code=400, detail="You already have a pending payment request. Please wait for verification.")
+
+    # Upload screenshot to object storage
+    screenshot_url = ""
+    try:
+        import base64
+        img_data = screenshot_base64.split(",")[-1]
+        img_bytes = base64.b64decode(img_data)
+        path = f"payments/{user_id}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.jpg"
+        result = _put_object(path, img_bytes, "image/jpeg")
+        screenshot_url = result.get("url", "")
+    except Exception as e:
+        logger.error(f"Screenshot upload failed: {e}")
+        raise HTTPException(status_code=500, detail="Screenshot upload failed. Please try again.")
+
+    # Create payment request
+    payment_req = {
+        "id": str(uuid.uuid4()),
+        "user_id": user_id,
+        "user_name": user.get("name", ""),
+        "user_email": user.get("email", ""),
+        "screenshot_url": screenshot_url,
+        "utr_number": utr_number,
+        "amount": amount,
+        "payment_method": payment_method,
+        "status": "pending",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "reviewed_at": None,
+        "reviewed_by": None,
+    }
+    await db.payment_requests.insert_one(payment_req)
+
+    return {
+        "success": True,
+        "message": "Payment screenshot submitted! Premium will be activated within 24 hours after verification.",
+        "request_id": payment_req["id"],
+    }
+
+
+@api_router.get("/payment/status/{user_id}")
+async def get_payment_status(user_id: str):
+    """Check user's latest payment request status."""
+    req = await db.payment_requests.find_one(
+        {"user_id": user_id},
+        {"_id": 0},
+        sort=[("created_at", -1)]
+    )
+    if not req:
+        return {"has_request": False}
+    return {"has_request": True, "status": req["status"], "created_at": req["created_at"], "request_id": req["id"]}
+
+
+@api_router.get("/admin/payment-requests")
+async def list_payment_requests(status: str = "pending", admin: dict = Depends(require_admin)):
+    """Admin: List payment verification requests."""
+    query = {}
+    if status != "all":
+        query["status"] = status
+    requests = await db.payment_requests.find(query, {"_id": 0}).sort("created_at", -1).limit(100).to_list(None)
+    return requests
+
+
+@api_router.post("/admin/payment-requests/{request_id}/approve")
+async def approve_payment_request(request_id: str, request: Request, admin: dict = Depends(require_admin)):
+    """Admin: Approve payment and activate premium."""
+    data = await request.json()
+    days = data.get("days", 30)
+
+    pay_req = await db.payment_requests.find_one({"id": request_id})
+    if not pay_req:
+        raise HTTPException(status_code=404, detail="Request not found")
+    if pay_req["status"] != "pending":
+        raise HTTPException(status_code=400, detail=f"Request already {pay_req['status']}")
+
+    # Activate premium
+    user_id = pay_req["user_id"]
+    now = datetime.now(timezone.utc)
+    premium_end = now + timedelta(days=days)
+
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {
+            "is_premium": True,
+            "subscription_status": "manual_payment",
+            "premium_start": now.isoformat(),
+            "premium_end": premium_end.isoformat(),
+            "premium_source": "manual_upi",
+            "premium_plan": f"{days}_day_manual",
+        }}
+    )
+
+    # Update payment request
+    await db.payment_requests.update_one(
+        {"id": request_id},
+        {"$set": {
+            "status": "approved",
+            "reviewed_at": now.isoformat(),
+            "reviewed_by": admin["id"],
+            "premium_days": days,
+        }}
+    )
+
+    invalidate_user_cache(user_id)
+
+    # Notify user
+    try:
+        await fcm_service.send_to_user(db, user_id,
+            title="Premium Activated!",
+            message=f"Your payment has been verified. Enjoy {days} days of Premium!",
+            data={"type": "premium_activated", "route": "/premium"}
+        )
+    except Exception:
+        pass
+
+    return {"success": True, "message": f"Premium activated for {days} days", "user_id": user_id}
+
+
+@api_router.post("/admin/payment-requests/{request_id}/reject")
+async def reject_payment_request(request_id: str, request: Request, admin: dict = Depends(require_admin)):
+    """Admin: Reject payment request."""
+    data = await request.json()
+    reason = data.get("reason", "Payment could not be verified")
+
+    pay_req = await db.payment_requests.find_one({"id": request_id})
+    if not pay_req:
+        raise HTTPException(status_code=404, detail="Request not found")
+
+    now = datetime.now(timezone.utc)
+    await db.payment_requests.update_one(
+        {"id": request_id},
+        {"$set": {
+            "status": "rejected",
+            "reject_reason": reason,
+            "reviewed_at": now.isoformat(),
+            "reviewed_by": admin["id"],
+        }}
+    )
+
+    # Notify user
+    try:
+        await fcm_service.send_to_user(db, pay_req["user_id"],
+            title="Payment Verification Update",
+            message=f"Your payment could not be verified. Reason: {reason}",
+            data={"type": "payment_rejected", "route": "/premium"}
+        )
+    except Exception:
+        pass
+
+    return {"success": True, "message": "Payment request rejected"}
+
+
+
 @api_router.get("/rewards/status/{user_id}")
 async def get_reward_status(user_id: str):
     """Get user's reward status"""

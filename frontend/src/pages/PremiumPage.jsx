@@ -2,9 +2,9 @@
  * HeartLink Premium — Google Play Billing
  * Product: heartlink_premium_monthly | Plan: monthly | Offer: trial3days
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Crown, Check, ArrowLeft, Heart, Eye, Zap, Shield, Star, Ban, Loader2, RotateCcw, X, ExternalLink } from 'lucide-react';
+import { Crown, Check, ArrowLeft, Heart, Eye, Zap, Shield, Star, Ban, Loader2, RotateCcw, X, ExternalLink, Upload, Camera, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
@@ -289,6 +289,11 @@ const PremiumPage = ({ user, onUpdate }) => {
               localStorage.setItem('user', JSON.stringify(updatedUser));
               setSubStatus({ is_premium: true, subscription_status: 'promo_code', expires_at: data.expires_at });
             }} />
+
+            {/* Manual UPI Payment Section */}
+            <PaymentScreenshotUpload userId={user?.id} onSuccess={() => {
+              toast.success('Screenshot submitted! Premium will be activated after verification.');
+            }} />
           </div>
         )}
       </div>
@@ -342,3 +347,146 @@ const PromoCodeInput = ({ userId, onSuccess }) => {
 };
 
 export default PremiumPage;
+
+const UPI_ID = "8409798101-2@ybl";
+
+const PaymentScreenshotUpload = ({ userId, onSuccess }) => {
+  const [expanded, setExpanded] = useState(false);
+  const [screenshot, setScreenshot] = useState(null);
+  const [screenshotPreview, setScreenshotPreview] = useState(null);
+  const [utrNumber, setUtrNumber] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState(null);
+  const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    if (userId) {
+      axios.get(`${API}/payment/status/${userId}`).then(r => {
+        if (r.data.has_request) setPaymentStatus(r.data);
+      }).catch(() => {});
+    }
+  }, [userId]);
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { toast.error('File size max 5MB'); return; }
+    setScreenshot(file);
+    const reader = new FileReader();
+    reader.onload = (ev) => setScreenshotPreview(ev.target.result);
+    reader.readAsDataURL(file);
+  };
+
+  const handleSubmit = async () => {
+    if (!screenshotPreview) { toast.error('Payment screenshot upload karo'); return; }
+    setSubmitting(true);
+    try {
+      const res = await axios.post(`${API}/payment/submit-screenshot`, {
+        user_id: userId,
+        screenshot_base64: screenshotPreview,
+        utr_number: utrNumber.trim(),
+        amount: 49,
+        payment_method: 'UPI',
+      });
+      if (res.data.success) {
+        setPaymentStatus({ status: 'pending', has_request: true });
+        setScreenshot(null);
+        setScreenshotPreview(null);
+        setUtrNumber('');
+        setExpanded(false);
+        onSuccess?.();
+      }
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Submit failed');
+    }
+    setSubmitting(false);
+  };
+
+  // Show pending status
+  if (paymentStatus?.status === 'pending') {
+    return (
+      <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-center" data-testid="payment-pending">
+        <Clock className="w-6 h-6 text-amber-400 mx-auto mb-2" />
+        <p className="text-sm font-semibold text-amber-400">Payment Verification Pending</p>
+        <p className="text-xs text-gray-400 mt-1">Tumhara screenshot review ho raha hai. Premium jaldi activate hoga!</p>
+      </div>
+    );
+  }
+
+  if (!expanded) {
+    return (
+      <button
+        onClick={() => setExpanded(true)}
+        className="w-full border border-dashed border-green-600/50 rounded-xl p-3 text-center hover:bg-green-500/5 transition-colors"
+        data-testid="pay-upi-expand-btn"
+      >
+        <p className="text-sm font-semibold text-green-400">Pay via UPI</p>
+        <p className="text-[10px] text-gray-500">GPay / PhonePe / Paytm — ₹49 only</p>
+      </button>
+    );
+  }
+
+  return (
+    <div className="border border-green-600/30 rounded-xl p-4 space-y-3 bg-green-500/5" data-testid="payment-upload-section">
+      <div className="text-center space-y-1">
+        <p className="text-sm font-bold text-green-400">Pay ₹49 via UPI</p>
+        <p className="text-xs text-gray-400">Step 1: Pay to UPI ID below</p>
+        <div className="bg-white/10 rounded-lg px-3 py-2 inline-block">
+          <p className="text-sm font-mono text-white tracking-wide" data-testid="upi-id">{UPI_ID}</p>
+        </div>
+        <p className="text-[10px] text-gray-500">Copy this UPI ID → Open GPay/PhonePe → Pay ₹49</p>
+      </div>
+
+      <div className="border-t border-white/10 pt-3 space-y-2">
+        <p className="text-xs text-gray-400 text-center">Step 2: Upload payment screenshot</p>
+        
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={handleFileSelect}
+          className="hidden"
+        />
+        
+        {screenshotPreview ? (
+          <div className="relative">
+            <img src={screenshotPreview} alt="Payment" className="w-full h-40 object-contain rounded-lg bg-black/20" />
+            <button onClick={() => { setScreenshot(null); setScreenshotPreview(null); }} className="absolute top-1 right-1 bg-red-500 rounded-full p-1">
+              <X className="w-3 h-3 text-white" />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="w-full py-6 border-2 border-dashed border-gray-600 rounded-xl flex flex-col items-center gap-2 active:scale-95 transition-transform"
+            data-testid="upload-screenshot-btn"
+          >
+            <Camera className="w-6 h-6 text-gray-400" />
+            <span className="text-xs text-gray-400">Tap to upload screenshot</span>
+          </button>
+        )}
+
+        <input
+          type="text"
+          value={utrNumber}
+          onChange={e => setUtrNumber(e.target.value)}
+          placeholder="UTR / Transaction ID (optional)"
+          className="w-full bg-white/5 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white placeholder-gray-500"
+          data-testid="utr-input"
+        />
+
+        <button
+          onClick={handleSubmit}
+          disabled={submitting || !screenshotPreview}
+          className="w-full py-3 bg-green-500 text-white rounded-xl text-sm font-bold disabled:opacity-50 active:scale-95 transition-transform"
+          data-testid="submit-payment-btn"
+        >
+          {submitting ? 'Submitting...' : 'Submit for Verification'}
+        </button>
+
+        <button onClick={() => setExpanded(false)} className="w-full text-center text-xs text-gray-500 py-1">Cancel</button>
+      </div>
+    </div>
+  );
+};

@@ -503,6 +503,9 @@ const AdminDashboard = ({ user }) => {
   const [newPromoCode, setNewPromoCode] = useState('');
   const [newPromoDays, setNewPromoDays] = useState(30);
   const [newPromoMaxUses, setNewPromoMaxUses] = useState(100);
+  // Payment requests
+  const [paymentRequests, setPaymentRequests] = useState([]);
+  const [paymentFilter, setPaymentFilter] = useState('pending');
   const [blockPermanent, setBlockPermanent] = useState(false);
   const [genderFilter, setGenderFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -591,6 +594,31 @@ const AdminDashboard = ({ user }) => {
       await adminApi.delete(`/admin/promo-codes/${code}`);
       toast.success(`Code ${code} deactivated`);
       fetchPromoCodes();
+    } catch (e) { toast.error('Failed'); }
+  };
+
+  const fetchPaymentRequests = useCallback(async (filter = 'pending') => {
+    try {
+      const res = await adminApi.get(`/admin/payment-requests?status=${filter}`);
+      setPaymentRequests(res.data || []);
+    } catch (e) { console.error('Payment fetch error:', e); }
+  }, []);
+
+  const approvePayment = async (requestId) => {
+    try {
+      await adminApi.post(`/admin/payment-requests/${requestId}/approve`, { days: 30 });
+      toast.success('Premium activated!');
+      fetchPaymentRequests(paymentFilter);
+    } catch (e) { toast.error(e.response?.data?.detail || 'Failed'); }
+  };
+
+  const rejectPayment = async (requestId) => {
+    const reason = prompt('Rejection reason:');
+    if (!reason) return;
+    try {
+      await adminApi.post(`/admin/payment-requests/${requestId}/reject`, { reason });
+      toast.success('Payment rejected');
+      fetchPaymentRequests(paymentFilter);
     } catch (e) { toast.error('Failed'); }
   };
 
@@ -728,6 +756,8 @@ const AdminDashboard = ({ user }) => {
       fetchAiProfiles();
     } else if (activeTab === 'promo-codes') {
       fetchPromoCodes();
+    } else if (activeTab === 'payments') {
+      fetchPaymentRequests(paymentFilter);
     }
   }, [activeTab, fetchUsers, fetchPendingVerifications, fetchVerifiedUsers, fetchFeatureFlags, fetchAiProfiles]);
 
@@ -920,6 +950,13 @@ const AdminDashboard = ({ user }) => {
             data-testid="admin-promo-tab"
           >
             <Gift className="w-4 h-4 mr-2" /> Promo Codes
+          </Button>
+          <Button
+            onClick={() => setActiveTab('payments')}
+            className={activeTab === 'payments' ? 'bg-green-500' : 'bg-gray-200 text-gray-700'}
+            data-testid="admin-payments-tab"
+          >
+            <DollarSign className="w-4 h-4 mr-2" /> Payments
           </Button>
           <Button
             onClick={() => setActiveTab('growth')}
@@ -1574,6 +1611,71 @@ const AdminDashboard = ({ user }) => {
               ))
             )}
           </div>
+        </div>
+      )}
+
+
+      {activeTab === 'payments' && (
+        <div className="space-y-6" data-testid="admin-payments-panel">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Payment Verification</h2>
+            <p className="text-sm text-gray-500 mt-1">Verify UPI payment screenshots and activate premium</p>
+          </div>
+
+          {/* Filter */}
+          <div className="flex gap-2">
+            {['pending', 'approved', 'rejected', 'all'].map(f => (
+              <Button key={f} size="sm" onClick={() => { setPaymentFilter(f); fetchPaymentRequests(f); }}
+                className={paymentFilter === f ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-600'}>
+                {f.charAt(0).toUpperCase() + f.slice(1)}
+              </Button>
+            ))}
+          </div>
+
+          {/* Payment Requests */}
+          {paymentRequests.length === 0 ? (
+            <p className="text-center text-gray-400 py-8">No {paymentFilter} payment requests</p>
+          ) : (
+            <div className="space-y-3">
+              {paymentRequests.map((req, i) => (
+                <div key={i} className="bg-white rounded-xl p-4 shadow-sm border space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-bold text-gray-900">{req.user_name || 'Unknown'}</p>
+                      <p className="text-xs text-gray-500">{req.user_email} | ₹{req.amount} | {req.payment_method}</p>
+                      {req.utr_number && <p className="text-xs text-gray-400 font-mono">UTR: {req.utr_number}</p>}
+                      <p className="text-xs text-gray-400">{new Date(req.created_at).toLocaleString('en-IN')}</p>
+                    </div>
+                    <span className={`text-xs font-bold px-2 py-1 rounded-full ${
+                      req.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                      req.status === 'approved' ? 'bg-green-100 text-green-700' :
+                      'bg-red-100 text-red-700'
+                    }`}>{req.status}</span>
+                  </div>
+                  
+                  {/* Screenshot */}
+                  {req.screenshot_url && (
+                    <img src={req.screenshot_url} alt="Payment" className="w-full max-h-60 object-contain rounded-lg bg-gray-50 border cursor-pointer" onClick={() => window.open(req.screenshot_url, '_blank')} />
+                  )}
+
+                  {/* Actions */}
+                  {req.status === 'pending' && (
+                    <div className="flex gap-2">
+                      <Button onClick={() => approvePayment(req.id)} className="flex-1 bg-green-500 hover:bg-green-600" data-testid={`approve-payment-${i}`}>
+                        Approve & Activate Premium
+                      </Button>
+                      <Button onClick={() => rejectPayment(req.id)} variant="outline" className="text-red-500 border-red-200" data-testid={`reject-payment-${i}`}>
+                        Reject
+                      </Button>
+                    </div>
+                  )}
+                  {req.status === 'rejected' && req.reject_reason && (
+                    <p className="text-xs text-red-500">Reason: {req.reject_reason}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
