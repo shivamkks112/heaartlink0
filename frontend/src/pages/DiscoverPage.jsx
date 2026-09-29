@@ -240,57 +240,71 @@ const DiscoverPage = ({ user }) => {
       return;
     }
 
-    // Swipe limit check (non-premium)
-    if (!user?.is_premium && !user?.isPremium && (action === 'like' || action === 'pass')) {
+    // Swipe limit check FIRST (only blocking check)
+    const isPremiumUser = user?.is_premium || user?.isPremium || user?.gender?.toLowerCase() === 'female';
+    if (!isPremiumUser && (action === 'like' || action === 'pass')) {
       const currentExtra = parseInt(localStorage.getItem('heartlink_extra_swipes') || '0');
       if (dailySwipeCount >= DAILY_SWIPE_LIMIT && currentExtra <= 0) {
         setShowOutOfSwipes(true);
         return;
       }
-      if (dailySwipeCount >= DAILY_SWIPE_LIMIT && currentExtra > 0) {
-        const newExtra = currentExtra - 1;
-        localStorage.setItem('heartlink_extra_swipes', String(newExtra));
-        setExtraSwipes(newExtra);
-        toast.info(`Extra swipe used! ${newExtra} remaining`);
-      } else {
-        const newCount = dailySwipeCount + 1;
-        localStorage.setItem('heartlink_swipe_count', String(newCount));
-        setDailySwipeCount(newCount);
-        if (newCount === DAILY_SWIPE_LIMIT - 5) toast.warning('Sirf 5 swipes bache hain! Go Premium for unlimited ❤️', { action: { label: 'Premium', onClick: () => navigate('/premium') }, duration: 5000 });
-      }
-      if (shouldShowAds) {
-        const adShown = await adsService.trackSwipe();
-        setSwipesUntilAd(adsService.getSwipesUntilAd());
-        if (adShown) { setShowingAd(true); setTimeout(() => setShowingAd(false), 500); }
-      }
     }
 
-    // OPTIMISTIC: advance card immediately — don't wait for API
+    // INSTANT: advance card immediately — native feel
     const targetProfile = profiles[currentIndex];
     actionInFlight.current = true;
     advanceCard();
 
-    // Fire API in background
-    try {
-      const response = await axios.post(`${API}/action/${user.id}`, {
-        target_user_id: targetProfile.id,
-        action
-      });
-      if (response.data.action === 'matched') {
-        setMatchedUserData(targetProfile);
-        setMatchIdForChat(response.data.match_id);
-        setMatchCompatibilityScore(response.data.compatibility_score);
-        setShowMatchAnimation(true);
-      } else if (action === 'superlike') {
-        toast.success('Super Like sent!');
+    // Haptic feedback for native feel
+    try { navigator?.vibrate?.(15); } catch(e) {}
+
+    // ALL background work — non-blocking
+    (async () => {
+      // Update swipe counts in background
+      if (!isPremiumUser && (action === 'like' || action === 'pass')) {
+        const currentExtra = parseInt(localStorage.getItem('heartlink_extra_swipes') || '0');
+        if (dailySwipeCount >= DAILY_SWIPE_LIMIT && currentExtra > 0) {
+          const newExtra = currentExtra - 1;
+          localStorage.setItem('heartlink_extra_swipes', String(newExtra));
+          setExtraSwipes(newExtra);
+          toast.info(`Extra swipe used! ${newExtra} remaining`);
+        } else {
+          const newCount = dailySwipeCount + 1;
+          localStorage.setItem('heartlink_swipe_count', String(newCount));
+          setDailySwipeCount(newCount);
+          if (newCount === DAILY_SWIPE_LIMIT - 5) toast.warning('Sirf 5 swipes bache hain! Go Premium for unlimited', { action: { label: 'Premium', onClick: () => navigate('/premium') }, duration: 5000 });
+        }
+        // Ad tracking — fully async
+        if (shouldShowAds) {
+          adsService.trackSwipe().then(adShown => {
+            setSwipesUntilAd(adsService.getSwipesUntilAd());
+            if (adShown) { setShowingAd(true); setTimeout(() => setShowingAd(false), 500); }
+          }).catch(() => {});
+        }
       }
-    } catch (error) {
-      if (error.response?.status !== 400) {
-        toast.error('Action failed, please try again');
+
+      // Fire API in background
+      try {
+        const response = await axios.post(`${API}/action/${user.id}`, {
+          target_user_id: targetProfile.id,
+          action
+        });
+        if (response.data.action === 'matched') {
+          setMatchedUserData(targetProfile);
+          setMatchIdForChat(response.data.match_id);
+          setMatchCompatibilityScore(response.data.compatibility_score);
+          setShowMatchAnimation(true);
+        } else if (action === 'superlike') {
+          toast.success('Super Like sent!');
+        }
+      } catch (error) {
+        if (error.response?.status !== 400) {
+          toast.error('Action failed, please try again');
+        }
+      } finally {
+        actionInFlight.current = false;
       }
-    } finally {
-      actionInFlight.current = false;
-    }
+    })();
   };
 
   const handleMatchAnimationClose = () => { setShowMatchAnimation(false); setMatchedUserData(null); setMatchCompatibilityScore(null); setMatchIdForChat(null); };
@@ -449,7 +463,7 @@ const DiscoverPage = ({ user }) => {
           style={{
             willChange: 'transform, opacity',
             transform: 'translateZ(0)',
-            transition: 'transform 150ms ease-out, opacity 150ms ease-out',
+            transition: 'transform 80ms ease-out, opacity 80ms ease-out',
             boxShadow: currentProfile.is_premium ? '0 0 20px 4px rgba(245,158,11,0.25), 0 0 40px 8px rgba(245,158,11,0.1)' : undefined,
             border: currentProfile.is_premium ? '2px solid rgba(245,158,11,0.4)' : undefined,
           }}
@@ -634,7 +648,7 @@ const DiscoverPage = ({ user }) => {
                 <button
                   data-testid="pass-btn"
                   onClick={() => handleAction('pass')}
-                  className="group relative rounded-full flex items-center justify-center transition-all duration-300 active:scale-[0.8]"
+                  className="group relative rounded-full flex items-center justify-center active:scale-[0.75] transition-transform duration-75"
                   style={{
                     width: '56px', height: '56px',
                     background: 'linear-gradient(145deg, rgba(255,255,255,0.15), rgba(255,255,255,0.05))',
@@ -651,7 +665,7 @@ const DiscoverPage = ({ user }) => {
                 <button
                   data-testid="superlike-btn"
                   onClick={() => handleAction('superlike')}
-                  className="group relative rounded-full flex items-center justify-center transition-all duration-300 active:scale-[0.8]"
+                  className="group relative rounded-full flex items-center justify-center active:scale-[0.75] transition-transform duration-75"
                   style={{
                     width: '46px', height: '46px',
                     background: 'linear-gradient(145deg, rgba(59,130,246,0.25), rgba(59,130,246,0.08))',
@@ -668,7 +682,7 @@ const DiscoverPage = ({ user }) => {
                 <button
                   data-testid="like-btn"
                   onClick={() => handleAction('like')}
-                  className="group relative rounded-full flex items-center justify-center transition-all duration-300 active:scale-[0.8]"
+                  className="group relative rounded-full flex items-center justify-center active:scale-[0.75] transition-transform duration-75"
                   style={{
                     width: '66px', height: '66px',
                     background: 'linear-gradient(145deg, #34d399, #059669)',
