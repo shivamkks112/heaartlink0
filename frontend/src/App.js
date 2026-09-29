@@ -14,7 +14,7 @@ import { DiscoverSkeleton, MatchesSkeleton, ChatSkeleton, ProfileSkeleton, Quick
 // Critical pages - loaded immediately (lightweight)
 import LandingPage from '@/pages/LandingPage';
 
-// Core pages — eagerly loaded for instant navigation
+// Core pages — ALL eagerly loaded for instant native feel
 import DiscoverPage from '@/pages/DiscoverPage';
 import MatchesPage from '@/pages/MatchesPage';
 import LikesYouPage from '@/pages/LikesYouPage';
@@ -22,8 +22,14 @@ import ChatPage from '@/pages/ChatPage';
 import ProfilePage from '@/pages/ProfilePage';
 import UserProfilePage from '@/pages/UserProfilePage';
 import PremiumPage from '@/pages/PremiumPage';
+import SettingsPage from '@/pages/SettingsPage';
+import NotificationsPage from '@/pages/NotificationsPage';
+import ProfileEnhancementPage from '@/pages/ProfileEnhancementPage';
+import ReferralPage from '@/pages/ReferralPage';
+import ShareProfilePage from '@/pages/ShareProfilePage';
+import ProfileViewersPage from '@/pages/ProfileViewersPage';
 
-// Auth & Admin — lazy (heavy, rarely revisited)
+// Auth & rare pages — lazy
 const AuthPage = lazy(() => import('@/pages/AuthPage'));
 const ForgotPasswordPage = lazy(() => import('@/pages/ForgotPasswordPage'));
 const CompleteProfilePage = lazy(() => import('@/pages/CompleteProfilePage'));
@@ -31,16 +37,9 @@ const AdminDashboard = lazy(() => import('@/pages/AdminDashboard'));
 const MandatoryPhotoPage = lazy(() => import('@/pages/MandatoryPhotoPage'));
 const SelfieVerificationPage = lazy(() => import('@/pages/SelfieVerificationPage'));
 const PrivacyPage = lazy(() => import('@/pages/PrivacyPage'));
-const SettingsPage = lazy(() => import('@/pages/SettingsPage'));
 const PrivacyPolicyPage = lazy(() => import('@/pages/PrivacyPolicyPage'));
-
 const DataDeletionPage = lazy(() => import('@/pages/DataDeletionPage'));
 const TermsPage = lazy(() => import('@/pages/TermsPage'));
-const ProfileViewersPage = lazy(() => import('@/pages/ProfileViewersPage'));
-const ProfileEnhancementPage = lazy(() => import('@/pages/ProfileEnhancementPage'));
-const NotificationsPage = lazy(() => import('@/pages/NotificationsPage'));
-const ReferralPage = lazy(() => import('@/pages/ReferralPage'));
-const ShareProfilePage = lazy(() => import('@/pages/ShareProfilePage'));
 const CityDatingPage = lazy(() => import('@/pages/CityDatingPage'));
 const MatchShareCard = lazy(() => import('@/pages/MatchShareCard'));
 const DailyRewardModal = lazy(() => import('@/components/DailyRewardModal'));

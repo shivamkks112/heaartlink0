@@ -91,8 +91,8 @@ const DiscoverPage = ({ user }) => {
       cacheDiscoverProfiles(user.id, response.data);
       setLoading(false);
       
-      // Preload first 3 profile images for instant display
-      (response.data || []).slice(0, 3).forEach(p => {
+      // Preload first 5 profile images for instant display
+      (response.data || []).slice(0, 5).forEach(p => {
         const imgUrl = p.profile_picture || p.photos?.[0];
         if (imgUrl) { const img = new Image(); img.src = imgUrl; }
       });

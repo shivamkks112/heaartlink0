@@ -458,7 +458,7 @@ const MatchesPage = ({ user }) => {
           <Button
             data-testid="tab-matches"
             onClick={() => setActiveTab('matches')}
-            className="flex-1 py-2.5 sm:py-3.5 rounded-l-full rounded-r-none font-medium text-[11px] sm:text-sm transition-all duration-300 px-1 sm:px-3"
+            className="flex-1 py-2.5 sm:py-3.5 rounded-l-full rounded-r-none font-medium text-[11px] sm:text-sm transition-colors duration-100 px-1 sm:px-3"
             style={{
               background: activeTab === 'matches' ? 'var(--m3-primary-container)' : 'transparent',
               color: activeTab === 'matches' ? 'var(--m3-primary)' : 'var(--m3-on-surface-variant)',
@@ -474,7 +474,7 @@ const MatchesPage = ({ user }) => {
           <Button
             data-testid="tab-messages"
             onClick={() => setActiveTab('messages')}
-            className="relative flex-1 py-2.5 sm:py-3.5 rounded-none font-medium text-[11px] sm:text-sm transition-all duration-300 px-1 sm:px-3"
+            className="relative flex-1 py-2.5 sm:py-3.5 rounded-none font-medium text-[11px] sm:text-sm transition-colors duration-100 px-1 sm:px-3"
             style={{
               background: activeTab === 'messages' ? 'var(--m3-primary-container)' : 'transparent',
               color: activeTab === 'messages' ? 'var(--m3-primary)' : 'var(--m3-on-surface-variant)',
@@ -494,7 +494,7 @@ const MatchesPage = ({ user }) => {
           <Button
             data-testid="tab-active"
             onClick={() => setActiveTab('active')}
-            className="flex-1 py-2.5 sm:py-3.5 rounded-r-full rounded-l-none font-medium text-[11px] sm:text-sm transition-all duration-300 px-1 sm:px-3"
+            className="flex-1 py-2.5 sm:py-3.5 rounded-r-full rounded-l-none font-medium text-[11px] sm:text-sm transition-colors duration-100 px-1 sm:px-3"
             style={{
               background: activeTab === 'active' ? 'var(--m3-primary-container)' : 'transparent',
               color: activeTab === 'active' ? 'var(--m3-primary)' : 'var(--m3-on-surface-variant)',
@@ -552,7 +552,7 @@ const MatchesPage = ({ user }) => {
                   <div
                     key={match.match_id}
                     data-testid="match-card"
-                    className="overflow-hidden transition-all duration-300 transform hover:-translate-y-1 group"
+                    className="overflow-hidden transition-colors duration-100 transform hover:-translate-y-1 group"
                     style={{
                       background: 'var(--m3-surface-container-lowest)',
                       borderRadius: 'var(--m3-shape-lg)',

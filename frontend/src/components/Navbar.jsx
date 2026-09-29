@@ -90,7 +90,7 @@ const Navbar = ({ user }) => {
               }}
             >
               {/* M3 Active Indicator Pill */}
-              <div className={`relative flex items-center justify-center rounded-full transition-all duration-300 ease-[cubic-bezier(0.05,0.7,0.1,1)] ${
+              <div className={`relative flex items-center justify-center rounded-full transition-all duration-150 ${
                 active
                   ? 'w-16 h-8'
                   : 'bg-transparent w-8 h-8'
@@ -99,7 +99,7 @@ const Navbar = ({ user }) => {
               >
                 <div className="relative">
                   <Icon
-                    className={`w-[20px] h-[20px] transition-colors duration-200 ${
+                    className={`w-[20px] h-[20px] transition-colors duration-100 ${
                       active && tab.fillActive ? 'fill-current' : ''
                     }`}
                     style={{ color: active ? 'var(--m3-primary)' : 'var(--m3-on-surface-variant)' }}

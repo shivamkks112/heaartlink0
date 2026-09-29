@@ -9,6 +9,44 @@ body {
         "Helvetica Neue", sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* Native app feel */
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* Allow text selection only in inputs/textareas */
+input, textarea, [contenteditable] {
+    user-select: text;
+    -webkit-user-select: text;
+}
+
+/* Instant button feedback — no 300ms delay */
+button, a, [role="button"], [onclick] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    cursor: pointer;
+}
+
+/* Smooth momentum scrolling for all scrollable areas */
+.overflow-y-auto, .overflow-x-auto, .overflow-auto {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+}
+
+/* GPU acceleration for animated elements */
+.transition-transform, .animate-in, .animate-pulse {
+    will-change: transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+}
+
+/* Prevent pull-to-refresh in Android WebView */
+html {
+    overscroll-behavior: none;
 }
 
 code {
