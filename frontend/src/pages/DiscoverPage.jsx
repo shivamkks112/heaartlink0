@@ -56,9 +56,15 @@ const DiscoverPage = ({ user }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [photoIndex, setPhotoIndex] = useState(0);
-  const [touchStart, setTouchStart] = useState(null);
-  const [touchEnd, setTouchEnd] = useState(null);
+  const [touchStart] = useState(null); // kept for compatibility
+  const [touchEnd] = useState(null);
   const [swipeDirection, setSwipeDirection] = useState(null);
+  // Drag state for swipe physics
+  const [dragX, setDragX] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const dragStartX = useRef(0);
+  const dragStartY = useRef(0);
+  const isDraggingCard = useRef(false);
   const [showOutOfSwipes, setShowOutOfSwipes] = useState(false);
   const [dailySwipeCount, setDailySwipeCount] = useState(0);
   const [extraSwipes, setExtraSwipes] = useState(0);
@@ -327,18 +333,56 @@ const DiscoverPage = ({ user }) => {
     return result;
   };
 
-  const onTouchStart = (e) => { setTouchEnd(null); setTouchStart(e.targetTouches[0].clientX); };
-  const onTouchMove = (e) => {
-    setTouchEnd(e.targetTouches[0].clientX);
-    const d = touchStart - e.targetTouches[0].clientX;
-    if (Math.abs(d) > 20) setSwipeDirection(d > 0 ? 'left' : 'right');
+  // ── SWIPE GESTURE PHYSICS ──
+  const onCardTouchStart = (e) => {
+    const touch = e.touches[0];
+    dragStartX.current = touch.clientX;
+    dragStartY.current = touch.clientY;
+    isDraggingCard.current = false;
+    setDragging(true);
   };
-  const onTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
-    const d = touchStart - touchEnd;
-    if (d > minSwipeDistance) handleAction('pass');
-    else if (d < -minSwipeDistance) handleAction('like');
-    setSwipeDirection(null); setTouchStart(null); setTouchEnd(null);
+
+  const onCardTouchMove = (e) => {
+    if (!dragging) return;
+    const touch = e.touches[0];
+    const dx = touch.clientX - dragStartX.current;
+    const dy = touch.clientY - dragStartY.current;
+    if (!isDraggingCard.current && Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) {
+      isDraggingCard.current = true;
+    }
+    if (isDraggingCard.current) {
+      e.preventDefault();
+      setDragX(dx);
+      setSwipeDirection(dx > 20 ? 'right' : dx < -20 ? 'left' : null);
+    }
+  };
+
+  const onCardTouchEnd = () => {
+    if (!dragging) return;
+    setDragging(false);
+    const threshold = 80;
+    if (isDraggingCard.current) {
+      if (dragX > threshold) {
+        setDragX(500);
+        setTimeout(() => { setDragX(0); setSwipeDirection(null); handleAction('like'); }, 100);
+        return;
+      } else if (dragX < -threshold) {
+        setDragX(-500);
+        setTimeout(() => { setDragX(0); setSwipeDirection(null); handleAction('pass'); }, 100);
+        return;
+      }
+    } else {
+      // Small touch = photo navigation
+      const dx = dragX;
+      if (Math.abs(dx) > 30) {
+        const maxPhotos = (profiles[currentIndex]?.photos?.length || 1);
+        if (dx < -30) setPhotoIndex(i => Math.min(maxPhotos - 1, i + 1));
+        else if (dx > 30) setPhotoIndex(i => Math.max(0, i - 1));
+      }
+    }
+    setDragX(0);
+    setSwipeDirection(null);
+    isDraggingCard.current = false;
   };
 
   const [imgError, setImgError] = useState(false);
@@ -456,22 +500,35 @@ const DiscoverPage = ({ user }) => {
       {/* Card area */}
       <div className="flex-1 min-h-0 p-1.5 pb-0">
         <div
-          className={`relative w-full h-full max-w-md mx-auto rounded-xl overflow-hidden ${
-            swipeDirection === 'left' ? '-translate-x-6 -rotate-3 opacity-70' :
-            swipeDirection === 'right' ? 'translate-x-6 rotate-3 opacity-70' : ''
-          }`}
+          className="relative w-full h-full max-w-md mx-auto rounded-xl overflow-hidden"
           style={{
             willChange: 'transform, opacity',
-            transform: 'translateZ(0)',
-            transition: 'transform 80ms ease-out, opacity 80ms ease-out',
+            transform: `translateZ(0) translateX(${dragX}px) rotate(${dragX * 0.06}deg)`,
+            transition: dragging ? 'none' : 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease',
+            opacity: Math.abs(dragX) > 350 ? 0 : 1,
             boxShadow: currentProfile.is_premium ? '0 0 20px 4px rgba(245,158,11,0.25), 0 0 40px 8px rgba(245,158,11,0.1)' : undefined,
             border: currentProfile.is_premium ? '2px solid rgba(245,158,11,0.4)' : undefined,
           }}
           data-testid="profile-card"
-          onTouchStart={onTouchStart}
-          onTouchMove={onTouchMove}
-          onTouchEnd={onTouchEnd}
+          onTouchStart={onCardTouchStart}
+          onTouchMove={onCardTouchMove}
+          onTouchEnd={onCardTouchEnd}
         >
+          {/* LIKE / NOPE stamp overlay during drag */}
+          {Math.abs(dragX) > 30 && (
+            <div className="absolute inset-0 z-30 pointer-events-none flex items-center justify-center">
+              {dragX > 30 && (
+                <div className="absolute top-20 left-6 border-4 border-green-400 rounded-xl px-4 py-2 -rotate-12" style={{ opacity: Math.min(Math.abs(dragX) / 100, 1) }}>
+                  <span className="text-green-400 font-black text-3xl tracking-wider">LIKE</span>
+                </div>
+              )}
+              {dragX < -30 && (
+                <div className="absolute top-20 right-6 border-4 border-red-400 rounded-xl px-4 py-2 rotate-12" style={{ opacity: Math.min(Math.abs(dragX) / 100, 1) }}>
+                  <span className="text-red-400 font-black text-3xl tracking-wider">NOPE</span>
+                </div>
+              )}
+            </div>
+          )}
           {/* Photo fills entire card */}
           <div className="absolute inset-0 bg-gray-900">
             {(allPhotos[photoIndex] || currentProfile.profile_picture) && !imgError ? (

@@ -11186,6 +11186,17 @@ async def get_payment_status(user_id: str):
     return {"has_request": True, "status": req["status"], "created_at": req["created_at"], "request_id": req["id"]}
 
 
+@api_router.get("/payment/history/{user_id}")
+async def get_payment_history(user_id: str):
+    """Get user's payment history."""
+    payments = await db.payment_requests.find(
+        {"user_id": user_id},
+        {"_id": 0, "id": 1, "amount": 1, "payment_method": 1, "status": 1, "created_at": 1, "utr_number": 1, "premium_days": 1, "reject_reason": 1}
+    ).sort("created_at", -1).limit(20).to_list(None)
+    return payments
+
+
+
 @api_router.get("/admin/payment-requests")
 async def list_payment_requests(status: str = "pending", admin: dict = Depends(require_admin)):
     """Admin: List payment verification requests."""

@@ -28,6 +28,7 @@ import ProfileEnhancementPage from '@/pages/ProfileEnhancementPage';
 import ReferralPage from '@/pages/ReferralPage';
 import ShareProfilePage from '@/pages/ShareProfilePage';
 import ProfileViewersPage from '@/pages/ProfileViewersPage';
+import PaymentHistoryPage from '@/pages/PaymentHistoryPage';
 
 // Auth & rare pages — lazy
 const AuthPage = lazy(() => import('@/pages/AuthPage'));
@@ -341,6 +342,7 @@ function App() {
             <Route path="/notifications" element={user ? <NotificationsPage user={user} /> : <Navigate to="/" />} />
             <Route path="/referral" element={user ? <ReferralPage user={user} /> : <Navigate to="/" />} />
             <Route path="/share-profile" element={user ? <ShareProfilePage user={user} /> : <Navigate to="/" />} />
+            <Route path="/payment-history" element={user ? <PaymentHistoryPage user={user} /> : <Navigate to="/" />} />
             <Route path="/share-match" element={user ? <MatchShareCard user={user} /> : <Navigate to="/" />} />
             <Route path="/premium" element={user ? <PremiumPage user={user} onUpdate={handleLogin} /> : <Navigate to="/" />} />
           </Routes>

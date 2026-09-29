@@ -405,9 +405,17 @@ const SettingsPage = ({ user, setUser }) => {
               <Crown className="w-4 h-4" /> Upgrade to Premium
             </button>
           )}
-        </div>
+          <button
+            onClick={() => navigate('/payment-history')}
+            className="w-full flex items-center justify-between bg-gray-50 hover:bg-gray-100 px-4 py-3 rounded-xl transition-colors mt-2"
+            data-testid="payment-history-link"
 
         {/* Daily Rewards Section */}
+          >
+            <span className="text-sm font-medium text-gray-600">Payment & Subscription History</span>
+            <ExternalLink className="w-4 h-4 text-gray-400" />
+          </button>
+        </div>
         <div className="bg-white rounded-xl p-4 shadow-sm" data-testid="daily-rewards-section">
           <h2 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
             <Flame className="w-5 h-5 text-orange-500" />
