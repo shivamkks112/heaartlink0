@@ -350,6 +350,10 @@ async def startup_event():
     asyncio.create_task(ai_girl_join_notification_scheduler())
     logging.info("🤖 AI girl notification scheduler started")
     
+    # Smart nudge — "X people liked you!" every 2 hours
+    asyncio.create_task(smart_nudge_scheduler())
+    logging.info("💡 Smart nudge scheduler started")
+    
     # Initialize Object Storage
     try:
         _init_object_storage()
@@ -705,6 +709,63 @@ async def ai_girl_join_notification_scheduler():
             logging.error(f"AI girl notification scheduler error: {e}")
         
         await asyncio.sleep(1800)  # Every 30 minutes
+
+
+async def smart_nudge_scheduler():
+    """Send 'X people liked you!' push to non-premium users with pending likes — every 2 hours."""
+    import random
+    await asyncio.sleep(300)  # Wait 5 min after startup
+    
+    NUDGE_MESSAGES = [
+        ("{count} log tumhe pasand karte hain!", "Premium le aur dekho kaun hai!"),
+        ("Koi tumhe like kar raha hai!", "{count} likes pending — unlock karo!"),
+        ("{count} people liked your profile!", "Don't miss your matches — go Premium"),
+        ("Tumhari profile popular hai!", "{count} likes aa chuke hain. Dekho kaun hai?"),
+        ("Miss mat karo!", "{count} log tumse milna chahte hain. Premium se dekho!"),
+    ]
+    
+    while True:
+        try:
+            from firebase_config import send_notification
+            
+            # Find non-premium male users with pending likes
+            non_premium_users = await db.users.find(
+                {
+                    "is_ai_profile": {"$ne": True},
+                    "gender": {"$regex": "^male$", "$options": "i"},
+                    "is_premium": {"$ne": True},
+                    "fcm_token": {"$exists": True, "$ne": None},
+                    "is_banned": {"$ne": True},
+                },
+                {"_id": 0, "id": 1, "fcm_token": 1, "name": 1}
+            ).to_list(None)
+            
+            sent = 0
+            for u in non_premium_users:
+                # Count their pending likes
+                like_count = await db.likes.count_documents({
+                    "liked_user_id": u["id"],
+                    "action": "like",
+                    "is_matched": False
+                })
+                
+                if like_count > 0 and u.get("fcm_token"):
+                    template = random.choice(NUDGE_MESSAGES)
+                    title = template[0].format(count=like_count)
+                    body = template[1].format(count=like_count)
+                    
+                    send_notification(
+                        u["fcm_token"], title, body,
+                        {"type": "smart_nudge", "action": "open_likes", "route": "/likes"}
+                    )
+                    sent += 1
+            
+            if sent > 0:
+                logging.info(f"💡 Smart nudge sent to {sent} non-premium users")
+        except Exception as e:
+            logging.error(f"Smart nudge scheduler error: {e}")
+        
+        await asyncio.sleep(7200)  # Every 2 hours
 
 
 

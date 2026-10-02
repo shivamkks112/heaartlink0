@@ -84,7 +84,11 @@ const DiscoverPage = ({ user }) => {
   const [matchCompatibilityScore, setMatchCompatibilityScore] = useState(null);
   const [matchIdForChat, setMatchIdForChat] = useState(null);
   const [crushEnabled, setCrushEnabled] = useState(false);
+  const [pendingLikes, setPendingLikes] = useState(0);
+  const [nudgeDismissed, setNudgeDismissed] = useState(false);
   const actionInFlight = useRef(false);
+
+  const isPremiumUser = user?.is_premium || user?.isPremium || user?.gender?.toLowerCase() === 'female';
   const swipeAnimation = useRef(null);
 
   const DAILY_SWIPE_LIMIT = 50;
@@ -166,6 +170,13 @@ const DiscoverPage = ({ user }) => {
     axios.get(`${API}/admin/feature-flags`).then(res => {
       setCrushEnabled(!!res.data?.crush_feature);
     }).catch(() => {});
+    
+    // Fetch pending likes count for smart nudge (non-premium only)
+    if (!isPremiumUser && user?.id) {
+      axios.get(`${API}/init/${user.id}`).then(res => {
+        setPendingLikes(res.data?.likes_count || 0);
+      }).catch(() => {});
+    }
   }, []);
 
   useEffect(() => {
@@ -499,6 +510,26 @@ const DiscoverPage = ({ user }) => {
     return (
       <div className="h-[100%] bg-[#0a0a0a] flex flex-col" style={{ height: 'calc(100vh - var(--nav-total, 86px))', paddingTop: 'var(--safe-top, 24px)' }}>
         {shellTop}
+        {/* Smart Nudge on empty state */}
+        {!isPremiumUser && pendingLikes > 0 && !nudgeDismissed && (
+          <div
+            className="mx-4 mt-2 flex items-center justify-between px-4 py-2.5 rounded-2xl"
+            style={{
+              background: 'linear-gradient(135deg, rgba(245,158,11,0.95), rgba(239,108,0,0.95))',
+              boxShadow: '0 4px 20px rgba(245,158,11,0.4)',
+            }}
+            data-testid="smart-nudge-banner"
+          >
+            <button onClick={() => navigate('/premium')} className="flex items-center gap-2 flex-1">
+              <Heart className="w-5 h-5 text-white" fill="white" />
+              <span className="text-white text-sm font-bold">{pendingLikes} {pendingLikes === 1 ? 'person' : 'log'} ne tumhe like kiya!</span>
+            </button>
+            <div className="flex items-center gap-2">
+              <button onClick={() => navigate('/premium')} className="bg-white text-amber-600 text-xs font-bold px-3 py-1.5 rounded-full active:scale-95 transition-transform">Dekho</button>
+              <button onClick={() => setNudgeDismissed(true)} className="text-white/70 p-1"><X className="w-4 h-4" /></button>
+            </div>
+          </div>
+        )}
         <div className="flex-1 min-h-0 flex items-center justify-center px-8">
           <div className="text-center m3-animate-in" data-testid="no-profiles">
             <div className="w-24 h-24 mx-auto mb-6 rounded-[28px] flex items-center justify-center" style={{ background: 'var(--m3-surface-container-high)' }}>
@@ -750,6 +781,41 @@ const DiscoverPage = ({ user }) => {
                 ))}
               </div>
             </div>
+
+            {/* Smart Nudge — "X people liked you!" for non-premium */}
+            {!isPremiumUser && pendingLikes > 0 && !nudgeDismissed && (
+              <div
+                className="flex items-center justify-between mx-4 mb-2 px-4 py-2.5 rounded-2xl animate-bounce-in"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(245,158,11,0.9), rgba(239,108,0,0.9))',
+                  backdropFilter: 'blur(12px)',
+                  boxShadow: '0 4px 20px rgba(245,158,11,0.4)',
+                }}
+                data-testid="smart-nudge-banner"
+              >
+                <button
+                  onClick={() => navigate('/premium')}
+                  className="flex items-center gap-2 flex-1"
+                >
+                  <Heart className="w-5 h-5 text-white" fill="white" />
+                  <span className="text-white text-sm font-bold">{pendingLikes} {pendingLikes === 1 ? 'person' : 'log'} ne tumhe like kiya!</span>
+                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => navigate('/premium')}
+                    className="bg-white text-amber-600 text-xs font-bold px-3 py-1.5 rounded-full active:scale-95 transition-transform"
+                  >
+                    Dekho
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setNudgeDismissed(true); }}
+                    className="text-white/70 p-1"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Action buttons — floating glass dock */}
             <div
