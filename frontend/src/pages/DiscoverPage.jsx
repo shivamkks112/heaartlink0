@@ -11,6 +11,9 @@ import adsService, { SWIPES_BEFORE_AD, EXTRA_SWIPES_REWARD } from '@/services/Ad
 import wsService from '@/services/WebSocketService';
 import { VerifiedBadge, OnlineStatus } from '@/components/badges/VerifiedBadge';
 import MatchAnimation from '@/components/MatchAnimation';
+import PremiumBottomSheet from '@/components/PremiumBottomSheet';
+import OptimizedImage from '@/components/OptimizedImage';
+import { haptic } from '@/utils/haptics';
 
 const SafetyScoreBadge = ({ profile }) => {
   let score = 0;
@@ -86,6 +89,7 @@ const DiscoverPage = ({ user }) => {
   const [crushEnabled, setCrushEnabled] = useState(false);
   const [pendingLikes, setPendingLikes] = useState(0);
   const [nudgeDismissed, setNudgeDismissed] = useState(false);
+  const [showPremiumSheet, setShowPremiumSheet] = useState(false);
   const actionInFlight = useRef(false);
 
   const isPremiumUser = user?.is_premium || user?.isPremium || user?.gender?.toLowerCase() === 'female';
@@ -269,19 +273,14 @@ const DiscoverPage = ({ user }) => {
     
     // Non-premium users cannot like — must subscribe first
     if (!isPremiumUser && action === 'like') {
-      toast('Premium chahiye! Like karne ke liye subscribe karo', {
-        action: { label: 'Subscribe', onClick: () => navigate('/premium') },
-        duration: 4000,
-      });
-      try { navigator?.vibrate?.(30); } catch(e) {}
+      haptic.error();
+      setShowPremiumSheet(true);
       return;
     }
     
     if (!isPremiumUser && action === 'superlike') {
-      toast('Super Like sirf Premium members ke liye hai', {
-        action: { label: 'Subscribe', onClick: () => navigate('/premium') },
-        duration: 4000,
-      });
+      haptic.error();
+      setShowPremiumSheet(true);
       return;
     }
 
@@ -307,7 +306,7 @@ const DiscoverPage = ({ user }) => {
     advanceCard();
 
     // Haptic feedback for native feel
-    try { navigator?.vibrate?.(15); } catch(e) {}
+    haptic.medium();
 
     // ALL background work — non-blocking
     (async () => {
@@ -482,6 +481,7 @@ const DiscoverPage = ({ user }) => {
       <Toaster position="top-center" />
       <Navbar user={user} />
       <MatchAnimation isOpen={showMatchAnimation} onClose={handleMatchAnimationClose} currentUser={user} matchedUser={matchedUserData} compatibilityScore={matchCompatibilityScore?.toFixed(0)} onStartChat={handleStartChatFromMatch} />
+      <PremiumBottomSheet isOpen={showPremiumSheet} onClose={() => setShowPremiumSheet(false)} title="Like karne ke liye Premium lo!" />
     </>
   );
 
@@ -631,12 +631,10 @@ const DiscoverPage = ({ user }) => {
           {/* Photo fills entire card */}
           <div className="absolute inset-0 bg-gray-900">
             {(allPhotos[photoIndex] || currentProfile.profile_picture) && !imgError ? (
-              <img
+              <OptimizedImage
                 src={allPhotos[photoIndex] || currentProfile.profile_picture}
                 alt={currentProfile.name}
-                className="w-full h-full object-cover"
-                loading="eager"
-                decoding="async"
+                className="w-full h-full"
                 draggable={false}
                 onError={() => setImgError(true)}
               />

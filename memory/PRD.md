@@ -30,7 +30,8 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 - 56+ cities with vibes database
 
 ## Completed (Recent)
-- [x] **Smart Nudge** — In-app banner "X log ne tumhe like kiya!" on Discover + 2-hour push notification scheduler for non-premium users (2026-10-02)
+- [x] **UX Overhaul** — Page transitions, pull-to-refresh, premium bottom sheet, haptic feedback, OptimizedImage blur-to-sharp, CSS animations (2026-10-02)
+- [x] **Smart Nudge** — In-app banner + 2-hour push notification for non-premium users (2026-10-02)
 - [x] **Blurred Like Preview** — Non-premium users see blurred photos + "???" on Likes page (2026-10-02)
 - [x] **Trial Only for New Users** — 3-day trial shows only for users < 7 days old, old users see direct ₹49/month (2026-10-02)
 - [x] **Like Button Premium Lock** — Non-premium users can't like/superlike, lock icon + toast redirects to premium (2026-10-02)

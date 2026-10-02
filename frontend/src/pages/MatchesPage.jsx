@@ -9,6 +9,8 @@ import TopBar from '@/components/TopBar';
 import { Button } from '@/components/ui/button';
 import { MatchCardSkeleton } from '@/components/SkeletonLoader';
 import wsService from '@/services/WebSocketService';
+import PullToRefresh from '@/components/PullToRefresh';
+import { haptic } from '@/utils/haptics';
 
 import { BACKEND_URL, API } from '@/config/api';
 import { getPageData, setPageData } from '@/utils/pageCache';
@@ -455,7 +457,8 @@ const MatchesPage = ({ user }) => {
       <Toaster position="top-center" />
       <Navbar user={user} />
       
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 m3-animate-in">
+      <PullToRefresh onRefresh={async () => { await Promise.all([fetchMatches(), fetchConversations(), fetchActiveUsers()]); }}>
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 page-enter">
         <div className="mb-4 sm:mb-6 md:mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold mb-1" style={{ color: 'var(--m3-on-surface)' }}>Connections</h1>
           <p className="text-sm" style={{ color: 'var(--m3-on-surface-variant)' }}>Your matches and active users</p>
@@ -905,6 +908,7 @@ const MatchesPage = ({ user }) => {
           </>
         )}
       </div>
+      </PullToRefresh>
       
       {/* Safety Message Modal */}
       <SafetyMessageModal 

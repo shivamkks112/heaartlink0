@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import React from 'react';
 import wsService from '@/services/WebSocketService';
+import { haptic } from '@/utils/haptics';
 
 const Navbar = ({ user }) => {
   const navigate = useNavigate();
@@ -82,7 +83,7 @@ const Navbar = ({ user }) => {
             <button
               key={tab.id}
               data-testid={`nav-${tab.id}`}
-              onClick={() => navigate(tab.path)}
+              onClick={() => { haptic.light(); navigate(tab.path); }}
               className="flex-1 flex flex-col items-center justify-center gap-[2px] touch-manipulation relative"
               style={{
                 WebkitTapHighlightColor: 'transparent',
