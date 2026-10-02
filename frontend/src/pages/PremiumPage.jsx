@@ -30,7 +30,6 @@ const PremiumPage = ({ user, onUpdate }) => {
   const [billingReady, setBillingReady] = useState(false);
   const [subStatus, setSubStatus] = useState(null);
   const [displayPrice, setDisplayPrice] = useState('₹49');
-  const [trialInfo, setTrialInfo] = useState({ hasTrial: true, trialDuration: '3 days' });
 
   useEffect(() => {
     initBilling();
@@ -44,7 +43,6 @@ const PremiumPage = ({ user, onUpdate }) => {
       const product = await playBillingService.getProduct();
       if (product) {
         setDisplayPrice(playBillingService.getDisplayPrice());
-        setTrialInfo(playBillingService.getTrialInfo());
       }
     } else if (playBillingService.isNative()) {
       console.warn('[PremiumPage] Billing init failed:', playBillingService.getInitError());
@@ -146,6 +144,14 @@ const PremiumPage = ({ user, onUpdate }) => {
 
   // Girls always see premium as active
   const showAsPremium = isPremium || isGirl;
+  
+  // New user = joined within 7 days — eligible for trial
+  const isNewUser = (() => {
+    const created = user?.created_at;
+    if (!created) return false;
+    const daysSinceJoin = (Date.now() - new Date(created).getTime()) / 86400000;
+    return daysSinceJoin <= 7;
+  })();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 page-with-bottom-nav" style={{ paddingTop: 'var(--safe-top, 24px)' }}>
@@ -241,12 +247,14 @@ const PremiumPage = ({ user, onUpdate }) => {
                 <span className="text-4xl font-bold text-white">{displayPrice}</span>
                 <span className="text-gray-400 text-sm">/month</span>
               </div>
-              {trialInfo.hasTrial && (
+              {isNewUser && (
                 <div className="mt-2 inline-flex items-center gap-1.5 bg-green-500/20 text-green-400 px-3 py-1 rounded-full text-xs font-semibold">
-                  <Star className="w-3 h-3" /> {trialInfo.trialDuration} free trial
+                  <Star className="w-3 h-3" /> 3 days free trial
                 </div>
               )}
-              <p className="text-[10px] text-gray-500 mt-2">After trial: {displayPrice}/month. Cancel anytime from Google Play Store.</p>
+              <p className="text-[10px] text-gray-500 mt-2">
+                {isNewUser ? `3 days free, then ${displayPrice}/month. Auto-renews.` : `${displayPrice}/month. Auto-renews.`} Cancel anytime from Google Play Store.
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -271,12 +279,14 @@ const PremiumPage = ({ user, onUpdate }) => {
               style={{ background: 'linear-gradient(135deg, #F59E0B 0%, #EF6C00 100%)' }}
               data-testid="start-trial-btn"
             >
-              {loading ? <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Processing...</> : 'Start 3-Day Free Trial'}
+              {loading ? <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Processing...</> : isNewUser ? 'Start Free Trial' : `Subscribe — ${displayPrice}/month`}
             </Button>
 
             <p className="text-center text-[10px] text-gray-600 leading-relaxed">
-              After your free trial, you'll be charged {displayPrice}/month. Cancel anytime from Google Play Store.
-              Subscription automatically renews unless cancelled at least 24 hours before the end of the current period.
+              {isNewUser 
+                ? `3 days free, then ${displayPrice}/month. Cancel anytime from Google Play Store. Auto-renews unless cancelled 24 hours before period ends.`
+                : `You'll be charged ${displayPrice}/month. Cancel anytime from Google Play Store. Auto-renews unless cancelled 24 hours before period ends.`
+              }
             </p>
 
             <button onClick={handleRestore} disabled={restoring} className="w-full flex items-center justify-center gap-2 py-3 text-sm text-gray-500 hover:text-gray-300 transition-colors" data-testid="restore-purchases-btn">

@@ -30,7 +30,10 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 - 56+ cities with vibes database
 
 ## Completed (Recent)
-- [x] **Native Feel Cache System** — In-memory + localStorage hybrid cache for all pages (Discover, Matches, Chat, Likes, Notifications) — zero loading on tab switch (2026-10-02)
+- [x] **Trial Only for New Users** — 3-day trial shows only for users < 7 days old, old users see direct ₹49/month (2026-10-02)
+- [x] **Like Button Premium Lock** — Non-premium users can't like/superlike, lock icon + toast redirects to premium (2026-10-02)
+- [x] **AI Girl Join Notifications** — 30-min scheduler sends "New girl joined!" FCM push to male users with random AI profiles (2026-10-02)
+- [x] **Native Feel Cache System** — In-memory + localStorage hybrid cache for all pages (2026-10-02)
 - [x] **Profile Premium Instant Display** — Premium badge now shows immediately from localStorage, no flash of "Get Premium" (2026-09-29)
 - [x] **UTR/Transaction ID Mandatory** — Made UTR field required in UPI payment flow (frontend + backend validation) (2026-09-29)
 - [x] **PremiumPage White Screen Fix** — Added missing `axios` import and `API` from `@/config/api` (2026-09-29)

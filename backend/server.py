@@ -346,6 +346,10 @@ async def startup_event():
     asyncio.create_task(subscription_expiry_checker())
     logging.info("💳 Subscription expiry checker started")
     
+    # AI girl join notification — every 30 min
+    asyncio.create_task(ai_girl_join_notification_scheduler())
+    logging.info("🤖 AI girl notification scheduler started")
+    
     # Initialize Object Storage
     try:
         _init_object_storage()
@@ -644,6 +648,63 @@ async def keep_ai_profiles_online(db_ref):
         except Exception as e:
             logging.error(f"Error in online status cleanup: {e}")
         await asyncio.sleep(300)  # Every 5 minutes
+
+
+async def ai_girl_join_notification_scheduler():
+    """Send 'New girls joined HeartLink!' notification every 30 min using random AI girl profiles."""
+    import random
+    await asyncio.sleep(60)  # Wait 1 min after startup
+    
+    # Curated notification messages for variety
+    NOTIF_TEMPLATES = [
+        ("{name} just joined HeartLink!", "She's from {city}. Check her out!"),
+        ("New girls are joining HeartLink!", "{name} from {city} is looking for a match"),
+        ("{name} is now on HeartLink", "She's nearby and waiting to connect!"),
+        ("Someone new just joined!", "{name}, {age}, from {city} — swipe now!"),
+        ("Don't miss out!", "{name} from {city} just signed up. Say hi!"),
+    ]
+    
+    while True:
+        try:
+            # Get active AI girl profiles
+            ai_girls = await db.users.find(
+                {"is_ai_profile": True, "is_active_ai": True, "gender": "female"},
+                {"_id": 0, "name": 1, "age": 1, "location": 1}
+            ).to_list(None)
+            
+            if ai_girls:
+                girl = random.choice(ai_girls)
+                name = girl.get("name", "Someone")
+                city = (girl.get("location") or "your city").split(",")[0].strip()
+                age = girl.get("age", 23)
+                
+                template = random.choice(NOTIF_TEMPLATES)
+                title = template[0].format(name=name, city=city, age=age)
+                body = template[1].format(name=name, city=city, age=age)
+                
+                # Send to all active male users with FCM tokens (not AI profiles)
+                male_users = await db.users.find(
+                    {
+                        "is_ai_profile": {"$ne": True},
+                        "gender": {"$regex": "^male$", "$options": "i"},
+                        "fcm_token": {"$exists": True, "$ne": None},
+                        "is_banned": {"$ne": True},
+                    },
+                    {"_id": 0, "fcm_token": 1, "id": 1}
+                ).to_list(None)
+                
+                tokens = [u["fcm_token"] for u in male_users if u.get("fcm_token")]
+                if tokens:
+                    from firebase_config import send_notification_to_multiple
+                    result = send_notification_to_multiple(
+                        tokens, title, body,
+                        {"type": "ai_girl_joined", "action": "open_discover"}
+                    )
+                    logging.info(f"🤖 AI girl notification sent to {len(tokens)} users: {title}")
+        except Exception as e:
+            logging.error(f"AI girl notification scheduler error: {e}")
+        
+        await asyncio.sleep(1800)  # Every 30 minutes
 
 
 
