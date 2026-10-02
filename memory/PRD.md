@@ -30,6 +30,7 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 - 56+ cities with vibes database
 
 ## Completed (Recent)
+- [x] **Blurred Like Preview** — Non-premium users see blurred photos + "???" name + "Unlock with Premium" CTA on Likes page (2026-10-02)
 - [x] **Trial Only for New Users** — 3-day trial shows only for users < 7 days old, old users see direct ₹49/month (2026-10-02)
 - [x] **Like Button Premium Lock** — Non-premium users can't like/superlike, lock icon + toast redirects to premium (2026-10-02)
 - [x] **AI Girl Join Notifications** — 30-min scheduler sends "New girl joined!" FCM push to male users with random AI profiles (2026-10-02)

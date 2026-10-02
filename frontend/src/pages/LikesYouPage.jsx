@@ -3,8 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { Heart, Sparkles, X, Check, User, Crown, Eye, Lock, Play, ArrowDownUp, Clock, TrendingUp } from 'lucide-react';
 import axios from 'axios';
 import Navbar from '@/components/Navbar';
-import SeeWhoLikedYouCard from '@/components/ads/SeeWhoLikedYouCard';
-import { useAds } from '@/context/AdContext';
 import { Button } from '@/components/ui/button';
 import wsService from '@/services/WebSocketService';
 import { API } from '@/config/api';
@@ -23,11 +21,9 @@ const LikesYouPage = ({ user }) => {
   const [viewers, setViewers] = useState(_lc?.viewers || { viewers: [], total_views: 0, today_views: 0 });
   const [sortBy, setSortBy] = useState('recent'); // 'recent' | 'name'
   
-  // Ad context
-  const { isEligible } = useAds();
-  
-  // Check if user is premium
-  const isPremium = user?.is_premium || user?.isPremium;
+  // Check if user is premium (girls always premium)
+  const isGirl = user?.gender?.toLowerCase() === 'female';
+  const isPremium = user?.is_premium || user?.isPremium || isGirl;
 
   useEffect(() => {
     fetchLikes();
@@ -449,7 +445,7 @@ const LikesYouPage = ({ user }) => {
             
             <div className="grid gap-4">
               {displayedLikes.map((likedUser, index) => {
-                // Show normal card for all users - no premium restriction
+                const isLocked = !isPremium;
                 return (
                   <div
                     key={likedUser.id}
@@ -463,8 +459,9 @@ const LikesYouPage = ({ user }) => {
                       {likedUser.profile_picture ? (
                         <img
                           src={likedUser.profile_picture}
-                          alt={likedUser.name}
+                          alt={isLocked ? "Someone" : likedUser.name}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          style={isLocked ? { filter: 'blur(20px)', transform: 'scale(1.1)' } : {}}
                         />
                       ) : (
                         <div className="w-full h-full bg-gradient-to-br from-pink-200 via-rose-200 to-orange-200 flex items-center justify-center">
@@ -475,8 +472,19 @@ const LikesYouPage = ({ user }) => {
                       {/* Gradient Overlay */}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
                       
+                      {/* Lock Overlay for non-premium */}
+                      {isLocked && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
+                          <div className="bg-black/40 backdrop-blur-sm rounded-2xl px-6 py-4 text-center">
+                            <Lock className="w-8 h-8 text-amber-400 mx-auto mb-2" />
+                            <p className="text-white font-bold text-sm">Premium se dekho</p>
+                            <p className="text-white/70 text-xs mt-1">Kaun hai jo tumhe pasand karta hai?</p>
+                          </div>
+                        </div>
+                      )}
+                      
                       {/* Verified Badge */}
-                      {likedUser.verified && (
+                      {!isLocked && likedUser.verified && (
                         <div className="absolute top-4 right-4 bg-blue-500 text-white px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 shadow-lg">
                           <Check className="w-3 h-3" />
                           Verified
@@ -486,36 +494,62 @@ const LikesYouPage = ({ user }) => {
                       {/* User Info Overlay */}
                       <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
                         <h3 className="text-2xl font-bold mb-1">
-                          {likedUser.name}, {likedUser.age}
+                          {isLocked ? '???' : `${likedUser.name}, ${likedUser.age}`}
                         </h3>
                         
-                        {/* Online Status */}
-                        {likedUser.is_online ? (
-                          <div className="flex items-center gap-2 mb-2">
-                            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-lg"></div>
-                            <span className="text-xs text-green-300 font-semibold">Online now</span>
-                          </div>
-                        ) : likedUser.last_active && (
-                          <div className="flex items-center gap-2 mb-2">
-                            <div className="w-2 h-2 bg-white/60 rounded-full"></div>
-                            <span className="text-xs text-white/80">
-                              Active {formatLastSeen(likedUser.last_active)}
-                            </span>
-                          </div>
+                        {!isLocked && (
+                          <>
+                            {/* Online Status */}
+                            {likedUser.is_online ? (
+                              <div className="flex items-center gap-2 mb-2">
+                                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-lg"></div>
+                                <span className="text-xs text-green-300 font-semibold">Online now</span>
+                              </div>
+                            ) : likedUser.last_active && (
+                              <div className="flex items-center gap-2 mb-2">
+                                <div className="w-2 h-2 bg-white/60 rounded-full"></div>
+                                <span className="text-xs text-white/80">
+                                  Active {formatLastSeen(likedUser.last_active)}
+                                </span>
+                              </div>
+                            )}
+                            
+                            {likedUser.location && (
+                              <div className="flex items-center gap-1.5 mb-2">
+                                <span className="text-orange-400">📍</span>
+                                <span className="text-sm text-white/90 font-medium">{likedUser.location}</span>
+                              </div>
+                            )}
+                            {likedUser.bio && (
+                              <p className="text-sm text-white/80 line-clamp-2">{likedUser.bio}</p>
+                            )}
+                          </>
                         )}
                         
-                        {likedUser.location && (
-                          <div className="flex items-center gap-1.5 mb-2">
-                            <span className="text-orange-400">📍</span>
-                            <span className="text-sm text-white/90 font-medium">{likedUser.location}</span>
-                          </div>
-                        )}
-                        {likedUser.bio && (
-                          <p className="text-sm text-white/80 line-clamp-2">{likedUser.bio}</p>
+                        {isLocked && (
+                          <p className="text-sm text-white/60">Someone liked you!</p>
                         )}
                       </div>
                     </div>
 
+                    {/* Action Buttons — different for locked vs unlocked */}
+                    {isLocked ? (
+                      <div className="p-4">
+                        <button
+                          onClick={() => navigate('/premium')}
+                          className="w-full py-3.5 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2 active:scale-[0.95] transition-transform"
+                          style={{
+                            background: 'linear-gradient(135deg, #F59E0B 0%, #EF6C00 100%)',
+                            boxShadow: '0 4px 16px rgba(245,158,11,0.35)',
+                          }}
+                          data-testid={`unlock-like-${likedUser.id}`}
+                        >
+                          <Crown className="w-5 h-5" />
+                          Unlock with Premium — ₹49/mo
+                        </button>
+                      </div>
+                    ) : (
+                      <>
                     {/* Interests */}
                     {likedUser.interests && likedUser.interests.length > 0 && (
                       <div className="px-6 py-3 border-b border-gray-100">
@@ -596,6 +630,8 @@ const LikesYouPage = ({ user }) => {
                         </button>
                       </div>
                     </div>
+                      </>
+                    )}
                   </div>
                 );
               })}
