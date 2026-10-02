@@ -16,6 +16,7 @@ import {
 
 import { BACKEND_URL, API } from '@/config/api';
 import { getCachedChatMessages, cacheChatMessages } from '@/utils/cacheManager';
+import { getPageData, setPageData } from '@/utils/pageCache';
 import wsService from '@/services/WebSocketService';
 
 const NUDGE_ICEBREAKERS = [
@@ -32,10 +33,12 @@ const ChatPage = ({ user }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const fromTab = location.state?.fromTab || 'messages';
-  const [messages, setMessages] = useState([]);
+  const _cc = getPageData('chat', matchId);
+  const _cachedMsgs = _cc?.messages || getCachedChatMessages(matchId) || [];
+  const [messages, setMessages] = useState(_cachedMsgs);
   const [newMessage, setNewMessage] = useState('');
-  const [otherUser, setOtherUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [otherUser, setOtherUser] = useState(_cc?.otherUser || null);
+  const [loading, setLoading] = useState(!_cc?.otherUser);
   const [error, setError] = useState(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
@@ -217,6 +220,7 @@ const ChatPage = ({ user }) => {
               setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'auto' }), 80);
             }
             cacheChatMessages(matchId, msgs);
+            setPageData('chat', { messages: msgs, otherUser: match?.user }, matchId);
             axios.post(`${API}/messages/${matchId}/mark-read/${user.id}`).catch(() => {});
           }
           if (privRes.status === 'fulfilled') setPrivacySettings(privRes.value.data);

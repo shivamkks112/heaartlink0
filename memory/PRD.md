@@ -30,6 +30,7 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 - 56+ cities with vibes database
 
 ## Completed (Recent)
+- [x] **Native Feel Cache System** — In-memory + localStorage hybrid cache for all pages (Discover, Matches, Chat, Likes, Notifications) — zero loading on tab switch (2026-10-02)
 - [x] **Profile Premium Instant Display** — Premium badge now shows immediately from localStorage, no flash of "Get Premium" (2026-09-29)
 - [x] **UTR/Transaction ID Mandatory** — Made UTR field required in UPI payment flow (frontend + backend validation) (2026-09-29)
 - [x] **PremiumPage White Screen Fix** — Added missing `axios` import and `API` from `@/config/api` (2026-09-29)

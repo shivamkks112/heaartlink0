@@ -11,6 +11,7 @@ import { MatchCardSkeleton } from '@/components/SkeletonLoader';
 import wsService from '@/services/WebSocketService';
 
 import { BACKEND_URL, API } from '@/config/api';
+import { getPageData, setPageData } from '@/utils/pageCache';
 if (!BACKEND_URL) {
   console.error('⚠️ REACT_APP_BACKEND_URL is not set!');
 }
@@ -120,12 +121,13 @@ const getOnlineStatusInfo = (isOnline, lastActive) => {
 const MatchesPage = ({ user }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [matches, setMatches] = useState([]);
-  const [conversations, setConversations] = useState([]);
+  const _mc = getPageData('matches', user?.id);
+  const [matches, setMatches] = useState(_mc?.matches || []);
+  const [conversations, setConversations] = useState(_mc?.conversations || []);
   const [chatFilter, setChatFilter] = useState('recent');
   const [matchFilter, setMatchFilter] = useState('recent');
-  const [activeUsers, setActiveUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [activeUsers, setActiveUsers] = useState(_mc?.activeUsers || []);
+  const [loading, setLoading] = useState(!_mc);
   // Auto-switch to messages tab if navigated back from chat
   const [activeTab, setActiveTab] = useState(location.state?.tab || 'matches');
   const [unreadCounts, setUnreadCounts] = useState({});
@@ -299,6 +301,12 @@ const MatchesPage = ({ user }) => {
           setUnreadCounts(counts);
         }
         if (activeRes.status === 'fulfilled') setActiveUsers(activeRes.value.data || []);
+        // Cache for instant next visit
+        setPageData('matches', {
+          matches: matchRes.status === 'fulfilled' ? matchRes.value.data || [] : [],
+          conversations: convRes.status === 'fulfilled' ? convRes.value.data || [] : [],
+          activeUsers: activeRes.status === 'fulfilled' ? activeRes.value.data || [] : [],
+        }, user.id);
       } catch (e) {
         console.error('Load all failed:', e);
       } finally {

@@ -45,6 +45,7 @@ const SafetyScoreBadge = ({ profile }) => {
 
 import { BACKEND_URL, API } from '@/config/api';
 import { cacheDiscoverProfiles, getCachedDiscoverProfiles } from '@/utils/cacheManager';
+import { getPageData, setPageData } from '@/utils/pageCache';
 import { POPULAR_CITIES } from '@/data/indianCities';
 if (!BACKEND_URL) {
   console.error('REACT_APP_BACKEND_URL is not set!');
@@ -52,9 +53,10 @@ if (!BACKEND_URL) {
 
 const DiscoverPage = ({ user }) => {
   const navigate = useNavigate();
-  const [profiles, setProfiles] = useState([]);
+  const _cached = getCachedDiscoverProfiles(user?.id) || getPageData('discover', user?.id);
+  const [profiles, setProfiles] = useState(_cached || []);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!_cached || _cached.length === 0);
   const [photoIndex, setPhotoIndex] = useState(0);
   const [touchStart] = useState(null); // kept for compatibility
   const [touchEnd] = useState(null);
@@ -99,6 +101,7 @@ const DiscoverPage = ({ user }) => {
       const response = await axios.get(`${API}/discover/${user.id}${cityFilter ? `?city=${encodeURIComponent(cityFilter)}` : ''}`);
       setProfiles(response.data);
       cacheDiscoverProfiles(user.id, response.data);
+      setPageData('discover', response.data, user.id);
       setLoading(false);
       
       // Preload first 5 profile images for instant display

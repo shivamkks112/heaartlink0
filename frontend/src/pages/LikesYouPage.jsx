@@ -8,17 +8,19 @@ import { useAds } from '@/context/AdContext';
 import { Button } from '@/components/ui/button';
 import wsService from '@/services/WebSocketService';
 import { API } from '@/config/api';
+import { getPageData, setPageData } from '@/utils/pageCache';
 
 
 const LikesYouPage = ({ user }) => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('all');
-  const [likes, setLikes] = useState({ regular_likes: [], super_likes: [], total_count: 0 });
-  const [loading, setLoading] = useState(true);
+  const _lc = getPageData('likes', user?.id);
+  const [likes, setLikes] = useState(_lc?.likes || { regular_likes: [], super_likes: [], total_count: 0 });
+  const [loading, setLoading] = useState(!_lc);
   const [processingId, setProcessingId] = useState(null);
   const [revealedProfiles, setRevealedProfiles] = useState([]);
-  const [crushes, setCrushes] = useState({ crushes: [], total: 0 });
-  const [viewers, setViewers] = useState({ viewers: [], total_views: 0, today_views: 0 });
+  const [crushes, setCrushes] = useState(_lc?.crushes || { crushes: [], total: 0 });
+  const [viewers, setViewers] = useState(_lc?.viewers || { viewers: [], total_views: 0, today_views: 0 });
   const [sortBy, setSortBy] = useState('recent'); // 'recent' | 'name'
   
   // Ad context
@@ -47,10 +49,10 @@ const LikesYouPage = ({ user }) => {
 
   const fetchLikes = async () => {
     try {
-      setLoading(true);
       const response = await fetch(`${API}/likes/${user.id}`);
       const data = await response.json();
       setLikes(data);
+      setPageData('likes', { likes: data, crushes, viewers }, user.id);
     } catch (error) {
       console.error('Error fetching likes:', error);
     } finally {

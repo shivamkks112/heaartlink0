@@ -9,13 +9,15 @@ import TopBar from '@/components/TopBar';
 import { Button } from '@/components/ui/button';
 import wsService from '@/services/WebSocketService';
 import { API } from '@/config/api';
+import { getPageData, setPageData } from '@/utils/pageCache';
 
 
 const NotificationsPage = ({ user }) => {
   const navigate = useNavigate();
-  const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const _nc = getPageData('notifications', user?.id);
+  const [notifications, setNotifications] = useState(_nc?.notifications || []);
+  const [loading, setLoading] = useState(!_nc);
+  const [unreadCount, setUnreadCount] = useState(_nc?.unreadCount || 0);
 
   useEffect(() => {
     fetchNotifications();
@@ -39,6 +41,7 @@ const NotificationsPage = ({ user }) => {
       const response = await axios.get(`${API}/notifications/${user.id}`);
       setNotifications(response.data.notifications || []);
       setUnreadCount(response.data.unread_count || 0);
+      setPageData('notifications', { notifications: response.data.notifications || [], unreadCount: response.data.unread_count || 0 }, user.id);
     } catch (error) {
       console.error('Error fetching notifications:', error);
       toast.error('Failed to load notifications');
