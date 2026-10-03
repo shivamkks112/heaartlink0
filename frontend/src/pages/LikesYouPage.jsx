@@ -178,77 +178,66 @@ const LikesYouPage = ({ user }) => {
             <div className="w-10" /> {/* Spacer */}
           </div>
 
-          {/* Modern Tabs */}
-          <div className="flex gap-2 mt-4">
+          {/* Modern Tabs — scrollable on small screens */}
+          <div className="flex gap-2 mt-4 overflow-x-auto no-scrollbar pb-1" style={{ WebkitOverflowScrolling: 'touch' }}>
             <button
               onClick={() => setActiveTab('all')}
-              className={`flex-1 py-3 px-4 rounded-2xl font-semibold text-sm transition-all duration-300 ${
+              className={`flex-shrink-0 py-2.5 px-4 rounded-2xl font-semibold text-sm transition-all duration-300 ${
                 activeTab === 'all'
                   ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg shadow-pink-300'
                   : 'bg-white/70 text-gray-600 hover:bg-white'
               }`}
             >
-              All
-              <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-white/30">
-                {likes.total_count}
-              </span>
+              All {likes.total_count > 0 && <span className="ml-1 text-xs opacity-80">{likes.total_count}</span>}
             </button>
             
             <button
               onClick={() => setActiveTab('super')}
-              className={`flex-1 py-3 px-4 rounded-2xl font-semibold text-sm transition-all duration-300 ${
+              className={`flex-shrink-0 py-2.5 px-4 rounded-2xl font-semibold text-sm transition-all duration-300 ${
                 activeTab === 'super'
                   ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-300'
                   : 'bg-white/70 text-gray-600 hover:bg-white'
               }`}
             >
               <Sparkles className="inline w-4 h-4 mr-1" />
-              Super
-              <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-white/30">
-                {likes.super_likes.length}
-              </span>
+              Super {likes.super_likes.length > 0 && <span className="ml-1 text-xs opacity-80">{likes.super_likes.length}</span>}
             </button>
             
             <button
               onClick={() => setActiveTab('regular')}
-              className={`flex-1 py-3 px-4 rounded-2xl font-semibold text-sm transition-all duration-300 ${
+              className={`flex-shrink-0 py-2.5 px-4 rounded-2xl font-semibold text-sm transition-all duration-300 ${
                 activeTab === 'regular'
                   ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg shadow-pink-300'
                   : 'bg-white/70 text-gray-600 hover:bg-white'
               }`}
             >
               <Heart className="inline w-4 h-4 mr-1" />
-              Regular
-              <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-white/30">
-                {likes.regular_likes.length}
-              </span>
+              Regular {likes.regular_likes.length > 0 && <span className="ml-1 text-xs opacity-80">{likes.regular_likes.length}</span>}
             </button>
             
             <button
               onClick={() => setActiveTab('crushes')}
               data-testid="crushes-tab"
-              className={`flex-1 py-3 px-4 rounded-2xl font-semibold text-sm transition-all duration-300 ${
+              className={`flex-shrink-0 py-2.5 px-4 rounded-2xl font-semibold text-sm transition-all duration-300 ${
                 activeTab === 'crushes'
                   ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg shadow-orange-300'
                   : 'bg-white/70 text-gray-600 hover:bg-white'
               }`}
             >
-              Crush
-              {crushes.total > 0 && <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-white/30">{crushes.total}</span>}
+              Crush {crushes.total > 0 && <span className="ml-1 text-xs opacity-80">{crushes.total}</span>}
             </button>
             
             <button
               onClick={() => setActiveTab('viewers')}
               data-testid="viewers-tab"
-              className={`flex-1 py-3 px-4 rounded-2xl font-semibold text-sm transition-all duration-300 ${
+              className={`flex-shrink-0 py-2.5 px-4 rounded-2xl font-semibold text-sm transition-all duration-300 ${
                 activeTab === 'viewers'
                   ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg shadow-blue-300'
                   : 'bg-white/70 text-gray-600 hover:bg-white'
               }`}
             >
               <Eye className="inline w-4 h-4 mr-1" />
-              Views
-              {viewers.total_views > 0 && <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-white/30">{viewers.total_views}</span>}
+              Views {viewers.total_views > 0 && <span className="ml-1 text-xs opacity-80">{viewers.total_views}</span>}
             </button>
           </div>
 

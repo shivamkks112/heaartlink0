@@ -434,7 +434,7 @@ const AuthPage = ({ onLogin }) => {
           {isLogin ? (
             <>
               {/* Email/Password Login - Only Method */}
-              <form onSubmit={handleLogin} className="space-y-4">
+              <form onSubmit={handleLogin} className="space-y-4" autoComplete="off">
                 <div>
                   <Label htmlFor="login-email" className="text-gray-700 font-semibold">Email or Phone</Label>
                   <div className="relative mt-2">
@@ -447,6 +447,7 @@ const AuthPage = ({ onLogin }) => {
                       value={loginData.email_or_phone}
                       onChange={(e) => setLoginData({...loginData, email_or_phone: e.target.value})}
                       className="pl-10 py-6 rounded-xl border-2 border-gray-200 focus:border-pink-500"
+                      autoComplete="off"
                       required
                     />
                   </div>
@@ -464,6 +465,7 @@ const AuthPage = ({ onLogin }) => {
                       value={loginData.password}
                       onChange={(e) => setLoginData({...loginData, password: e.target.value})}
                       className="pl-10 pr-12 py-6 rounded-xl border-2 border-gray-200 focus:border-pink-500"
+                      autoComplete="new-password"
                       required
                     />
                     <button type="button" onClick={() => setShowLoginPwd(!showLoginPwd)} className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1" data-testid="login-toggle-pwd">
