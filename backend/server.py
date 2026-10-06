@@ -576,7 +576,7 @@ async def _backfill_ai_matches():
         logging.error(f"Backfill AI matches error: {e}")
 
 
-APP_VERSION = "3.2.6"  # Increment this on each release
+APP_VERSION = "3.3.0"  # Increment this on each release
 
 
 async def auto_update_notification():
