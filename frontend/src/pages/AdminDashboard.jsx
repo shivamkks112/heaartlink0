@@ -539,7 +539,7 @@ const VersionAnalyticsPanel = () => {
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <div className="bg-blue-50 rounded-xl p-3 border border-blue-100">
           <p className="text-2xl font-bold text-blue-600">v{data.current_version}</p>
-          <p className="text-[10px] text-gray-500">Current Version</p>
+          <p className="text-[10px] text-gray-500">Version (Code: {data.current_version_code || '?'})</p>
         </div>
         <div className="bg-emerald-50 rounded-xl p-3 border border-emerald-100">
           <p className="text-2xl font-bold text-emerald-600">{data.total_users}</p>

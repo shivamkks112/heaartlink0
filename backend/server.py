@@ -577,6 +577,7 @@ async def _backfill_ai_matches():
 
 
 APP_VERSION = "3.3.0"  # Increment this on each release
+APP_VERSION_CODE = 70   # Android versionCode — increment on each build
 
 
 async def auto_update_notification():
@@ -2383,6 +2384,7 @@ async def signup(request: Request, user_data: UserSignup):
         user_dict["registered_ip"] = client_ip
         user_dict["registered_at"] = datetime.now(timezone.utc).isoformat()
         user_dict["app_version"] = APP_VERSION
+        user_dict["app_version_code"] = APP_VERSION_CODE
         
         # Create User object to get all defaults (privacy_settings, etc.)
         user = User(**user_dict)
@@ -8600,6 +8602,7 @@ async def get_version_analytics(admin: dict = Depends(require_admin)):
     
     return {
         "current_version": APP_VERSION,
+        "current_version_code": APP_VERSION_CODE,
         "total_users": total_users,
         "versions": versions,
         "daily_current_version": daily_current,
