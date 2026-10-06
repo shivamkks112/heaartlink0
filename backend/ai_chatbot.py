@@ -1893,22 +1893,53 @@ async def handle_ai_message(db, websocket_manager, match_id: str, sender_id: str
     if not ai_user.get("is_active_ai", True):
         return
 
-    # Natural reply delay — faster for better engagement
+    # ── Time-aware delay adjustment (IST) ──
     personality = ai_user.get("ai_personality", "sweet_caring")
-    if personality == "flirty_fun":
-        delay_minutes = random.uniform(0.5, 3)
-    elif personality == "witty_smart":
-        delay_minutes = random.uniform(1, 5)
-    elif personality == "neutral_real":
-        delay_minutes = random.uniform(2, 8)  # More natural — sometimes takes time
+    ist_hour = (datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)).hour
+    
+    # Night time (11pm-7am) — slower replies, sleeping feel
+    if ist_hour >= 23 or ist_hour < 7:
+        delay_minutes = random.uniform(15, 45)  # Very slow — "was sleeping"
+    # Morning (7-10am) — medium speed
+    elif ist_hour < 10:
+        delay_minutes = random.uniform(3, 8)
+    # Peak hours (7pm-11pm) — fastest
+    elif ist_hour >= 19:
+        if personality == "flirty_fun":
+            delay_minutes = random.uniform(0.3, 2)
+        elif personality == "witty_smart":
+            delay_minutes = random.uniform(0.5, 3)
+        else:
+            delay_minutes = random.uniform(0.5, 3)
     else:
-        delay_minutes = random.uniform(1, 4)
+        # Normal daytime
+        if personality == "flirty_fun":
+            delay_minutes = random.uniform(0.5, 3)
+        elif personality == "witty_smart":
+            delay_minutes = random.uniform(1, 5)
+        elif personality == "neutral_real":
+            delay_minutes = random.uniform(2, 8)
+        else:
+            delay_minutes = random.uniform(1, 4)
 
     delay_seconds = delay_minutes * 60
-    logger.info(f"AI {ai_user.get('name')} replying in {delay_minutes:.1f} min")
+    logger.info(f"AI {ai_user.get('name')} replying in {delay_minutes:.1f} min (IST hour: {ist_hour})")
 
-    # Send typing indicator ~15-20s before actual reply
-    await asyncio.sleep(max(delay_seconds - 18, 5))
+    # ── Read receipt delay — mark as "seen" before typing ──
+    seen_delay = random.uniform(3, min(delay_seconds * 0.3, 30))
+    await asyncio.sleep(seen_delay)
+    
+    # Send "seen" via websocket
+    if websocket_manager:
+        await websocket_manager.send_message(sender_id, {
+            "type": "message_read",
+            "match_id": match_id,
+            "reader_id": ai_user["id"],
+        })
+
+    # Wait remaining time before typing
+    remaining = max(delay_seconds - seen_delay - 18, 3)
+    await asyncio.sleep(remaining)
     
     if websocket_manager:
         await websocket_manager.send_message(sender_id, {
@@ -2280,3 +2311,216 @@ def _get_stealth_fallback() -> str:
         "hmm ok",
     ]
     return random.choice(fallbacks)
+
+
+# ═══════════════════════════════════════════════════════════════
+# DAILY AUTO-CREATE AI PROFILES — 3 new profiles per day
+# Uses LLM to generate unique names, bios, personalities
+# ═══════════════════════════════════════════════════════════════
+
+# Name pools for generating unique Indian girl profiles
+_FIRST_NAMES = [
+    "Aisha", "Kavya", "Trisha", "Diya", "Sanya", "Ira", "Kiara", "Myra", "Zara", "Aanya",
+    "Rhea", "Tanya", "Simran", "Palak", "Jiya", "Aditi", "Pooja", "Sneha", "Mansi", "Kriti",
+    "Nandini", "Sakshi", "Tanvi", "Vidya", "Aradhya", "Ishita", "Lavanya", "Mahira", "Navya", "Shruti",
+    "Prachi", "Radhika", "Suhana", "Vaani", "Yukti", "Bhavya", "Charvi", "Devika", "Esha", "Falguni",
+    "Garima", "Harini", "Inaya", "Janvi", "Khushi", "Lisha", "Mahi", "Nitya", "Ojasvi", "Pihu",
+]
+_LAST_NAMES = [
+    "Sharma", "Verma", "Patel", "Singh", "Gupta", "Kumar", "Reddy", "Nair", "Iyer", "Joshi",
+    "Chauhan", "Malhotra", "Kapoor", "Mehta", "Bhat", "Desai", "Rao", "Pillai", "Saxena", "Chopra",
+    "Mishra", "Agarwal", "Tiwari", "Pandey", "Banerjee", "Das", "Chatterjee", "Mukherjee", "Sen", "Roy",
+]
+_CITIES = [
+    "Delhi", "Mumbai", "Bangalore", "Hyderabad", "Chennai", "Pune", "Kolkata", "Jaipur",
+    "Lucknow", "Ahmedabad", "Chandigarh", "Noida", "Gurgaon", "Indore", "Bhopal",
+    "Kochi", "Nagpur", "Patna", "Ranchi", "Dehradun", "Guwahati", "Vadodara",
+]
+_INTERESTS_POOL = [
+    "Travel", "Music", "Dancing", "Cooking", "Reading", "Photography", "Fitness", "Yoga",
+    "Movies", "Art", "Fashion", "Food", "Hiking", "Gaming", "Writing", "Singing",
+    "Swimming", "Cycling", "Meditation", "Painting", "Sketching", "Coding", "Podcasts",
+    "Baking", "Gardening", "Volunteering", "Dogs", "Cats", "Coffee", "Chai",
+]
+_BIOS = [
+    "Chai lover, book worm. Simple girl with big dreams",
+    "Living life one adventure at a time. Swipe right if you can handle my energy",
+    "Corporate girl by day, foodie by night. Samosa > everything",
+    "Gym, books, aur thoda sa drama. Perfect combo",
+    "Looking for someone who can match my vibe. No boring people please",
+    "Music is my therapy. Bollywood songs sunke roti hoon",
+    "Travel addict. Next destination: wherever the wind takes me",
+    "Introvert who turns extrovert for the right person",
+    "Dog mom. If my dog doesn't like you, we can't date",
+    "Foodie first, human second. Feed me and I'm yours",
+    "Dreamer. Believer. Midnight snacker",
+    "Simple girl, complicated thoughts. Let's figure life out together",
+    "Coffee addict who also loves chai. Don't judge",
+    "Fitness freak but also loves biryani. Balance hai life mein",
+    "Art lover. Can spend hours in a museum or Netflix. Both work",
+]
+_VIBES = [
+    "Main chill hoon but deep baatein karungi. Bore nahi hoge",
+    "Fun loving, adventurous. Thoda pagal types",
+    "Sweet, caring wali. Apne logon ke liye kuch bhi",
+    "Witty, sarcastic. Agar samajh aa jaye toh we're good",
+    "Real, honest, no drama. Jo dikhta hai wahi hai",
+    "Thodi shy, thodi bold. Depends on the vibe",
+    "Creative soul. Art, music, aur deep conversations",
+    "Sporty girl. Cricket dekhungi tumhare saath",
+]
+_PERSONALITIES = ["flirty_fun", "sweet_caring", "witty_smart", "neutral_real"]
+
+
+async def create_daily_ai_profiles(db, count=3):
+    """Auto-create new unique AI girl profiles. Called daily by scheduler."""
+    created = []
+    existing_names = set()
+    
+    # Get all existing AI names to avoid duplicates
+    existing = await db.users.find(
+        {"is_ai_profile": True},
+        {"_id": 0, "name": 1}
+    ).to_list(None)
+    existing_names = {p["name"] for p in existing}
+    
+    for _ in range(count):
+        # Generate unique name
+        for attempt in range(50):
+            first = random.choice(_FIRST_NAMES)
+            last = random.choice(_LAST_NAMES)
+            name = f"{first} {last}"
+            if name not in existing_names:
+                existing_names.add(name)
+                break
+        else:
+            continue  # Skip if couldn't find unique name
+        
+        age = random.randint(20, 27)
+        city = random.choice(_CITIES)
+        personality = random.choice(_PERSONALITIES)
+        interests = random.sample(_INTERESTS_POOL, random.randint(3, 6))
+        bio = random.choice(_BIOS)
+        vibe = random.choice(_VIBES)
+        
+        profile_id = str(uuid.uuid4())
+        
+        new_profile = {
+            "id": profile_id,
+            "name": name,
+            "age": age,
+            "gender": "female",
+            "looking_for": "male",
+            "location": city,
+            "bio": bio,
+            "interests": interests,
+            "relationship_intent": random.choice(["serious", "casual", "open"]),
+            "photos": [],  # Will be generated separately
+            "is_ai_profile": True,
+            "is_active_ai": True,
+            "ai_personality": personality,
+            "personality_desc": "",
+            "vibe": vibe,
+            "verified": True,
+            "verification_status": "verified",
+            "is_online": True,
+            "is_premium": False,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "last_active": datetime.now(timezone.utc).isoformat(),
+            "profile_status": "approved",
+            "safety_score": random.randint(75, 95),
+        }
+        
+        await db.users.insert_one(new_profile)
+        created.append(name)
+        
+        # Auto-match with active male users
+        try:
+            await auto_match_ai_profiles(db, None, None, None, new_profile_id=profile_id)
+        except Exception as e:
+            logger.error(f"Auto-match failed for new AI {name}: {e}")
+    
+    if created:
+        logger.info(f"🤖 Created {len(created)} new AI profiles: {', '.join(created)}")
+    return created
+
+
+async def auto_match_new_ai_with_users(db, new_profile_id: str):
+    """Match a newly created AI profile with random active male users."""
+    ai_profile = await db.users.find_one({"id": new_profile_id, "is_ai_profile": True})
+    if not ai_profile:
+        return
+    
+    # Find active male users (active in last 7 days)
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    active_males = await db.users.find(
+        {
+            "is_ai_profile": {"$ne": True},
+            "gender": {"$regex": "^male$", "$options": "i"},
+            "is_banned": {"$ne": True},
+            "last_active": {"$gte": cutoff},
+        },
+        {"_id": 0, "id": 1, "name": 1}
+    ).to_list(None)
+    
+    # Match with up to 10 random active users
+    selected = random.sample(active_males, min(10, len(active_males)))
+    matched = 0
+    
+    for male in selected:
+        # Check if already matched
+        existing = await db.matches.find_one({
+            "$or": [
+                {"user1_id": new_profile_id, "user2_id": male["id"]},
+                {"user1_id": male["id"], "user2_id": new_profile_id},
+            ]
+        })
+        if existing:
+            continue
+        
+        match_id = str(uuid.uuid4())
+        match_doc = {
+            "match_id": match_id,
+            "user1_id": new_profile_id,
+            "user2_id": male["id"],
+            "user1_liked": True,
+            "user2_liked": True,
+            "matched": True,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "is_superlike": False,
+        }
+        await db.matches.insert_one(match_doc)
+        matched += 1
+        
+        # Send first message after random delay
+        asyncio.create_task(_delayed_first_message(db, match_id, ai_profile, male["id"]))
+    
+    logger.info(f"🤖 New AI {ai_profile['name']} matched with {matched} users")
+
+
+async def _delayed_first_message(db, match_id, ai_profile, user_id):
+    """Send first message from new AI profile after a natural delay."""
+    await asyncio.sleep(random.uniform(300, 1800))  # 5-30 min delay
+    
+    greetings = [
+        "heyy", "hii", "hello!", "heya", "hi there",
+        "heyy, kaise ho?", "hii! tumhara profile acha laga",
+        "hey, nice profile!", "hiii", "heyyy tumse milke acha laga",
+    ]
+    
+    msg = random.choice(greetings)
+    msg_doc = {
+        "id": str(uuid.uuid4()),
+        "match_id": match_id,
+        "sender_id": ai_profile["id"],
+        "receiver_id": user_id,
+        "content": msg,
+        "read": False,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "message_type": "text",
+        "is_deleted_for_sender": False,
+        "is_deleted_for_receiver": False,
+        "is_deleted_for_all": False,
+    }
+    await db.messages.insert_one(msg_doc)
+    logger.info(f"🤖 New AI {ai_profile['name']} sent first msg to {user_id}")

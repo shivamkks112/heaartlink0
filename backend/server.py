@@ -82,6 +82,8 @@ from ai_chatbot import (
     delete_ai_profile,
     toggle_ai_profile,
     handle_stealth_auto_reply,
+    create_daily_ai_profiles,
+    auto_match_new_ai_with_users,
 )
 
 # Import Safety Module
@@ -353,6 +355,10 @@ async def startup_event():
     # Smart nudge — "X people liked you!" every 2 hours
     asyncio.create_task(smart_nudge_scheduler())
     logging.info("💡 Smart nudge scheduler started")
+    
+    # Daily AI profile creator — creates 3 new profiles at random times each day
+    asyncio.create_task(daily_ai_profile_creator())
+    logging.info("🤖 Daily AI profile creator started")
     
     # Initialize Object Storage
     try:
@@ -766,6 +772,58 @@ async def smart_nudge_scheduler():
             logging.error(f"Smart nudge scheduler error: {e}")
         
         await asyncio.sleep(7200)  # Every 2 hours
+
+
+async def daily_ai_profile_creator():
+    """Create 3 new AI profiles daily at staggered times (morning, afternoon, evening IST)."""
+    import random as _rand
+    await asyncio.sleep(120)  # Wait 2 min after startup
+    
+    while True:
+        try:
+            ist_now = datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)
+            today_key = ist_now.strftime("%Y-%m-%d")
+            
+            # Check if already created today
+            created_today = await db.users.count_documents({
+                "is_ai_profile": True,
+                "created_at": {"$regex": f"^{today_key}"}
+            })
+            
+            # Only create if less than 3 created today AND it's between 9am-9pm IST
+            if created_today < 3 and 9 <= ist_now.hour <= 21:
+                remaining = 3 - created_today
+                new_profiles = await create_daily_ai_profiles(db, count=min(remaining, 1))  # Create 1 at a time
+                
+                # Send notification for new profile
+                if new_profiles:
+                    from firebase_config import send_notification_to_multiple
+                    name = new_profiles[0]
+                    
+                    male_users = await db.users.find(
+                        {
+                            "is_ai_profile": {"$ne": True},
+                            "gender": {"$regex": "^male$", "$options": "i"},
+                            "fcm_token": {"$exists": True, "$ne": None},
+                            "is_banned": {"$ne": True},
+                        },
+                        {"_id": 0, "fcm_token": 1}
+                    ).to_list(None)
+                    
+                    tokens = [u["fcm_token"] for u in male_users if u.get("fcm_token")]
+                    if tokens:
+                        send_notification_to_multiple(
+                            tokens,
+                            f"{name} just joined HeartLink!",
+                            "New girl nearby. Check her out!",
+                            {"type": "new_ai_profile", "action": "open_discover"}
+                        )
+                        logging.info(f"🤖 New AI profile {name} created + notification sent")
+        except Exception as e:
+            logging.error(f"Daily AI profile creator error: {e}")
+        
+        # Sleep 3-5 hours between creations (staggered throughout the day)
+        await asyncio.sleep(_rand.randint(10800, 18000))
 
 
 
@@ -11306,6 +11364,28 @@ async def submit_payment_screenshot(request: Request):
 
     if not utr_number:
         raise HTTPException(status_code=400, detail="UTR / Transaction ID is required")
+
+    # UTR format validation — must be 12+ alphanumeric characters
+    clean_utr = utr_number.replace(" ", "").replace("-", "")
+    if len(clean_utr) < 6:
+        raise HTTPException(status_code=400, detail="Invalid UTR/Transaction ID. Must be at least 6 characters.")
+
+    # Check for duplicate UTR across ALL users (prevent reuse of same screenshot/UTR)
+    duplicate_utr = await db.payment_requests.find_one({
+        "utr_number": {"$regex": f"^{clean_utr}$", "$options": "i"},
+        "status": {"$in": ["pending", "approved"]},
+    })
+    if duplicate_utr:
+        raise HTTPException(status_code=400, detail="This UTR/Transaction ID has already been used. Each payment must have a unique UTR.")
+
+    # Rate limit: max 3 payment requests per user per day
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0).isoformat()
+    today_count = await db.payment_requests.count_documents({
+        "user_id": user_id,
+        "created_at": {"$gte": today_start},
+    })
+    if today_count >= 3:
+        raise HTTPException(status_code=429, detail="Maximum 3 payment submissions per day. Please try again tomorrow.")
 
     user = await db.users.find_one({"id": user_id}, {"_id": 0, "name": 1, "email": 1})
     if not user:
