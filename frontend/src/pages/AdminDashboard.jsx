@@ -506,6 +506,10 @@ const AdminDashboard = ({ user }) => {
   // Payment requests
   const [paymentRequests, setPaymentRequests] = useState([]);
   const [paymentFilter, setPaymentFilter] = useState('pending');
+  const [selectedPayments, setSelectedPayments] = useState(new Set());
+  const [bulkDays, setBulkDays] = useState(30);
+  const [bulkRejectReason, setBulkRejectReason] = useState('');
+  const [bulkProcessing, setBulkProcessing] = useState(false);
   const [blockPermanent, setBlockPermanent] = useState(false);
   const [genderFilter, setGenderFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -620,6 +624,56 @@ const AdminDashboard = ({ user }) => {
       toast.success('Payment rejected');
       fetchPaymentRequests(paymentFilter);
     } catch (e) { toast.error('Failed'); }
+  };
+
+  const togglePaymentSelection = (id) => {
+    setSelectedPayments(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAllPayments = () => {
+    const pending = paymentRequests.filter(r => r.status === 'pending').map(r => r.id);
+    if (selectedPayments.size === pending.length) {
+      setSelectedPayments(new Set());
+    } else {
+      setSelectedPayments(new Set(pending));
+    }
+  };
+
+  const bulkApprovePayments = async () => {
+    if (selectedPayments.size === 0) { toast.error('Select payments first'); return; }
+    setBulkProcessing(true);
+    try {
+      const res = await adminApi.post('/admin/payment-requests/bulk-approve', {
+        request_ids: Array.from(selectedPayments),
+        days: bulkDays,
+      });
+      toast.success(`${res.data.approved} payments approved! ${res.data.failed > 0 ? `${res.data.failed} failed` : ''}`);
+      setSelectedPayments(new Set());
+      fetchPaymentRequests(paymentFilter);
+    } catch (e) { toast.error('Bulk approve failed'); }
+    setBulkProcessing(false);
+  };
+
+  const bulkRejectPayments = async () => {
+    if (selectedPayments.size === 0) { toast.error('Select payments first'); return; }
+    if (!bulkRejectReason.trim()) { toast.error('Enter rejection reason'); return; }
+    setBulkProcessing(true);
+    try {
+      const res = await adminApi.post('/admin/payment-requests/bulk-reject', {
+        request_ids: Array.from(selectedPayments),
+        reason: bulkRejectReason.trim(),
+      });
+      toast.success(`${res.data.rejected} payments rejected`);
+      setSelectedPayments(new Set());
+      setBulkRejectReason('');
+      fetchPaymentRequests(paymentFilter);
+    } catch (e) { toast.error('Bulk reject failed'); }
+    setBulkProcessing(false);
   };
 
 
@@ -1622,15 +1676,93 @@ const AdminDashboard = ({ user }) => {
             <p className="text-sm text-gray-500 mt-1">Verify UPI payment screenshots and activate premium</p>
           </div>
 
-          {/* Filter */}
-          <div className="flex gap-2">
-            {['pending', 'approved', 'rejected', 'all'].map(f => (
-              <Button key={f} size="sm" onClick={() => { setPaymentFilter(f); fetchPaymentRequests(f); }}
-                className={paymentFilter === f ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-600'}>
-                {f.charAt(0).toUpperCase() + f.slice(1)}
-              </Button>
-            ))}
+          {/* Filter + Stats */}
+          <div className="flex flex-wrap gap-2 items-center justify-between">
+            <div className="flex gap-2">
+              {['pending', 'approved', 'rejected', 'all'].map(f => (
+                <Button key={f} size="sm" onClick={() => { setPaymentFilter(f); fetchPaymentRequests(f); setSelectedPayments(new Set()); }}
+                  className={paymentFilter === f ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-600'}>
+                  {f.charAt(0).toUpperCase() + f.slice(1)}
+                </Button>
+              ))}
+            </div>
+            <span className="text-xs text-gray-400">{paymentRequests.length} requests</span>
           </div>
+
+          {/* Bulk Actions Bar */}
+          {paymentFilter === 'pending' && paymentRequests.filter(r => r.status === 'pending').length > 0 && (
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedPayments.size === paymentRequests.filter(r => r.status === 'pending').length && selectedPayments.size > 0}
+                    onChange={selectAllPayments}
+                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    data-testid="select-all-payments"
+                  />
+                  <span className="text-sm font-medium text-gray-700">Select All ({paymentRequests.filter(r => r.status === 'pending').length})</span>
+                </label>
+                {selectedPayments.size > 0 && (
+                  <span className="text-xs font-bold text-blue-600">{selectedPayments.size} selected</span>
+                )}
+              </div>
+              
+              {selectedPayments.size > 0 && (
+                <div className="flex flex-col sm:flex-row gap-2">
+                  {/* Bulk Approve */}
+                  <div className="flex items-center gap-2 flex-1">
+                    <select
+                      value={bulkDays}
+                      onChange={e => setBulkDays(parseInt(e.target.value))}
+                      className="text-sm border border-gray-300 rounded-lg px-2 py-2 bg-white"
+                      data-testid="bulk-days-select"
+                    >
+                      <option value={7}>7 days</option>
+                      <option value={30}>30 days</option>
+                      <option value={90}>90 days</option>
+                      <option value={365}>1 year</option>
+                    </select>
+                    <Button
+                      onClick={bulkApprovePayments}
+                      disabled={bulkProcessing}
+                      className="flex-1 bg-green-500 hover:bg-green-600 text-white text-sm"
+                      data-testid="bulk-approve-btn"
+                    >
+                      {bulkProcessing ? 'Processing...' : `Approve ${selectedPayments.size} (${bulkDays}d)`}
+                    </Button>
+                  </div>
+                  
+                  {/* Bulk Reject */}
+                  <div className="flex items-center gap-2 flex-1">
+                    <select
+                      value={bulkRejectReason}
+                      onChange={e => setBulkRejectReason(e.target.value)}
+                      className="text-sm border border-gray-300 rounded-lg px-2 py-2 bg-white flex-1"
+                      data-testid="bulk-reject-reason"
+                    >
+                      <option value="">Select reason...</option>
+                      <option value="UTR not matching">UTR not matching</option>
+                      <option value="Screenshot unclear">Screenshot unclear</option>
+                      <option value="Amount mismatch">Amount mismatch</option>
+                      <option value="Duplicate payment">Duplicate payment</option>
+                      <option value="Fake screenshot">Fake screenshot</option>
+                      <option value="Payment not received">Payment not received</option>
+                    </select>
+                    <Button
+                      onClick={bulkRejectPayments}
+                      disabled={bulkProcessing || !bulkRejectReason}
+                      variant="outline"
+                      className="text-red-500 border-red-200 text-sm"
+                      data-testid="bulk-reject-btn"
+                    >
+                      Reject {selectedPayments.size}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Payment Requests */}
           {paymentRequests.length === 0 ? (
@@ -1638,15 +1770,25 @@ const AdminDashboard = ({ user }) => {
           ) : (
             <div className="space-y-3">
               {paymentRequests.map((req, i) => (
-                <div key={i} className="bg-white rounded-xl p-4 shadow-sm border space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
+                <div key={i} className={`bg-white rounded-xl p-4 shadow-sm border space-y-3 ${selectedPayments.has(req.id) ? 'ring-2 ring-blue-400 border-blue-300' : ''}`}>
+                  <div className="flex items-center gap-3">
+                    {/* Checkbox for pending */}
+                    {req.status === 'pending' && (
+                      <input
+                        type="checkbox"
+                        checked={selectedPayments.has(req.id)}
+                        onChange={() => togglePaymentSelection(req.id)}
+                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 flex-shrink-0"
+                        data-testid={`payment-checkbox-${i}`}
+                      />
+                    )}
+                    <div className="flex-1 min-w-0">
                       <p className="font-bold text-gray-900">{req.user_name || 'Unknown'}</p>
                       <p className="text-xs text-gray-500">{req.user_email} | ₹{req.amount} | {req.payment_method}</p>
-                      {req.utr_number && <p className="text-xs text-gray-400 font-mono">UTR: {req.utr_number}</p>}
+                      {req.utr_number && <p className="text-xs text-blue-600 font-mono font-bold">UTR: {req.utr_number}</p>}
                       <p className="text-xs text-gray-400">{new Date(req.created_at).toLocaleString('en-IN')}</p>
                     </div>
-                    <span className={`text-xs font-bold px-2 py-1 rounded-full ${
+                    <span className={`text-xs font-bold px-2 py-1 rounded-full flex-shrink-0 ${
                       req.status === 'pending' ? 'bg-amber-100 text-amber-700' :
                       req.status === 'approved' ? 'bg-green-100 text-green-700' :
                       'bg-red-100 text-red-700'
@@ -1658,16 +1800,19 @@ const AdminDashboard = ({ user }) => {
                     <img src={req.screenshot_url} alt="Payment" className="w-full max-h-60 object-contain rounded-lg bg-gray-50 border cursor-pointer" onClick={() => window.open(req.screenshot_url, '_blank')} />
                   )}
 
-                  {/* Actions */}
+                  {/* Individual Actions */}
                   {req.status === 'pending' && (
                     <div className="flex gap-2">
                       <Button onClick={() => approvePayment(req.id)} className="flex-1 bg-green-500 hover:bg-green-600" data-testid={`approve-payment-${i}`}>
-                        Approve & Activate Premium
+                        Approve (30d)
                       </Button>
                       <Button onClick={() => rejectPayment(req.id)} variant="outline" className="text-red-500 border-red-200" data-testid={`reject-payment-${i}`}>
                         Reject
                       </Button>
                     </div>
+                  )}
+                  {req.status === 'approved' && req.premium_days && (
+                    <p className="text-xs text-green-600">Approved for {req.premium_days} days by admin</p>
                   )}
                   {req.status === 'rejected' && req.reject_reason && (
                     <p className="text-xs text-red-500">Reason: {req.reject_reason}</p>

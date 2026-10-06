@@ -30,7 +30,8 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 - 56+ cities with vibes database
 
 ## Completed (Recent)
-- [x] **AI Chatbot Upgrade** — Time-aware delays (IST), read receipt before typing, night-mode slower replies, daily 3 new AI profiles auto-created (2026-10-06)
+- [x] **Admin Payment Dashboard Upgrade** — Bulk approve/reject with checkboxes, custom days (7/30/90/365), reject reason dropdown, push notifications to users (2026-10-06)
+- [x] **AI Chatbot Upgrade** — Time-aware delays (IST), read receipt before typing, daily 3 new AI profiles auto-created (2026-10-06)
 - [x] **Payment Verification Strengthened** — UTR min 6 chars, duplicate UTR block across users, max 3 requests/day rate limit (2026-10-06)
 - [x] **UX Overhaul** — Page transitions, pull-to-refresh, premium bottom sheet, haptic feedback, OptimizedImage blur-to-sharp, CSS animations (2026-10-02)
 - [x] **Smart Nudge** — In-app banner + 2-hour push notification for non-premium users (2026-10-02)

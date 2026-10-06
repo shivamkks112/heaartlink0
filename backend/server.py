@@ -11556,6 +11556,114 @@ async def reject_payment_request(request_id: str, request: Request, admin: dict 
     return {"success": True, "message": "Payment request rejected"}
 
 
+@api_router.post("/admin/payment-requests/bulk-approve")
+async def bulk_approve_payments(request: Request, admin: dict = Depends(require_admin)):
+    """Admin: Bulk approve multiple payment requests."""
+    data = await request.json()
+    request_ids = data.get("request_ids", [])
+    days = data.get("days", 30)
+    
+    if not request_ids:
+        raise HTTPException(status_code=400, detail="No request IDs provided")
+    
+    approved = 0
+    failed = 0
+    for rid in request_ids:
+        try:
+            pay_req = await db.payment_requests.find_one({"id": rid, "status": "pending"})
+            if not pay_req:
+                failed += 1
+                continue
+            
+            user_id = pay_req["user_id"]
+            now = datetime.now(timezone.utc)
+            premium_end = now + timedelta(days=days)
+            
+            await db.users.update_one(
+                {"id": user_id},
+                {"$set": {
+                    "is_premium": True,
+                    "subscription_status": "manual_payment",
+                    "premium_start": now.isoformat(),
+                    "premium_end": premium_end.isoformat(),
+                    "premium_source": "manual_upi",
+                    "premium_plan": f"{days}_day_manual",
+                }}
+            )
+            
+            await db.payment_requests.update_one(
+                {"id": rid},
+                {"$set": {
+                    "status": "approved",
+                    "reviewed_at": now.isoformat(),
+                    "reviewed_by": admin["id"],
+                    "premium_days": days,
+                }}
+            )
+            
+            invalidate_user_cache(user_id)
+            
+            try:
+                await fcm_service.send_to_user(db, user_id,
+                    title="Premium Activated!",
+                    message=f"Your payment has been verified. Enjoy {days} days of Premium!",
+                    data={"type": "premium_activated", "route": "/premium"}
+                )
+            except Exception:
+                pass
+            
+            approved += 1
+        except Exception as e:
+            logger.error(f"Bulk approve failed for {rid}: {e}")
+            failed += 1
+    
+    return {"success": True, "approved": approved, "failed": failed}
+
+
+@api_router.post("/admin/payment-requests/bulk-reject")
+async def bulk_reject_payments(request: Request, admin: dict = Depends(require_admin)):
+    """Admin: Bulk reject multiple payment requests."""
+    data = await request.json()
+    request_ids = data.get("request_ids", [])
+    reason = data.get("reason", "Payment could not be verified")
+    
+    if not request_ids:
+        raise HTTPException(status_code=400, detail="No request IDs provided")
+    
+    rejected = 0
+    for rid in request_ids:
+        try:
+            pay_req = await db.payment_requests.find_one({"id": rid, "status": "pending"})
+            if not pay_req:
+                continue
+            
+            now = datetime.now(timezone.utc)
+            await db.payment_requests.update_one(
+                {"id": rid},
+                {"$set": {
+                    "status": "rejected",
+                    "reject_reason": reason,
+                    "reviewed_at": now.isoformat(),
+                    "reviewed_by": admin["id"],
+                }}
+            )
+            
+            try:
+                await fcm_service.send_to_user(db, pay_req["user_id"],
+                    title="Payment Verification Update",
+                    message=f"Your payment could not be verified. Reason: {reason}",
+                    data={"type": "payment_rejected", "route": "/premium"}
+                )
+            except Exception:
+                pass
+            
+            rejected += 1
+        except Exception as e:
+            logger.error(f"Bulk reject failed for {rid}: {e}")
+    
+    return {"success": True, "rejected": rejected}
+
+
 
 @api_router.get("/rewards/status/{user_id}")
 async def get_reward_status(user_id: str):
