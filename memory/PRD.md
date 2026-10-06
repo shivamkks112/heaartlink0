@@ -30,7 +30,8 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 - 56+ cities with vibes database
 
 ## Completed (Recent)
-- [x] **AI Photo Generation** — Gemini Nano Banana auto-generates realistic Indian girl photos for new daily AI profiles (2026-10-06)
+- [x] **Version Analytics** — Track registrations per app version, admin dashboard with version table, daily chart, % share bars (2026-10-06)
+- [x] **AI Photo Generation** — Gemini Nano Banana auto-generates profile photos for daily AI profiles (2026-10-06)
 - [x] **Revenue Dashboard** — Daily/weekly bar chart, table, summary cards (Total/Today revenue, approved, conversion), toggle views (2026-10-06)
 - [x] **Admin Payment Dashboard Upgrade** — Bulk approve/reject with checkboxes, custom days, reject reason dropdown (2026-10-06)
 - [x] **AI Chatbot Upgrade** — Time-aware delays (IST), read receipt before typing, daily 3 new AI profiles auto-created (2026-10-06)

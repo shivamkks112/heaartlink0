@@ -509,6 +509,134 @@ const PremiumOverviewWidget = () => {
   );
 };
 
+// Version Analytics Panel — registrations per app version
+const VersionAnalyticsPanel = () => {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    adminApi.get('/admin/version-analytics')
+      .then(r => setData(r.data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="animate-pulse space-y-3"><div className="h-20 bg-gray-200 rounded-xl" /><div className="h-40 bg-gray-100 rounded-xl" /></div>;
+  if (!data) return <p className="text-gray-500 text-center py-8">Failed to load version data</p>;
+
+  const versions = data.versions || [];
+  const dailyCurrent = data.daily_current_version || [];
+  const todayByVersion = data.today_by_version || {};
+  const maxDaily = Math.max(...dailyCurrent.map(d => d.count), 1);
+
+  return (
+    <div className="space-y-5" data-testid="version-analytics-panel">
+      <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+        <Sparkles className="w-5 h-5 text-blue-500" /> Version Analytics
+      </h2>
+
+      {/* Summary */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="bg-blue-50 rounded-xl p-3 border border-blue-100">
+          <p className="text-2xl font-bold text-blue-600">v{data.current_version}</p>
+          <p className="text-[10px] text-gray-500">Current Version</p>
+        </div>
+        <div className="bg-emerald-50 rounded-xl p-3 border border-emerald-100">
+          <p className="text-2xl font-bold text-emerald-600">{data.total_users}</p>
+          <p className="text-[10px] text-gray-500">Total Real Users</p>
+        </div>
+        <div className="bg-amber-50 rounded-xl p-3 border border-amber-100">
+          <p className="text-2xl font-bold text-amber-600">{Object.values(todayByVersion).reduce((a, b) => a + b, 0)}</p>
+          <p className="text-[10px] text-gray-500">Today Signups</p>
+        </div>
+      </div>
+
+      {/* Version-wise Registrations Table */}
+      <div className="bg-white rounded-xl border overflow-hidden">
+        <div className="px-4 py-3 bg-gray-50 border-b">
+          <h3 className="text-sm font-semibold text-gray-700">Registrations by Version</h3>
+        </div>
+        <div className="max-h-64 overflow-y-auto">
+          <table className="w-full text-xs">
+            <thead className="bg-gray-50 sticky top-0">
+              <tr>
+                <th className="px-4 py-2 text-left text-gray-600">Version</th>
+                <th className="px-4 py-2 text-right text-gray-600">Users</th>
+                <th className="px-4 py-2 text-right text-gray-600">% Share</th>
+                <th className="px-4 py-2 text-right text-gray-600">First Signup</th>
+                <th className="px-4 py-2 text-right text-gray-600">Last Signup</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {versions.map((v, i) => {
+                const share = data.total_users > 0 ? ((v.registrations / data.total_users) * 100).toFixed(1) : 0;
+                const isCurrent = v.version === data.current_version;
+                return (
+                  <tr key={i} className={`hover:bg-gray-50 ${isCurrent ? 'bg-blue-50/50' : ''}`}>
+                    <td className="px-4 py-2.5">
+                      <span className={`font-bold ${isCurrent ? 'text-blue-600' : 'text-gray-800'}`}>
+                        v{v.version}
+                      </span>
+                      {isCurrent && <span className="ml-1.5 text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full font-bold">CURRENT</span>}
+                    </td>
+                    <td className="px-4 py-2.5 text-right font-bold text-gray-900">{v.registrations}</td>
+                    <td className="px-4 py-2.5 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <div className="w-16 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                          <div className="h-full bg-blue-500 rounded-full" style={{ width: `${share}%` }} />
+                        </div>
+                        <span className="text-gray-600 w-10 text-right">{share}%</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-2.5 text-right text-gray-500">{v.first_signup ? new Date(v.first_signup).toLocaleDateString('en-IN') : '-'}</td>
+                    <td className="px-4 py-2.5 text-right text-gray-500">{v.last_signup ? new Date(v.last_signup).toLocaleDateString('en-IN') : '-'}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Daily Chart for Current Version */}
+      <div className="bg-white rounded-xl p-4 border">
+        <h3 className="text-sm font-semibold text-gray-700 mb-3">Daily Signups — v{data.current_version} (Last 30 Days)</h3>
+        <div className="flex items-end gap-0.5 h-28 overflow-x-auto no-scrollbar">
+          {dailyCurrent.map((d, i) => (
+            <div key={i} className="flex flex-col items-center min-w-[14px] flex-1 group relative">
+              <div
+                className="w-full rounded-t transition-all duration-300 cursor-pointer hover:opacity-80"
+                style={{
+                  height: `${Math.max((d.count / maxDaily) * 100, 3)}%`,
+                  background: d.count > 0 ? 'linear-gradient(to top, #3b82f6, #60a5fa)' : '#e5e7eb',
+                }}
+              />
+              <div className="absolute bottom-full mb-1 hidden group-hover:block z-10 bg-gray-900 text-white text-[10px] px-2 py-1 rounded shadow-lg whitespace-nowrap">
+                {d.label}: {d.count} signups
+              </div>
+              {i % 7 === 0 && <span className="text-[7px] text-gray-400 mt-1">{d.label}</span>}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Today's Breakdown */}
+      {Object.keys(todayByVersion).length > 0 && (
+        <div className="bg-white rounded-xl p-4 border">
+          <h3 className="text-sm font-semibold text-gray-700 mb-2">Today's Signups by Version</h3>
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(todayByVersion).map(([ver, count]) => (
+              <span key={ver} className={`px-3 py-1.5 rounded-full text-xs font-bold ${ver === data.current_version ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>
+                v{ver}: {count}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // User Detail Modal
 const UserDetailModal = ({ user, onClose }) => {
   if (!user) return null;
@@ -1168,6 +1296,13 @@ const AdminDashboard = ({ user }) => {
             data-testid="admin-revenue-tab"
           >
             <DollarSign className="w-4 h-4 mr-2" /> Revenue
+          </Button>
+          <Button
+            onClick={() => setActiveTab('versions')}
+            className={activeTab === 'versions' ? 'bg-blue-600' : 'bg-gray-200 text-gray-700'}
+            data-testid="admin-versions-tab"
+          >
+            <Sparkles className="w-4 h-4 mr-2" /> Versions
           </Button>
           <Button
             onClick={() => setActiveTab('premium')}
@@ -2131,6 +2266,10 @@ const AdminDashboard = ({ user }) => {
 
       {activeTab === 'revenue' && (
         <RevenueTrendsPanel />
+      )}
+
+      {activeTab === 'versions' && (
+        <VersionAnalyticsPanel />
       )}
     </div>
   );

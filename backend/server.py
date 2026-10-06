@@ -2382,6 +2382,7 @@ async def signup(request: Request, user_data: UserSignup):
         # Add security metadata
         user_dict["registered_ip"] = client_ip
         user_dict["registered_at"] = datetime.now(timezone.utc).isoformat()
+        user_dict["app_version"] = APP_VERSION
         
         # Create User object to get all defaults (privacy_settings, etc.)
         user = User(**user_dict)
@@ -8543,6 +8544,68 @@ async def get_revenue_trends(admin: dict = Depends(require_admin)):
             "today_approved": today_revenue,
         }
     }
+
+
+@api_router.get("/admin/version-analytics")
+async def get_version_analytics(admin: dict = Depends(require_admin)):
+    """Admin: User registrations grouped by app version."""
+    now = datetime.now(timezone.utc)
+    
+    # Group all users by app_version
+    version_pipeline = [
+        {"$match": {"is_ai_profile": {"$ne": True}}},
+        {"$group": {
+            "_id": {"$ifNull": ["$app_version", "unknown"]},
+            "count": {"$sum": 1},
+            "first_signup": {"$min": "$registered_at"},
+            "last_signup": {"$max": "$registered_at"},
+        }},
+        {"$sort": {"last_signup": -1}},
+    ]
+    version_data = await db.users.aggregate(version_pipeline).to_list(None)
+    
+    versions = []
+    total_users = 0
+    for v in version_data:
+        ver = v["_id"] or "unknown"
+        count = v["count"]
+        total_users += count
+        versions.append({
+            "version": ver,
+            "registrations": count,
+            "first_signup": v.get("first_signup"),
+            "last_signup": v.get("last_signup"),
+        })
+    
+    # Daily registrations for current version (last 30 days)
+    daily_current = []
+    for days_ago in range(29, -1, -1):
+        day = now - timedelta(days=days_ago)
+        day_str = day.strftime("%Y-%m-%d")
+        count = await db.users.count_documents({
+            "is_ai_profile": {"$ne": True},
+            "app_version": APP_VERSION,
+            "registered_at": {"$regex": f"^{day_str}"},
+        })
+        daily_current.append({"date": day_str, "label": day.strftime("%d %b"), "count": count})
+    
+    # Today's signups per version
+    today_str = now.strftime("%Y-%m-%d")
+    today_pipeline = [
+        {"$match": {"is_ai_profile": {"$ne": True}, "registered_at": {"$regex": f"^{today_str}"}}},
+        {"$group": {"_id": {"$ifNull": ["$app_version", "unknown"]}, "count": {"$sum": 1}}},
+    ]
+    today_data = await db.users.aggregate(today_pipeline).to_list(None)
+    today_by_version = {t["_id"]: t["count"] for t in today_data}
+    
+    return {
+        "current_version": APP_VERSION,
+        "total_users": total_users,
+        "versions": versions,
+        "daily_current_version": daily_current,
+        "today_by_version": today_by_version,
+    }
+
 
 # CORS - Allow all origins for web + Capacitor Android app
 app.add_middleware(
