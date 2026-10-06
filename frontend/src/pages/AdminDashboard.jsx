@@ -336,6 +336,135 @@ const PremiumAnalyticsPanel = () => {
   );
 };
 
+// Revenue Trends Dashboard — Daily/Weekly charts
+const RevenueTrendsPanel = () => {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [view, setView] = useState('daily');
+
+  useEffect(() => {
+    adminApi.get('/admin/revenue-trends')
+      .then(r => setData(r.data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="animate-pulse space-y-3"><div className="h-20 bg-gray-200 rounded-xl" /><div className="h-48 bg-gray-100 rounded-xl" /></div>;
+  if (!data) return <p className="text-gray-500 text-center py-8">Failed to load revenue data</p>;
+
+  const totals = data.totals || {};
+  const dailyData = data.daily || [];
+  const weeklyData = data.weekly || [];
+  const maxRevenue = Math.max(...dailyData.map(d => d.revenue), 1);
+
+  return (
+    <div className="space-y-5" data-testid="revenue-trends-panel">
+      <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+        <TrendingUp className="w-5 h-5 text-emerald-500" /> Revenue Dashboard
+      </h2>
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="bg-emerald-50 rounded-xl p-3 border border-emerald-100">
+          <p className="text-2xl font-bold text-emerald-600">₹{totals.total_revenue || 0}</p>
+          <p className="text-[10px] text-gray-500">Total Revenue</p>
+        </div>
+        <div className="bg-blue-50 rounded-xl p-3 border border-blue-100">
+          <p className="text-2xl font-bold text-blue-600">{totals.total_approved || 0}</p>
+          <p className="text-[10px] text-gray-500">Total Approved</p>
+        </div>
+        <div className="bg-amber-50 rounded-xl p-3 border border-amber-100">
+          <p className="text-2xl font-bold text-amber-600">₹{totals.today_revenue || 0}</p>
+          <p className="text-[10px] text-gray-500">Today Revenue</p>
+        </div>
+        <div className="bg-purple-50 rounded-xl p-3 border border-purple-100">
+          <p className="text-2xl font-bold text-purple-600">{totals.today_approved || 0}</p>
+          <p className="text-[10px] text-gray-500">Today Approved</p>
+        </div>
+      </div>
+
+      {/* Toggle Daily/Weekly */}
+      <div className="flex gap-2">
+        <Button size="sm" onClick={() => setView('daily')} className={view === 'daily' ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-600'}>Daily (30d)</Button>
+        <Button size="sm" onClick={() => setView('weekly')} className={view === 'weekly' ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-600'}>Weekly</Button>
+      </div>
+
+      {view === 'daily' ? (
+        <>
+          {/* Daily Revenue Bar Chart */}
+          <div className="bg-white rounded-xl p-4 border">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">Daily Revenue (Last 30 Days)</h3>
+            <div className="flex items-end gap-0.5 h-36 overflow-x-auto no-scrollbar">
+              {dailyData.map((d, i) => (
+                <div key={i} className="flex flex-col items-center min-w-[18px] flex-1 group relative">
+                  <div
+                    className="w-full rounded-t transition-all duration-300 cursor-pointer hover:opacity-80"
+                    style={{
+                      height: `${Math.max((d.revenue / maxRevenue) * 100, 2)}%`,
+                      background: d.revenue > 0 ? 'linear-gradient(to top, #10b981, #34d399)' : '#e5e7eb',
+                    }}
+                  />
+                  {/* Tooltip */}
+                  <div className="absolute bottom-full mb-1 hidden group-hover:block z-10 bg-gray-900 text-white text-[10px] px-2 py-1 rounded shadow-lg whitespace-nowrap">
+                    {d.label}: ₹{d.revenue} ({d.approved} approved, {d.new_users} new users)
+                  </div>
+                  {i % 5 === 0 && <span className="text-[8px] text-gray-400 mt-1 rotate-[-45deg] origin-left">{d.label}</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Daily Table */}
+          <div className="bg-white rounded-xl border overflow-hidden">
+            <div className="max-h-64 overflow-y-auto">
+              <table className="w-full text-xs">
+                <thead className="bg-gray-50 sticky top-0">
+                  <tr>
+                    <th className="px-3 py-2 text-left text-gray-600">Date</th>
+                    <th className="px-3 py-2 text-right text-green-600">Approved</th>
+                    <th className="px-3 py-2 text-right text-red-600">Rejected</th>
+                    <th className="px-3 py-2 text-right text-amber-600">Pending</th>
+                    <th className="px-3 py-2 text-right text-emerald-600">Revenue</th>
+                    <th className="px-3 py-2 text-right text-blue-600">New Users</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {dailyData.slice().reverse().map((d, i) => (
+                    <tr key={i} className="hover:bg-gray-50">
+                      <td className="px-3 py-2 font-medium text-gray-700">{d.label}</td>
+                      <td className="px-3 py-2 text-right text-green-600 font-bold">{d.approved}</td>
+                      <td className="px-3 py-2 text-right text-red-500">{d.rejected}</td>
+                      <td className="px-3 py-2 text-right text-amber-500">{d.pending}</td>
+                      <td className="px-3 py-2 text-right text-emerald-600 font-bold">₹{d.revenue}</td>
+                      <td className="px-3 py-2 text-right text-blue-500">{d.new_users}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      ) : (
+        /* Weekly View */
+        <div className="space-y-3">
+          {weeklyData.map((w, i) => (
+            <div key={i} className="bg-white rounded-xl p-4 border flex items-center justify-between">
+              <div>
+                <p className="font-bold text-gray-900">{w.label}</p>
+                <p className="text-xs text-gray-500">{w.new_users} new users | {w.conversion}% conversion</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xl font-bold text-emerald-600">₹{w.revenue}</p>
+                <p className="text-xs text-green-500">{w.approved} approved</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // Premium Overview Widget for Overview tab
 const PremiumOverviewWidget = () => {
   const [data, setData] = useState(null);
@@ -1032,6 +1161,13 @@ const AdminDashboard = ({ user }) => {
             data-testid="admin-safety-tab"
           >
             <Shield className="w-4 h-4 mr-2" /> Safety
+          </Button>
+          <Button
+            onClick={() => setActiveTab('revenue')}
+            className={activeTab === 'revenue' ? 'bg-emerald-600' : 'bg-gray-200 text-gray-700'}
+            data-testid="admin-revenue-tab"
+          >
+            <DollarSign className="w-4 h-4 mr-2" /> Revenue
           </Button>
           <Button
             onClick={() => setActiveTab('premium')}
@@ -1991,6 +2127,10 @@ const AdminDashboard = ({ user }) => {
           {/* App Update Control */}
           <AppUpdateSettings />
         </div>
+      )}
+
+      {activeTab === 'revenue' && (
+        <RevenueTrendsPanel />
       )}
     </div>
   );

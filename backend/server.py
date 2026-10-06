@@ -8459,6 +8459,91 @@ async def get_premium_analytics(admin: dict = Depends(require_admin)):
         "recent_orders": recent_orders,
     }
 
+
+@api_router.get("/admin/revenue-trends")
+async def get_revenue_trends(admin: dict = Depends(require_admin)):
+    """Admin: Daily/weekly/monthly payment trends and conversion rates."""
+    now = datetime.now(timezone.utc)
+    
+    # Last 30 days daily breakdown
+    daily_data = []
+    for days_ago in range(29, -1, -1):
+        day = now - timedelta(days=days_ago)
+        day_str = day.strftime("%Y-%m-%d")
+        
+        approved = await db.payment_requests.count_documents({
+            "status": "approved",
+            "created_at": {"$regex": f"^{day_str}"}
+        })
+        rejected = await db.payment_requests.count_documents({
+            "status": "rejected",
+            "created_at": {"$regex": f"^{day_str}"}
+        })
+        pending = await db.payment_requests.count_documents({
+            "status": "pending",
+            "created_at": {"$regex": f"^{day_str}"}
+        })
+        new_users = await db.users.count_documents({
+            "is_ai_profile": {"$ne": True},
+            "created_at": {"$regex": f"^{day_str}"}
+        })
+        
+        daily_data.append({
+            "date": day_str,
+            "label": day.strftime("%d %b"),
+            "approved": approved,
+            "rejected": rejected,
+            "pending": pending,
+            "revenue": approved * 49,
+            "new_users": new_users,
+        })
+    
+    # Weekly summary (last 4 weeks)
+    weekly_data = []
+    for week in range(3, -1, -1):
+        week_start = now - timedelta(weeks=week, days=now.weekday())
+        week_end = week_start + timedelta(days=6)
+        
+        week_approved = 0
+        week_new = 0
+        for d in range(7):
+            day = week_start + timedelta(days=d)
+            day_str = day.strftime("%Y-%m-%d")
+            week_approved += await db.payment_requests.count_documents({
+                "status": "approved",
+                "created_at": {"$regex": f"^{day_str}"}
+            })
+            week_new += await db.users.count_documents({
+                "is_ai_profile": {"$ne": True},
+                "created_at": {"$regex": f"^{day_str}"}
+            })
+        
+        weekly_data.append({
+            "week": f"W{4 - week}",
+            "label": f"{week_start.strftime('%d %b')} - {week_end.strftime('%d %b')}",
+            "approved": week_approved,
+            "revenue": week_approved * 49,
+            "new_users": week_new,
+            "conversion": round((week_approved / max(week_new, 1)) * 100, 1),
+        })
+    
+    # Totals
+    total_approved = await db.payment_requests.count_documents({"status": "approved"})
+    total_revenue = total_approved * 49
+    today_str = now.strftime("%Y-%m-%d")
+    today_revenue = await db.payment_requests.count_documents({"status": "approved", "created_at": {"$regex": f"^{today_str}"}})
+    
+    return {
+        "daily": daily_data,
+        "weekly": weekly_data,
+        "totals": {
+            "total_revenue": total_revenue,
+            "total_approved": total_approved,
+            "today_revenue": today_revenue * 49,
+            "today_approved": today_revenue,
+        }
+    }
+
 # CORS - Allow all origins for web + Capacitor Android app
 app.add_middleware(
     CORSMiddleware,

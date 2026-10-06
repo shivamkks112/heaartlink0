@@ -2372,6 +2372,66 @@ _VIBES = [
 _PERSONALITIES = ["flirty_fun", "sweet_caring", "witty_smart", "neutral_real"]
 
 
+async def _generate_ai_photo(db, profile_id: str, name: str, age: int, city: str):
+    """Generate a realistic Indian girl profile photo using Gemini Nano Banana."""
+    try:
+        if not EMERGENT_LLM_KEY:
+            logger.warning("EMERGENT_LLM_KEY not set — skipping AI photo generation")
+            return
+        
+        import base64
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        
+        first_name = name.split()[0]
+        
+        # Diverse appearance traits for variety
+        skin_tones = ["fair", "wheatish", "dusky", "medium brown"]
+        hair_styles = ["long straight black hair", "wavy dark brown hair", "shoulder-length hair with soft curls", "long hair with side parting", "hair in a loose bun"]
+        outfits = ["casual kurta", "modern western top", "stylish saree", "denim jacket and top", "floral dress", "traditional salwar kameez", "crop top and jeans"]
+        expressions = ["warm genuine smile", "soft confident smile", "playful smile with sparkling eyes", "gentle candid laugh", "serene natural expression"]
+        
+        skin = random.choice(skin_tones)
+        hair = random.choice(hair_styles)
+        outfit = random.choice(outfits)
+        expression = random.choice(expressions)
+        
+        prompt = (
+            f"Generate a realistic portrait photo of a {age}-year-old Indian girl. "
+            f"She has {skin} skin tone, {hair}, wearing a {outfit}. "
+            f"Expression: {expression}. Background: soft natural bokeh, {city} vibe. "
+            f"Photo style: high-quality dating app profile photo, well-lit, natural colors, "
+            f"shot on smartphone, authentic and real-looking. NOT cartoon, NOT anime, NOT illustration. "
+            f"Photorealistic, candid feel."
+        )
+        
+        session_id = f"ai-photo-{profile_id}-{random.randint(1000,9999)}"
+        chat = LlmChat(api_key=EMERGENT_LLM_KEY, session_id=session_id, system_message="Generate realistic photos")
+        chat.with_model("gemini", "gemini-3.1-flash-image-preview").with_params(modalities=["image", "text"])
+        
+        msg = UserMessage(text=prompt)
+        text, images = await chat.send_message_multimodal_response(msg)
+        
+        if images and len(images) > 0:
+            img_data = images[0].get("data", "")
+            if img_data:
+                # Store as base64 data URL
+                mime = images[0].get("mime_type", "image/png")
+                photo_url = f"data:{mime};base64,{img_data}"
+                
+                await db.users.update_one(
+                    {"id": profile_id},
+                    {"$set": {
+                        "profile_picture": photo_url,
+                        "photos": [photo_url],
+                    }}
+                )
+                logger.info(f"🖼️ AI photo generated for {name}")
+        else:
+            logger.warning(f"No image returned for AI profile {name}")
+    except Exception as e:
+        logger.error(f"AI photo generation failed for {name}: {e}")
+
+
 async def create_daily_ai_profiles(db, count=3):
     """Auto-create new unique AI girl profiles. Called daily by scheduler."""
     created = []
@@ -2433,6 +2493,9 @@ async def create_daily_ai_profiles(db, count=3):
         
         await db.users.insert_one(new_profile)
         created.append(name)
+        
+        # Generate AI profile photo using Gemini
+        asyncio.create_task(_generate_ai_photo(db, profile_id, name, age, city))
         
         # Auto-match with active male users
         try:
