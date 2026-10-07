@@ -30,7 +30,8 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 - 56+ cities with vibes database
 
 ## Completed (Recent)
-- [x] **Premium Bypass Protection** — Backend-enforced premium gate on like/superlike/crush + server-side data restriction on likes/viewers/crushes endpoints (2026-10-07)
+- [x] **AI Likes for New Users** — 30 min delayed staggered AI girl likes (3-5 likes, 8-25 min gaps, push notifications) to drive premium conversion (2026-10-07)
+- [x] **Premium Bypass Protection** — Backend-enforced premium gate on all premium features (2026-10-07)
 - [x] **Version Analytics** — Track registrations per app version (Code: 70, Version: 3.3.0) (2026-10-06)
 - [x] **AI Photo Generation** — Gemini Nano Banana auto-generates profile photos for daily AI profiles (2026-10-06)
 - [x] **Revenue Dashboard** — Daily/weekly bar chart, table, summary cards (Total/Today revenue, approved, conversion), toggle views (2026-10-06)

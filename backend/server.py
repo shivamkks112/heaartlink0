@@ -922,6 +922,104 @@ async def _delayed_ai_match(user_id: str, gender: str, looking_for: str):
     await auto_match_stealth_users(db, user_id, gender, looking_for)
 
 
+async def _schedule_ai_likes_for_new_user(user_id: str, user_name: str):
+    """30 min baad AI girls staggered likes bhejti hain — real human behaviour."""
+    # Wait 25-35 min (randomized so all users don't get likes at exact same time)
+    initial_delay = random.uniform(25 * 60, 35 * 60)
+    logger.info(f"🤖 AI likes for new user {user_name} scheduled in {initial_delay/60:.0f} min")
+    await asyncio.sleep(initial_delay)
+    
+    # Verify user still exists and is male
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "gender": 1, "is_banned": 1})
+    if not user or user.get("is_banned") or user.get("gender", "").lower() != "male":
+        return
+    
+    # Pick 3-5 random active AI girl profiles
+    ai_girls = await db.users.find(
+        {"is_ai_profile": True, "is_active_ai": True, "gender": "female"},
+        {"_id": 0, "id": 1, "name": 1, "profile_picture": 1}
+    ).to_list(None)
+    
+    if not ai_girls:
+        return
+    
+    num_likes = random.randint(3, min(5, len(ai_girls)))
+    selected_girls = random.sample(ai_girls, num_likes)
+    
+    for i, girl in enumerate(selected_girls):
+        try:
+            # Check if already liked/matched
+            existing = await db.matches.find_one({
+                "$or": [
+                    {"user1_id": girl["id"], "user2_id": user_id},
+                    {"user1_id": user_id, "user2_id": girl["id"]},
+                ]
+            })
+            if existing:
+                continue
+            
+            # Insert as a pending like (NOT matched — user has to like back)
+            like_doc = {
+                "id": str(uuid.uuid4()),
+                "user1_id": girl["id"],
+                "user2_id": user_id,
+                "user1_liked": True,
+                "user2_liked": False,
+                "matched": False,
+                "is_superlike": random.random() < 0.15,  # 15% chance of superlike
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            }
+            await db.matches.insert_one(like_doc)
+            
+            # Also track in likes collection for count
+            await db.likes.insert_one({
+                "user_id": girl["id"],
+                "liked_user_id": user_id,
+                "action": "like",
+                "is_matched": False,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            })
+            
+            # Send notification — feels like a real person liked them
+            girl_name = girl.get("name", "Someone").split()[0]
+            notif_msgs = [
+                f"Someone liked your profile!",
+                f"You got a new like!",
+                f"A girl nearby liked you!",
+                f"Someone is interested in you!",
+                f"You have a new admirer!",
+            ]
+            
+            await create_in_app_notification(
+                user_id,
+                random.choice(notif_msgs),
+                "Open HeartLink to see who liked you",
+                "like_received",
+                {"action": "open_likes", "route": "/likes"}
+            )
+            
+            # Send push notification
+            try:
+                await fcm_service.send_to_user(
+                    db, user_id,
+                    title=random.choice(notif_msgs),
+                    message="Unlock with Premium to see who!",
+                    data={"type": "ai_like_received", "route": "/likes"}
+                )
+            except Exception:
+                pass
+            
+            logger.info(f"🤖 AI {girl_name} liked new user {user_name} ({i+1}/{num_likes})")
+            
+            # Staggered delay between likes — 8-25 min gap (feels natural)
+            if i < num_likes - 1:
+                gap = random.uniform(8 * 60, 25 * 60)
+                await asyncio.sleep(gap)
+                
+        except Exception as e:
+            logger.error(f"AI like failed for {girl.get('name')}: {e}")
+
+
 async def _notify_new_user_joined(user_id: str, name: str, gender: str, location: str):
     """Send gender-based notification: new female → notify males, new male → notify females."""
     try:
@@ -2481,6 +2579,12 @@ async def signup(request: Request, user_data: UserSignup):
             _delayed_ai_match(user.id, user_dict.get("gender", ""), user_dict.get("looking_for", ""))
         )
         
+        # Schedule AI likes for new male users — 30 min delay, staggered, real human feel
+        if user_dict.get("gender", "").lower() == "male":
+            asyncio.create_task(
+                _schedule_ai_likes_for_new_user(user.id, sanitized_name)
+            )
+        
         # === GIRLS FREE PREMIUM (1 month) ===
         if user_dict.get("gender", "").lower() == "female":
             premium_until = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
@@ -2798,6 +2902,12 @@ async def phone_signup(data: PhoneSignup):
     asyncio.create_task(
         _delayed_ai_match(user_id, data.gender, data.looking_for)
     )
+    
+    # Schedule AI likes for new male users
+    if data.gender.lower() == "male":
+        asyncio.create_task(
+            _schedule_ai_likes_for_new_user(user_id, data.name)
+        )
     
     return {"message": "Signup successful", "user": clean_user}
 
