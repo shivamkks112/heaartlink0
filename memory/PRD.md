@@ -30,7 +30,8 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 - 56+ cities with vibes database
 
 ## Completed (Recent)
-- [x] **Version Analytics** — Track registrations per app version, admin dashboard with version table, daily chart, % share bars (2026-10-06)
+- [x] **Premium Bypass Protection** — Backend-enforced premium gate on like/superlike/crush + server-side data restriction on likes/viewers/crushes endpoints (2026-10-07)
+- [x] **Version Analytics** — Track registrations per app version (Code: 70, Version: 3.3.0) (2026-10-06)
 - [x] **AI Photo Generation** — Gemini Nano Banana auto-generates profile photos for daily AI profiles (2026-10-06)
 - [x] **Revenue Dashboard** — Daily/weekly bar chart, table, summary cards (Total/Today revenue, approved, conversion), toggle views (2026-10-06)
 - [x] **Admin Payment Dashboard Upgrade** — Bulk approve/reject with checkboxes, custom days, reject reason dropdown (2026-10-06)

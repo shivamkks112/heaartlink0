@@ -4720,6 +4720,14 @@ async def undo_action(user_id: str, request: Request):
 @api_router.post("/action/{user_id}")
 @api_router.post("/api/action/{user_id}")
 async def user_action(user_id: str, action: LikeAction):
+    # ── PREMIUM GATE: Only premium users can like/superlike ──
+    if action.action in ("like", "superlike"):
+        user = await db.users.find_one({"id": user_id}, {"_id": 0, "is_premium": 1, "gender": 1})
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        if not is_user_premium(user):
+            raise HTTPException(status_code=403, detail="Premium required to like. Subscribe at /premium")
+
     # Check if there's an existing record where target user liked current user
     existing_like = await db.matches.find_one({
         "user1_id": action.target_user_id,
@@ -4882,9 +4890,12 @@ async def mark_crush(user_id: str, target_user_id: str):
     if existing:
         raise HTTPException(status_code=400, detail="Already marked as crush")
     
-    crusher = await db.users.find_one({"id": user_id}, {"_id": 0, "name": 1, "gender": 1})
+    # Premium check — crush is a premium feature
+    crusher = await db.users.find_one({"id": user_id}, {"_id": 0, "name": 1, "gender": 1, "is_premium": 1})
     if not crusher:
         raise HTTPException(status_code=404, detail="User not found")
+    if not is_user_premium(crusher):
+        raise HTTPException(status_code=403, detail="Premium required to send crush")
     
     # Save crush
     crush_doc = {
@@ -4931,7 +4942,11 @@ async def mark_crush(user_id: str, target_user_id: str):
 
 @api_router.get("/crushes/{user_id}")
 async def get_crushes(user_id: str):
-    """Get users who crushed on you"""
+    """Get users who crushed on you — premium sees full data, free sees blurred."""
+    # Server-side premium check
+    requesting_user = await db.users.find_one({"id": user_id}, {"_id": 0, "is_premium": 1, "gender": 1})
+    user_has_premium = is_user_premium(requesting_user) if requesting_user else False
+    
     crushes = await db.crushes.find({"crushed_id": user_id}).sort("created_at", -1).limit(50).to_list(None)
     
     result = []
@@ -4941,23 +4956,36 @@ async def get_crushes(user_id: str):
             {"_id": 0, "id": 1, "name": 1, "age": 1, "profile_picture": 1, "location": 1}
         )
         if crusher:
-            result.append({
-                "crush_id": c["id"],
-                "user": crusher,
-                "created_at": c["created_at"],
-                "revealed": c.get("revealed", False),
-                "is_premium_locked": not c.get("revealed", False)
-            })
+            if user_has_premium or c.get("revealed", False):
+                result.append({
+                    "crush_id": c["id"],
+                    "user": crusher,
+                    "created_at": c["created_at"],
+                    "revealed": True,
+                    "is_premium_locked": False,
+                })
+            else:
+                result.append({
+                    "crush_id": c["id"],
+                    "user": {
+                        "id": crusher["id"],
+                        "name": "???",
+                        "age": None,
+                        "profile_picture": crusher.get("profile_picture"),
+                        "location": "",
+                    },
+                    "created_at": c["created_at"],
+                    "revealed": False,
+                    "is_premium_locked": True,
+                })
     
-    # Check mutual crushes
     my_crushes = await db.crushes.find({"crusher_id": user_id}).to_list(None)
     my_crush_ids = {c["crushed_id"] for c in my_crushes}
-    
     for r in result:
         r["is_mutual"] = r["user"]["id"] in my_crush_ids
     
     total = await db.crushes.count_documents({"crushed_id": user_id})
-    return {"crushes": result, "total": total}
+    return {"crushes": result, "total": total, "is_premium": user_has_premium}
 
 @api_router.get("/crushes/{user_id}/sent")
 async def get_sent_crushes(user_id: str):
@@ -4969,8 +4997,8 @@ async def get_sent_crushes(user_id: str):
 # ==================== WHO VIEWED PROFILE (ENHANCED) ====================
 
 @api_router.get("/profile-viewers/{user_id}")
-async def get_profile_viewers_enhanced(user_id: str, is_premium: bool = False):
-    """Get who viewed your profile - blurred for free, full for premium"""
+async def get_profile_viewers_enhanced(user_id: str):
+    """Get who viewed your profile - blurred for free, full for premium. Premium checked server-side."""
     views = await db.profile_views.find(
         {"viewed_user_id": user_id}
     ).sort("viewed_at", -1).limit(50).to_list(None)
@@ -4981,6 +5009,10 @@ async def get_profile_viewers_enhanced(user_id: str, is_premium: bool = False):
         "viewed_at": {"$gte": (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()}
     })
     
+    # Server-side premium check — NO client-side override
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "is_premium": 1, "gender": 1})
+    user_has_premium = is_user_premium(user) if user else False
+    
     viewers = []
     for v in views:
         viewer = await db.users.find_one(
@@ -4988,22 +5020,17 @@ async def get_profile_viewers_enhanced(user_id: str, is_premium: bool = False):
             {"_id": 0, "id": 1, "name": 1, "age": 1, "profile_picture": 1, "location": 1, "gender": 1}
         )
         if viewer:
-            # Check if user is premium (females are always premium)
-            user = await db.users.find_one({"id": user_id}, {"_id": 0, "is_premium": 1, "gender": 1})
-            user_has_premium = is_user_premium(user)
-            
-            if user_has_premium or is_premium:
+            if user_has_premium:
                 viewers.append({
                     "user": viewer,
                     "viewed_at": v.get("viewed_at"),
                     "locked": False
                 })
             else:
-                # Blur for free users - show only first letter and age
                 viewers.append({
                     "user": {
                         "id": viewer["id"],
-                        "name": viewer["name"][0] + "***",
+                        "name": viewer["name"][0] + "***" if viewer.get("name") else "???",
                         "age": viewer.get("age"),
                         "profile_picture": None,
                         "location": viewer.get("location", "").split(",")[0] if viewer.get("location") else "",
@@ -5017,7 +5044,7 @@ async def get_profile_viewers_enhanced(user_id: str, is_premium: bool = False):
         "viewers": viewers,
         "total_views": total_views,
         "today_views": today_views,
-        "is_premium": is_premium
+        "is_premium": user_has_premium
     }
 
 # Matches Routes
@@ -5131,9 +5158,12 @@ async def mark_likes_seen(user_id: str):
 
 @api_router.get("/likes/{user_id}")
 async def get_likes(user_id: str):
-    """Get users who liked the current user"""
+    """Get users who liked the current user. Non-premium see blurred/limited data."""
+    # Check premium status
+    requesting_user = await db.users.find_one({"id": user_id}, {"_id": 0, "is_premium": 1, "gender": 1})
+    user_has_premium = is_user_premium(requesting_user) if requesting_user else False
+
     # Find all matches where user2_id is current user and user1 has liked
-    # Exclude profiles where already matched or user2 has passed
     likes = await db.matches.find({
         "user2_id": user_id,
         "user1_liked": True,
@@ -5147,37 +5177,55 @@ async def get_likes(user_id: str):
     }
     
     for like in likes:
-        # Skip if user2 already passed
         if like.get("user2_action") == "pass":
             continue
             
         liker_user = await db.users.find_one({"id": like["user1_id"]})
         
         if liker_user:
-            user_data = {
-                "id": liker_user["id"],
-                "name": liker_user["name"],
-                "age": liker_user.get("age"),
-                "bio": liker_user.get("bio", ""),
-                "photos": liker_user.get("photos", []),
-                "profile_picture": liker_user.get("profile_picture"),
-                "interests": liker_user.get("interests", []),
-                "verified": liker_user.get("verified", False),
-                "location": liker_user.get("location", ""),
-                "is_online": liker_user.get("is_online", False),
-                "last_active": liker_user.get("last_active"),
-                "liked_at": like.get("created_at"),
-                "is_superlike": like.get("is_superlike", False)
-                # Note: phone and email are intentionally NOT included for privacy
-            }
+            if user_has_premium:
+                # Premium: full data
+                user_data = {
+                    "id": liker_user["id"],
+                    "name": liker_user["name"],
+                    "age": liker_user.get("age"),
+                    "bio": liker_user.get("bio", ""),
+                    "photos": liker_user.get("photos", []),
+                    "profile_picture": liker_user.get("profile_picture"),
+                    "interests": liker_user.get("interests", []),
+                    "verified": liker_user.get("verified", False),
+                    "location": liker_user.get("location", ""),
+                    "is_online": liker_user.get("is_online", False),
+                    "last_active": liker_user.get("last_active"),
+                    "liked_at": like.get("created_at"),
+                    "is_superlike": like.get("is_superlike", False),
+                }
+            else:
+                # Non-premium: blurred/hidden data — only count and blurred photo
+                user_data = {
+                    "id": liker_user["id"],
+                    "name": "???",
+                    "age": None,
+                    "bio": "",
+                    "photos": [],
+                    "profile_picture": liker_user.get("profile_picture"),  # Frontend blurs this
+                    "interests": [],
+                    "verified": False,
+                    "location": "",
+                    "is_online": False,
+                    "last_active": None,
+                    "liked_at": like.get("created_at"),
+                    "is_superlike": like.get("is_superlike", False),
+                    "is_locked": True,
+                }
             
-            # Check if it's a superlike
             if like.get("is_superlike"):
                 result["super_likes"].append(user_data)
             else:
                 result["regular_likes"].append(user_data)
     
     result["total_count"] = len(result["regular_likes"]) + len(result["super_likes"])
+    result["is_premium"] = user_has_premium
     
     return result
 
