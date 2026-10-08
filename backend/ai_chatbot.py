@@ -2372,6 +2372,46 @@ _VIBES = [
 _PERSONALITIES = ["flirty_fun", "sweet_caring", "witty_smart", "neutral_real"]
 
 
+async def _moderate_ai_photo(img_base64: str, name: str, age: int) -> bool:
+    """Auto-check AI photo quality using Gemini vision. Returns True if photo passes moderation."""
+    try:
+        if not EMERGENT_LLM_KEY:
+            return True  # Skip moderation if no key
+        
+        from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
+        
+        session_id = f"mod-{name.replace(' ','-')}-{random.randint(1000,9999)}"
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=session_id,
+            system_message=(
+                "You are a strict photo quality moderator for a dating app. "
+                "Analyze the image and respond with ONLY 'PASS' or 'FAIL' followed by a brief reason. "
+                "PASS if the photo looks like a real, natural Indian girl's dating profile photo. "
+                "FAIL if: distorted face, extra limbs/fingers, text/watermark, cartoon/anime, "
+                "multiple people, NSFW content, blurry/low quality, uncanny valley, "
+                "wrong gender, clearly AI-generated artifacts, or not suitable for dating profile."
+            )
+        )
+        chat.with_model("gemini", "gemini-3.1-flash-image-preview").with_params(modalities=["text"])
+        
+        # Use multimodal to analyze image
+        msg = UserMessage(
+            text=f"Check this dating profile photo of {name}, {age}. Is it natural, realistic, and suitable? Reply PASS or FAIL with reason.",
+            file_contents=[ImageContent(img_base64)]
+        )
+        
+        text_resp, _ = await chat.send_message_multimodal_response(msg)
+        result = (text_resp or "").strip().upper()
+        
+        passed = result.startswith("PASS")
+        logger.info(f"🔍 Photo moderation for {name}: {'PASS' if passed else 'FAIL'} — {(text_resp or '')[:80]}")
+        return passed
+    except Exception as e:
+        logger.error(f"Photo moderation error for {name}: {e}")
+        return True  # On error, allow photo (don't block generation)
+
+
 async def _generate_ai_photo(db, profile_id: str, name: str, age: int, city: str, num_photos: int = 1):
     """Generate realistic Indian girl profile photos using Gemini Nano Banana. Appends to existing."""
     try:
@@ -2439,8 +2479,14 @@ async def _generate_ai_photo(db, profile_id: str, name: str, age: int, city: str
                     if img_data:
                         mime = images[0].get("mime_type", "image/png")
                         photo_url = f"data:{mime};base64,{img_data}"
-                        new_photos.append(photo_url)
-                        logger.info(f"🖼️ Photo generated for {name} ({angle_name})")
+                        
+                        # Auto-moderate photo quality before adding
+                        is_good = await _moderate_ai_photo(img_data, name, age)
+                        if is_good:
+                            new_photos.append(photo_url)
+                            logger.info(f"🖼️ Photo generated for {name} ({angle_name}) ✅")
+                        else:
+                            logger.warning(f"🖼️ Photo rejected for {name} ({angle_name}) — failed moderation")
                 
                 # Small delay between generations
                 await asyncio.sleep(2)
