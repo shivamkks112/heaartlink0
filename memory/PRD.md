@@ -30,7 +30,11 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 - 56+ cities with vibes database
 
 ## Completed (Recent)
-- [x] **AI Likes for New Users** — 30 min delayed staggered AI girl likes (3-5 likes, 8-25 min gaps, push notifications) to drive premium conversion (2026-10-07)
+- [x] **AI Identity Hidden** — `is_ai_profile`, `ai_personality`, `vibe` stripped from ALL API responses (2026-10-08)
+- [x] **AI Likes 15 min** — Changed from 30 to 15 min delay for new user AI likes (2026-10-08)
+- [x] **Rewarded Ads → Super Like** — Server-side: every 3rd rewarded ad grants 1 super like for 30 min, consumed on use (2026-10-08)
+- [x] **10 New AI Profiles** — Ananya, Meera, Roshni, Sanya, Tara, Ishita, Naina, Priya, Aisha, Divya — 76 total AI profiles (2026-10-08)
+- [x] **AI Likes for New Users** — 15 min delayed staggered AI girl likes to drive premium conversion (2026-10-07)
 - [x] **Premium Bypass Protection** — Backend-enforced premium gate on all premium features (2026-10-07)
 - [x] **Version Analytics** — Track registrations per app version (Code: 70, Version: 3.3.0) (2026-10-06)
 - [x] **AI Photo Generation** — Gemini Nano Banana auto-generates profile photos for daily AI profiles (2026-10-06)

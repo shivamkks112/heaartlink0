@@ -924,8 +924,8 @@ async def _delayed_ai_match(user_id: str, gender: str, looking_for: str):
 
 async def _schedule_ai_likes_for_new_user(user_id: str, user_name: str):
     """30 min baad AI girls staggered likes bhejti hain — real human behaviour."""
-    # Wait 25-35 min (randomized so all users don't get likes at exact same time)
-    initial_delay = random.uniform(25 * 60, 35 * 60)
+    # Wait 12-18 min (randomized around 15 min)
+    initial_delay = random.uniform(12 * 60, 18 * 60)
     logger.info(f"🤖 AI likes for new user {user_name} scheduled in {initial_delay/60:.0f} min")
     await asyncio.sleep(initial_delay)
     
@@ -4832,11 +4832,27 @@ async def undo_action(user_id: str, request: Request):
 async def user_action(user_id: str, action: LikeAction):
     # ── PREMIUM GATE: Only premium users can like/superlike ──
     if action.action in ("like", "superlike"):
-        user = await db.users.find_one({"id": user_id}, {"_id": 0, "is_premium": 1, "gender": 1})
+        user = await db.users.find_one({"id": user_id}, {"_id": 0, "is_premium": 1, "gender": 1, "bonus_superlike_until": 1})
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
-        if not is_user_premium(user):
-            raise HTTPException(status_code=403, detail="Premium required to like. Subscribe at /premium")
+        
+        user_premium = is_user_premium(user)
+        
+        if action.action == "superlike":
+            # Super like: premium OR bonus super like from ads
+            bonus_until = user.get("bonus_superlike_until", "")
+            has_bonus = bonus_until and bonus_until > datetime.now(timezone.utc).isoformat()
+            if not user_premium and not has_bonus:
+                raise HTTPException(status_code=403, detail="Premium or watch 3 ads for Super Like")
+            # Consume bonus super like if not premium
+            if not user_premium and has_bonus:
+                await db.users.update_one(
+                    {"id": user_id},
+                    {"$set": {"bonus_superlike_until": ""}}
+                )
+        elif action.action == "like":
+            if not user_premium:
+                raise HTTPException(status_code=403, detail="Premium required to like. Subscribe at /premium")
 
     # Check if there's an existing record where target user liked current user
     existing_like = await db.matches.find_one({
@@ -5472,7 +5488,6 @@ async def get_conversations(user_id: str):
                 "is_online": is_online,
                 "last_active": other_user.get("last_active"),
                 "verified": other_user.get("verified", False),
-                "is_ai_profile": other_user.get("is_ai_profile", False),
             },
             "lastMessage": serialize_user_for_response(last_message, exclude_password=False),
             "unreadCount": unread_count,

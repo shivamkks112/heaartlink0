@@ -16,7 +16,7 @@ router = APIRouter()
 
 @router.post("/ads/impression")
 async def track_ad_impression(data: AdImpressionRequest):
-    """Track ad impression for analytics"""
+    """Track ad impression for analytics + auto-grant super like after 3 rewarded ads"""
     user = await db.users.find_one({"id": data.user_id})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -39,7 +39,34 @@ async def track_ad_impression(data: AdImpressionRequest):
         {"id": data.user_id},
         {"$inc": {f"ad_stats.{data.ad_type}_count": 1}, "$set": {"ad_stats.last_ad_shown": data.timestamp}}
     )
-    return {"success": True, "impression_id": impression_doc["id"]}
+    
+    result = {"success": True, "impression_id": impression_doc["id"]}
+    
+    # Auto-grant super like after every 3 rewarded ads (server-side, no app update needed)
+    if data.ad_type == "rewarded":
+        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+        today_rewarded = await db.ad_impressions.count_documents({
+            "user_id": data.user_id,
+            "ad_type": "rewarded",
+            "created_at": {"$gte": today_start}
+        })
+        
+        # Every 3rd rewarded ad → grant 1 super like for 30 min
+        if today_rewarded > 0 and today_rewarded % 3 == 0:
+            superlike_until = (datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat()
+            await db.users.update_one(
+                {"id": data.user_id},
+                {"$set": {
+                    "bonus_superlike_until": superlike_until,
+                    "bonus_superlike_count": user.get("bonus_superlike_count", 0) + 1,
+                }}
+            )
+            invalidate_user_cache(data.user_id)
+            result["bonus_superlike"] = True
+            result["superlike_until"] = superlike_until
+            result["message"] = "You earned 1 Super Like for 30 minutes!"
+    
+    return result
 
 
 @router.post("/ads/reward")

@@ -107,13 +107,19 @@ def clean_user_data(user_data: dict) -> dict:
 
 
 def serialize_user_for_response(user_dict: dict, exclude_password: bool = True) -> dict:
-    """Serialize user data for API responses. Female users always get premium."""
+    """Serialize user data for API responses. Female users always get premium. Hides AI profile indicator."""
     user_dict.pop('_id', None)
     if exclude_password:
         user_dict.pop('password_hash', None)
         user_dict.pop('password', None)
         user_dict.pop('password_reset_code', None)
         user_dict.pop('password_reset_expires', None)
+    # NEVER expose AI profile status to frontend
+    user_dict.pop('is_ai_profile', None)
+    user_dict.pop('is_active_ai', None)
+    user_dict.pop('ai_personality', None)
+    user_dict.pop('personality_desc', None)
+    user_dict.pop('vibe', None)
     cleaned = clean_user_data(user_dict)
     # Female users are always premium — no purchase needed
     if cleaned.get("gender", "").lower() == "female":
