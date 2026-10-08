@@ -2372,8 +2372,8 @@ _VIBES = [
 _PERSONALITIES = ["flirty_fun", "sweet_caring", "witty_smart", "neutral_real"]
 
 
-async def _generate_ai_photo(db, profile_id: str, name: str, age: int, city: str):
-    """Generate a realistic Indian girl profile photo using Gemini Nano Banana."""
+async def _generate_ai_photo(db, profile_id: str, name: str, age: int, city: str, num_photos: int = 1):
+    """Generate realistic Indian girl profile photos using Gemini Nano Banana. Appends to existing."""
     try:
         if not EMERGENT_LLM_KEY:
             logger.warning("EMERGENT_LLM_KEY not set — skipping AI photo generation")
@@ -2382,54 +2382,125 @@ async def _generate_ai_photo(db, profile_id: str, name: str, age: int, city: str
         import base64
         from emergentintegrations.llm.chat import LlmChat, UserMessage
         
-        first_name = name.split()[0]
+        # Get existing photos to preserve them
+        user = await db.users.find_one({"id": profile_id}, {"_id": 0, "photos": 1, "profile_picture": 1})
+        existing_photos = user.get("photos", []) if user else []
         
-        # Diverse appearance traits for variety
-        skin_tones = ["fair", "wheatish", "dusky", "medium brown"]
-        hair_styles = ["long straight black hair", "wavy dark brown hair", "shoulder-length hair with soft curls", "long hair with side parting", "hair in a loose bun"]
-        outfits = ["casual kurta", "modern western top", "stylish saree", "denim jacket and top", "floral dress", "traditional salwar kameez", "crop top and jeans"]
-        expressions = ["warm genuine smile", "soft confident smile", "playful smile with sparkling eyes", "gentle candid laugh", "serene natural expression"]
+        # Different angle/scene prompts for variety
+        ANGLE_PROMPTS = [
+            ("close-up face selfie, slight head tilt, front-facing camera, natural indoor lighting", "selfie"),
+            ("half-body shot from chest up, slight angle, outdoor natural light, casual candid pose", "casual"),
+            ("full smile portrait, looking slightly to the side, golden hour sunlight, warm tones", "golden"),
+            ("mirror selfie style, relaxed pose, bedroom or living room background, phone in hand", "mirror"),
+            ("candid walking shot, street background, natural movement, wind in hair", "street"),
+            ("sitting in a cafe, coffee cup nearby, cozy warm lighting, relaxed expression", "cafe"),
+            ("outdoor park setting, trees in background, natural daylight, cheerful expression", "park"),
+            ("close-up with soft focus background, eye contact with camera, gentle smile", "portrait"),
+        ]
         
+        skin_tones = ["fair", "wheatish", "dusky", "medium brown", "light brown"]
+        hair_styles = ["long straight black hair", "wavy dark brown hair", "shoulder-length hair with soft curls", "long hair with side parting", "messy bun", "open hair flowing"]
+        outfits = ["casual kurta", "modern western top", "denim jacket", "floral dress", "simple t-shirt", "ethnic wear", "hoodie", "crop top"]
+        
+        # Pick consistent appearance for this profile (same skin/hair across photos)
+        random.seed(hash(name))  # Same appearance for same name
         skin = random.choice(skin_tones)
         hair = random.choice(hair_styles)
-        outfit = random.choice(outfits)
-        expression = random.choice(expressions)
+        random.seed()  # Reset seed
         
-        prompt = (
-            f"Generate a realistic portrait photo of a {age}-year-old Indian girl. "
-            f"She has {skin} skin tone, {hair}, wearing a {outfit}. "
-            f"Expression: {expression}. Background: soft natural bokeh, {city} vibe. "
-            f"Photo style: high-quality dating app profile photo, well-lit, natural colors, "
-            f"shot on smartphone, authentic and real-looking. NOT cartoon, NOT anime, NOT illustration. "
-            f"Photorealistic, candid feel."
-        )
+        new_photos = []
+        # Pick random angles (avoid duplicates)
+        angles = random.sample(ANGLE_PROMPTS, min(num_photos, len(ANGLE_PROMPTS)))
         
-        session_id = f"ai-photo-{profile_id}-{random.randint(1000,9999)}"
-        chat = LlmChat(api_key=EMERGENT_LLM_KEY, session_id=session_id, system_message="Generate realistic photos")
-        chat.with_model("gemini", "gemini-3.1-flash-image-preview").with_params(modalities=["image", "text"])
-        
-        msg = UserMessage(text=prompt)
-        text, images = await chat.send_message_multimodal_response(msg)
-        
-        if images and len(images) > 0:
-            img_data = images[0].get("data", "")
-            if img_data:
-                # Store as base64 data URL
-                mime = images[0].get("mime_type", "image/png")
-                photo_url = f"data:{mime};base64,{img_data}"
+        for angle_prompt, angle_name in angles:
+            try:
+                outfit = random.choice(outfits)
                 
-                await db.users.update_one(
-                    {"id": profile_id},
-                    {"$set": {
-                        "profile_picture": photo_url,
-                        "photos": [photo_url],
-                    }}
+                prompt = (
+                    f"Generate a single photorealistic portrait photo of a {age}-year-old Indian girl. "
+                    f"She has {skin} skin tone and {hair}, wearing a {outfit}. "
+                    f"Pose: {angle_prompt}. "
+                    f"Location feel: {city}, India. "
+                    f"MUST look like a real photo taken on a smartphone camera. "
+                    f"Natural skin texture, realistic lighting, no filters. "
+                    f"NOT cartoon, NOT anime, NOT illustration, NOT AI-looking. "
+                    f"Dating app profile photo quality. One person only."
                 )
-                logger.info(f"🖼️ AI photo generated for {name}")
-        else:
-            logger.warning(f"No image returned for AI profile {name}")
+                
+                session_id = f"ai-photo-{profile_id}-{angle_name}-{random.randint(1000,9999)}"
+                chat = LlmChat(api_key=EMERGENT_LLM_KEY, session_id=session_id, system_message="Generate realistic photos")
+                chat.with_model("gemini", "gemini-3.1-flash-image-preview").with_params(modalities=["image", "text"])
+                
+                msg = UserMessage(text=prompt)
+                text, images = await chat.send_message_multimodal_response(msg)
+                
+                if images and len(images) > 0:
+                    img_data = images[0].get("data", "")
+                    if img_data:
+                        mime = images[0].get("mime_type", "image/png")
+                        photo_url = f"data:{mime};base64,{img_data}"
+                        new_photos.append(photo_url)
+                        logger.info(f"🖼️ Photo generated for {name} ({angle_name})")
+                
+                # Small delay between generations
+                await asyncio.sleep(2)
+            except Exception as e:
+                logger.error(f"Photo gen failed for {name} ({angle_name}): {e}")
+                continue
+        
+        if new_photos:
+            # Combine existing + new (existing first)
+            all_photos = existing_photos + new_photos
+            
+            # Set first photo as profile picture if none exists
+            profile_pic = user.get("profile_picture") if user else None
+            if not profile_pic and all_photos:
+                profile_pic = all_photos[0]
+            
+            await db.users.update_one(
+                {"id": profile_id},
+                {"$set": {
+                    "photos": all_photos,
+                    "profile_picture": profile_pic or all_photos[0],
+                }}
+            )
+            logger.info(f"🖼️ {len(new_photos)} photos added for {name} (total: {len(all_photos)})")
     except Exception as e:
         logger.error(f"AI photo generation failed for {name}: {e}")
+
+
+async def batch_generate_ai_photos(db, num_photos_per_profile: int = 3):
+    """Generate photos for ALL AI profiles that have fewer than num_photos_per_profile photos."""
+    ai_profiles = await db.users.find(
+        {"is_ai_profile": True, "is_active_ai": True},
+        {"_id": 0, "id": 1, "name": 1, "age": 1, "location": 1, "photos": 1}
+    ).to_list(None)
+    
+    total = len(ai_profiles)
+    generated = 0
+    skipped = 0
+    
+    for i, profile in enumerate(ai_profiles):
+        existing_count = len(profile.get("photos", []))
+        needed = max(0, num_photos_per_profile - existing_count)
+        
+        if needed == 0:
+            skipped += 1
+            continue
+        
+        logger.info(f"🖼️ Generating {needed} photos for {profile['name']} ({i+1}/{total})")
+        await _generate_ai_photo(
+            db, profile["id"], profile["name"],
+            profile.get("age", 23), profile.get("location", "Delhi"),
+            num_photos=needed
+        )
+        generated += 1
+        
+        # Rate limit — pause between profiles
+        await asyncio.sleep(5)
+    
+    logger.info(f"🖼️ Batch photo gen complete: {generated} profiles updated, {skipped} skipped (already had enough)")
+    return {"generated": generated, "skipped": skipped, "total": total}
 
 
 async def create_daily_ai_profiles(db, count=3):

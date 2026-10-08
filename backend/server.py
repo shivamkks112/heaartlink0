@@ -84,6 +84,7 @@ from ai_chatbot import (
     handle_stealth_auto_reply,
     create_daily_ai_profiles,
     auto_match_new_ai_with_users,
+    batch_generate_ai_photos,
 )
 
 # Import Safety Module
@@ -9833,6 +9834,23 @@ async def admin_reseed_ai_profiles(admin: dict = Depends(require_admin)):
     """Re-seed AI profiles (updates existing, creates missing)."""
     await seed_ai_profiles(db)
     return {"message": "AI profiles re-seeded successfully"}
+
+
+@api_router.post("/admin/ai-profiles/generate-photos")
+async def admin_generate_ai_photos(request: Request, admin: dict = Depends(require_admin)):
+    """Batch generate photos for all AI profiles. Runs in background."""
+    data = await request.json() if request.headers.get("content-type") == "application/json" else {}
+    num_photos = data.get("photos_per_profile", 3)
+    
+    # Run in background — this takes a long time
+    asyncio.create_task(batch_generate_ai_photos(db, num_photos_per_profile=num_photos))
+    
+    total_ai = await db.users.count_documents({"is_ai_profile": True, "is_active_ai": True})
+    return {
+        "message": f"Photo generation started for {total_ai} AI profiles ({num_photos} photos each). Running in background.",
+        "total_profiles": total_ai,
+        "photos_per_profile": num_photos,
+    }
 
 
 # ==========================================

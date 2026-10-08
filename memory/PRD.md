@@ -30,6 +30,7 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 - 56+ cities with vibes database
 
 ## Completed (Recent)
+- [x] **AI Photo Batch Generation** — Multi-angle realistic photos (selfie, cafe, park, mirror, street, golden hour) for ALL 76 profiles, existing photos preserved, admin API trigger, emergentintegrations v0.2.2 (2026-10-08)
 - [x] **AI Identity Hidden** — `is_ai_profile`, `ai_personality`, `vibe` stripped from ALL API responses (2026-10-08)
 - [x] **AI Likes 15 min** — Changed from 30 to 15 min delay for new user AI likes (2026-10-08)
 - [x] **Rewarded Ads → Super Like** — Server-side: every 3rd rewarded ad grants 1 super like for 30 min, consumed on use (2026-10-08)
