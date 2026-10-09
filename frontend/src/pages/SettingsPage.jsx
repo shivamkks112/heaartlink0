@@ -101,8 +101,8 @@ const SettingsPage = ({ user, setUser }) => {
   const { mode: themeMode, setMode: setThemeMode } = useTheme();
   const [blockedUsers, setBlockedUsers] = useState([]);
   const [mutedUsers, setMutedUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [userData, setUserData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [userData, setUserData] = useState(user || null);
   
   // Privacy settings state
   const [privacySettings, setPrivacySettings] = useState({

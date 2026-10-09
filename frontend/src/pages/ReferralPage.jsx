@@ -9,12 +9,14 @@ import TopBar from '@/components/TopBar';
 import { Button } from '@/components/ui/button';
 
 import { BACKEND_URL, API } from '@/config/api';
+import { getPageData, setPageData } from '@/utils/pageCache';
 
 const ReferralPage = ({ user }) => {
   const navigate = useNavigate();
-  const [referralData, setReferralData] = useState(null);
-  const [leaderboard, setLeaderboard] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const _rc = getPageData('referral', user?.id);
+  const [referralData, setReferralData] = useState(_rc?.referralData || null);
+  const [leaderboard, setLeaderboard] = useState(_rc?.leaderboard || []);
+  const [loading, setLoading] = useState(!_rc);
   const [copied, setCopied] = useState(false);
   const [paused, setPaused] = useState(false);
 
@@ -30,6 +32,7 @@ const ReferralPage = ({ user }) => {
       ]);
       setReferralData(refRes.data);
       setLeaderboard(leaderRes.data.leaderboard || []);
+      setPageData('referral', { referralData: refRes.data, leaderboard: leaderRes.data.leaderboard || [] }, user.id);
     } catch (error) {
       if (error.response?.status === 403) {
         setPaused(true);

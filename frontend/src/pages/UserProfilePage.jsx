@@ -6,15 +6,17 @@ import { Heart, X, Star, MapPin, Briefcase, GraduationCap, ArrowLeft, MessageCir
 import TopBar from '@/components/TopBar';
 import Navbar from '@/components/Navbar';
 import { API } from '@/config/api';
+import { getPageData, setPageData } from '@/utils/pageCache';
 
 
 const UserProfilePage = ({ user }) => {
   const { userId } = useParams();
   const navigate = useNavigate();
-  const [profileUser, setProfileUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const _up = getPageData('userprofile', userId);
+  const [profileUser, setProfileUser] = useState(_up?.profileUser || null);
+  const [loading, setLoading] = useState(!_up);
   const [actionLoading, setActionLoading] = useState(false);
-  const [matchInfo, setMatchInfo] = useState(null); // { matched: true, match_id: '...' }
+  const [matchInfo, setMatchInfo] = useState(_up?.matchInfo || null);
 
   useEffect(() => {
     if (userId) {

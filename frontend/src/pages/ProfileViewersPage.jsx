@@ -8,12 +8,14 @@ import Navbar from '@/components/Navbar';
 import TopBar from '@/components/TopBar';
 
 import { BACKEND_URL, API } from '@/config/api';
+import { getPageData, setPageData } from '@/utils/pageCache';
 
 const ProfileViewersPage = ({ user }) => {
   const navigate = useNavigate();
-  const [viewers, setViewers] = useState([]);
-  const [totalViews, setTotalViews] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const _vc = getPageData('viewers', user?.id);
+  const [viewers, setViewers] = useState(_vc?.viewers || []);
+  const [totalViews, setTotalViews] = useState(_vc?.totalViews || 0);
+  const [loading, setLoading] = useState(!_vc);
 
   useEffect(() => {
     if (user?.id) {
@@ -31,6 +33,7 @@ const ProfileViewersPage = ({ user }) => {
       const response = await axios.get(`${API}/user/${user.id}/profile-viewers`);
       setViewers(response.data.viewers || []);
       setTotalViews(response.data.total_views || 0);
+      setPageData('viewers', { viewers: response.data.viewers || [], totalViews: response.data.total_views || 0 }, user.id);
     } catch (error) {
       console.error('Profile viewers load error:', error);
       toast.error('Failed to load profile viewers');
