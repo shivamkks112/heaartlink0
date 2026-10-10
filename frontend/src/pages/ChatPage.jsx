@@ -623,7 +623,7 @@ const ChatPage = ({ user }) => {
   }
 
   return (
-    <div style={{ width: '100%', height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', backgroundColor: surfaceLow }}>
+    <div style={{ width: '100%', height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'clip', backgroundColor: surfaceLow }}>
       <Toaster position="top-center" />
       
       {/* Header */}
@@ -721,7 +721,7 @@ const ChatPage = ({ user }) => {
       {/* Messages area */}
       <div
         className="px-4 py-3 space-y-2.5"
-        style={{ flex: '1 1 0%', minHeight: 0, backgroundColor: surfaceLow, overflowY: 'scroll', WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', overscrollBehavior: 'contain' }}
+        style={{ flex: '1 1 0%', minHeight: 0, backgroundColor: surfaceLow, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}
         data-testid="messages-container"
       >
         {/* AI Memory Card — "She remembers..." */}

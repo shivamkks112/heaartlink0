@@ -33,11 +33,13 @@ button, a, [role="button"], [onclick] {
     cursor: pointer;
 }
 
-/* Smooth momentum scrolling for all scrollable areas */
-.overflow-y-auto, .overflow-x-auto, .overflow-auto {
+/* Smooth momentum scrolling for scrollable areas */
+.overflow-y-auto, .overflow-auto {
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: contain;
-    touch-action: pan-y;
+}
+.overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
 }
 
 /* GPU acceleration for animated elements */

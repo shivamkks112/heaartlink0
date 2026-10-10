@@ -30,7 +30,7 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 - 56+ cities with vibes database
 
 ## Completed (Recent)
-- [x] **Scroll Freeze ROOT CAUSE FIX** — `activity_main.xml` had `CoordinatorLayout` wrapping WebView which intercepted all touch/scroll events as `NestedScrollingParent`. Changed to `FrameLayout` + added `nestedScrollingEnabled=false`, `overScrollMode=always`, `scrollbars=vertical` on WebView. Reverted aggressive CSS changes as they were not the root cause. Service Worker cache bumped v2→v3, static assets changed to Network-first. (2026-10-10)
+- [x] **Scroll Freeze FINAL FIX** — Two root causes: (1) `activity_main.xml` had `CoordinatorLayout` wrapping WebView → changed to `FrameLayout`. (2) CSS rule `.overflow-x-auto` had `touch-action: pan-y` + `overscroll-behavior-y: contain` which broke scroll chain on Likes page's horizontal tab row. Split CSS rules so horizontal containers don't block vertical scroll. ChatPage `overflow: hidden` → `overflow: clip`. Service Worker cache bumped v2→v3. (2026-10-10)
 - [x] **App Audit P0** — Scroll fixes (PremiumPage + UserProfilePage bottom padding), Feedback system (5 categories + rate limit + admin view), Analytics events (premium_page_view, purchase_started/success/cancelled, restore_purchases), AdMob frequency cap (5-min cooldown, 3/session max), Double-tap purchase prevention (2026-10-10)
 - [x] **Photo Moderation** — Auto-check AI photos via Gemini vision before adding (2026-10-08)
 - [x] **AI Photo Batch Generation** — Multi-angle realistic photos for ALL 76 profiles, emergentintegrations v0.2.2 (2026-10-08)
