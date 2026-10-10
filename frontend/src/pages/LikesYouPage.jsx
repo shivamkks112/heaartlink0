@@ -157,9 +157,9 @@ const LikesYouPage = ({ user }) => {
   };
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--m3-surface-container-low)' }}>
-      {/* Header — fixed at top, not sticky (Capacitor WebView scroll fix) */}
-      <div className="flex-shrink-0 z-40 backdrop-blur-xl bg-white/80 border-b border-pink-100 shadow-sm" style={{ paddingTop: 'var(--safe-top, 24px)' }}>
+    <div className="min-h-screen" style={{ background: 'var(--m3-surface-container-low)', paddingTop: 'calc(var(--safe-top, 24px) + 60px)', paddingBottom: 'calc(var(--nav-total, 86px) + 16px)' }}>
+      {/* Header */}
+      <div className="sticky top-0 z-40 backdrop-blur-xl bg-white/80 border-b border-pink-100 shadow-sm">
         <div className="max-w-2xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <button
@@ -272,10 +272,8 @@ const LikesYouPage = ({ user }) => {
         </div>
       </div>
 
-      {/* Scrollable content area — self-contained scroll (Capacitor WebView fix) */}
-      <div style={{ flex: '1 1 0%', overflowY: 'auto', minHeight: 0, WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', overscrollBehavior: 'contain' }}>
       {/* Content */}
-      <div className="max-w-2xl mx-auto px-4 py-6" style={{ paddingBottom: 'calc(var(--nav-total, 86px) + 16px)' }}>
+      <div className="max-w-2xl mx-auto px-4 py-6">
         {/* Crushes Tab */}
         {activeTab === 'crushes' ? (
           <div className="space-y-4" data-testid="crushes-content">
@@ -647,7 +645,6 @@ const LikesYouPage = ({ user }) => {
           100% { transform: translateX(100%); }
         }
       `}</style>
-      </div>{/* end scroll wrapper */}
 
       {/* Bottom Navigation */}
       <Navbar user={user} />

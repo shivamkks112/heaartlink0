@@ -452,14 +452,13 @@ const MatchesPage = ({ user }) => {
   }
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--m3-surface-container-low)' }}>
+    <div className="min-h-screen" style={{ background: 'var(--m3-surface-container-low)', paddingTop: 'calc(var(--safe-top, 24px) + 60px)', paddingBottom: 'calc(var(--nav-total, 86px) + 16px)' }}>
       <TopBar />
       <Toaster position="top-center" />
       <Navbar user={user} />
       
-      <div style={{ flex: '1 1 0%', overflowY: 'auto', minHeight: 0, WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', overscrollBehavior: 'contain', paddingTop: 'calc(var(--safe-top, 24px) + 60px)' }}>
       <PullToRefresh onRefresh={async () => { await Promise.all([fetchMatches(), fetchConversations(), fetchActiveUsers()]); }}>
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 page-enter" style={{ paddingBottom: 'calc(var(--nav-total, 86px) + 16px)' }}>
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 page-enter">
         <div className="mb-4 sm:mb-6 md:mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold mb-1" style={{ color: 'var(--m3-on-surface)' }}>Connections</h1>
           <p className="text-sm" style={{ color: 'var(--m3-on-surface-variant)' }}>Your matches and active users</p>
@@ -910,7 +909,6 @@ const MatchesPage = ({ user }) => {
         )}
       </div>
       </PullToRefresh>
-      </div>{/* end scroll wrapper */}
       
       {/* Safety Message Modal */}
       <SafetyMessageModal 
