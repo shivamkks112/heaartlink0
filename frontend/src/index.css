@@ -33,6 +33,7 @@ button, a, [role="button"], [onclick] {
 .overflow-y-auto, .overflow-x-auto, .overflow-auto {
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: contain;
+    touch-action: pan-y;
 }
 
 /* GPU acceleration for animated elements */
