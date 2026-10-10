@@ -134,47 +134,56 @@ function NavigationHelper() {
 function BackButtonHandler() {
   const location = useLocation();
   const lastBackPress = useRef(0);
+  const listenerRef = useRef(null);
   
   const MAIN_TABS = ['/discover', '/likes', '/matches', '/profile', '/notifications'];
   
   useEffect(() => {
-    let backListenerHandle = null;
+    // Capacitor hardware back button handler
+    let mounted = true;
     
-    // Capacitor hardware back button — primary handler for Android
-    import('@capacitor/app').then(({ App }) => {
-      backListenerHandle = App.addListener('backButton', ({ canGoBack }) => {
-        const isMainTab = MAIN_TABS.some(tab => location.pathname === tab);
+    (async () => {
+      try {
+        const { App } = await import('@capacitor/app');
         
-        if (isMainTab) {
-          const now = Date.now();
-          if (now - lastBackPress.current < 2000) {
-            // Double back — exit
-            App.exitApp();
-          } else {
-            // First back — toast
-            lastBackPress.current = now;
-            const t = document.createElement('div');
-            t.textContent = 'Press back again to exit';
-            t.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.85);color:white;padding:10px 24px;border-radius:24px;font-size:13px;z-index:99999;pointer-events:none;font-family:Poppins,sans-serif';
-            document.body.appendChild(t);
-            setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; }, 1700);
-            setTimeout(() => { try { document.body.removeChild(t); } catch {} }, 2100);
-          }
-        } else if (canGoBack) {
-          window.history.back();
-        } else {
-          // Fallback: go to discover
-          window.location.hash = '';
-          window.location.pathname = '/discover';
+        // Remove previous listener if exists
+        if (listenerRef.current) {
+          try { listenerRef.current.remove(); } catch {}
         }
-      });
-    }).catch(() => {
-      // Not in Capacitor (web preview) — no hardware back button
-    });
+        
+        const handle = await App.addListener('backButton', ({ canGoBack }) => {
+          if (!mounted) return;
+          const isMainTab = MAIN_TABS.some(tab => location.pathname === tab);
+          
+          if (isMainTab) {
+            const now = Date.now();
+            if (now - lastBackPress.current < 2000) {
+              App.exitApp();
+            } else {
+              lastBackPress.current = now;
+              const t = document.createElement('div');
+              t.textContent = 'Press back again to exit';
+              t.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.85);color:white;padding:10px 24px;border-radius:24px;font-size:13px;z-index:99999;pointer-events:none;font-family:Poppins,sans-serif';
+              document.body.appendChild(t);
+              setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; }, 1700);
+              setTimeout(() => { try { document.body.removeChild(t); } catch {} }, 2100);
+            }
+          } else if (canGoBack) {
+            window.history.back();
+          }
+        });
+        
+        if (mounted) listenerRef.current = handle;
+      } catch {
+        // Not in Capacitor environment — no hardware back button
+      }
+    })();
     
     return () => {
-      if (backListenerHandle) {
-        backListenerHandle.remove();
+      mounted = false;
+      if (listenerRef.current) {
+        try { listenerRef.current.remove(); } catch {}
+        listenerRef.current = null;
       }
     };
   }, [location.pathname]);
