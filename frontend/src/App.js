@@ -133,80 +133,49 @@ function NavigationHelper() {
 // Double-back-to-exit handler — Android native behavior
 function BackButtonHandler() {
   const location = useLocation();
-  const navigate = useNavigate();
   const lastBackPress = useRef(0);
-  const toastShown = useRef(false);
   
   const MAIN_TABS = ['/discover', '/likes', '/matches', '/profile', '/notifications'];
   
   useEffect(() => {
-    const handleBackButton = (e) => {
-      const isMainTab = MAIN_TABS.some(tab => location.pathname === tab || location.pathname.startsWith(tab + '/'));
-      
-      if (!isMainTab) {
-        // Inner page — normal back navigation
-        return;
-      }
-      
-      // Main tab — double back to exit
-      e.preventDefault();
-      const now = Date.now();
-      
-      if (now - lastBackPress.current < 2500) {
-        // Double back within 2.5s — exit app
-        try {
-          // Capacitor App.exitApp()
-          import(/* webpackIgnore: true */ '@capacitor/app').then(({ App }) => App.exitApp()).catch(() => window.close());
-        } catch {
-          window.close();
-        }
-      } else {
-        // First back — show toast
-        lastBackPress.current = now;
-        if (!toastShown.current) {
-          toastShown.current = true;
-          // Use a simple native-style toast
-          const toast = document.createElement('div');
-          toast.textContent = 'Press back again to exit';
-          toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.8);color:white;padding:8px 20px;border-radius:20px;font-size:13px;z-index:9999;pointer-events:none;transition:opacity 0.3s;font-family:Poppins,sans-serif';
-          document.body.appendChild(toast);
-          setTimeout(() => { toast.style.opacity = '0'; }, 2000);
-          setTimeout(() => { document.body.removeChild(toast); toastShown.current = false; }, 2500);
-        }
-      }
-    };
+    let backListenerHandle = null;
     
-    // Listen for browser back button (popstate)
-    window.addEventListener('popstate', handleBackButton);
-    
-    // Also listen for Capacitor hardware back button
-    let backButtonCleanup = null;
-    import(/* webpackIgnore: true */ '@capacitor/app').then(({ App }) => {
-      backButtonCleanup = App.addListener('backButton', ({ canGoBack }) => {
+    // Capacitor hardware back button — primary handler for Android
+    import('@capacitor/app').then(({ App }) => {
+      backListenerHandle = App.addListener('backButton', ({ canGoBack }) => {
         const isMainTab = MAIN_TABS.some(tab => location.pathname === tab);
+        
         if (isMainTab) {
           const now = Date.now();
-          if (now - lastBackPress.current < 2500) {
+          if (now - lastBackPress.current < 2000) {
+            // Double back — exit
             App.exitApp();
           } else {
+            // First back — toast
             lastBackPress.current = now;
-            // Show toast
-            const toast = document.createElement('div');
-            toast.textContent = 'Press back again to exit';
-            toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.8);color:white;padding:8px 20px;border-radius:20px;font-size:13px;z-index:9999;pointer-events:none;transition:opacity 0.3s;font-family:Poppins,sans-serif';
-            document.body.appendChild(toast);
-            setTimeout(() => { toast.style.opacity = '0'; }, 2000);
-            setTimeout(() => { try { document.body.removeChild(toast); } catch {} }, 2500);
+            const t = document.createElement('div');
+            t.textContent = 'Press back again to exit';
+            t.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.85);color:white;padding:10px 24px;border-radius:24px;font-size:13px;z-index:99999;pointer-events:none;font-family:Poppins,sans-serif';
+            document.body.appendChild(t);
+            setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; }, 1700);
+            setTimeout(() => { try { document.body.removeChild(t); } catch {} }, 2100);
           }
         } else if (canGoBack) {
           window.history.back();
+        } else {
+          // Fallback: go to discover
+          window.location.hash = '';
+          window.location.pathname = '/discover';
         }
       });
-    }).catch(() => {}); // Not in Capacitor — web only uses popstate
+    }).catch(() => {
+      // Not in Capacitor (web preview) — no hardware back button
+    });
     
     return () => {
-      window.removeEventListener('popstate', handleBackButton);
-      if (backButtonCleanup) backButtonCleanup.remove();
+      if (backListenerHandle) {
+        backListenerHandle.remove();
+      }
     };
   }, [location.pathname]);
   
