@@ -8795,6 +8795,60 @@ app.add_middleware(
     max_age=600,
 )
 
+# ==================== FEEDBACK SYSTEM ====================
+
+@api_router.post("/feedback/submit")
+async def submit_feedback(request: Request):
+    """Submit user feedback — bug reports, feature requests, payment issues, etc."""
+    data = await request.json()
+    user_id = data.get("user_id")
+    category = data.get("category", "general")
+    message = data.get("message", "").strip()
+    
+    if not user_id or not message:
+        raise HTTPException(status_code=400, detail="User ID and message are required")
+    if len(message) < 10:
+        raise HTTPException(status_code=400, detail="Message must be at least 10 characters")
+    if len(message) > 2000:
+        raise HTTPException(status_code=400, detail="Message too long (max 2000 characters)")
+    
+    valid_categories = ["bug_report", "feature_suggestion", "payment_issue", "ad_experience", "general"]
+    if category not in valid_categories:
+        category = "general"
+    
+    # Rate limit: max 5 feedback per user per day
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0).isoformat()
+    today_count = await db.feedback.count_documents({"user_id": user_id, "created_at": {"$gte": today_start}})
+    if today_count >= 5:
+        raise HTTPException(status_code=429, detail="Maximum 5 feedback submissions per day")
+    
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "name": 1, "email": 1})
+    
+    feedback_doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": user_id,
+        "user_name": user.get("name", "Unknown") if user else "Unknown",
+        "user_email": user.get("email", "") if user else "",
+        "category": category,
+        "message": message,
+        "status": "pending",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "app_version": APP_VERSION,
+    }
+    await db.feedback.insert_one(feedback_doc)
+    
+    return {"success": True, "message": "Feedback submitted! We'll look into it.", "feedback_id": feedback_doc["id"]}
+
+
+@api_router.get("/admin/feedback")
+async def get_feedback(admin: dict = Depends(require_admin)):
+    """Admin: View all user feedback."""
+    feedback = await db.feedback.find({}).sort("created_at", -1).limit(100).to_list(None)
+    for f in feedback:
+        f.pop("_id", None)
+    return feedback
+
+
 # ==================== SECURITY HARDENING ====================
 
 # Security headers middleware

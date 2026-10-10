@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { ArrowLeft, UserX, BellOff, Mail, Phone, Link2, CheckCircle, AlertCircle, Shield, Eye, EyeOff, MessageSquare, Clock, Camera, Sun, Moon, Monitor, Crown, ExternalLink, Flame, Gift } from 'lucide-react';
+import { ArrowLeft, UserX, BellOff, Mail, Phone, Link2, CheckCircle, AlertCircle, Shield, Eye, EyeOff, MessageSquare, Clock, Camera, Sun, Moon, Monitor, Crown, ExternalLink, Flame, Gift, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -815,6 +815,26 @@ const SettingsPage = ({ user, setUser }) => {
             </div>
           </div>
         )}
+
+        {/* Feedback & Support */}
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 shadow-sm mb-4" data-testid="feedback-section">
+          <button
+            onClick={() => navigate('/feedback')}
+            className="w-full flex items-center justify-between"
+            data-testid="feedback-link"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-pink-50 rounded-xl flex items-center justify-center">
+                <MessageSquare className="w-5 h-5 text-pink-500" />
+              </div>
+              <div className="text-left">
+                <p className="font-semibold text-gray-900 text-sm">Feedback & Support</p>
+                <p className="text-xs text-gray-500">Bug report, feature ideas, help</p>
+              </div>
+            </div>
+            <ChevronRight className="w-5 h-5 text-gray-400" />
+          </button>
+        </div>
 
         {/* Blocked & Muted Users */}
         <Tabs defaultValue="blocked" className="w-full">

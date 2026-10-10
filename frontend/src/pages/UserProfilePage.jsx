@@ -107,7 +107,7 @@ const UserProfilePage = ({ user }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 page-with-bottom-nav">
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50" style={{ paddingBottom: 'calc(var(--nav-total, 86px) + 24px)' }}>
       <TopBar />
       <Toaster position="top-center" />
       <Navbar user={user} />

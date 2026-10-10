@@ -327,10 +327,27 @@ class AdsService {
   }
 
   /**
-   * Show interstitial — only when LOADED
+   * Show interstitial — only when LOADED, with frequency cap
+   * Max 1 per 5 minutes, max 3 per session
    */
   async showInterstitial() {
     if (!this.isNative() || !this.admob) return false;
+
+    // Frequency cap check
+    const now = Date.now();
+    if (!this._interstitialHistory) this._interstitialHistory = [];
+    
+    // Max 3 per session
+    if (this._interstitialHistory.length >= 3) {
+      this._log('Interstitial cap: max 3 per session reached');
+      return false;
+    }
+    // Min 5 min between interstitials
+    const lastShown = this._interstitialHistory[this._interstitialHistory.length - 1] || 0;
+    if (now - lastShown < 300000) {
+      this._log('Interstitial cap: 5-min cooldown active');
+      return false;
+    }
 
     // If currently loading, wait for it
     if (this.interstitialState === AdState.LOADING) {
@@ -354,6 +371,7 @@ class AdsService {
       this.interstitialState = AdState.SHOWING;
       this._log('Interstitial SHOW attempt...');
       await this.admob.showInterstitial();
+      this._interstitialHistory.push(Date.now());
       // State transitions happen via event listeners (Showed → Dismissed)
       return true;
     } catch (error) {

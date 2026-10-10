@@ -13,6 +13,7 @@ import { Toaster } from '@/components/ui/sonner';
 import playBillingService from '@/services/PlayBillingService';
 import TopBar from '@/components/TopBar';
 import Navbar from '@/components/Navbar';
+import { trackEvent } from '@/utils/installTracker';
 
 const BENEFITS = [
   { icon: Heart, text: 'Unlimited Likes', desc: 'Swipe without limits' },
@@ -27,11 +28,13 @@ const PremiumPage = ({ user, onUpdate }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [restoring, setRestoring] = useState(false);
+  const purchaseInProgress = useRef(false);
   const [billingReady, setBillingReady] = useState(false);
   const [subStatus, setSubStatus] = useState(null);
   const [displayPrice, setDisplayPrice] = useState('₹49');
 
   useEffect(() => {
+    trackEvent('premium_page_view', { user_id: user?.id });
     initBilling();
     checkStatus();
   }, []);
@@ -57,13 +60,15 @@ const PremiumPage = ({ user, onUpdate }) => {
 
   const handlePurchase = async () => {
     if (!user?.id) return;
+    if (purchaseInProgress.current) return; // Prevent double tap
+    purchaseInProgress.current = true;
     setLoading(true);
+    trackEvent('purchase_started', { user_id: user?.id });
     try {
       if (!billingReady) {
         if (playBillingService.isNative()) {
           const initErr = playBillingService.getInitError();
           toast.error(`Billing unavailable: ${initErr || 'Please restart the app and try again.'}`);
-          // Retry initialization once
           const retryReady = await playBillingService.initialize();
           if (retryReady) {
             setBillingReady(true);
@@ -85,6 +90,7 @@ const PremiumPage = ({ user, onUpdate }) => {
         }
         const verification = await playBillingService.verifyAndActivate(user.id, result);
         if (verification.success) {
+          trackEvent('purchase_success', { user_id: user?.id });
           toast.success(verification.message || 'Premium activated!');
           const updatedUser = { ...user, is_premium: true, subscription_status: verification.subscription_status };
           if (onUpdate) onUpdate(updatedUser);
@@ -94,7 +100,7 @@ const PremiumPage = ({ user, onUpdate }) => {
           toast.error(verification.error || 'Purchase verification failed. Please try again.');
         }
       } else if (result.error === 'cancelled') {
-        // User cancelled — silent
+        trackEvent('purchase_cancelled', { user_id: user?.id });
       } else {
         toast.error(result.error);
       }
@@ -102,12 +108,14 @@ const PremiumPage = ({ user, onUpdate }) => {
       toast.error('Something went wrong. Please try again.');
     } finally {
       setLoading(false);
+      purchaseInProgress.current = false;
     }
   };
 
   const handleRestore = async () => {
     if (!user?.id) return;
     setRestoring(true);
+    trackEvent('restore_purchases', { user_id: user?.id });
     try {
       const result = await playBillingService.restorePurchases();
       if (result.success && result.purchases.length > 0) {
@@ -154,7 +162,7 @@ const PremiumPage = ({ user, onUpdate }) => {
   })();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 page-with-bottom-nav" style={{ paddingTop: 'var(--safe-top, 24px)' }}>
+    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950" style={{ paddingTop: 'var(--safe-top, 24px)', paddingBottom: 'calc(var(--nav-total, 86px) + 24px)' }}>
       <Toaster position="top-center" />
       <Navbar user={user} />
 
