@@ -411,27 +411,27 @@ function App() {
             <Route path="/data-deletion" element={<DataDeletionPage />} />
             <Route path="/dating-in-:city" element={<CityDatingPage />} />
             <Route path="/dating/:city" element={<CityDatingPage />} />
-            <Route path="/admin" element={user && user.is_admin ? <AdminDashboard user={user} /> : <Navigate to="/" />} />
+            <Route path="/admin" element={user && user.is_admin ? <ErrorBoundary><AdminDashboard user={user} /></ErrorBoundary> : <Navigate to="/" />} />
             
-            {/* All protected routes */}
-            <Route path="/discover" element={user ? <DiscoverPage user={user} /> : <Navigate to="/" />} />
-            <Route path="/matches" element={user ? <MatchesPage user={user} /> : <Navigate to="/" />} />
-            <Route path="/likes" element={user ? <LikesYouPage user={user} /> : <Navigate to="/" />} />
+            {/* All protected routes — wrapped in ErrorBoundary */}
+            <Route path="/discover" element={user ? <ErrorBoundary><DiscoverPage user={user} /></ErrorBoundary> : <Navigate to="/" />} />
+            <Route path="/matches" element={user ? <ErrorBoundary><MatchesPage user={user} /></ErrorBoundary> : <Navigate to="/" />} />
+            <Route path="/likes" element={user ? <ErrorBoundary><LikesYouPage user={user} /></ErrorBoundary> : <Navigate to="/" />} />
             <Route path="/chat/:matchId" element={user ? <ErrorBoundary><ChatPage user={user} /></ErrorBoundary> : <Navigate to="/" />} />
-            <Route path="/profile" element={user ? <ProfilePage user={user} onUpdate={handleLogin} /> : <Navigate to="/" />} />
-            <Route path="/profile/:userId" element={user ? <UserProfilePage user={user} /> : <Navigate to="/" />} />
-            <Route path="/verify-selfie" element={user ? <Suspense fallback={<ProfileSkeleton />}><SelfieVerificationPage user={user} /></Suspense> : <Navigate to="/" />} />
-            <Route path="/privacy" element={user ? <PrivacyPage user={user} onUpdate={handleLogin} /> : <Navigate to="/" />} />
-            <Route path="/settings" element={user ? <SettingsPage user={user} /> : <Navigate to="/" />} />
-            <Route path="/profile-viewers" element={user ? <ProfileViewersPage user={user} /> : <Navigate to="/" />} />
-            <Route path="/enhance-profile" element={user ? <ProfileEnhancementPage user={user} onUpdate={handleLogin} /> : <Navigate to="/" />} />
-            <Route path="/notifications" element={user ? <NotificationsPage user={user} /> : <Navigate to="/" />} />
-            <Route path="/referral" element={user ? <ReferralPage user={user} /> : <Navigate to="/" />} />
-            <Route path="/share-profile" element={user ? <ShareProfilePage user={user} /> : <Navigate to="/" />} />
-            <Route path="/payment-history" element={user ? <PaymentHistoryPage user={user} /> : <Navigate to="/" />} />
-            <Route path="/feedback" element={user ? <FeedbackPage user={user} /> : <Navigate to="/" />} />
-            <Route path="/share-match" element={user ? <MatchShareCard user={user} /> : <Navigate to="/" />} />
-            <Route path="/premium" element={user ? <PremiumPage user={user} onUpdate={handleLogin} /> : <Navigate to="/" />} />
+            <Route path="/profile" element={user ? <ErrorBoundary><ProfilePage user={user} onUpdate={handleLogin} /></ErrorBoundary> : <Navigate to="/" />} />
+            <Route path="/profile/:userId" element={user ? <ErrorBoundary><UserProfilePage user={user} /></ErrorBoundary> : <Navigate to="/" />} />
+            <Route path="/verify-selfie" element={user ? <ErrorBoundary><Suspense fallback={<ProfileSkeleton />}><SelfieVerificationPage user={user} /></Suspense></ErrorBoundary> : <Navigate to="/" />} />
+            <Route path="/privacy" element={user ? <ErrorBoundary><PrivacyPage user={user} onUpdate={handleLogin} /></ErrorBoundary> : <Navigate to="/" />} />
+            <Route path="/settings" element={user ? <ErrorBoundary><SettingsPage user={user} /></ErrorBoundary> : <Navigate to="/" />} />
+            <Route path="/profile-viewers" element={user ? <ErrorBoundary><ProfileViewersPage user={user} /></ErrorBoundary> : <Navigate to="/" />} />
+            <Route path="/enhance-profile" element={user ? <ErrorBoundary><ProfileEnhancementPage user={user} onUpdate={handleLogin} /></ErrorBoundary> : <Navigate to="/" />} />
+            <Route path="/notifications" element={user ? <ErrorBoundary><NotificationsPage user={user} /></ErrorBoundary> : <Navigate to="/" />} />
+            <Route path="/referral" element={user ? <ErrorBoundary><ReferralPage user={user} /></ErrorBoundary> : <Navigate to="/" />} />
+            <Route path="/share-profile" element={user ? <ErrorBoundary><ShareProfilePage user={user} /></ErrorBoundary> : <Navigate to="/" />} />
+            <Route path="/payment-history" element={user ? <ErrorBoundary><PaymentHistoryPage user={user} /></ErrorBoundary> : <Navigate to="/" />} />
+            <Route path="/feedback" element={user ? <ErrorBoundary><FeedbackPage user={user} /></ErrorBoundary> : <Navigate to="/" />} />
+            <Route path="/share-match" element={user ? <ErrorBoundary><MatchShareCard user={user} /></ErrorBoundary> : <Navigate to="/" />} />
+            <Route path="/premium" element={user ? <ErrorBoundary><PremiumPage user={user} onUpdate={handleLogin} /></ErrorBoundary> : <Navigate to="/" />} />
           </Routes>
           </Suspense>
           {/* Welcome Message Modal */}
