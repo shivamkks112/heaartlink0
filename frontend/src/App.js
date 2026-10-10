@@ -134,26 +134,27 @@ function NavigationHelper() {
 function BackButtonHandler() {
   const location = useLocation();
   const lastBackPress = useRef(0);
-  const listenerRef = useRef(null);
+  const currentPath = useRef(location.pathname);
   
   const MAIN_TABS = ['/discover', '/likes', '/matches', '/profile', '/notifications'];
   
+  // Keep path ref in sync without re-registering listener
   useEffect(() => {
-    // Capacitor hardware back button handler
+    currentPath.current = location.pathname;
+  }, [location.pathname]);
+  
+  // Register Capacitor back handler ONCE
+  useEffect(() => {
+    let handle = null;
     let mounted = true;
     
     (async () => {
       try {
         const { App } = await import('@capacitor/app');
         
-        // Remove previous listener if exists
-        if (listenerRef.current) {
-          try { listenerRef.current.remove(); } catch {}
-        }
-        
-        const handle = await App.addListener('backButton', ({ canGoBack }) => {
+        handle = await App.addListener('backButton', ({ canGoBack }) => {
           if (!mounted) return;
-          const isMainTab = MAIN_TABS.some(tab => location.pathname === tab);
+          const isMainTab = MAIN_TABS.some(tab => currentPath.current === tab);
           
           if (isMainTab) {
             const now = Date.now();
@@ -172,21 +173,18 @@ function BackButtonHandler() {
             window.history.back();
           }
         });
-        
-        if (mounted) listenerRef.current = handle;
       } catch {
-        // Not in Capacitor environment — no hardware back button
+        // Not in Capacitor
       }
     })();
     
     return () => {
       mounted = false;
-      if (listenerRef.current) {
-        try { listenerRef.current.remove(); } catch {}
-        listenerRef.current = null;
+      if (handle) {
+        try { handle.remove(); } catch {}
       }
     };
-  }, [location.pathname]);
+  }, []); // Empty deps — register ONCE, never re-register
   
   return null;
 }
