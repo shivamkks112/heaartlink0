@@ -202,7 +202,7 @@ const ChatPage = ({ user }) => {
         if (cachedMsgs && cachedMsgs.length > 0) {
           setMessages(cachedMsgs);
           setLoading(false);
-          setTimeout(() => { if (messagesContainerRef.current) messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight; }, 50);
+          setTimeout(() => window.scrollTo(0, document.body.scrollHeight), 50);
         }
 
         const [msgRes, privRes] = await Promise.allSettled([
@@ -218,7 +218,7 @@ const ChatPage = ({ user }) => {
               (msgs.length > 0 && cachedMsgs.length > 0 && msgs[msgs.length - 1]?.id !== cachedMsgs[cachedMsgs.length - 1]?.id);
             if (hasNewMessages) {
               setMessages(msgs);
-              setTimeout(() => { if (messagesContainerRef.current) messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight; }, 80);
+              setTimeout(() => window.scrollTo(0, document.body.scrollHeight), 80);
             }
             cacheChatMessages(matchId, msgs);
             setPageData('chat', { messages: msgs, otherUser: match?.user }, matchId);
@@ -383,7 +383,7 @@ const ChatPage = ({ user }) => {
   useEffect(() => {
     if (messages.length > 0 && !hasScrolledInitial.current) {
       hasScrolledInitial.current = true;
-      setTimeout(() => { if (messagesContainerRef.current) messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight; }, 100);
+      setTimeout(() => window.scrollTo(0, document.body.scrollHeight), 100);
     }
   }, [messages]);
 
@@ -629,11 +629,11 @@ const ChatPage = ({ user }) => {
   }
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', backgroundColor: surfaceLow }}>
+    <div className="min-h-screen" style={{ backgroundColor: surfaceLow, paddingBottom: 'calc(var(--safe-bottom, 8px) + 72px)' }}>
       <Toaster position="top-center" />
       
-      {/* Header */}
-      <div className="flex-shrink-0 bg-gradient-to-r from-pink-500 via-rose-500 to-orange-500 shadow-lg z-[60]" style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 24px)' }}>
+      {/* Header — sticky like Settings page */}
+      <div className="sticky top-0 z-[60] bg-gradient-to-r from-pink-500 via-rose-500 to-orange-500 shadow-lg" style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 24px)' }}>
         <div className="max-w-2xl mx-auto px-2 py-2.5">
           <div className="flex items-center justify-between gap-2">
             <button
@@ -724,11 +724,11 @@ const ChatPage = ({ user }) => {
         </div>
       </div>
 
-      {/* Messages area */}
+      {/* Messages area — plain div, body handles scrolling */}
       <div
         ref={messagesContainerRef}
         className="px-4 py-3 space-y-2.5"
-        style={{ flex: '1 1 0%', minHeight: 0, backgroundColor: surfaceLow, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}
+        style={{ backgroundColor: surfaceLow }}
         data-testid="messages-container"
       >
         {/* AI Memory Card — "She remembers..." */}
@@ -969,13 +969,13 @@ const ChatPage = ({ user }) => {
 
       {/* Game Overlay */}
       {showGameMenu && (
-        <div className="absolute inset-0 z-[60] bg-black/40 flex items-center justify-center p-4" data-testid="game-overlay">
+        <div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4" data-testid="game-overlay">
           <PlayWithMatch matchId={matchId} userId={user.id} otherUserName={otherUser?.name || 'Match'} onClose={() => setShowGameMenu(false)} />
         </div>
       )}
 
-      {/* Input area */}
-      <div className="flex-shrink-0 z-50" style={{ paddingBottom: 'max(var(--safe-bottom, 8px), env(safe-area-inset-bottom, 0px), 8px)', backgroundColor: surfaceLowest, borderTop: '1px solid var(--m3-outline-variant)' }}>
+      {/* Input area — fixed at bottom like a native chat app */}
+      <div className="fixed bottom-0 left-0 right-0 z-50" style={{ paddingBottom: 'max(var(--safe-bottom, 8px), env(safe-area-inset-bottom, 0px), 8px)', backgroundColor: surfaceLowest, borderTop: '1px solid var(--m3-outline-variant)' }}>
         {nudgeData && (
           <div className="px-3 pt-2.5 pb-1" data-testid="smart-nudge-banner">
             <div className="rounded-2xl p-3 relative" style={{ background: 'linear-gradient(135deg, rgba(214,51,108,0.08), rgba(139,92,246,0.08))', border: '1px solid rgba(214,51,108,0.15)' }}>
