@@ -27,6 +27,7 @@
     }
   },
   "server": {
+    "url": "https://trust-based-deploy.preview.emergentagent.com",
     "androidScheme": "https",
     "cleartext": true,
     "allowNavigation": [
