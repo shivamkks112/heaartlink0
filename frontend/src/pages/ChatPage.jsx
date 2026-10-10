@@ -588,6 +588,16 @@ const ChatPage = ({ user }) => {
     }
   };
 
+  // Use window.innerHeight instead of CSS viewport units (100dvh/100vh may not work in all WebViews)
+  const [viewportH, setViewportH] = useState(typeof window !== 'undefined' ? window.innerHeight : 800);
+  useEffect(() => {
+    const onResize = () => setViewportH(window.innerHeight);
+    window.addEventListener('resize', onResize);
+    // Also listen for Capacitor keyboard show/hide which changes viewport
+    onResize();
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
   const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
   const surfaceLow = isDark ? '#221A1D' : '#FFF0F3';
   const surfaceLowest = isDark ? '#140D0F' : '#FFFFFF';
@@ -631,9 +641,9 @@ const ChatPage = ({ user }) => {
   }
 
   return (
-    <div className="flex flex-col" style={{ height: '100dvh', overflow: 'hidden', backgroundColor: '#f5f5f5', paddingTop: 'var(--safe-top, 24px)' }}>
-      {/* Bounded flex column: header + input are fixed-size rows, only the message list scrolls */}
-      <div className="bg-white shadow-md px-4 py-4 flex-shrink-0 z-40">
+    <div id="chat-root" className="flex flex-col" style={{ height: `${viewportH}px`, overflow: 'hidden', backgroundColor: '#f5f5f5' }}>
+      {/* Header — flex-shrink: 0 */}
+      <div className="bg-white shadow-md px-4 py-3 flex-shrink-0 z-40" style={{ paddingTop: 'var(--safe-top, 0px)' }}>
         <div className="flex items-center gap-3">
           <button onClick={() => navigate('/matches')} className="p-2 rounded-full">
             <svg className="w-5 h-5 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
@@ -642,11 +652,12 @@ const ChatPage = ({ user }) => {
         </div>
       </div>
 
-      {/* Messages — the single scroll container (min-height: 0 lets it shrink and scroll) */}
+      {/* Messages — the only scrollable element */}
       <div
         ref={messagesContainerRef}
         className="px-4 py-3 space-y-3"
-        style={{ flex: '1 1 0', minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch', overscrollBehaviorY: 'contain' }}
+        style={{ flex: '1 1 0%', minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}
+        data-testid="messages-container"
       >
         {messages.map((msg, i) => {
           const isOwn = msg.sender_id === user.id;
