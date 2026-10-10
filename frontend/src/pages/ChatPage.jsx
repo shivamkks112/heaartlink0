@@ -63,6 +63,7 @@ const ChatPage = ({ user }) => {
     } catch { return false; }
   });
   const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const typingHideTimerRef = useRef(null);
   const pendingWsMessages = useRef(new Map()); // Track WS messages awaiting echo
@@ -201,7 +202,7 @@ const ChatPage = ({ user }) => {
         if (cachedMsgs && cachedMsgs.length > 0) {
           setMessages(cachedMsgs);
           setLoading(false);
-          setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'auto' }), 50);
+          setTimeout(() => { if (messagesContainerRef.current) messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight; }, 50);
         }
 
         const [msgRes, privRes] = await Promise.allSettled([
@@ -217,7 +218,7 @@ const ChatPage = ({ user }) => {
               (msgs.length > 0 && cachedMsgs.length > 0 && msgs[msgs.length - 1]?.id !== cachedMsgs[cachedMsgs.length - 1]?.id);
             if (hasNewMessages) {
               setMessages(msgs);
-              setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'auto' }), 80);
+              setTimeout(() => { if (messagesContainerRef.current) messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight; }, 80);
             }
             cacheChatMessages(matchId, msgs);
             setPageData('chat', { messages: msgs, otherUser: match?.user }, matchId);
@@ -377,14 +378,12 @@ const ChatPage = ({ user }) => {
     }
   };
 
-  // Scroll to bottom only on initial load — NOT on every message change
-  // (smooth scrollIntoView locks touch scroll in Android WebView during animation)
+  // Scroll to bottom only on initial load using scrollTop (NOT scrollIntoView — it freezes WebView)
   const hasScrolledInitial = useRef(false);
   useEffect(() => {
     if (messages.length > 0 && !hasScrolledInitial.current) {
       hasScrolledInitial.current = true;
-      // Use instant scroll, not smooth (smooth blocks touch in WebView)
-      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'auto' }), 100);
+      setTimeout(() => { if (messagesContainerRef.current) messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight; }, 100);
     }
   }, [messages]);
 
@@ -727,6 +726,7 @@ const ChatPage = ({ user }) => {
 
       {/* Messages area */}
       <div
+        ref={messagesContainerRef}
         className="px-4 py-3 space-y-2.5"
         style={{ flex: '1 1 0%', minHeight: 0, backgroundColor: surfaceLow, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}
         data-testid="messages-container"
