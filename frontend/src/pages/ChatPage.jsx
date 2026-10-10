@@ -585,7 +585,7 @@ const ChatPage = ({ user }) => {
 
   if (loading) {
     return (
-      <div style={{ width: '100%', height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', backgroundColor: surfaceLow }}>
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', backgroundColor: surfaceLow }}>
         <div className="flex-shrink-0 bg-gradient-to-r from-pink-500 via-rose-500 to-orange-500 shadow-lg" style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 24px)' }}>
           <div className="max-w-2xl mx-auto px-2 py-2.5">
             <div className="flex items-center gap-2">
@@ -606,7 +606,7 @@ const ChatPage = ({ user }) => {
 
   if (error) {
     return (
-      <div style={{ width: '100%', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: surfaceLow, padding: '0 32px' }}>
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: surfaceLow, padding: '0 32px' }}>
         <div className="text-center">
           <HeartIcon className="w-12 h-12 mx-auto mb-4" style={{ color: '#D6336C' }} />
           <p className="text-base font-semibold mb-6" style={{ color: isDark ? '#F0DEE1' : '#1F1A1C' }}>{error}</p>
@@ -623,7 +623,7 @@ const ChatPage = ({ user }) => {
   }
 
   return (
-    <div style={{ width: '100%', height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'clip', backgroundColor: surfaceLow }}>
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', backgroundColor: surfaceLow }}>
       <Toaster position="top-center" />
       
       {/* Header */}
@@ -853,13 +853,6 @@ const ChatPage = ({ user }) => {
                             setShowDeleteModal(msg.id);
                           }
                         }}
-                        onTouchStart={(e) => {
-                          if (!isOwn || msg.is_deleted_for_all || msg._temp) return;
-                          const timer = setTimeout(() => setShowDeleteModal(msg.id), 500);
-                          e.currentTarget._longPressTimer = timer;
-                        }}
-                        onTouchEnd={(e) => clearTimeout(e.currentTarget._longPressTimer)}
-                        onTouchMove={(e) => clearTimeout(e.currentTarget._longPressTimer)}
                       >
                         {msg.personal_info_detected && (
                           <div className="flex items-center gap-1 text-xs mb-1" style={{ color: isOwn ? 'rgba(255,255,255,0.7)' : 'var(--m3-outline)' }}>
