@@ -720,8 +720,8 @@ const ChatPage = ({ user }) => {
 
       {/* Messages area */}
       <div
-        className="overflow-y-auto px-4 py-3 space-y-2.5"
-        style={{ flex: '1 1 0%', minHeight: 0, backgroundColor: surfaceLow, WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', overscrollBehavior: 'contain' }}
+        className="px-4 py-3 space-y-2.5"
+        style={{ flex: '1 1 0%', minHeight: 0, backgroundColor: surfaceLow, overflowY: 'scroll', WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', overscrollBehavior: 'contain' }}
         data-testid="messages-container"
       >
         {/* AI Memory Card — "She remembers..." */}
