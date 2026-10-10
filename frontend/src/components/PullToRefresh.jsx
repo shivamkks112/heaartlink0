@@ -1,6 +1,9 @@
 import { useState, useRef, useCallback } from 'react';
 import { haptic } from '@/utils/haptics';
 
+// The page (not this wrapper) scrolls, so check the page's scroll position
+const pageScrollTop = () => window.scrollY || document.documentElement.scrollTop || 0;
+
 /**
  * PullToRefresh — Native-feel pull-down refresh
  * Usage: <PullToRefresh onRefresh={async () => fetchData()}>...children...</PullToRefresh>
@@ -14,7 +17,7 @@ const PullToRefresh = ({ onRefresh, children, className = '' }) => {
   const threshold = 80;
 
   const onTouchStart = useCallback((e) => {
-    if (containerRef.current?.scrollTop > 5) return;
+    if (pageScrollTop() > 5) return;
     startY.current = e.touches[0].clientY;
     setPulling(true);
   }, []);
@@ -22,7 +25,7 @@ const PullToRefresh = ({ onRefresh, children, className = '' }) => {
   const onTouchMove = useCallback((e) => {
     if (!pulling || refreshing) return;
     const dy = e.touches[0].clientY - startY.current;
-    if (dy > 0 && containerRef.current?.scrollTop <= 0) {
+    if (dy > 0 && pageScrollTop() <= 0) {
       const dist = Math.min(dy * 0.5, 120);
       setPullDistance(dist);
       if (dist >= threshold) haptic.light();
@@ -44,11 +47,10 @@ const PullToRefresh = ({ onRefresh, children, className = '' }) => {
   return (
     <div
       ref={containerRef}
-      className={`relative overflow-y-auto ${className}`}
+      className={`relative ${className}`}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
-      style={{ WebkitOverflowScrolling: 'touch' }}
     >
       {/* Pull indicator */}
       <div
