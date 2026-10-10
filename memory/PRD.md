@@ -30,7 +30,7 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 - 56+ cities with vibes database
 
 ## Completed (Recent)
-- [x] **Global Scroll Freeze Fix v2** — Removed `user-select: none` from body (moved to element-level), changed html `overscroll-behavior-y` from `none` to `contain`, added `overflow-y: scroll !important` + `touch-action: pan-y pan-x` on html/body, removed `position: relative` from body, removed `overflow-x: hidden` from #root. ChatPage messages container forced to `overflow-y: scroll`. (2026-10-10)
+- [x] **Scroll Freeze Fix v3 — Architecture Change** — LikesYouPage, MatchesPage converted from body-scroll (`min-h-screen`) to self-contained flex-column containers with internal `overflow-y: auto/scroll` + `touch-action: pan-y` scroll areas (same pattern as DiscoverPage). Service Worker cache bumped v2→v3, static asset strategy changed to Network-first. Root cause: Capacitor WebView doesn't reliably support body scroll; internal scroll containers are the reliable pattern. (2026-10-10)
 - [x] **App Audit P0** — Scroll fixes (PremiumPage + UserProfilePage bottom padding), Feedback system (5 categories + rate limit + admin view), Analytics events (premium_page_view, purchase_started/success/cancelled, restore_purchases), AdMob frequency cap (5-min cooldown, 3/session max), Double-tap purchase prevention (2026-10-10)
 - [x] **Photo Moderation** — Auto-check AI photos via Gemini vision before adding (2026-10-08)
 - [x] **AI Photo Batch Generation** — Multi-angle realistic photos for ALL 76 profiles, emergentintegrations v0.2.2 (2026-10-08)

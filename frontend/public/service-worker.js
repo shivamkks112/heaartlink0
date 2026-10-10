@@ -1,7 +1,7 @@
 /* eslint-disable no-undef */
 /* global importScripts, firebase, clients */
-const CACHE_NAME = 'heartlink-v2';
-const STATIC_CACHE = 'heartlink-static-v2';
+const CACHE_NAME = 'heartlink-v3';
+const STATIC_CACHE = 'heartlink-static-v3';
 const API_CACHE = 'heartlink-api-v1';
 
 // Files to cache on install
@@ -70,7 +70,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets - Cache first, fallback to network
+  // Static assets - Network first, fallback to cache (ensures new deploys are picked up)
   if (
     url.pathname.startsWith('/static/') ||
     url.pathname.endsWith('.js') ||
@@ -81,16 +81,13 @@ self.addEventListener('fetch', (event) => {
     url.pathname.endsWith('.woff2')
   ) {
     event.respondWith(
-      caches.match(event.request).then((cached) => {
-        if (cached) return cached;
-        return fetch(event.request).then((response) => {
-          if (response.ok) {
-            const clone = response.clone();
-            caches.open(STATIC_CACHE).then((cache) => cache.put(event.request, clone));
-          }
-          return response;
-        });
-      })
+      fetch(event.request).then((response) => {
+        if (response.ok) {
+          const clone = response.clone();
+          caches.open(STATIC_CACHE).then((cache) => cache.put(event.request, clone));
+        }
+        return response;
+      }).catch(() => caches.match(event.request))
     );
     return;
   }
