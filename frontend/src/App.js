@@ -275,9 +275,6 @@ function App() {
     
     // Mark as loaded
     setLoading(false);
-
-    // Prevent pull-to-refresh on mobile
-    document.body.style.overscrollBehavior = 'none';
     
     // Setup foreground message listener only if user exists
     let unsubscribe = null;

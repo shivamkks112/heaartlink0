@@ -9,10 +9,8 @@ body {
         "Helvetica Neue", sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    /* Native app feel */
+    /* Native app feel — touch-action on body removed to fix Capacitor WebView scroll freeze */
     -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
-    overscroll-behavior: none;
     -webkit-overflow-scrolling: touch;
     user-select: none;
     -webkit-user-select: none;
@@ -44,9 +42,9 @@ button, a, [role="button"], [onclick] {
     backface-visibility: hidden;
 }
 
-/* Prevent pull-to-refresh in Android WebView */
+/* Prevent pull-to-refresh in Android WebView — only on html, NOT body */
 html {
-    overscroll-behavior: none;
+    overscroll-behavior-y: none;
 }
 
 code {

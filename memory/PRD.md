@@ -30,6 +30,7 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 - 56+ cities with vibes database
 
 ## Completed (Recent)
+- [x] **Global Scroll Freeze Fix** — Removed `touch-action: manipulation` and `overscroll-behavior: none` from body in index.css, cleaned App.css overscroll rules, removed JS override in App.js. Root cause: Capacitor WebView blocked vertical scrolling when body had these CSS properties. Pull-to-refresh still prevented via html-only `overscroll-behavior-y: none`. (2026-10-10)
 - [x] **App Audit P0** — Scroll fixes (PremiumPage + UserProfilePage bottom padding), Feedback system (5 categories + rate limit + admin view), Analytics events (premium_page_view, purchase_started/success/cancelled, restore_purchases), AdMob frequency cap (5-min cooldown, 3/session max), Double-tap purchase prevention (2026-10-10)
 - [x] **Photo Moderation** — Auto-check AI photos via Gemini vision before adding (2026-10-08)
 - [x] **AI Photo Batch Generation** — Multi-angle realistic photos for ALL 76 profiles, emergentintegrations v0.2.2 (2026-10-08)
