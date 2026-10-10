@@ -202,7 +202,7 @@ const ChatPage = ({ user }) => {
         if (cachedMsgs && cachedMsgs.length > 0) {
           setMessages(cachedMsgs);
           setLoading(false);
-          // Auto-scroll disabled for WebView testing
+          requestAnimationFrame(() => { if (messagesContainerRef.current) messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight; });
         }
 
         const [msgRes, privRes] = await Promise.allSettled([
@@ -218,7 +218,7 @@ const ChatPage = ({ user }) => {
               (msgs.length > 0 && cachedMsgs.length > 0 && msgs[msgs.length - 1]?.id !== cachedMsgs[cachedMsgs.length - 1]?.id);
             if (hasNewMessages) {
               setMessages(msgs);
-              // Auto-scroll disabled for WebView testing
+              requestAnimationFrame(() => { if (messagesContainerRef.current) messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight; });
             }
             cacheChatMessages(matchId, msgs);
             setPageData('chat', { messages: msgs, otherUser: match?.user }, matchId);
@@ -378,8 +378,17 @@ const ChatPage = ({ user }) => {
     }
   };
 
-  // DISABLED: All auto-scroll removed to test if JS was blocking WebView touch scroll
+  // Auto-scroll the message list (the only scroller) to the newest message
   const hasScrolledInitial = useRef(false);
+  useEffect(() => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 150;
+    if (!hasScrolledInitial.current || nearBottom) {
+      requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; });
+      if (messages.length > 0) hasScrolledInitial.current = true;
+    }
+  }, [messages.length, loading]);
 
   // Online Status Helper
   const getOnlineStatusInfo = (isOnline, lastActive) => {
@@ -622,9 +631,9 @@ const ChatPage = ({ user }) => {
   }
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#f5f5f5', paddingTop: 'calc(var(--safe-top, 24px) + 60px)', paddingBottom: 'calc(var(--nav-total, 86px) + 16px)' }}>
-      {/* SCROLL TEST: Exact same pattern as Settings page */}
-      <div className="bg-white shadow-md px-4 py-4 sticky top-16 z-40">
+    <div className="flex flex-col" style={{ height: '100dvh', overflow: 'hidden', backgroundColor: '#f5f5f5', paddingTop: 'var(--safe-top, 24px)' }}>
+      {/* Bounded flex column: header + input are fixed-size rows, only the message list scrolls */}
+      <div className="bg-white shadow-md px-4 py-4 flex-shrink-0 z-40">
         <div className="flex items-center gap-3">
           <button onClick={() => navigate('/matches')} className="p-2 rounded-full">
             <svg className="w-5 h-5 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
@@ -633,8 +642,12 @@ const ChatPage = ({ user }) => {
         </div>
       </div>
 
-      {/* Messages rendered as simple divs — NO overflow, NO flex, NO position:fixed */}
-      <div className="px-4 py-3 space-y-3">
+      {/* Messages — the single scroll container (min-height: 0 lets it shrink and scroll) */}
+      <div
+        ref={messagesContainerRef}
+        className="px-4 py-3 space-y-3"
+        style={{ flex: '1 1 0', minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch', overscrollBehaviorY: 'contain' }}
+      >
         {messages.map((msg, i) => {
           const isOwn = msg.sender_id === user.id;
           return (
@@ -657,28 +670,6 @@ const ChatPage = ({ user }) => {
         )}
       </div>
 
-      {/* Input — fixed at bottom */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50" style={{ paddingBottom: 'env(safe-area-inset-bottom, 8px)' }}>
-        <div className="flex items-center gap-2 px-3 py-2">
-          <input
-            type="text"
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
-            placeholder="Type a message..."
-            className="flex-1 py-2.5 px-4 rounded-full bg-gray-100 text-sm outline-none"
-            data-testid="chat-input"
-          />
-          <button
-            onClick={sendMessage}
-            disabled={!newMessage.trim()}
-            className="p-2.5 rounded-full bg-pink-500 text-white disabled:opacity-40"
-            data-testid="send-btn"
-          >
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-          </button>
-        </div>
-      </div>
       {/* Delete Message Modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">
@@ -708,8 +699,8 @@ const ChatPage = ({ user }) => {
         </div>
       )}
 
-      {/* Input area — fixed at bottom like a native chat app */}
-      <div className="fixed bottom-0 left-0 right-0 z-50" style={{ paddingBottom: 'max(var(--safe-bottom, 8px), env(safe-area-inset-bottom, 0px), 8px)', backgroundColor: surfaceLowest, borderTop: '1px solid var(--m3-outline-variant)' }}>
+      {/* Input area — last row of the flex column (not position: fixed) */}
+      <div className="flex-shrink-0 z-50" style={{ paddingBottom: 'max(var(--safe-bottom, 8px), env(safe-area-inset-bottom, 0px), 8px)', backgroundColor: surfaceLowest, borderTop: '1px solid var(--m3-outline-variant)' }}>
         {nudgeData && (
           <div className="px-3 pt-2.5 pb-1" data-testid="smart-nudge-banner">
             <div className="rounded-2xl p-3 relative" style={{ background: 'linear-gradient(135deg, rgba(214,51,108,0.08), rgba(139,92,246,0.08))', border: '1px solid rgba(214,51,108,0.15)' }}>
