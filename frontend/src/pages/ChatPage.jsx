@@ -656,7 +656,7 @@ const ChatPage = ({ user }) => {
       <div
         ref={messagesContainerRef}
         className="px-4 py-3 space-y-3"
-        style={{ flex: '1 1 0%', minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}
+        style={{ flex: '1 1 0%', minHeight: 0, overflowY: 'scroll', WebkitOverflowScrolling: 'touch' }}
         data-testid="messages-container"
       >
         {messages.map((msg, i) => {

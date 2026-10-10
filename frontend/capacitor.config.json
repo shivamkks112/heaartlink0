@@ -24,10 +24,12 @@
       "appId": "ca-app-pub-3735972538807236~9004238866",
       "requestTrackingAuthorization": true,
       "initializeForTesting": false
+    },
+    "Keyboard": {
+      "resizeOnFullScreen": true
     }
   },
   "server": {
-    "url": "https://trust-based-deploy.preview.emergentagent.com",
     "androidScheme": "https",
     "cleartext": true,
     "allowNavigation": [

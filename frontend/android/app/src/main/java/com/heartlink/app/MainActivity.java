@@ -48,6 +48,16 @@ public class MainActivity extends BridgeActivity {
         checkPendingNavigation();
         
         Log.d(TAG, "HeartLink started — API " + Build.VERSION.SDK_INT);
+        
+        // Disable native overscroll on WebView after bridge is ready
+        getBridge().getWebView().post(() -> {
+            WebView wv = getBridge().getWebView();
+            if (wv != null) {
+                wv.setOverScrollMode(WebView.OVER_SCROLL_NEVER);
+                wv.setVerticalScrollBarEnabled(true);
+                Log.d(TAG, "WebView overscroll disabled for CSS scroll compatibility");
+            }
+        });
     }
     
     private void initializeAdMob() {
@@ -156,6 +166,14 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onStart() {
         super.onStart();
+        
+        // CRITICAL: Disable native overscroll — it blocks CSS overflow-y scrolling in WebView
+        if (getBridge() != null && getBridge().getWebView() != null) {
+            WebView webview = getBridge().getWebView();
+            webview.setOverScrollMode(WebView.OVER_SCROLL_NEVER);
+            webview.setVerticalScrollBarEnabled(true);
+        }
+        
         checkPendingNavigation();
     }
     
