@@ -130,20 +130,20 @@ function NavigationHelper() {
 }
 
 
-// Double-back-to-exit handler — Android native behavior
+// Back button handler — navigate to Recent tab first, then double-press to exit
 function BackButtonHandler() {
   const location = useLocation();
+  const navigate = useNavigate();
   const lastBackPress = useRef(0);
   const currentPath = useRef(location.pathname);
+  const navigateRef = useRef(navigate);
   
+  const RECENT_TAB = '/matches';
   const MAIN_TABS = ['/discover', '/likes', '/matches', '/profile', '/notifications'];
   
-  // Keep path ref in sync without re-registering listener
-  useEffect(() => {
-    currentPath.current = location.pathname;
-  }, [location.pathname]);
+  useEffect(() => { currentPath.current = location.pathname; }, [location.pathname]);
+  useEffect(() => { navigateRef.current = navigate; }, [navigate]);
   
-  // Register Capacitor back handler ONCE
   useEffect(() => {
     let handle = null;
     let mounted = true;
@@ -154,9 +154,11 @@ function BackButtonHandler() {
         
         handle = await App.addListener('backButton', ({ canGoBack }) => {
           if (!mounted) return;
-          const isMainTab = MAIN_TABS.some(tab => currentPath.current === tab);
+          const path = currentPath.current;
+          const isOnRecent = path === RECENT_TAB;
+          const isMainTab = MAIN_TABS.some(tab => path === tab);
           
-          if (isMainTab) {
+          if (isOnRecent) {
             const now = Date.now();
             if (now - lastBackPress.current < 2000) {
               App.exitApp();
@@ -169,22 +171,20 @@ function BackButtonHandler() {
               setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; }, 1700);
               setTimeout(() => { try { document.body.removeChild(t); } catch {} }, 2100);
             }
+          } else if (isMainTab) {
+            navigateRef.current(RECENT_TAB, { replace: true });
           } else if (canGoBack) {
             window.history.back();
           }
         });
-      } catch {
-        // Not in Capacitor
-      }
+      } catch {}
     })();
     
     return () => {
       mounted = false;
-      if (handle) {
-        try { handle.remove(); } catch {}
-      }
+      if (handle) { try { handle.remove(); } catch {} }
     };
-  }, []); // Empty deps — register ONCE, never re-register
+  }, []);
   
   return null;
 }
