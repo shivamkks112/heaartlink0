@@ -377,8 +377,15 @@ const ChatPage = ({ user }) => {
     }
   };
 
+  // Scroll to bottom only on initial load — NOT on every message change
+  // (smooth scrollIntoView locks touch scroll in Android WebView during animation)
+  const hasScrolledInitial = useRef(false);
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messages.length > 0 && !hasScrolledInitial.current) {
+      hasScrolledInitial.current = true;
+      // Use instant scroll, not smooth (smooth blocks touch in WebView)
+      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'auto' }), 100);
+    }
   }, [messages]);
 
   // Online Status Helper
