@@ -202,7 +202,7 @@ const ChatPage = ({ user }) => {
         if (cachedMsgs && cachedMsgs.length > 0) {
           setMessages(cachedMsgs);
           setLoading(false);
-          setTimeout(() => window.scrollTo(0, document.body.scrollHeight), 50);
+          // Auto-scroll disabled for WebView testing
         }
 
         const [msgRes, privRes] = await Promise.allSettled([
@@ -218,7 +218,7 @@ const ChatPage = ({ user }) => {
               (msgs.length > 0 && cachedMsgs.length > 0 && msgs[msgs.length - 1]?.id !== cachedMsgs[cachedMsgs.length - 1]?.id);
             if (hasNewMessages) {
               setMessages(msgs);
-              setTimeout(() => window.scrollTo(0, document.body.scrollHeight), 80);
+              // Auto-scroll disabled for WebView testing
             }
             cacheChatMessages(matchId, msgs);
             setPageData('chat', { messages: msgs, otherUser: match?.user }, matchId);
@@ -378,14 +378,8 @@ const ChatPage = ({ user }) => {
     }
   };
 
-  // Scroll to bottom only on initial load using scrollTop (NOT scrollIntoView — it freezes WebView)
+  // DISABLED: All auto-scroll removed to test if JS was blocking WebView touch scroll
   const hasScrolledInitial = useRef(false);
-  useEffect(() => {
-    if (messages.length > 0 && !hasScrolledInitial.current) {
-      hasScrolledInitial.current = true;
-      setTimeout(() => window.scrollTo(0, document.body.scrollHeight), 100);
-    }
-  }, [messages]);
 
   // Online Status Helper
   const getOnlineStatusInfo = (isOnline, lastActive) => {
@@ -591,8 +585,8 @@ const ChatPage = ({ user }) => {
 
   if (loading) {
     return (
-      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', backgroundColor: surfaceLow }}>
-        <div className="flex-shrink-0 bg-gradient-to-r from-pink-500 via-rose-500 to-orange-500 shadow-lg" style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 24px)' }}>
+      <div className="min-h-screen" style={{ backgroundColor: surfaceLow }}>
+        <div className="bg-gradient-to-r from-pink-500 via-rose-500 to-orange-500 shadow-lg" style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 24px)' }}>
           <div className="max-w-2xl mx-auto px-2 py-2.5">
             <div className="flex items-center gap-2">
               <button onClick={() => navigate('/matches')} className="p-3 rounded-full" style={{ minWidth: '44px', minHeight: '44px' }}>
@@ -605,14 +599,13 @@ const ChatPage = ({ user }) => {
             </div>
           </div>
         </div>
-        <div style={{ flex: 1 }} />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: surfaceLow, padding: '0 32px' }}>
+      <div className="min-h-screen flex items-center justify-center px-8" style={{ backgroundColor: surfaceLow }}>
         <div className="text-center">
           <HeartIcon className="w-12 h-12 mx-auto mb-4" style={{ color: '#D6336C' }} />
           <p className="text-base font-semibold mb-6" style={{ color: isDark ? '#F0DEE1' : '#1F1A1C' }}>{error}</p>
@@ -629,322 +622,63 @@ const ChatPage = ({ user }) => {
   }
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: surfaceLow, paddingBottom: 'calc(var(--safe-bottom, 8px) + 72px)' }}>
-      <Toaster position="top-center" />
-      
-      {/* Header — sticky like Settings page */}
-      <div className="sticky top-0 z-[60] bg-gradient-to-r from-pink-500 via-rose-500 to-orange-500 shadow-lg" style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 24px)' }}>
-        <div className="max-w-2xl mx-auto px-2 py-2.5">
-          <div className="flex items-center justify-between gap-2">
-            <button
-              data-testid="back-btn"
-              onClick={(e) => {
-                e.stopPropagation();
-                navigate('/matches', { state: { tab: fromTab } });
-              }}
-              className="p-3 hover:bg-white/20 rounded-full transition-all backdrop-blur-sm relative z-10 active:scale-95"
-              style={{ minWidth: '44px', minHeight: '44px' }}
-            >
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-            
-            {otherUser && (
-              <button
-                onClick={() => navigate(`/profile/${otherUser.id}`)}
-                className="flex-1 flex items-center gap-2 hover:bg-white/10 rounded-xl px-2 py-1.5 transition-all min-w-0"
-              >
-                <div className="relative flex-shrink-0">
-                  <div className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white font-bold border-2 border-white/30 overflow-hidden">
-                    {otherUser.profile_picture ? (
-                      <img src={otherUser.profile_picture} alt={otherUser.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-sm">{otherUser.name.charAt(0)}</span>
-                    )}
-                  </div>
-                  {(() => {
-                    const statusInfo = getOnlineStatusInfo(otherUser.is_online, otherUser.last_active);
-                    return <div className={`absolute bottom-0 right-0 w-2.5 h-2.5 ${statusInfo.color} border-2 border-white rounded-full ${statusInfo.pulse ? 'animate-pulse' : ''}`}></div>;
-                  })()}
-                </div>
-                <div className="text-left min-w-0 flex-1">
-                  <h1 className="text-sm font-bold text-white truncate">{otherUser.name}</h1>
-                  <div className="flex items-center gap-1.5">
-                    {(() => {
-                      const statusInfo = getOnlineStatusInfo(otherUser.is_online, otherUser.last_active);
-                      return (
-                        <span className={`text-xs ${statusInfo.textColor} flex items-center gap-1`}>
-                          <div className={`w-1.5 h-1.5 ${statusInfo.color} rounded-full ${statusInfo.pulse ? 'animate-pulse' : ''}`}></div>
-                          <span className="truncate">{statusInfo.label}</span>
-                        </span>
-                      );
-                    })()}
-                    {otherUser.verified && (
-                      <span className="flex-shrink-0 w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center">
-                        <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
-                        </svg>
-                      </span>
-                    )}
-                    {otherUser.is_premium && (
-                      <span className="flex-shrink-0 w-4 h-4 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
-                        <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5z"/></svg>
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </button>
-            )}
-            
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="p-2 hover:bg-white/20 rounded-full transition-all backdrop-blur-sm flex-shrink-0" title="More options">
-                  <MoreVertical className="w-5 h-5 text-white" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                {aiMemory && aiMemory.length > 0 && (
-                  <DropdownMenuItem onClick={() => setShowMemory(!showMemory)} className="cursor-pointer text-purple-600">
-                    <Brain className="w-4 h-4 mr-2" />She remembers...
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuItem onClick={handleMute} className="cursor-pointer">
-                  {isMuted ? (<><Bell className="w-4 h-4 mr-2" />Unmute Notifications</>) : (<><BellOff className="w-4 h-4 mr-2" />Mute Notifications</>)}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleBlock} className="cursor-pointer text-red-600">
-                  <Shield className="w-4 h-4 mr-2" />Block User
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleReport} className="cursor-pointer text-orange-600">
-                  <Flag className="w-4 h-4 mr-2" />Report User
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+    <div className="min-h-screen" style={{ backgroundColor: '#f5f5f5', paddingTop: 'calc(var(--safe-top, 24px) + 60px)', paddingBottom: 'calc(var(--nav-total, 86px) + 16px)' }}>
+      {/* SCROLL TEST: Exact same pattern as Settings page */}
+      <div className="bg-white shadow-md px-4 py-4 sticky top-16 z-40">
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate('/matches')} className="p-2 rounded-full">
+            <svg className="w-5 h-5 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+          </button>
+          <h1 className="text-lg font-bold text-gray-800">Chat with {otherUser?.name || 'User'}</h1>
         </div>
       </div>
 
-      {/* Messages area — plain div, body handles scrolling */}
-      <div
-        ref={messagesContainerRef}
-        className="px-4 py-3 space-y-2.5"
-        style={{ backgroundColor: surfaceLow }}
-        data-testid="messages-container"
-      >
-        {/* AI Memory Card — "She remembers..." */}
-        {showMemory && aiMemory && aiMemory.length > 0 && (
-          <div className="mb-3 rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(135deg, #7C3AED15, #EC489915)' }} data-testid="ai-memory-card">
-            <div className="px-4 py-3">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <Brain className="w-4 h-4 text-purple-500" />
-                  <span className="text-xs font-bold text-purple-700">{otherUser?.name?.split(' ')[0]} remembers...</span>
+      {/* Messages rendered as simple divs — NO overflow, NO flex, NO position:fixed */}
+      <div className="px-4 py-3 space-y-3">
+        {messages.map((msg, i) => {
+          const isOwn = msg.sender_id === user.id;
+          return (
+            <div key={msg.id || i} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm ${
+                isOwn ? 'bg-pink-500 text-white' : 'bg-white text-gray-800 shadow-sm'
+              }`} style={{ wordBreak: 'break-word' }}>
+                {msg.is_deleted_for_all ? <i className="opacity-50">Message deleted</i> : msg.content}
+                <div className={`text-[10px] mt-1 ${isOwn ? 'text-white/60' : 'text-gray-400'}`}>
+                  {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) : ''}
                 </div>
-                <button onClick={() => setShowMemory(false)} className="text-gray-400 p-1">
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-              <div className="space-y-1">
-                {aiMemory.map((fact, i) => (
-                  <p key={i} className="text-xs text-gray-600 pl-2 border-l-2 border-purple-200">{fact}</p>
-                ))}
               </div>
             </div>
+          );
+        })}
+        {messages.length === 0 && (
+          <div className="text-center py-12">
+            <p className="text-gray-500">Say hi to start the conversation!</p>
           </div>
         )}
-        {messages.length === 0 ? (
-          <div className="text-center py-8 px-4" data-testid="icebreakers-section">
-            <p style={{ color: 'var(--m3-on-surface-variant)' }} className="text-sm mb-5 font-medium">Start the conversation!</p>
-            <div className="space-y-2.5 max-w-xs mx-auto">
-              {[
-                "What's your dream travel destination? \u2708\uFE0F",
-                "Coffee or tea? \u2615",
-                "What's your perfect weekend?",
-                "What's one thing that always makes you smile?",
-                "Beach or mountains?",
-                "What's the best show you've binged recently?",
-              ].map((icebreaker, i) => (
-                <button
-                  key={i}
-                  data-testid={`icebreaker-${i}`}
-                  onClick={() => setNewMessage(icebreaker)}
-                  className="w-full text-left px-4 py-3 rounded-2xl text-sm transition-all active:scale-[0.98]"
-                  style={{
-                    background: 'var(--m3-surface-container)',
-                    color: 'var(--m3-on-surface)',
-                    border: '1px solid var(--m3-outline-variant)',
-                  }}
-                >
-                  {icebreaker}
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : (
-          messages.map((msg, idx) => {
-            const isOwn = msg.sender_id === user.id;
-            const isSystem = msg.sender_id === 'system' || msg.message_type === 'system_warning';
-            const showAvatar = !isOwn && !isSystem && (idx === 0 || messages[idx - 1]?.sender_id !== msg.sender_id);
-
-            return (
-              <div
-                key={msg.id || `temp-${idx}`}
-                className={`flex ${isSystem ? 'justify-center' : isOwn ? 'justify-end' : 'justify-start'}`}
-              >
-                {isSystem ? (
-                  msg.message_type === 'system_warning' ? (
-                    <div className="max-w-[90%] px-4 py-3 bg-red-50 border-2 border-red-300 rounded-xl text-center" data-testid="chat-warning-bubble">
-                      <div className="flex items-center justify-center gap-2 mb-1">
-                        <AlertTriangle className="w-4 h-4 text-red-600" />
-                        <span className="text-xs font-bold text-red-700 uppercase">Safety Warning {msg.warning_level ? `${msg.warning_level}/3` : ''}</span>
-                      </div>
-                      <p className="text-sm text-red-800 font-medium">{msg.content}</p>
-                    </div>
-                  ) : (
-                    <div className="max-w-[85%] px-4 py-2 bg-yellow-100 border border-yellow-300 rounded-xl text-center">
-                      <p className="text-sm text-yellow-800 flex items-center justify-center gap-2">
-                        <AlertTriangle className="w-4 h-4" />
-                        {msg.content}
-                      </p>
-                    </div>
-                  )
-                ) : msg.message_type === 'game_invite' ? (
-                  <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
-                    <GameInviteBubble
-                      gameId={msg.content?.match(/__GAME_INVITE__(.+?)__/)?.[1] || ''}
-                      gameType={msg.content?.match(/__GAME_INVITE__.+?__(.+?)__/)?.[1] || 'match_quiz'}
-                      isOwn={isOwn}
-                      userId={user.id}
-                      otherUserName={otherUser?.name || 'Match'}
-                      onAccept={(gId, questions) => { setShowGameMenu(true); }}
-                    />
-                  </div>
-                ) : (
-                  <div className={`flex items-end gap-1.5 ${isOwn ? 'flex-row-reverse' : ''}`} style={{ maxWidth: '80%' }}>
-                    {!isOwn && (
-                      <div className="flex-shrink-0 w-7 h-7">
-                        {showAvatar && otherUser ? (
-                          <div className="w-7 h-7 rounded-full overflow-hidden bg-pink-100 border border-pink-200">
-                            {otherUser.profile_picture ? (
-                              <img src={otherUser.profile_picture} alt="" className="w-full h-full object-cover" loading="lazy" />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-pink-600 text-xs font-bold">
-                                {otherUser.name?.charAt(0)}
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="w-7 h-7" />
-                        )}
-                      </div>
-                    )}
-
-                    <div className="relative group">
-                      <div
-                        className={`min-w-[60px] px-3.5 py-2 rounded-2xl ${
-                          msg.is_deleted_for_all ? 'italic' : isOwn ? 'text-white rounded-br-sm' : 'rounded-bl-sm'
-                        }`}
-                        style={{
-                          wordBreak: 'break-word', overflowWrap: 'break-word',
-                          ...(msg.is_deleted_for_all
-                            ? { background: 'var(--m3-surface-container-high)', color: 'var(--m3-outline)' }
-                            : isOwn
-                            ? { background: 'linear-gradient(135deg, #D6336C 0%, #E8590C 100%)' }
-                            : { background: 'var(--m3-surface-container)', boxShadow: 'var(--m3-elevation-1)', color: 'var(--m3-on-surface)' }
-                          ),
-                        }}
-                        onDoubleClick={() => !msg.is_deleted_for_all && handleReaction(msg.id, 'heart')}
-                        onContextMenu={(e) => {
-                          if (isOwn && !msg.is_deleted_for_all && !msg._temp) {
-                            e.preventDefault();
-                            setShowDeleteModal(msg.id);
-                          }
-                        }}
-                      >
-                        {msg.personal_info_detected && (
-                          <div className="flex items-center gap-1 text-xs mb-1" style={{ color: isOwn ? 'rgba(255,255,255,0.7)' : 'var(--m3-outline)' }}>
-                            <Shield className="w-3 h-3" /><span>Protected</span>
-                          </div>
-                        )}
-                        
-                        <p className="text-sm whitespace-pre-wrap" style={{ wordBreak: 'break-word' }}>
-                          {msg.message_type === 'image' || msg.content?.startsWith('[image:') ? (
-                            <img
-                              src={`${API}/chat/image/${msg.content.replace('[image:', '').replace(']', '')}`}
-                              alt="Photo"
-                              className="rounded-xl max-w-[240px] max-h-[300px] object-cover cursor-pointer"
-                              loading="lazy"
-                              onClick={() => window.open(`${API}/chat/image/${msg.content.replace('[image:', '').replace(']', '')}`, '_blank')}
-                              data-testid="chat-image"
-                            />
-                          ) : msg.content}
-                        </p>
-                        
-                        <div className="flex items-center justify-end gap-1 mt-0.5">
-                          <p className="text-[10px]" style={{ color: isOwn ? 'rgba(255,255,255,0.7)' : 'var(--m3-outline)' }}>
-                            {new Date(msg.created_at || msg.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-                          </p>
-                          {msg.expires_at && <Clock className={`w-3 h-3 ${isOwn ? 'text-white/60' : 'text-gray-400'}`} />}
-                          {isOwn && !msg.is_deleted_for_all && !msg._temp && (
-                            msg.read ? (
-                              <CheckCheck className="w-3.5 h-3.5 text-blue-400" />
-                            ) : msg.delivered ? (
-                              <CheckCheck className="w-3.5 h-3.5 text-white/50" />
-                            ) : (
-                              <Check className="w-3.5 h-3.5 text-white/50" />
-                            )
-                          )}
-                          {isOwn && msg._temp && (
-                            <Clock className="w-3 h-3 text-white/40" />
-                          )}
-                        </div>
-                      </div>
-
-                      {msg.reactions && Object.keys(msg.reactions).length > 0 && (
-                        <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'} -mt-2 ${isOwn ? 'mr-1' : 'ml-1'}`}>
-                          <div className="shadow-sm rounded-full px-1.5 py-0.5 flex gap-0.5" style={{ background: 'var(--m3-surface-container-lowest)', border: '1px solid var(--m3-outline-variant)' }}>
-                            {Object.values(msg.reactions).map((r, i) => (
-                              <span key={i} className="text-xs">
-                                {r === 'heart' ? '\u2764\uFE0F' : r === 'laugh' ? '\uD83D\uDE02' : r === 'thumbsup' ? '\uD83D\uDC4D' : r === 'sad' ? '\uD83D\uDE22' : '\uD83D\uDE20'}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      
-                      {isOwn && !msg.is_deleted_for_all && (
-                        <button
-                          onClick={() => setShowDeleteModal(msg.id)}
-                          className="absolute -left-8 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity p-1.5 rounded-full shadow-md hover:bg-red-50 active:bg-red-50 touch-manipulation"
-                          style={{ background: 'var(--m3-surface-container-lowest)' }}
-                          data-testid={`delete-msg-${msg.id}`}
-                        >
-                          <Trash2 className="w-4 h-4 text-red-500" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })
-        )}
-        
-        {otherUserTyping && (
-          <div className="flex justify-start">
-            <div className="px-4 py-3 rounded-3xl" style={{ background: 'var(--m3-surface-container)', boxShadow: 'var(--m3-elevation-1)' }}>
-              <div className="flex space-x-1">
-                <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: 'var(--m3-outline)', animationDelay: '0ms' }}></div>
-                <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: 'var(--m3-outline)', animationDelay: '150ms' }}></div>
-                <div className="w-2 h-2 rounded-full animate-bounce" style={{ background: 'var(--m3-outline)', animationDelay: '300ms' }}></div>
-              </div>
-            </div>
-          </div>
-        )}
-        
-        <div ref={messagesEndRef} />
       </div>
 
+      {/* Input — fixed at bottom */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50" style={{ paddingBottom: 'env(safe-area-inset-bottom, 8px)' }}>
+        <div className="flex items-center gap-2 px-3 py-2">
+          <input
+            type="text"
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
+            placeholder="Type a message..."
+            className="flex-1 py-2.5 px-4 rounded-full bg-gray-100 text-sm outline-none"
+            data-testid="chat-input"
+          />
+          <button
+            onClick={sendMessage}
+            disabled={!newMessage.trim()}
+            className="p-2.5 rounded-full bg-pink-500 text-white disabled:opacity-40"
+            data-testid="send-btn"
+          >
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+          </button>
+        </div>
+      </div>
       {/* Delete Message Modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">
