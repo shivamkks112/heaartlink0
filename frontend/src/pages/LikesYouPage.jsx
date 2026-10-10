@@ -157,123 +157,90 @@ const LikesYouPage = ({ user }) => {
   };
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--m3-surface-container-low)', paddingTop: 'calc(var(--safe-top, 24px) + 60px)', paddingBottom: 'calc(var(--nav-total, 86px) + 16px)' }}>
-      {/* Header */}
-      <div className="sticky top-0 z-40 backdrop-blur-xl bg-white/80 border-b border-pink-100 shadow-sm">
-        <div className="max-w-2xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
+    <div className="min-h-screen" style={{ background: 'var(--m3-surface-container-low)', paddingBottom: 'calc(var(--nav-total, 86px) + 16px)' }}>
+      {/* Compact Header */}
+      <div className="z-40" style={{ background: 'linear-gradient(135deg, #D6336C 0%, #E8590C 100%)', paddingTop: 'calc(var(--safe-top, 24px) + 8px)' }}>
+        <div className="max-w-2xl mx-auto px-4 pb-3">
+          {/* Title Row */}
+          <div className="flex items-center gap-3 mb-3">
             <button
               onClick={() => navigate('/discover')}
-              className="p-2 hover:bg-pink-100 rounded-full transition-colors"
+              className="p-2 -ml-1 rounded-full active:bg-white/20 transition-colors"
+              data-testid="likes-back-btn"
             >
-              <svg className="w-6 h-6 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+            <h1 className="text-lg font-bold text-white tracking-tight">
               Likes You
             </h1>
-            
-            <div className="w-10" /> {/* Spacer */}
+            {likes.total_count > 0 && (
+              <span className="bg-white/20 text-white text-xs font-bold px-2 py-0.5 rounded-full">{likes.total_count}</span>
+            )}
           </div>
 
-          {/* Modern Tabs — scrollable on small screens */}
-          <div className="flex gap-2 mt-4 overflow-x-auto no-scrollbar pb-1" style={{ WebkitOverflowScrolling: 'touch' }}>
-            <button
-              onClick={() => setActiveTab('all')}
-              className={`flex-shrink-0 py-2.5 px-4 rounded-2xl font-semibold text-sm transition-all duration-300 ${
-                activeTab === 'all'
-                  ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg shadow-pink-300'
-                  : 'bg-white/70 text-gray-600 hover:bg-white'
-              }`}
-            >
-              All {likes.total_count > 0 && <span className="ml-1 text-xs opacity-80">{likes.total_count}</span>}
-            </button>
-            
-            <button
-              onClick={() => setActiveTab('super')}
-              className={`flex-shrink-0 py-2.5 px-4 rounded-2xl font-semibold text-sm transition-all duration-300 ${
-                activeTab === 'super'
-                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-300'
-                  : 'bg-white/70 text-gray-600 hover:bg-white'
-              }`}
-            >
-              <Sparkles className="inline w-4 h-4 mr-1" />
-              Super {likes.super_likes.length > 0 && <span className="ml-1 text-xs opacity-80">{likes.super_likes.length}</span>}
-            </button>
-            
-            <button
-              onClick={() => setActiveTab('regular')}
-              className={`flex-shrink-0 py-2.5 px-4 rounded-2xl font-semibold text-sm transition-all duration-300 ${
-                activeTab === 'regular'
-                  ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg shadow-pink-300'
-                  : 'bg-white/70 text-gray-600 hover:bg-white'
-              }`}
-            >
-              <Heart className="inline w-4 h-4 mr-1" />
-              Regular {likes.regular_likes.length > 0 && <span className="ml-1 text-xs opacity-80">{likes.regular_likes.length}</span>}
-            </button>
-            
-            <button
-              onClick={() => setActiveTab('crushes')}
-              data-testid="crushes-tab"
-              className={`flex-shrink-0 py-2.5 px-4 rounded-2xl font-semibold text-sm transition-all duration-300 ${
-                activeTab === 'crushes'
-                  ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg shadow-orange-300'
-                  : 'bg-white/70 text-gray-600 hover:bg-white'
-              }`}
-            >
-              Crush {crushes.total > 0 && <span className="ml-1 text-xs opacity-80">{crushes.total}</span>}
-            </button>
-            
-            <button
-              onClick={() => setActiveTab('viewers')}
-              data-testid="viewers-tab"
-              className={`flex-shrink-0 py-2.5 px-4 rounded-2xl font-semibold text-sm transition-all duration-300 ${
-                activeTab === 'viewers'
-                  ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg shadow-blue-300'
-                  : 'bg-white/70 text-gray-600 hover:bg-white'
-              }`}
-            >
-              <Eye className="inline w-4 h-4 mr-1" />
-              Views {viewers.total_views > 0 && <span className="ml-1 text-xs opacity-80">{viewers.total_views}</span>}
-            </button>
+          {/* Filter Chips — horizontal scroll */}
+          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1" style={{ WebkitOverflowScrolling: 'touch' }}>
+            {[
+              { key: 'all', label: 'All', count: likes.total_count, icon: null },
+              { key: 'super', label: 'Super', count: likes.super_likes.length, icon: Sparkles },
+              { key: 'regular', label: 'Regular', count: likes.regular_likes.length, icon: Heart },
+              { key: 'crushes', label: 'Crush', count: crushes.total, icon: null },
+              { key: 'viewers', label: 'Views', count: viewers.total_views, icon: Eye },
+            ].map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                data-testid={`tab-${tab.key}`}
+                className={`flex-shrink-0 flex items-center gap-1.5 py-2 px-3.5 rounded-full text-xs font-semibold transition-all duration-200 ${
+                  activeTab === tab.key
+                    ? 'bg-white text-[#D6336C] shadow-md'
+                    : 'bg-white/15 text-white/90 active:bg-white/25'
+                }`}
+              >
+                {tab.icon && <tab.icon className="w-3.5 h-3.5" />}
+                {tab.label}
+                {tab.count > 0 && <span className={`text-[10px] font-bold ${activeTab === tab.key ? 'text-[#D6336C]/70' : 'text-white/60'}`}>{tab.count}</span>}
+              </button>
+            ))}
           </div>
-
-          {/* Sort Bar — only on likes tabs */}
-          {(activeTab === 'all' || activeTab === 'super' || activeTab === 'regular') && displayedLikes.length > 1 && (
-            <div className="flex items-center justify-end mt-3 gap-2" data-testid="sort-bar">
-              <ArrowDownUp className="w-3.5 h-3.5 text-gray-400" />
-              <button
-                onClick={() => setSortBy('recent')}
-                data-testid="sort-recent"
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                  sortBy === 'recent'
-                    ? 'bg-pink-100 text-pink-700 shadow-sm'
-                    : 'bg-white/60 text-gray-500 hover:bg-white'
-                }`}
-              >
-                <Clock className="w-3 h-3" /> Recent
-              </button>
-              <button
-                onClick={() => setSortBy('default')}
-                data-testid="sort-default"
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                  sortBy === 'default'
-                    ? 'bg-pink-100 text-pink-700 shadow-sm'
-                    : 'bg-white/60 text-gray-500 hover:bg-white'
-                }`}
-              >
-                <TrendingUp className="w-3 h-3" /> Default
-              </button>
-            </div>
-          )}
         </div>
       </div>
 
+      {/* Sort Bar — only on likes tabs */}
+      {(activeTab === 'all' || activeTab === 'super' || activeTab === 'regular') && displayedLikes.length > 1 && (
+        <div className="max-w-2xl mx-auto px-4 pt-3">
+          <div className="flex items-center justify-end gap-2" data-testid="sort-bar">
+            <ArrowDownUp className="w-3.5 h-3.5 text-gray-400" />
+            <button
+              onClick={() => setSortBy('recent')}
+              data-testid="sort-recent"
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                sortBy === 'recent'
+                  ? 'bg-pink-100 text-pink-700 shadow-sm'
+                  : 'bg-white/80 text-gray-500'
+              }`}
+            >
+              <Clock className="w-3 h-3" /> Recent
+            </button>
+            <button
+              onClick={() => setSortBy('default')}
+              data-testid="sort-default"
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                sortBy === 'default'
+                  ? 'bg-pink-100 text-pink-700 shadow-sm'
+                  : 'bg-white/80 text-gray-500'
+              }`}
+            >
+              <TrendingUp className="w-3 h-3" /> Default
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Content */}
-      <div className="max-w-2xl mx-auto px-4 py-6">
+      <div className="max-w-2xl mx-auto px-4 py-4">
         {/* Crushes Tab */}
         {activeTab === 'crushes' ? (
           <div className="space-y-4" data-testid="crushes-content">
@@ -389,19 +356,21 @@ const LikesYouPage = ({ user }) => {
             )}
           </div>
         ) : loading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500"></div>
+          <div className="flex justify-center items-center py-20">
+            <div className="animate-spin rounded-full h-10 w-10 border-2 border-pink-200 border-t-pink-500"></div>
           </div>
         ) : displayedLikes.length === 0 ? (
-          <div className="text-center py-16">
-            <div className="w-24 h-24 mx-auto mb-4 bg-gradient-to-br from-pink-100 to-rose-100 rounded-full flex items-center justify-center">
-              <Heart className="w-12 h-12 text-pink-400" />
+          <div className="text-center py-12 px-4">
+            <div className="w-20 h-20 mx-auto mb-5 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #fce4ec 0%, #f8bbd0 100%)' }}>
+              <Heart className="w-9 h-9 text-pink-400" />
             </div>
-            <h3 className="text-xl font-semibold text-gray-800 mb-2">No likes yet</h3>
-            <p className="text-gray-600">Keep swiping to find your match!</p>
+            <h3 className="text-lg font-bold text-gray-800 mb-1.5">No likes yet</h3>
+            <p className="text-sm text-gray-500 mb-6 max-w-[240px] mx-auto">Keep swiping to find your match!</p>
             <button
               onClick={() => navigate('/discover')}
-              className="mt-6 px-6 py-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-full font-semibold hover:shadow-lg transition-all"
+              data-testid="start-discovering-btn"
+              className="px-6 py-3 text-white rounded-full font-semibold text-sm active:scale-95 transition-transform shadow-lg shadow-pink-200"
+              style={{ background: 'linear-gradient(135deg, #D6336C 0%, #E8590C 100%)' }}
             >
               Start Discovering
             </button>
