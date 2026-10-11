@@ -174,10 +174,12 @@ const MatchesPage = ({ user }) => {
         list.sort((a, b) => (b.compatibility_score || 0) - (a.compatibility_score || 0));
         break;
       case 'online':
+        // Filter to ONLY show online users, then sort by last active
+        list = list.filter(m => m.user?.is_online);
         list.sort((a, b) => {
-          const aOnline = a.user?.is_online ? 1 : 0;
-          const bOnline = b.user?.is_online ? 1 : 0;
-          return bOnline - aOnline;
+          const tA = a.user?.last_active ? new Date(a.user.last_active) : new Date(0);
+          const tB = b.user?.last_active ? new Date(b.user.last_active) : new Date(0);
+          return tB - tA;
         });
         break;
       case 'recent':
@@ -562,7 +564,13 @@ const MatchesPage = ({ user }) => {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 m3-stagger">
-                  {filteredMatches.map((match, index) => (
+                  {filteredMatches.length === 0 && matchFilter === 'online' ? (
+                    <div className="col-span-full text-center py-12">
+                      <Zap className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                      <p className="text-gray-500 font-medium">No matches online right now</p>
+                      <p className="text-gray-400 text-sm mt-1">Check back later!</p>
+                    </div>
+                  ) : filteredMatches.map((match, index) => (
                   <div
                     key={match.match_id}
                     data-testid="match-card"
