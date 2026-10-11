@@ -30,7 +30,6 @@
     }
   },
   "server": {
-    "url": "https://www.heartlink.co.in",
     "androidScheme": "https",
     "cleartext": true,
     "allowNavigation": [

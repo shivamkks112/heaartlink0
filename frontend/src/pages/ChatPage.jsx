@@ -664,10 +664,11 @@ const ChatPage = ({ user }) => {
       {/* Messages — the only scrollable element */}
       <div
         ref={messagesContainerRef}
-        className="px-4 py-3 space-y-3"
+        className="px-4 py-3 space-y-3 flex flex-col justify-end"
         style={{ flex: '1 1 0%', minHeight: 0, overflowY: 'scroll', WebkitOverflowScrolling: 'touch' }}
         data-testid="messages-container"
       >
+        <div className="flex-1" />{/* Spacer pushes messages to bottom when few messages */}
         {messages.map((msg, i) => {
           const isOwn = msg.sender_id === user.id;
           return (
@@ -738,7 +739,7 @@ const ChatPage = ({ user }) => {
                 data-testid="nudge-dismiss"
                 aria-label="Dismiss nudge"
               >
-                \u2715
+                {'\u2715'}
               </button>
               <div className="flex items-center gap-1.5 mb-1.5">
                 <Sparkles className="w-3.5 h-3.5" style={{ color: '#D6336C' }} />
