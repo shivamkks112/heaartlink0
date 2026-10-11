@@ -181,23 +181,14 @@ const ChatPage = ({ user }) => {
         let matchUser = otherUser;
         
         if (!matchUser) {
-          // Need to fetch — try conversations first, fallback to matches
+          // Fast: fetch match info directly by match_id (1 call instead of listing all conversations)
           try {
-            const convRes = await axios.get(`${API}/conversations/${user.id}`);
-            const match = convRes.data.find(m => m.match_id === matchId);
-            if (match) matchUser = match.user;
+            const infoRes = await axios.get(`${API}/chat/${matchId}/info?user_id=${user.id}`);
+            matchUser = infoRes.data.other_user;
           } catch {}
           
           if (!matchUser) {
-            try {
-              const matchRes = await axios.get(`${API}/matches/${user.id}`);
-              const match = matchRes.data.find(m => m.match_id === matchId);
-              if (match) matchUser = match.user;
-            } catch {}
-          }
-          
-          if (!matchUser) {
-            if (!cancelled) { toast.error('Match not found'); navigate('/matches'); }
+            if (!cancelled) { setError('Chat load nahi ho paya. Please go back and try again.'); setLoading(false); }
             return;
           }
           if (!cancelled) setOtherUser(matchUser);

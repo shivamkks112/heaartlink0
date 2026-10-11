@@ -3943,6 +3943,32 @@ async def send_typing_indicator(match_id: str, user_id: str, is_typing: bool = T
     return {"message": "Typing indicator sent"}
 
 
+@api_router.get("/chat/{match_id}/info")
+async def get_chat_info(match_id: str, user_id: str):
+    """Fast endpoint: get match info + other user data in one call"""
+    match = await db.matches.find_one({"id": match_id})
+    if not match:
+        raise HTTPException(404, "Match not found")
+    other_id = match["user2_id"] if match["user1_id"] == user_id else match["user1_id"]
+    other_user = await db.users.find_one({"id": other_id})
+    if not other_user:
+        raise HTTPException(404, "User not found")
+    return {
+        "match_id": match_id,
+        "other_user": {
+            "id": other_user["id"],
+            "name": other_user.get("name", ""),
+            "age": other_user.get("age"),
+            "profile_picture": other_user.get("profile_picture"),
+            "photos": other_user.get("photos", []),
+            "is_online": other_user.get("is_online", False),
+            "last_active": other_user.get("last_active"),
+            "bio": other_user.get("bio", ""),
+            "is_ai_profile": other_user.get("is_ai_profile", False),
+            "verified": other_user.get("verified", False),
+        }
+    }
+
 @api_router.get("/chat/{match_id}/messages")
 async def get_chat_messages(match_id: str, user_id: str, limit: int = 50, skip: int = 0):
     """Get chat messages with privacy filters applied"""

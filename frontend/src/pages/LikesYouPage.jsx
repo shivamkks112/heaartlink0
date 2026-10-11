@@ -26,20 +26,12 @@ const LikesYouPage = ({ user }) => {
   const isPremium = user?.is_premium || user?.isPremium || isGirl;
 
   useEffect(() => {
-    fetchLikes();
-    fetchCrushes();
-    fetchViewers();
-    // Mark likes as seen to clear the badge
+    // Fetch all data in parallel
+    Promise.allSettled([fetchLikes(), fetchCrushes(), fetchViewers()]).then(() => setLoading(false));
     fetch(`${API}/likes/${user.id}/mark-seen`, { method: 'POST' }).catch(() => {});
-    // Load revealed profiles from localStorage
     const revealed = JSON.parse(localStorage.getItem('heartlink_revealed_likes') || '[]');
     setRevealedProfiles(revealed);
-    
-    // Listen for new likes in real-time
-    const unsubLike = wsService.on('new_like', () => {
-      fetchLikes(); // Refresh likes list
-    });
-    
+    const unsubLike = wsService.on('new_like', () => { fetchLikes(); });
     return () => unsubLike();
   }, [user.id]);
 
@@ -51,8 +43,6 @@ const LikesYouPage = ({ user }) => {
       setPageData('likes', { likes: data, crushes, viewers }, user.id);
     } catch (error) {
       console.error('Error fetching likes:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
