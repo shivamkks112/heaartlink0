@@ -257,7 +257,7 @@ const LikesYouPage = ({ user }) => {
                 <div key={crush.crush_id} className="bg-white rounded-2xl p-4 shadow-sm flex items-center gap-4" data-testid={`crush-card-${crush.crush_id}`}>
                   <div className="relative w-16 h-16 rounded-full overflow-hidden bg-gradient-to-br from-orange-200 to-red-200 flex-shrink-0">
                     {crush.is_mutual ? (
-                      <img src={crush.user.profile_picture} alt="" className="w-full h-full object-cover" />
+                      <img src={crush.user.profile_picture} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         {crush.user.profile_picture ? (
@@ -324,7 +324,7 @@ const LikesYouPage = ({ user }) => {
                       </div>
                     ) : (
                       v.user.profile_picture ? (
-                        <img src={v.user.profile_picture} alt="" className="w-full h-full object-cover" />
+                        <img src={v.user.profile_picture} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
                           <User className="w-7 h-7 text-blue-400" />

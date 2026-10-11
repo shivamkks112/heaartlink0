@@ -732,9 +732,9 @@ const MatchesPage = ({ user }) => {
                         <div className="relative flex-shrink-0">
                           <div className="w-14 h-14 rounded-full overflow-hidden" style={{ background: 'var(--m3-surface-container-high)' }}>
                             {conv.user.profile_picture ? (
-                              <img src={conv.user.profile_picture} alt={conv.user.name} className="w-full h-full object-cover" />
+                              <img src={conv.user.profile_picture} alt={conv.user.name} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                             ) : conv.user.photos && conv.user.photos.length > 0 ? (
-                              <img src={conv.user.photos[0]} alt={conv.user.name} className="w-full h-full object-cover" />
+                              <img src={conv.user.photos[0]} alt={conv.user.name} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center">
                                 <Heart className="w-7 h-7" style={{ color: 'var(--m3-outline)' }} />

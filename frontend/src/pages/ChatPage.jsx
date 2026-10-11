@@ -661,9 +661,9 @@ const ChatPage = ({ user }) => {
             <div className="relative flex-shrink-0">
               <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-white/30 bg-white/20">
                 {otherUser?.profile_picture ? (
-                  <img src={otherUser.profile_picture} alt={otherUser?.name} className="w-full h-full object-cover" />
+                  <img src={otherUser.profile_picture} alt={otherUser?.name} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                 ) : otherUser?.photos?.[0] ? (
-                  <img src={otherUser.photos[0]} alt={otherUser?.name} className="w-full h-full object-cover" />
+                  <img src={otherUser.photos[0]} alt={otherUser?.name} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-white font-bold text-sm">{otherUser?.name?.[0] || '?'}</div>
                 )}
@@ -695,7 +695,7 @@ const ChatPage = ({ user }) => {
                   {showAvatar && (
                     <div className="w-7 h-7 rounded-full overflow-hidden bg-pink-100 border border-pink-200">
                       {otherUser?.profile_picture ? (
-                        <img src={otherUser.profile_picture} alt="" className="w-full h-full object-cover" />
+                        <img src={otherUser.profile_picture} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-pink-600">{otherUser?.name?.[0]}</div>
                       )}
