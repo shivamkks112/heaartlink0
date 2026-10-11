@@ -17,16 +17,17 @@ import LandingPage from '@/pages/LandingPage';
 // Core pages — ALL eagerly loaded for instant native feel
 import DiscoverPage from '@/pages/DiscoverPage';
 import MatchesPage from '@/pages/MatchesPage';
-import LikesYouPage from '@/pages/LikesYouPage';
 import ChatPage from '@/pages/ChatPage';
 import ProfilePage from '@/pages/ProfilePage';
-import UserProfilePage from '@/pages/UserProfilePage';
-import PremiumPage from '@/pages/PremiumPage';
-import SettingsPage from '@/pages/SettingsPage';
-import NotificationsPage from '@/pages/NotificationsPage';
-import ProfileEnhancementPage from '@/pages/ProfileEnhancementPage';
-import ReferralPage from '@/pages/ReferralPage';
-import ShareProfilePage from '@/pages/ShareProfilePage';
+import LikesYouPage from '@/pages/LikesYouPage';
+// Lazy load non-critical pages (faster initial load)
+const UserProfilePage = lazy(() => import('@/pages/UserProfilePage'));
+const PremiumPage = lazy(() => import('@/pages/PremiumPage'));
+const SettingsPage = lazy(() => import('@/pages/SettingsPage'));
+const NotificationsPage = lazy(() => import('@/pages/NotificationsPage'));
+const ProfileEnhancementPage = lazy(() => import('@/pages/ProfileEnhancementPage'));
+const ReferralPage = lazy(() => import('@/pages/ReferralPage'));
+const ShareProfilePage = lazy(() => import('@/pages/ShareProfilePage'));
 import ProfileViewersPage from '@/pages/ProfileViewersPage';
 import PaymentHistoryPage from '@/pages/PaymentHistoryPage';
 import FeedbackPage from '@/pages/FeedbackPage';
@@ -50,13 +51,13 @@ const InstallPrompt = lazy(() => import('@/components/InstallPrompt'));
 
 // Preload critical pages in background — called after login for instant navigation
 function preloadCriticalPages() {
-  // Preload the 4 main tab pages user will navigate to
-  import('@/pages/DiscoverPage');
-  import('@/pages/MatchesPage');
-  import('@/pages/LikesYouPage');
-  import('@/pages/ProfilePage');
-  // Preload chat slightly later
-  setTimeout(() => { import('@/pages/ChatPage'); import('@/pages/NotificationsPage'); }, 1000);
+  // Core tab pages are already eagerly imported
+  // Preload lazy-loaded pages user will likely visit
+  setTimeout(() => {
+    import('@/pages/SettingsPage');
+    import('@/pages/PremiumPage');
+    import('@/pages/UserProfilePage');
+  }, 2000);
 }
 
 // Lazy load AdProvider - only needed for logged-in users
@@ -392,19 +393,19 @@ function App() {
             <Route path="/likes" element={user ? <ErrorBoundary><LikesYouPage user={user} /></ErrorBoundary> : <Navigate to="/" />} />
             <Route path="/chat/:matchId" element={user ? <ErrorBoundary><ChatPage user={user} /></ErrorBoundary> : <Navigate to="/" />} />
             <Route path="/profile" element={user ? <ErrorBoundary><ProfilePage user={user} onUpdate={handleLogin} /></ErrorBoundary> : <Navigate to="/" />} />
-            <Route path="/profile/:userId" element={user ? <ErrorBoundary><UserProfilePage user={user} /></ErrorBoundary> : <Navigate to="/" />} />
+            <Route path="/profile/:userId" element={user ? <ErrorBoundary><Suspense fallback={<ProfileSkeleton />}><UserProfilePage user={user} /></Suspense></ErrorBoundary> : <Navigate to="/" />} />
             <Route path="/verify-selfie" element={user ? <ErrorBoundary><Suspense fallback={<ProfileSkeleton />}><SelfieVerificationPage user={user} /></Suspense></ErrorBoundary> : <Navigate to="/" />} />
             <Route path="/privacy" element={user ? <ErrorBoundary><PrivacyPage user={user} onUpdate={handleLogin} /></ErrorBoundary> : <Navigate to="/" />} />
-            <Route path="/settings" element={user ? <ErrorBoundary><SettingsPage user={user} /></ErrorBoundary> : <Navigate to="/" />} />
+            <Route path="/settings" element={user ? <ErrorBoundary><Suspense fallback={<QuickLoader />}><SettingsPage user={user} /></Suspense></ErrorBoundary> : <Navigate to="/" />} />
             <Route path="/profile-viewers" element={user ? <ErrorBoundary><ProfileViewersPage user={user} /></ErrorBoundary> : <Navigate to="/" />} />
-            <Route path="/enhance-profile" element={user ? <ErrorBoundary><ProfileEnhancementPage user={user} onUpdate={handleLogin} /></ErrorBoundary> : <Navigate to="/" />} />
-            <Route path="/notifications" element={user ? <ErrorBoundary><NotificationsPage user={user} /></ErrorBoundary> : <Navigate to="/" />} />
-            <Route path="/referral" element={user ? <ErrorBoundary><ReferralPage user={user} /></ErrorBoundary> : <Navigate to="/" />} />
-            <Route path="/share-profile" element={user ? <ErrorBoundary><ShareProfilePage user={user} /></ErrorBoundary> : <Navigate to="/" />} />
+            <Route path="/enhance-profile" element={user ? <ErrorBoundary><Suspense fallback={<QuickLoader />}><ProfileEnhancementPage user={user} onUpdate={handleLogin} /></Suspense></ErrorBoundary> : <Navigate to="/" />} />
+            <Route path="/notifications" element={user ? <ErrorBoundary><Suspense fallback={<QuickLoader />}><NotificationsPage user={user} /></Suspense></ErrorBoundary> : <Navigate to="/" />} />
+            <Route path="/referral" element={user ? <ErrorBoundary><Suspense fallback={<QuickLoader />}><ReferralPage user={user} /></Suspense></ErrorBoundary> : <Navigate to="/" />} />
+            <Route path="/share-profile" element={user ? <ErrorBoundary><Suspense fallback={<QuickLoader />}><ShareProfilePage user={user} /></Suspense></ErrorBoundary> : <Navigate to="/" />} />
             <Route path="/payment-history" element={user ? <ErrorBoundary><PaymentHistoryPage user={user} /></ErrorBoundary> : <Navigate to="/" />} />
             <Route path="/feedback" element={user ? <ErrorBoundary><FeedbackPage user={user} /></ErrorBoundary> : <Navigate to="/" />} />
             <Route path="/share-match" element={user ? <ErrorBoundary><MatchShareCard user={user} /></ErrorBoundary> : <Navigate to="/" />} />
-            <Route path="/premium" element={user ? <ErrorBoundary><PremiumPage user={user} onUpdate={handleLogin} /></ErrorBoundary> : <Navigate to="/" />} />
+            <Route path="/premium" element={user ? <ErrorBoundary><Suspense fallback={<QuickLoader />}><PremiumPage user={user} onUpdate={handleLogin} /></Suspense></ErrorBoundary> : <Navigate to="/" />} />
           </Routes>
           </Suspense>
           {/* Welcome Message Modal */}

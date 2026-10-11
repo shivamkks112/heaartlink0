@@ -135,6 +135,7 @@ const MatchesPage = ({ user }) => {
   const [unreadCounts, setUnreadCounts] = useState({});
   const [showSafetyModal, setShowSafetyModal] = useState(false);
   const [pendingChatId, setPendingChatId] = useState(null);
+  const [pendingChatUser, setPendingChatUser] = useState(null);
 
   // Filtered & sorted conversations based on chatFilter
   const filteredConversations = useMemo(() => {
@@ -197,12 +198,13 @@ const MatchesPage = ({ user }) => {
   };
 
   // Handle chat navigation with safety check
-  const handleChatClick = (matchId) => {
+  const handleChatClick = (matchId, chatUser) => {
     if (!hasSeenSafetyMessage()) {
       setPendingChatId(matchId);
+      setPendingChatUser(chatUser);
       setShowSafetyModal(true);
     } else {
-      navigate(`/chat/${matchId}`, { state: { fromTab: activeTab } });
+      navigate(`/chat/${matchId}`, { state: { fromTab: activeTab, otherUser: chatUser } });
     }
   };
 
@@ -211,8 +213,9 @@ const MatchesPage = ({ user }) => {
     localStorage.setItem('heartlink_safety_message_seen', 'true');
     setShowSafetyModal(false);
     if (pendingChatId) {
-      navigate(`/chat/${pendingChatId}`, { state: { fromTab: activeTab } });
+      navigate(`/chat/${pendingChatId}`, { state: { fromTab: activeTab, otherUser: pendingChatUser } });
       setPendingChatId(null);
+      setPendingChatUser(null);
     }
   };
 
@@ -638,7 +641,7 @@ const MatchesPage = ({ user }) => {
                       <div className="flex gap-2">
                         <button
                           data-testid="chat-btn"
-                          onClick={() => handleChatClick(match.match_id)}
+                          onClick={() => handleChatClick(match.match_id, match.user)}
                           className="flex-1 text-white py-2.5 rounded-full font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
                           style={{ background: 'linear-gradient(135deg, #D6336C 0%, #E8590C 100%)', boxShadow: '0 2px 8px rgba(214,51,108,0.3)' }}
                         >
@@ -713,7 +716,7 @@ const MatchesPage = ({ user }) => {
                     <div
                       key={conv.match_id}
                       data-testid="message-card"
-                      onClick={() => handleChatClick(conv.match_id)}
+                      onClick={() => handleChatClick(conv.match_id, conv.user)}
                       className={`overflow-hidden transition-all duration-200 cursor-pointer active:scale-[0.99] ${
                         conv.unreadCount > 0 ? 'ring-1.5 ring-offset-1' : ''
                       }`}

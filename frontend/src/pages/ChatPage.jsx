@@ -33,12 +33,13 @@ const ChatPage = ({ user }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const fromTab = location.state?.fromTab || 'messages';
+  const _routeUser = location.state?.otherUser || null;
   const _cc = getPageData('chat', matchId);
   const _cachedMsgs = _cc?.messages || getCachedChatMessages(matchId) || [];
   const [messages, setMessages] = useState(_cachedMsgs);
   const [newMessage, setNewMessage] = useState('');
-  const [otherUser, setOtherUser] = useState(_cc?.otherUser || null);
-  const [loading, setLoading] = useState(!_cc?.otherUser);
+  const [otherUser, setOtherUser] = useState(_routeUser || _cc?.otherUser || null);
+  const [loading, setLoading] = useState(!_routeUser && !_cc?.otherUser);
   const [error, setError] = useState(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
@@ -176,35 +177,43 @@ const ChatPage = ({ user }) => {
 
     const init = async () => {
       try {
-        // Try conversations first (has lastMessage data), fallback to matches for new chats
-        let match = null;
-        try {
-          const convRes = await axios.get(`${API}/conversations/${user.id}`);
-          match = convRes.data.find(m => m.match_id === matchId);
-        } catch {}
+        // If we already have otherUser from route state or cache, skip the user fetch
+        let matchUser = otherUser;
         
-        if (!match) {
-          // Fallback: fetch from matches (for new matches without messages)
+        if (!matchUser) {
+          // Need to fetch — try conversations first, fallback to matches
           try {
-            const matchRes = await axios.get(`${API}/matches/${user.id}`);
-            match = matchRes.data.find(m => m.match_id === matchId);
+            const convRes = await axios.get(`${API}/conversations/${user.id}`);
+            const match = convRes.data.find(m => m.match_id === matchId);
+            if (match) matchUser = match.user;
           } catch {}
+          
+          if (!matchUser) {
+            try {
+              const matchRes = await axios.get(`${API}/matches/${user.id}`);
+              const match = matchRes.data.find(m => m.match_id === matchId);
+              if (match) matchUser = match.user;
+            } catch {}
+          }
+          
+          if (!matchUser) {
+            if (!cancelled) { toast.error('Match not found'); navigate('/matches'); }
+            return;
+          }
+          if (!cancelled) setOtherUser(matchUser);
         }
-        
-        if (!match) {
-          if (!cancelled) { toast.error('Match not found'); navigate('/matches'); }
-          return;
-        }
-        if (!cancelled) setOtherUser(match.user);
 
-        // Show cached messages instantly
+        // Show cached messages instantly (already in state from init)
         const cachedMsgs = getCachedChatMessages(matchId);
-        if (cachedMsgs && cachedMsgs.length > 0) {
+        if (cachedMsgs && cachedMsgs.length > 0 && messages.length === 0) {
           setMessages(cachedMsgs);
+        }
+        // Always drop loading immediately if we have user + any messages
+        if (!cancelled && (cachedMsgs?.length > 0 || messages.length > 0)) {
           setLoading(false);
-          requestAnimationFrame(() => { if (messagesContainerRef.current) messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight; });
         }
 
+        // Fetch fresh messages + privacy in parallel (background update)
         const [msgRes, privRes] = await Promise.allSettled([
           axios.get(`${API}/messages/${matchId}?user_id=${user.id}&limit=100`),
           axios.get(`${API}/privacy/${user.id}`),
