@@ -401,194 +401,91 @@ const LikesYouPage = ({ user }) => {
               </div>
             )} */}
             
-            <div className="grid gap-4">
+            <div className="grid grid-cols-2 gap-3">
               {displayedLikes.map((likedUser, index) => {
                 const isLocked = !isPremium;
                 return (
                   <div
                     key={likedUser.id}
-                    className="group relative bg-white rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden"
-                    style={{
-                      animation: `slideIn 0.3s ease-out ${index * 0.1}s both`
-                    }}
+                    className="relative bg-white rounded-2xl shadow-md overflow-hidden"
+                    style={{ animation: `slideIn 0.2s ease-out ${index * 0.05}s both` }}
                   >
-                    {/* Background Image with Gradient Overlay */}
-                    <div className="relative h-64 overflow-hidden">
+                    {/* Photo */}
+                    <div className="relative aspect-[3/4] overflow-hidden">
                       {likedUser.profile_picture ? (
                         <img
                           src={likedUser.profile_picture}
                           alt={isLocked ? "Someone" : likedUser.name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          className="w-full h-full object-cover"
                           style={isLocked ? { filter: 'blur(20px)', transform: 'scale(1.1)' } : {}}
+                          loading="lazy" decoding="async"
                         />
                       ) : (
                         <div className="w-full h-full bg-gradient-to-br from-pink-200 via-rose-200 to-orange-200 flex items-center justify-center">
-                          <User className="w-20 h-20 text-white/50" />
+                          <User className="w-12 h-12 text-white/50" />
                         </div>
                       )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
                       
-                      {/* Gradient Overlay */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
-                      
-                      {/* Lock Overlay for non-premium */}
                       {isLocked && (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
-                          <div className="bg-black/40 backdrop-blur-sm rounded-2xl px-6 py-4 text-center">
-                            <Lock className="w-8 h-8 text-amber-400 mx-auto mb-2" />
-                            <p className="text-white font-bold text-sm">Premium se dekho</p>
-                            <p className="text-white/70 text-xs mt-1">Kaun hai jo tumhe pasand karta hai?</p>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="bg-black/40 backdrop-blur-sm rounded-xl px-3 py-2 text-center">
+                            <Lock className="w-5 h-5 text-amber-400 mx-auto mb-1" />
+                            <p className="text-white font-bold text-[10px]">Premium</p>
                           </div>
                         </div>
                       )}
-                      
-                      {/* Verified Badge */}
+
                       {!isLocked && likedUser.verified && (
-                        <div className="absolute top-4 right-4 bg-blue-500 text-white px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 shadow-lg">
+                        <div className="absolute top-2 right-2 bg-blue-500 text-white p-1 rounded-full">
                           <Check className="w-3 h-3" />
-                          Verified
                         </div>
                       )}
-                      
-                      {/* User Info Overlay */}
-                      <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
-                        <h3 className="text-2xl font-bold mb-1">
+
+                      {/* Name + Status overlay */}
+                      <div className="absolute bottom-0 left-0 right-0 p-3">
+                        <h3 className="text-white font-bold text-sm truncate">
                           {isLocked ? '???' : `${likedUser.name}, ${likedUser.age}`}
                         </h3>
-                        
                         {!isLocked && (
-                          <>
-                            {/* Online Status */}
-                            {likedUser.is_online ? (
-                              <div className="flex items-center gap-2 mb-2">
-                                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-lg"></div>
-                                <span className="text-xs text-green-300 font-semibold">Online now</span>
-                              </div>
-                            ) : likedUser.last_active && (
-                              <div className="flex items-center gap-2 mb-2">
-                                <div className="w-2 h-2 bg-white/60 rounded-full"></div>
-                                <span className="text-xs text-white/80">
-                                  Active {formatLastSeen(likedUser.last_active)}
-                                </span>
-                              </div>
-                            )}
-                            
-                            {likedUser.location && (
-                              <div className="flex items-center gap-1.5 mb-2">
-                                <span className="text-orange-400">📍</span>
-                                <span className="text-sm text-white/90 font-medium">{likedUser.location}</span>
-                              </div>
-                            )}
-                            {likedUser.bio && (
-                              <p className="text-sm text-white/80 line-clamp-2">{likedUser.bio}</p>
-                            )}
-                          </>
-                        )}
-                        
-                        {isLocked && (
-                          <p className="text-sm text-white/60">Someone liked you!</p>
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <div className={`w-1.5 h-1.5 rounded-full ${likedUser.is_online ? 'bg-green-400' : 'bg-white/50'}`} />
+                            <span className="text-[10px] text-white/80">
+                              {likedUser.is_online ? 'Online' : 'Active recently'}
+                            </span>
+                          </div>
                         )}
                       </div>
                     </div>
 
-                    {/* Action Buttons — different for locked vs unlocked */}
+                    {/* Action buttons — compact */}
                     {isLocked ? (
-                      <div className="p-4">
-                        <button
-                          onClick={() => navigate('/premium')}
-                          className="w-full py-3.5 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2 active:scale-[0.95] transition-transform"
-                          style={{
-                            background: 'linear-gradient(135deg, #F59E0B 0%, #EF6C00 100%)',
-                            boxShadow: '0 4px 16px rgba(245,158,11,0.35)',
-                          }}
-                          data-testid={`unlock-like-${likedUser.id}`}
-                        >
-                          <Crown className="w-5 h-5" />
-                          Unlock with Premium — ₹49/mo
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                    {/* Interests */}
-                    {likedUser.interests && likedUser.interests.length > 0 && (
-                      <div className="px-6 py-3 border-b border-gray-100">
-                        <div className="flex flex-wrap gap-2">
-                          {likedUser.interests.slice(0, 5).map((interest, i) => (
-                            <span
-                              key={i}
-                              className="px-3 py-1 bg-pink-50 text-pink-600 rounded-full text-xs font-medium"
-                            >
-                              {interest}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Action Buttons — Glassmorphic Floating Dock */}
-                    <div className="p-4 pt-2">
-                      <div
-                        className="flex gap-3 p-2 rounded-2xl"
-                        style={{
-                          background: 'rgba(255,255,255,0.6)',
-                          backdropFilter: 'blur(12px)',
-                          WebkitBackdropFilter: 'blur(12px)',
-                          border: '1px solid rgba(255,255,255,0.5)',
-                          boxShadow: '0 2px 16px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.6)',
-                        }}
+                      <button
+                        onClick={() => navigate('/premium')}
+                        className="w-full py-2.5 text-[11px] font-bold text-amber-700 bg-amber-50 flex items-center justify-center gap-1"
+                        data-testid={`unlock-like-${likedUser.id}`}
                       >
-                        {/* PASS Button */}
+                        <Crown className="w-3.5 h-3.5" /> Unlock
+                      </button>
+                    ) : (
+                      <div className="flex">
                         <button
                           onClick={() => handleAction(likedUser.id, 'pass')}
                           disabled={processingId === likedUser.id}
                           data-testid={`pass-btn-${likedUser.id}`}
-                          className="flex-[0.4] py-3.5 rounded-xl font-semibold text-sm transition-all duration-300 disabled:opacity-40 flex items-center justify-center gap-2 active:scale-[0.92]"
-                          style={{
-                            background: 'linear-gradient(145deg, rgba(255,255,255,0.9), rgba(241,241,241,0.9))',
-                            color: '#9ca3af',
-                            border: '1px solid rgba(200,200,200,0.4)',
-                            boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
-                          }}
-                          onMouseEnter={e => {
-                            e.currentTarget.style.background = 'linear-gradient(145deg, #fee2e2, #fecaca)';
-                            e.currentTarget.style.color = '#ef4444';
-                            e.currentTarget.style.borderColor = 'rgba(239,68,68,0.3)';
-                          }}
-                          onMouseLeave={e => {
-                            e.currentTarget.style.background = 'linear-gradient(145deg, rgba(255,255,255,0.9), rgba(241,241,241,0.9))';
-                            e.currentTarget.style.color = '#9ca3af';
-                            e.currentTarget.style.borderColor = 'rgba(200,200,200,0.4)';
-                          }}
+                          className="flex-1 py-2.5 text-xs font-medium text-gray-400 flex items-center justify-center gap-1 border-r border-gray-100 active:bg-gray-50"
                         >
-                          <X className="w-5 h-5" strokeWidth={2.5} />
-                          <span>Pass</span>
+                          <X className="w-3.5 h-3.5" /> Pass
                         </button>
-
-                        {/* LIKE BACK Button — Hero */}
                         <button
-                          onClick={() => handleAction(likedUser.id, 'like')}
+                          onClick={() => handleAction(likedUser.id, 'like_back')}
                           disabled={processingId === likedUser.id}
-                          data-testid={`like-btn-${likedUser.id}`}
-                          className="flex-[0.6] py-3.5 rounded-xl font-bold text-sm text-white transition-all duration-300 disabled:opacity-40 flex items-center justify-center gap-2 active:scale-[0.92] relative overflow-hidden"
-                          style={{
-                            background: 'linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%)',
-                            boxShadow: '0 4px 20px rgba(16,185,129,0.4), inset 0 1px 0 rgba(255,255,255,0.2)',
-                            border: '1px solid rgba(255,255,255,0.15)',
-                          }}
+                          data-testid={`like-back-btn-${likedUser.id}`}
+                          className="flex-1 py-2.5 text-xs font-bold text-emerald-600 flex items-center justify-center gap-1 active:bg-emerald-50"
                         >
-                          {/* Shimmer effect */}
-                          <span
-                            className="absolute inset-0 opacity-30"
-                            style={{
-                              background: 'linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.4) 50%, transparent 70%)',
-                              animation: 'shimmer 2.5s ease-in-out infinite',
-                            }}
-                          />
-                          <Heart className="w-5 h-5 relative z-10" fill="white" strokeWidth={0} />
-                          <span className="relative z-10">Like Back</span>
+                          <Heart className="w-3.5 h-3.5 fill-emerald-500" /> Like
                         </button>
                       </div>
-                    </div>
-                      </>
                     )}
                   </div>
                 );
