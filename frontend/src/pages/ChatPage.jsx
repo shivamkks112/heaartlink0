@@ -651,13 +651,29 @@ const ChatPage = ({ user }) => {
 
   return (
     <div id="chat-root" className="flex flex-col" style={{ height: `${viewportH}px`, overflow: 'hidden', backgroundColor: '#f5f5f5' }}>
-      {/* Header — flex-shrink: 0 */}
-      <div className="bg-white shadow-md px-4 py-3 flex-shrink-0 z-40" style={{ paddingTop: 'var(--safe-top, 0px)' }}>
-        <div className="flex items-center gap-3">
-          <button onClick={() => navigate('/matches')} className="p-2 rounded-full">
-            <svg className="w-5 h-5 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+      {/* Header with profile pic */}
+      <div className="bg-gradient-to-r from-pink-500 via-rose-500 to-orange-500 shadow-lg flex-shrink-0 z-40" style={{ paddingTop: 'var(--safe-top, 0px)' }}>
+        <div className="flex items-center gap-2 px-3 py-2.5">
+          <button onClick={() => navigate('/matches', { state: { tab: fromTab } })} className="p-2 rounded-full active:bg-white/20">
+            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
           </button>
-          <h1 className="text-lg font-bold text-gray-800">Chat with {otherUser?.name || 'User'}</h1>
+          <button onClick={() => otherUser?.id && navigate(`/profile/${otherUser.id}`)} className="flex items-center gap-2.5 flex-1 min-w-0 active:opacity-80">
+            <div className="relative flex-shrink-0">
+              <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-white/30 bg-white/20">
+                {otherUser?.profile_picture ? (
+                  <img src={otherUser.profile_picture} alt={otherUser?.name} className="w-full h-full object-cover" />
+                ) : otherUser?.photos?.[0] ? (
+                  <img src={otherUser.photos[0]} alt={otherUser?.name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-white font-bold text-sm">{otherUser?.name?.[0] || '?'}</div>
+                )}
+              </div>
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-white font-bold text-sm truncate">{otherUser?.name || 'User'}{otherUser?.age ? `, ${otherUser.age}` : ''}</h2>
+              <p className="text-white/60 text-[11px] truncate">Tap to view profile</p>
+            </div>
+          </button>
         </div>
       </div>
 
@@ -671,14 +687,36 @@ const ChatPage = ({ user }) => {
         <div className="flex-1" />{/* Spacer pushes messages to bottom when few messages */}
         {messages.map((msg, i) => {
           const isOwn = msg.sender_id === user.id;
+          const showAvatar = !isOwn && (i === 0 || messages[i - 1]?.sender_id === user.id);
           return (
-            <div key={msg.id || i} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
+            <div key={msg.id || i} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} gap-2`}>
+              {!isOwn && (
+                <div className="w-7 flex-shrink-0 self-end">
+                  {showAvatar && (
+                    <div className="w-7 h-7 rounded-full overflow-hidden bg-pink-100 border border-pink-200">
+                      {otherUser?.profile_picture ? (
+                        <img src={otherUser.profile_picture} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-pink-600">{otherUser?.name?.[0]}</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
               <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm ${
-                isOwn ? 'bg-pink-500 text-white' : 'bg-white text-gray-800 shadow-sm'
-              }`} style={{ wordBreak: 'break-word' }}>
-                {msg.is_deleted_for_all ? <i className="opacity-50">Message deleted</i> : msg.content}
-                <div className={`text-[10px] mt-1 ${isOwn ? 'text-white/60' : 'text-gray-400'}`}>
+                isOwn ? 'text-white' : 'bg-white text-gray-800 shadow-sm'
+              }`} style={{ 
+                wordBreak: 'break-word',
+                ...(isOwn ? { background: 'linear-gradient(135deg, #D6336C 0%, #E8590C 100%)' } : {})
+              }}>
+                {msg.is_deleted_for_all ? <i className="opacity-50">Message deleted</i> : (
+                  <p className="whitespace-pre-wrap">{msg.content}</p>
+                )}
+                <div className={`text-[10px] mt-1 flex items-center gap-1 ${isOwn ? 'justify-end text-white/60' : 'text-gray-400'}`}>
                   {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) : ''}
+                  {isOwn && !msg.is_deleted_for_all && (
+                    <span>{msg._temp ? '⏳' : msg.delivered ? (msg.read ? '✓✓' : '✓') : '✓'}</span>
+                  )}
                 </div>
               </div>
             </div>
