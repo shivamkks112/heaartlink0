@@ -180,8 +180,8 @@ const LikesYouPage = ({ user }) => {
             )}
           </div>
 
-          {/* Filter Chips — horizontal scroll */}
-          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1" style={{ WebkitOverflowScrolling: 'touch' }}>
+          {/* Filter Chips — fit to screen width */}
+          <div className="flex gap-1.5 pb-1">
             {[
               { key: 'all', label: 'All', count: likes.total_count, icon: null },
               { key: 'super', label: 'Super', count: likes.super_likes.length, icon: Sparkles },
@@ -193,15 +193,15 @@ const LikesYouPage = ({ user }) => {
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
                 data-testid={`tab-${tab.key}`}
-                className={`flex-shrink-0 flex items-center gap-1.5 py-2 px-3.5 rounded-full text-xs font-semibold transition-all duration-200 ${
+                className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-full text-[11px] font-semibold transition-all duration-200 ${
                   activeTab === tab.key
                     ? 'bg-white text-[#D6336C] shadow-md'
                     : 'bg-white/15 text-white/90 active:bg-white/25'
                 }`}
               >
-                {tab.icon && <tab.icon className="w-3.5 h-3.5" />}
+                {tab.icon && <tab.icon className="w-3 h-3" />}
                 {tab.label}
-                {tab.count > 0 && <span className={`text-[10px] font-bold ${activeTab === tab.key ? 'text-[#D6336C]/70' : 'text-white/60'}`}>{tab.count}</span>}
+                {tab.count > 0 && <span className={`text-[9px] font-bold ${activeTab === tab.key ? 'text-[#D6336C]/70' : 'text-white/60'}`}>{tab.count}</span>}
               </button>
             ))}
           </div>
