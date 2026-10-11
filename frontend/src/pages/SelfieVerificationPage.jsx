@@ -20,17 +20,24 @@ const SelfieVerificationPage = ({ user }) => {
 
   const startCamera = useCallback(async () => {
     try {
+      setStep('camera'); // Show camera UI immediately
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode, width: { ideal: 640 }, height: { ideal: 480 } },
+        video: { 
+          facingMode, 
+          width: { ideal: 480, max: 640 }, 
+          height: { ideal: 360, max: 480 },
+          frameRate: { ideal: 30 }
+        },
         audio: false,
       });
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
+        videoRef.current.play().catch(() => {});
       }
       setStream(mediaStream);
-      setStep('camera');
     } catch (err) {
       toast.error('Camera access denied. Please allow camera permission.');
+      setStep('intro');
     }
   }, [facingMode]);
 

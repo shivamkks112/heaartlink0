@@ -92,33 +92,27 @@ const LikesYouPage = ({ user }) => {
   };
 
   const handleAction = async (targetUserId, action) => {
+    // Optimistic UI — remove card INSTANTLY, don't wait for API
+    setLikes(prev => ({
+      ...prev,
+      regular_likes: prev.regular_likes.filter(u => u.id !== targetUserId),
+      super_likes: prev.super_likes.filter(u => u.id !== targetUserId),
+      total_count: Math.max(0, prev.total_count - 1)
+    }));
+
     try {
-      setProcessingId(targetUserId);
       const response = await fetch(`${API}/action/${user.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ target_user_id: targetUserId, action })
       });
-      
       const result = await response.json();
       
-      // Always remove from list after action (like or pass)
-      setLikes(prev => ({
-        ...prev,
-        regular_likes: prev.regular_likes.filter(u => u.id !== targetUserId),
-        super_likes: prev.super_likes.filter(u => u.id !== targetUserId),
-        total_count: prev.total_count - 1
-      }));
-      
       if (result.action === 'matched') {
-        // Show match celebration
-        alert(`🎉 It's a Match! Compatibility: ${result.compatibility_score}%`);
-        navigate('/matches');
+        navigate('/matches', { replace: true });
       }
     } catch (error) {
-      console.error('Error handling action:', error);
-    } finally {
-      setProcessingId(null);
+      console.error('Like action failed:', error);
     }
   };
 
