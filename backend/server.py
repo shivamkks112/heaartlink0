@@ -12125,6 +12125,71 @@ async def get_ai_memory(match_id: str):
 
 
 
+# ==================== OTA UPDATE SYSTEM ====================
+@api_router.post("/ota/check")
+async def ota_check(request: Request):
+    """Check for OTA updates — called by @capgo/capacitor-updater plugin"""
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    
+    app_id = body.get("app_id", "")
+    current_version = body.get("version_name", "0.0.0")
+    platform = body.get("platform", "")
+    
+    # Only serve updates for our app on Android
+    if app_id != "com.heartlink.app" or platform.lower() not in ("android", ""):
+        return {"message": "No update"}
+    
+    # Check MongoDB for latest OTA bundle
+    latest = await db.ota_bundles.find_one(
+        {"app_id": "com.heartlink.app", "active": True},
+        sort=[("created_at", -1)]
+    )
+    
+    if not latest or latest.get("version", "0.0.0") <= current_version:
+        return {"message": "No update"}
+    
+    return {
+        "version": latest["version"],
+        "url": latest["url"],
+        "checksum": latest.get("checksum", ""),
+    }
+
+@api_router.post("/ota/publish")
+async def ota_publish(request: Request, admin: dict = Depends(require_admin)):
+    """Admin: publish a new OTA bundle"""
+    body = await request.json()
+    version = body.get("version")
+    url = body.get("url")
+    checksum = body.get("checksum", "")
+    
+    if not version or not url:
+        raise HTTPException(400, "version and url required")
+    
+    await db.ota_bundles.insert_one({
+        "app_id": "com.heartlink.app",
+        "version": version,
+        "url": url,
+        "checksum": checksum,
+        "active": True,
+        "created_at": datetime.now(timezone.utc),
+    })
+    
+    return {"message": f"OTA v{version} published", "version": version}
+
+@api_router.get("/ota/latest")
+async def ota_latest():
+    """Get current OTA version info"""
+    latest = await db.ota_bundles.find_one(
+        {"app_id": "com.heartlink.app", "active": True},
+        sort=[("created_at", -1)]
+    )
+    if not latest:
+        return {"version": "none", "message": "No OTA bundles"}
+    return {"version": latest["version"], "url": latest["url"], "created_at": str(latest["created_at"])}
+
 app.include_router(api_router)
 
 @app.on_event("shutdown")

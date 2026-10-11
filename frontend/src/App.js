@@ -11,6 +11,9 @@ import AppUpdateBanner from '@/components/AppUpdateBanner';
 import RatingPrompt from '@/components/RatingPrompt';
 import { DiscoverSkeleton, MatchesSkeleton, ChatSkeleton, ProfileSkeleton, QuickLoader } from '@/components/PageSkeletons';
 
+// OTA: Notify plugin that JS loaded successfully (prevents rollback)
+try { import('@capgo/capacitor-updater').then(m => m.CapacitorUpdater.notifyAppReady()).catch(() => {}); } catch {}
+
 // Critical pages - loaded immediately (lightweight)
 import LandingPage from '@/pages/LandingPage';
 

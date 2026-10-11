@@ -27,6 +27,15 @@
     },
     "Keyboard": {
       "resizeOnFullScreen": true
+    },
+    "CapacitorUpdater": {
+      "autoUpdate": true,
+      "updateUrl": "https://www.heartlink.co.in/api/ota/check",
+      "statsUrl": "",
+      "appReadyTimeout": 10000,
+      "autoDeleteFailed": true,
+      "autoDeletePrevious": true,
+      "resetWhenUpdate": true
     }
   },
   "server": {
