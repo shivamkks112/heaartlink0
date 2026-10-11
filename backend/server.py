@@ -2247,8 +2247,8 @@ async def send_signup_otp(request: Request):
     
     # Send OTP email
     try:
-        from email_service import send_otp_email
-        result = send_otp_email(to_email=email, otp_code=otp_code, user_name="HeartLink User")
+        from email_service import send_signup_otp_email
+        result = send_signup_otp_email(to_email=email, otp_code=otp_code, user_name="HeartLink User")
         if result.get("success"):
             logger.info(f"Signup OTP sent to {email}")
             return {"message": "OTP sent to your email", "email": email}

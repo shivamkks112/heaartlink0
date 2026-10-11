@@ -104,99 +104,91 @@ def send_email(to_email: str, subject: str, html_body: str, text_body: Optional[
 
 
 def send_otp_email(to_email: str, otp_code: str, user_name: str = "User") -> dict:
-    """Send OTP email for password reset"""
+    """Send OTP email for PASSWORD RESET only"""
     
-    subject = "🔐 Your HeartLink Password Reset Code"
+    subject = "Reset Your HeartLink Password"
     
     html_body = f"""
     <!DOCTYPE html>
     <html>
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    </head>
-    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f9fafb;">
-        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f9fafb; padding: 20px;">
-            <tr>
-                <td align="center">
-                    <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-                        
-                        <!-- Header with Gradient -->
-                        <tr>
-                            <td style="background: linear-gradient(135deg, #ec4899 0%, #f97316 100%); padding: 40px 20px; text-align: center;">
-                                <h1 style="color: #ffffff; margin: 0; font-size: 32px;">💕 HeartLink</h1>
-                                <p style="color: #ffffff; margin: 10px 0 0 0; font-size: 16px;">Password Reset Request</p>
-                            </td>
-                        </tr>
-                        
-                        <!-- Content -->
-                        <tr>
-                            <td style="padding: 40px 30px;">
-                                <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
-                                    Hi <strong>{user_name}</strong>,
-                                </p>
-                                
-                                <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;">
-                                    We received a request to reset your HeartLink password. Use the code below to reset your password:
-                                </p>
-                                
-                                <!-- OTP Box -->
-                                <table width="100%" cellpadding="0" cellspacing="0" style="margin: 0 0 30px 0;">
-                                    <tr>
-                                        <td align="center" style="background: linear-gradient(135deg, #fce7f3 0%, #fed7aa 100%); border: 3px dashed #ec4899; border-radius: 12px; padding: 30px;">
-                                            <p style="color: #9ca3af; font-size: 14px; margin: 0 0 10px 0; text-transform: uppercase; letter-spacing: 1px;">Your OTP Code</p>
-                                            <p style="color: #ec4899; font-size: 48px; font-weight: bold; margin: 0; letter-spacing: 8px; font-family: 'Courier New', monospace;">
-                                                {otp_code}
-                                            </p>
-                                        </td>
-                                    </tr>
-                                </table>
-                                
-                                <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;">
-                                    ⏱️ This code will expire in <strong>15 minutes</strong>.
-                                </p>
-                                
-                                <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 0;">
-                                    If you didn't request this password reset, please ignore this email or contact our support team.
-                                </p>
-                            </td>
-                        </tr>
-                        
-                        <!-- Footer -->
-                        <tr>
-                            <td style="background-color: #f9fafb; padding: 30px; text-align: center; border-top: 1px solid #e5e7eb;">
-                                <p style="color: #9ca3af; font-size: 12px; margin: 0 0 10px 0;">
-                                    Need help? Contact us at <a href="mailto:help@heartlink.co.in" style="color: #ec4899; text-decoration: none;">help@heartlink.co.in</a>
-                                </p>
-                                <p style="color: #9ca3af; font-size: 12px; margin: 0;">
-                                    © 2025 HeartLink. All rights reserved.
-                                </p>
-                            </td>
-                        </tr>
-                        
-                    </table>
-                </td>
-            </tr>
+    <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+    <body style="margin:0;padding:0;font-family:Arial,sans-serif;background:#f9fafb;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;padding:20px;">
+            <tr><td align="center">
+                <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+                    <tr><td style="background:linear-gradient(135deg,#ec4899 0%,#f97316 100%);padding:40px 20px;text-align:center;">
+                        <h1 style="color:#fff;margin:0;font-size:32px;">HeartLink</h1>
+                        <p style="color:#fff;margin:10px 0 0;font-size:16px;">Password Reset</p>
+                    </td></tr>
+                    <tr><td style="padding:40px 30px;">
+                        <p style="color:#374151;font-size:16px;line-height:1.6;margin:0 0 20px;">Hi <strong>{user_name}</strong>,</p>
+                        <p style="color:#374151;font-size:16px;line-height:1.6;margin:0 0 30px;">We received a request to reset your HeartLink password. Use the code below to reset your password:</p>
+                        <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 30px;">
+                            <tr><td align="center" style="background:linear-gradient(135deg,#fce7f3 0%,#fed7aa 100%);border:3px dashed #ec4899;border-radius:12px;padding:30px;">
+                                <p style="color:#9ca3af;font-size:14px;margin:0 0 10px;text-transform:uppercase;letter-spacing:1px;">Password Reset Code</p>
+                                <p style="color:#ec4899;font-size:48px;font-weight:bold;margin:0;letter-spacing:8px;font-family:'Courier New',monospace;">{otp_code}</p>
+                            </td></tr>
+                        </table>
+                        <p style="color:#6b7280;font-size:14px;line-height:1.6;margin:0 0 20px;">This code will expire in <strong>15 minutes</strong>.</p>
+                        <p style="color:#6b7280;font-size:14px;line-height:1.6;margin:0;">If you didn't request this password reset, please ignore this email. Your password will remain unchanged.</p>
+                    </td></tr>
+                    <tr><td style="background:#f9fafb;padding:30px;text-align:center;border-top:1px solid #e5e7eb;">
+                        <p style="color:#9ca3af;font-size:12px;margin:0 0 10px;">Need help? <a href="mailto:help@heartlink.co.in" style="color:#ec4899;text-decoration:none;">help@heartlink.co.in</a></p>
+                        <p style="color:#9ca3af;font-size:12px;margin:0;">HeartLink. All rights reserved.</p>
+                    </td></tr>
+                </table>
+            </td></tr>
         </table>
     </body>
     </html>
     """
     
-    text_body = f"""
-    Hi {user_name},
+    text_body = f"Hi {user_name},\n\nYour HeartLink password reset code is: {otp_code}\n\nThis code expires in 15 minutes.\n\nIf you didn't request this, ignore this email.\n\nHeartLink Support"
     
-    We received a request to reset your HeartLink password.
+    return send_email(to_email, subject, html_body, text_body)
+
+
+def send_signup_otp_email(to_email: str, otp_code: str, user_name: str = "User") -> dict:
+    """Send OTP email for SIGNUP VERIFICATION only"""
     
-    Your OTP Code: {otp_code}
+    subject = "Verify Your Email \u2013 HeartLink"
     
-    This code will expire in 15 minutes.
-    
-    If you didn't request this password reset, please ignore this email.
-    
-    Need help? Contact us at help@heartlink.co.in
-    
-    © 2025 HeartLink. All rights reserved.
+    html_body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+    <body style="margin:0;padding:0;font-family:Arial,sans-serif;background:#f9fafb;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;padding:20px;">
+            <tr><td align="center">
+                <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+                    <tr><td style="background:linear-gradient(135deg,#ec4899 0%,#f97316 100%);padding:40px 20px;text-align:center;">
+                        <h1 style="color:#fff;margin:0;font-size:32px;">HeartLink</h1>
+                        <p style="color:#fff;margin:10px 0 0;font-size:16px;">Email Verification</p>
+                    </td></tr>
+                    <tr><td style="padding:40px 30px;">
+                        <p style="color:#374151;font-size:16px;line-height:1.6;margin:0 0 20px;">Hi <strong>{user_name}</strong>,</p>
+                        <p style="color:#374151;font-size:16px;line-height:1.6;margin:0 0 30px;">Welcome to HeartLink! To create your account, please verify your email address using the code below:</p>
+                        <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 30px;">
+                            <tr><td align="center" style="background:linear-gradient(135deg,#fce7f3 0%,#fed7aa 100%);border:3px dashed #ec4899;border-radius:12px;padding:30px;">
+                                <p style="color:#9ca3af;font-size:14px;margin:0 0 10px;text-transform:uppercase;letter-spacing:1px;">Verification Code</p>
+                                <p style="color:#ec4899;font-size:48px;font-weight:bold;margin:0;letter-spacing:8px;font-family:'Courier New',monospace;">{otp_code}</p>
+                            </td></tr>
+                        </table>
+                        <p style="color:#6b7280;font-size:14px;line-height:1.6;margin:0 0 20px;">This code will expire in <strong>10 minutes</strong>.</p>
+                        <p style="color:#6b7280;font-size:14px;line-height:1.6;margin:0;">If you didn't sign up for HeartLink, please ignore this email.</p>
+                    </td></tr>
+                    <tr><td style="background:#f9fafb;padding:30px;text-align:center;border-top:1px solid #e5e7eb;">
+                        <p style="color:#9ca3af;font-size:12px;margin:0 0 10px;">Need help? <a href="mailto:help@heartlink.co.in" style="color:#ec4899;text-decoration:none;">help@heartlink.co.in</a></p>
+                        <p style="color:#9ca3af;font-size:12px;margin:0;">HeartLink. All rights reserved.</p>
+                    </td></tr>
+                </table>
+            </td></tr>
+        </table>
+    </body>
+    </html>
     """
+    
+    text_body = f"Hi {user_name},\n\nWelcome to HeartLink! Your email verification code is: {otp_code}\n\nThis code expires in 10 minutes.\n\nIf you didn't sign up, ignore this email.\n\nHeartLink Support"
     
     return send_email(to_email, subject, html_body, text_body)
 
