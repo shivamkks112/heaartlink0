@@ -656,7 +656,7 @@ const ChatPage = ({ user }) => {
   }
 
   return (
-    <div id="chat-root" className="flex flex-col" style={{ height: `${viewportH}px`, overflow: 'hidden', backgroundColor: '#f5f5f5' }}>
+    <div id="chat-root" className="flex flex-col" style={{ height: `${viewportH}px`, overflow: 'hidden', backgroundColor: surfaceLow }}>
       {/* Header with profile pic */}
       <div className="bg-gradient-to-r from-pink-500 via-rose-500 to-orange-500 shadow-lg flex-shrink-0 z-40" style={{ paddingTop: 'var(--safe-top, 0px)' }}>
         <div className="flex items-center gap-2 px-3 py-2.5">
@@ -705,7 +705,7 @@ const ChatPage = ({ user }) => {
       <div
         ref={messagesContainerRef}
         className="px-4 py-3 space-y-3 flex flex-col justify-end"
-        style={{ flex: '1 1 0%', minHeight: 0, overflowY: 'scroll', WebkitOverflowScrolling: 'touch' }}
+        style={{ flex: '1 1 0%', minHeight: 0, overflowY: 'scroll', WebkitOverflowScrolling: 'touch', backgroundColor: surfaceLow }}
         data-testid="messages-container"
       >
         <div className="flex-1" />{/* Spacer pushes messages to bottom when few messages */}
@@ -727,19 +727,19 @@ const ChatPage = ({ user }) => {
                   )}
                 </div>
               )}
-              <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm ${
-                isOwn ? 'text-white' : 'bg-white text-gray-800 shadow-sm'
-              }`} style={{ 
+              <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm ${isOwn ? 'text-white' : ''}`} style={{ 
                 wordBreak: 'break-word',
-                ...(isOwn ? { background: 'linear-gradient(135deg, #D6336C 0%, #E8590C 100%)' } : {})
+                ...(isOwn 
+                  ? { background: 'linear-gradient(135deg, #D6336C 0%, #E8590C 100%)' } 
+                  : { background: 'var(--m3-surface-container-high, #fff)', color: 'var(--m3-on-surface, #1a1a1a)', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' })
               }}>
                 {msg.is_deleted_for_all ? <i className="opacity-50">Message deleted</i> : (
                   <p className="whitespace-pre-wrap">{msg.content}</p>
                 )}
-                <div className={`text-[10px] mt-1 flex items-center gap-1 ${isOwn ? 'justify-end text-white/60' : 'text-gray-400'}`}>
+                <div className={`text-[10px] mt-1 flex items-center gap-1 ${isOwn ? 'justify-end text-white/60' : ''}`} style={!isOwn ? { color: 'var(--m3-on-surface-variant, #666)' } : {}}>
                   {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) : ''}
                   {isOwn && !msg.is_deleted_for_all && (
-                    <span>{msg._temp ? '⏳' : msg.delivered ? (msg.read ? '✓✓' : '✓') : '✓'}</span>
+                    <span>{msg._temp ? '...' : msg.delivered ? (msg.read ? '✓✓' : '✓') : '✓'}</span>
                   )}
                 </div>
               </div>
@@ -748,7 +748,7 @@ const ChatPage = ({ user }) => {
         })}
         {messages.length === 0 && (
           <div className="text-center py-12">
-            <p className="text-gray-500">Say hi to start the conversation!</p>
+            <p style={{ color: 'var(--m3-on-surface-variant)' }} className="text-sm">Say hi to start the conversation!</p>
           </div>
         )}
       </div>
@@ -851,7 +851,8 @@ const ChatPage = ({ user }) => {
               handleTyping();
             }}
             placeholder="Type a message..."
-            className="flex-1 h-11 px-4 rounded-full border-1.5 border-[#D6C2C5] focus:border-[#D6336C] bg-[#FAEAED] text-sm"
+            className="flex-1 h-11 px-4 rounded-full border text-sm"
+            style={{ borderColor: 'var(--m3-outline-variant)', background: 'var(--m3-surface-container)', color: 'var(--m3-on-surface)' }}
           />
           <Button
             data-testid="send-btn"
