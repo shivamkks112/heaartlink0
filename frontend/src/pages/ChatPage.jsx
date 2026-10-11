@@ -230,7 +230,7 @@ const ChatPage = ({ user }) => {
               requestAnimationFrame(() => { if (messagesContainerRef.current) messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight; });
             }
             cacheChatMessages(matchId, msgs);
-            setPageData('chat', { messages: msgs, otherUser: match?.user }, matchId);
+            setPageData('chat', { messages: msgs, otherUser: matchUser || otherUser }, matchId);
             axios.post(`${API}/messages/${matchId}/mark-read/${user.id}`).catch(() => {});
           }
           if (privRes.status === 'fulfilled') setPrivacySettings(privRes.value.data);
@@ -239,7 +239,13 @@ const ChatPage = ({ user }) => {
         }
       } catch (err) {
         console.error('[ChatPage] init failed:', err);
-        if (!cancelled) { setError('Chat load nahi ho paya. Please go back and try again.'); setLoading(false); }
+        if (!cancelled) {
+          // Only show error if we have NO data at all (no cached messages, no user)
+          if (!otherUser && messages.length === 0) {
+            setError('Chat load nahi ho paya. Please go back and try again.');
+          }
+          setLoading(false);
+        }
       }
     };
 
@@ -671,7 +677,25 @@ const ChatPage = ({ user }) => {
             </div>
             <div className="min-w-0">
               <h2 className="text-white font-bold text-sm truncate">{otherUser?.name || 'User'}{otherUser?.age ? `, ${otherUser.age}` : ''}</h2>
-              <p className="text-white/60 text-[11px] truncate">Tap to view profile</p>
+              <p className="text-[11px] truncate">
+                {otherUserTyping ? (
+                  <span className="text-green-200 animate-pulse">typing...</span>
+                ) : otherUser?.is_online ? (
+                  <span className="text-green-200 font-medium">Online</span>
+                ) : otherUser?.last_active ? (
+                  <span className="text-white/60">Active {(() => {
+                    const diff = Date.now() - new Date(otherUser.last_active).getTime();
+                    const mins = Math.floor(diff / 60000);
+                    if (mins < 1) return 'just now';
+                    if (mins < 60) return `${mins}m ago`;
+                    const hrs = Math.floor(mins / 60);
+                    if (hrs < 24) return `${hrs}h ago`;
+                    return `${Math.floor(hrs / 24)}d ago`;
+                  })()}</span>
+                ) : (
+                  <span className="text-white/60">Tap to view profile</span>
+                )}
+              </p>
             </div>
           </button>
         </div>
