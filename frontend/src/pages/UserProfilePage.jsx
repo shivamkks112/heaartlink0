@@ -125,9 +125,9 @@ const UserProfilePage = ({ user }) => {
           </button>
 
           {profileUser.profile_picture ? (
-            <img src={profileUser.profile_picture} alt={profileUser.name} className="w-full h-full object-cover" />
+            <img src={profileUser.profile_picture} alt={profileUser.name} className="w-full h-full object-cover" loading="lazy" decoding="async" />
           ) : profileUser.photos && profileUser.photos.length > 0 ? (
-            <img src={profileUser.photos[0]} alt={profileUser.name} className="w-full h-full object-cover" />
+            <img src={profileUser.photos[0]} alt={profileUser.name} className="w-full h-full object-cover" loading="lazy" decoding="async" />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
               <Heart className="w-24 h-24 text-white opacity-40" />

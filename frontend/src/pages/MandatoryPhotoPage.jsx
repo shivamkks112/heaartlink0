@@ -121,7 +121,7 @@ const MandatoryPhotoPage = ({ user, onComplete }) => {
             >
               {previews[index] ? (
                 <>
-                  <img src={previews[index]} alt={`Photo ${index + 1}`} className="w-full h-full object-cover" />
+                  <img src={previews[index]} alt={`Photo ${index + 1}`} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                   <button
                     onClick={() => removePhoto(index)}
                     className="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-black/60 flex items-center justify-center"

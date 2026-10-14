@@ -15,7 +15,6 @@ import { DiscoverSkeleton, MatchesSkeleton, ChatSkeleton, ProfileSkeleton, Quick
 try { import('@capgo/capacitor-updater').then(m => m.CapacitorUpdater.notifyAppReady()).catch(() => {}); } catch {}
 
 // Critical pages - loaded immediately (lightweight)
-import LandingPage from '@/pages/LandingPage';
 
 // Core pages — ALL eagerly loaded for instant native feel
 import DiscoverPage from '@/pages/DiscoverPage';
@@ -23,7 +22,7 @@ import MatchesPage from '@/pages/MatchesPage';
 import ChatPage from '@/pages/ChatPage';
 import ProfilePage from '@/pages/ProfilePage';
 import LikesYouPage from '@/pages/LikesYouPage';
-// Lazy load non-critical pages (faster initial load)
+// Lazy load all non-core pages
 const UserProfilePage = lazy(() => import('@/pages/UserProfilePage'));
 const PremiumPage = lazy(() => import('@/pages/PremiumPage'));
 const SettingsPage = lazy(() => import('@/pages/SettingsPage'));
@@ -31,22 +30,23 @@ const NotificationsPage = lazy(() => import('@/pages/NotificationsPage'));
 const ProfileEnhancementPage = lazy(() => import('@/pages/ProfileEnhancementPage'));
 const ReferralPage = lazy(() => import('@/pages/ReferralPage'));
 const ShareProfilePage = lazy(() => import('@/pages/ShareProfilePage'));
-import ProfileViewersPage from '@/pages/ProfileViewersPage';
-import PaymentHistoryPage from '@/pages/PaymentHistoryPage';
-import FeedbackPage from '@/pages/FeedbackPage';
-
-// Auth & rare pages — lazy
+const LandingPage = lazy(() => import('@/pages/LandingPage'));
+const ProfileViewersPage = lazy(() => import('@/pages/ProfileViewersPage'));
+const PaymentHistoryPage = lazy(() => import('@/pages/PaymentHistoryPage'));
+const FeedbackPage = lazy(() => import('@/pages/FeedbackPage'));
 const AuthPage = lazy(() => import('@/pages/AuthPage'));
 const ForgotPasswordPage = lazy(() => import('@/pages/ForgotPasswordPage'));
-const CompleteProfilePage = lazy(() => import('@/pages/CompleteProfilePage'));
-const AdminDashboard = lazy(() => import('@/pages/AdminDashboard'));
 const MandatoryPhotoPage = lazy(() => import('@/pages/MandatoryPhotoPage'));
+const CompleteProfilePage = lazy(() => import('@/pages/CompleteProfilePage'));
 const SelfieVerificationPage = lazy(() => import('@/pages/SelfieVerificationPage'));
-const PrivacyPage = lazy(() => import('@/pages/PrivacyPage'));
-const PrivacyPolicyPage = lazy(() => import('@/pages/PrivacyPolicyPage'));
 const DataDeletionPage = lazy(() => import('@/pages/DataDeletionPage'));
 const TermsPage = lazy(() => import('@/pages/TermsPage'));
 const CityDatingPage = lazy(() => import('@/pages/CityDatingPage'));
+const AdminDashboard = lazy(() => import('@/pages/AdminDashboard'));
+
+// Auth & rare pages — lazy
+const PrivacyPage = lazy(() => import('@/pages/PrivacyPage'));
+const PrivacyPolicyPage = lazy(() => import('@/pages/PrivacyPolicyPage'));
 const MatchShareCard = lazy(() => import('@/pages/MatchShareCard'));
 const DailyRewardModal = lazy(() => import('@/components/DailyRewardModal'));
 const WelcomeModal = lazy(() => import('@/components/WelcomeModal'));
@@ -378,17 +378,17 @@ function App() {
           {user && <RatingPrompt user={user} />}
           <Suspense fallback={<PageLoader />}>
           <Routes>
-            <Route path="/" element={!user ? <LandingPage /> : <Navigate to="/discover" />} />
-            <Route path="/auth" element={!user ? <AuthPage onLogin={handleLogin} /> : <Navigate to="/discover" />} />
-            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-            <Route path="/complete-profile" element={<CompleteProfilePage onLogin={handleLogin} />} />
-            <Route path="/mandatory-photo" element={user ? <MandatoryPhotoPage user={user} onComplete={handleLogin} /> : <Navigate to="/auth" />} />
+            <Route path="/" element={!user ? <Suspense fallback={<QuickLoader />}><LandingPage /></Suspense> : <Navigate to="/discover" />} />
+            <Route path="/auth" element={!user ? <Suspense fallback={<QuickLoader />}><AuthPage onLogin={handleLogin} /></Suspense> : <Navigate to="/discover" />} />
+            <Route path="/forgot-password" element={<Suspense fallback={<QuickLoader />}><ForgotPasswordPage /></Suspense>} />
+            <Route path="/complete-profile" element={<Suspense fallback={<QuickLoader />}><CompleteProfilePage onLogin={handleLogin} /></Suspense>} />
+            <Route path="/mandatory-photo" element={user ? <Suspense fallback={<QuickLoader />}><MandatoryPhotoPage user={user} onComplete={handleLogin} /></Suspense> : <Navigate to="/auth" />} />
             <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
-            <Route path="/terms" element={<TermsPage />} />
-            <Route path="/data-deletion" element={<DataDeletionPage />} />
-            <Route path="/dating-in-:city" element={<CityDatingPage />} />
-            <Route path="/dating/:city" element={<CityDatingPage />} />
-            <Route path="/admin" element={user && user.is_admin ? <ErrorBoundary><AdminDashboard user={user} /></ErrorBoundary> : <Navigate to="/" />} />
+            <Route path="/terms" element={<Suspense fallback={<QuickLoader />}><TermsPage /></Suspense>} />
+            <Route path="/data-deletion" element={<Suspense fallback={<QuickLoader />}><DataDeletionPage /></Suspense>} />
+            <Route path="/dating-in-:city" element={<Suspense fallback={<QuickLoader />}><CityDatingPage /></Suspense>} />
+            <Route path="/dating/:city" element={<Suspense fallback={<QuickLoader />}><CityDatingPage /></Suspense>} />
+            <Route path="/admin" element={user && user.is_admin ? <ErrorBoundary><Suspense fallback={<QuickLoader />}><AdminDashboard user={user} /></Suspense></ErrorBoundary> : <Navigate to="/" />} />
             
             {/* All protected routes — wrapped in ErrorBoundary */}
             <Route path="/discover" element={user ? <ErrorBoundary><DiscoverPage user={user} /></ErrorBoundary> : <Navigate to="/" />} />
@@ -400,13 +400,13 @@ function App() {
             <Route path="/verify-selfie" element={user ? <ErrorBoundary><Suspense fallback={<ProfileSkeleton />}><SelfieVerificationPage user={user} /></Suspense></ErrorBoundary> : <Navigate to="/" />} />
             <Route path="/privacy" element={user ? <ErrorBoundary><PrivacyPage user={user} onUpdate={handleLogin} /></ErrorBoundary> : <Navigate to="/" />} />
             <Route path="/settings" element={user ? <ErrorBoundary><Suspense fallback={<QuickLoader />}><SettingsPage user={user} /></Suspense></ErrorBoundary> : <Navigate to="/" />} />
-            <Route path="/profile-viewers" element={user ? <ErrorBoundary><ProfileViewersPage user={user} /></ErrorBoundary> : <Navigate to="/" />} />
+            <Route path="/profile-viewers" element={user ? <ErrorBoundary><Suspense fallback={<QuickLoader />}><ProfileViewersPage user={user} /></Suspense></ErrorBoundary> : <Navigate to="/" />} />
             <Route path="/enhance-profile" element={user ? <ErrorBoundary><Suspense fallback={<QuickLoader />}><ProfileEnhancementPage user={user} onUpdate={handleLogin} /></Suspense></ErrorBoundary> : <Navigate to="/" />} />
             <Route path="/notifications" element={user ? <ErrorBoundary><Suspense fallback={<QuickLoader />}><NotificationsPage user={user} /></Suspense></ErrorBoundary> : <Navigate to="/" />} />
             <Route path="/referral" element={user ? <ErrorBoundary><Suspense fallback={<QuickLoader />}><ReferralPage user={user} /></Suspense></ErrorBoundary> : <Navigate to="/" />} />
             <Route path="/share-profile" element={user ? <ErrorBoundary><Suspense fallback={<QuickLoader />}><ShareProfilePage user={user} /></Suspense></ErrorBoundary> : <Navigate to="/" />} />
-            <Route path="/payment-history" element={user ? <ErrorBoundary><PaymentHistoryPage user={user} /></ErrorBoundary> : <Navigate to="/" />} />
-            <Route path="/feedback" element={user ? <ErrorBoundary><FeedbackPage user={user} /></ErrorBoundary> : <Navigate to="/" />} />
+            <Route path="/payment-history" element={user ? <ErrorBoundary><Suspense fallback={<QuickLoader />}><PaymentHistoryPage user={user} /></Suspense></ErrorBoundary> : <Navigate to="/" />} />
+            <Route path="/feedback" element={user ? <ErrorBoundary><Suspense fallback={<QuickLoader />}><FeedbackPage user={user} /></Suspense></ErrorBoundary> : <Navigate to="/" />} />
             <Route path="/share-match" element={user ? <ErrorBoundary><MatchShareCard user={user} /></ErrorBoundary> : <Navigate to="/" />} />
             <Route path="/premium" element={user ? <ErrorBoundary><Suspense fallback={<QuickLoader />}><PremiumPage user={user} onUpdate={handleLogin} /></Suspense></ErrorBoundary> : <Navigate to="/" />} />
           </Routes>

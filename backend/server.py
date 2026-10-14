@@ -5528,16 +5528,24 @@ async def get_conversations(user_id: str):
 
 # Chat Routes
 @api_router.get("/messages/{match_id}")
-async def get_messages(match_id: str, user_id: Optional[str] = None, limit: int = 100, skip: int = 0, order: str = "asc"):
+async def get_messages(match_id: str, user_id: Optional[str] = None, limit: int = 100, skip: int = 0, order: str = "asc", before: Optional[str] = None):
     """Get chat messages with pagination and privacy filters
     
     Args:
         order: 'asc' for oldest first (default for chat display), 'desc' for newest first (for getting last message)
+        before: ISO timestamp - load messages before this time (for pagination)
     """
     query = {
         "match_id": match_id,
         "is_deleted_for_all": {"$ne": True}
     }
+    
+    # Pagination: load messages before a timestamp
+    if before:
+        try:
+            query["created_at"] = {"$lt": before}
+        except Exception:
+            pass
     
     # If user_id provided, filter out messages deleted for this user
     if user_id:

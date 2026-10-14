@@ -151,7 +151,7 @@ const SelfieVerificationPage = ({ user }) => {
               <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
                 <p className="text-xs text-gray-500 mb-2 font-medium">Your Profile Photo</p>
                 <div className="w-20 h-20 rounded-xl overflow-hidden border-2 border-gray-200">
-                  <img src={profilePhoto} alt="Profile" className="w-full h-full object-cover" />
+                  <img src={profilePhoto} alt="Profile" className="w-full h-full object-cover" loading="lazy" decoding="async" />
                 </div>
               </div>
             )}
@@ -212,14 +212,14 @@ const SelfieVerificationPage = ({ user }) => {
                 <div className="flex-1">
                   <p className="text-xs text-gray-500 mb-1.5 text-center font-medium">Profile</p>
                   <div className="aspect-square rounded-xl overflow-hidden border-2 border-gray-200">
-                    <img src={profilePhoto} alt="Profile" className="w-full h-full object-cover" />
+                    <img src={profilePhoto} alt="Profile" className="w-full h-full object-cover" loading="lazy" decoding="async" />
                   </div>
                 </div>
               )}
               <div className="flex-1">
                 <p className="text-xs text-gray-500 mb-1.5 text-center font-medium">Selfie</p>
                 <div className="aspect-square rounded-xl overflow-hidden border-2 border-blue-300">
-                  <img src={selfieData} alt="Selfie" className="w-full h-full object-cover" />
+                  <img src={selfieData} alt="Selfie" className="w-full h-full object-cover" loading="lazy" decoding="async" />
                 </div>
               </div>
             </div>

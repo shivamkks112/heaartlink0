@@ -117,7 +117,7 @@ const UserCard = ({ u, onBlock, onUnblock, onDelete, onView, onResetPassword, on
       <div className="relative">
         <div className="w-16 h-16 rounded-full bg-gradient-to-br from-pink-400 to-orange-400 flex items-center justify-center overflow-hidden flex-shrink-0">
           {u.profile_picture ? (
-            <img src={u.profile_picture} alt={u.name || 'User'} className="w-full h-full object-cover" />
+            <img src={u.profile_picture} alt={u.name || 'User'} className="w-full h-full object-cover" loading="lazy" decoding="async" />
           ) : (
             <User className="w-8 h-8 text-white" />
           )}
@@ -234,7 +234,7 @@ const VerificationCard = ({ v, onVerify }) => {
       <div className="flex items-start gap-4">
         <div className="w-20 h-20 rounded-lg overflow-hidden bg-gray-100">
           {v.profile_picture ? (
-            <img src={v.profile_picture} alt="Profile" className="w-full h-full object-cover" />
+            <img src={v.profile_picture} alt="Profile" className="w-full h-full object-cover" loading="lazy" decoding="async" />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
               <User className="w-10 h-10 text-gray-400" />
@@ -243,7 +243,7 @@ const VerificationCard = ({ v, onVerify }) => {
         </div>
         <div className="w-20 h-20 rounded-lg overflow-hidden bg-gray-100 border-2 border-blue-500">
           {v.selfie_verification_url ? (
-            <img src={v.selfie_verification_url} alt="Selfie" className="w-full h-full object-cover" />
+            <img src={v.selfie_verification_url} alt="Selfie" className="w-full h-full object-cover" loading="lazy" decoding="async" />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
               <Camera className="w-10 h-10 text-gray-400" />
@@ -647,7 +647,7 @@ const UserDetailModal = ({ user, onClose }) => {
         <div className="flex items-start gap-4 mb-4">
           <div className="w-20 h-20 rounded-full bg-gradient-to-br from-pink-400 to-orange-400 flex items-center justify-center overflow-hidden">
             {user.profile_picture ? (
-              <img src={user.profile_picture} alt={user.name} className="w-full h-full object-cover" />
+              <img src={user.profile_picture} alt={user.name} className="w-full h-full object-cover" loading="lazy" decoding="async" />
             ) : (
               <User className="w-10 h-10 text-white" />
             )}
@@ -1719,7 +1719,7 @@ const AdminDashboard = ({ user }) => {
                     <div className="relative">
                       <div className="h-40 bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center">
                         {profile.photos && profile.photos[0] ? (
-                          <img src={profile.photos[0]} alt={profile.name} className="w-full h-full object-cover" />
+                          <img src={profile.photos[0]} alt={profile.name} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                         ) : (
                           <Bot className="w-16 h-16 text-white/60" />
                         )}

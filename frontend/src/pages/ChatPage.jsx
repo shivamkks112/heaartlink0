@@ -67,7 +67,9 @@ const ChatPage = ({ user }) => {
   const messagesContainerRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const typingHideTimerRef = useRef(null);
-  const pendingWsMessages = useRef(new Map()); // Track WS messages awaiting echo
+  const pendingWsMessages = useRef(new Map());
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [hasOlderMessages, setHasOlderMessages] = useState(true);
 
   // Smart Nudge
   const nudgeData = useMemo(() => {
@@ -206,7 +208,7 @@ const ChatPage = ({ user }) => {
 
         // Fetch fresh messages + privacy in parallel (background update)
         const [msgRes, privRes] = await Promise.allSettled([
-          axios.get(`${API}/messages/${matchId}?user_id=${user.id}&limit=100`),
+          axios.get(`${API}/messages/${matchId}?user_id=${user.id}&limit=30`),
           axios.get(`${API}/privacy/${user.id}`),
         ]);
 
@@ -317,6 +319,42 @@ const ChatPage = ({ user }) => {
       });
     } catch (error) { /* silent */ }
   };
+
+  // Load older messages when user scrolls to top
+  const loadOlderMessages = useCallback(async () => {
+    if (loadingOlder || !hasOlderMessages || messages.length === 0) return;
+    setLoadingOlder(true);
+    try {
+      const oldest = messages[0];
+      const res = await axios.get(`${API}/messages/${matchId}?user_id=${user.id}&limit=30&before=${oldest.timestamp || oldest.created_at}`);
+      const olderMsgs = res.data?.messages || res.data || [];
+      if (olderMsgs.length === 0) { setHasOlderMessages(false); }
+      else {
+        const container = messagesContainerRef.current;
+        const prevHeight = container?.scrollHeight || 0;
+        setMessages(prev => [...olderMsgs, ...prev]);
+        // Maintain scroll position after prepending
+        requestAnimationFrame(() => {
+          if (container) container.scrollTop = container.scrollHeight - prevHeight;
+        });
+      }
+    } catch { setHasOlderMessages(false); }
+    setLoadingOlder(false);
+  }, [loadingOlder, hasOlderMessages, messages, matchId, user.id]);
+
+  // Scroll-to-top detector for pagination
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    const onScroll = () => {
+      if (container.scrollTop < 50 && hasOlderMessages && !loadingOlder) {
+        loadOlderMessages();
+      }
+    };
+    container.addEventListener('scroll', onScroll, { passive: true });
+    return () => container.removeEventListener('scroll', onScroll);
+  }, [loadOlderMessages, hasOlderMessages, loadingOlder]);
+
 
   const sendTypingIndicator = (typing) => {
     if (privacySettings.hide_typing_indicator) return;
@@ -699,6 +737,11 @@ const ChatPage = ({ user }) => {
         style={{ flex: '1 1 0%', minHeight: 0, overflowY: 'scroll', WebkitOverflowScrolling: 'touch', backgroundColor: surfaceLow }}
         data-testid="messages-container"
       >
+        {loadingOlder && (
+          <div className="text-center py-3">
+            <div className="inline-block w-5 h-5 border-2 border-pink-300 border-t-pink-500 rounded-full animate-spin" />
+          </div>
+        )}
         <div className="flex-1" />{/* Spacer pushes messages to bottom when few messages */}
         {messages.map((msg, i) => {
           const isOwn = msg.sender_id === user.id;
