@@ -71,3 +71,10 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 
 ## Future/Backlog
 - [ ] AI Trust Score, Video Intros, Live Location Share
+
+## 2026-06 — Likes/Chat slow-load root cause fix
+- Root cause: prod /api/likes returned 13.8MB (30-48s) due to inline base64 photos.
+- Added `slim_photos()` + `GET /api/photo/{uid}/{slot}` (serves decoded image, 1yr cache). Applied to likes, crushes, profile-viewers, matches, conversations, chat info.
+- Likes: N+1 user lookups batched with $in. Matches: fixed KeyError 'age' 500.
+- ChatPage: messages+privacy fetched in parallel with chat info. LikesYouPage: caches likes/crushes/viewers correctly.
+- Tested: iteration_39 (backend 9/11 → remaining issue was Cache-Control override, fixed in app; preview ingress still overrides header).
