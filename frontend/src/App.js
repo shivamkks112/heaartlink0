@@ -260,17 +260,20 @@ function App() {
         import('@/utils/nativeGoogleAuth').then(({ initGoogleAuth }) => initGoogleAuth());
         // Preload critical pages for instant navigation
         preloadCriticalPages();
-        import('@/services/pushNotifications').then(({ initPushNotifications }) => {
-          setTimeout(() => initPushNotifications(userData.id), 2000);
+        // INSTANT: Prefetch ALL page data in parallel (no delay)
+        import('@/utils/cacheManager').then(({ prefetchAllData }) => {
+          prefetchAllData(userData.id, API);
         });
         // Connect WebSocket for real-time updates
         import('@/services/WebSocketService').then((mod) => {
           mod.default.connect(userData.id);
         });
-        // Prefetch recent chats in background for instant open
-        import('@/utils/cacheManager').then(({ prefetchRecentChats }) => {
-          setTimeout(() => prefetchRecentChats(userData.id, API), 3000);
-        });
+        // Push notifications (lower priority, delayed)
+        setTimeout(() => {
+          import('@/services/pushNotifications').then(({ initPushNotifications }) => {
+            initPushNotifications(userData.id);
+          });
+        }, 3000);
       } catch (error) {
         console.error('Error parsing stored user:', error);
         localStorage.removeItem('user');

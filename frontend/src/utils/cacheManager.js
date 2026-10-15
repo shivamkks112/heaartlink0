@@ -84,3 +84,54 @@ export async function prefetchRecentChats(userId, apiBase) {
     }
   } catch (_) {}
 }
+
+// GLOBAL PREFETCH — fetch ALL page data in parallel on app startup
+// Pages read from pageCache first → instant render → background refresh
+export async function prefetchAllData(userId, apiBase) {
+  const { setPageData } = await import('@/utils/pageCache');
+  
+  try {
+    // Fire ALL requests in parallel
+    const [matchesRes, convsRes, likesRes, profilesRes, crushesRes, viewersRes] = await Promise.allSettled([
+      fetch(`${apiBase}/matches/${userId}`).then(r => r.json()),
+      fetch(`${apiBase}/conversations/${userId}`).then(r => r.json()),
+      fetch(`${apiBase}/likes/${userId}`).then(r => r.json()),
+      fetch(`${apiBase}/profiles/${userId}?limit=10`).then(r => r.json()),
+      fetch(`${apiBase}/crushes/${userId}`).then(r => r.json()),
+      fetch(`${apiBase}/profile-viewers/${userId}`).then(r => r.json()),
+    ]);
+    
+    const matches = matchesRes.status === 'fulfilled' ? matchesRes.value : [];
+    const convs = convsRes.status === 'fulfilled' ? convsRes.value : [];
+    const likes = likesRes.status === 'fulfilled' ? likesRes.value : {};
+    const profiles = profilesRes.status === 'fulfilled' ? profilesRes.value : {};
+    const crushes = crushesRes.status === 'fulfilled' ? crushesRes.value : {};
+    const viewers = viewersRes.status === 'fulfilled' ? viewersRes.value : {};
+    
+    // Cache for instant page loads
+    setPageData('matches', { matches, conversations: convs, activeUsers: [] }, userId);
+    setPageData('likes', { likes, crushes, viewers }, userId);
+    if (profiles.profiles) {
+      setPageData('discover', { profiles: profiles.profiles, filters: {} }, userId);
+      cacheDiscoverProfiles(userId, profiles.profiles);
+    }
+    cacheConversations(userId, convs);
+    
+    // Prefetch top 3 chat messages
+    const top3 = (convs || []).slice(0, 3);
+    await Promise.allSettled(top3.map(async (conv) => {
+      try {
+        const msgRes = await fetch(`${apiBase}/messages/${conv.match_id}?user_id=${userId}&limit=20`);
+        if (msgRes.ok) {
+          const msgs = await msgRes.json();
+          cacheChatMessages(conv.match_id, msgs);
+          setPageData('chat', { messages: msgs, otherUser: conv.user }, conv.match_id);
+        }
+      } catch (_) {}
+    }));
+    
+    console.log('[Prefetch] All data cached for instant page loads');
+  } catch (err) {
+    console.warn('[Prefetch] Partial failure:', err.message);
+  }
+}
