@@ -52,7 +52,7 @@ export function cacheConversations(userId, conversations) {
 }
 
 export function getCachedConversations(userId) {
-  return getCache(`${CACHE_KEYS.CONVERSATIONS}_${userId}`, 3 * 60 * 1000); // 3 min TTL
+  return getCache(`${CACHE_KEYS.CONVERSATIONS}_${userId}`, 30 * 60 * 1000); // 30 min TTL
 }
 
 // Chat messages cache
@@ -61,7 +61,7 @@ export function cacheChatMessages(matchId, messages) {
 }
 
 export function getCachedChatMessages(matchId) {
-  return getCache(`${CACHE_KEYS.CHAT_PREFIX}${matchId}`, 2 * 60 * 1000); // 2 min TTL
+  return getCache(`${CACHE_KEYS.CHAT_PREFIX}${matchId}`, 30 * 60 * 1000); // 30 min TTL
 }
 
 // Prefetch recent chats in background
@@ -117,9 +117,9 @@ export async function prefetchAllData(userId, apiBase) {
     }
     cacheConversations(userId, convs);
     
-    // Prefetch top 3 chat messages
-    const top3 = (convs || []).slice(0, 3);
-    await Promise.allSettled(top3.map(async (conv) => {
+    // Prefetch ALL chat messages (not just top 3)
+    const allConvs = (convs || []).slice(0, 10);
+    await Promise.allSettled(allConvs.map(async (conv) => {
       try {
         const msgRes = await fetch(`${apiBase}/messages/${conv.match_id}?user_id=${userId}&limit=20`);
         if (msgRes.ok) {

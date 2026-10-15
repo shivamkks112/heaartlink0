@@ -39,7 +39,9 @@ const ChatPage = ({ user }) => {
   const [messages, setMessages] = useState(_cachedMsgs);
   const [newMessage, setNewMessage] = useState('');
   const [otherUser, setOtherUser] = useState(_routeUser || _cc?.otherUser || null);
-  const [loading, setLoading] = useState(!_routeUser && !_cc?.otherUser);
+  // Never show full-page loading if we have the user — show chat UI with message loading
+  const [loading, setLoading] = useState(!_routeUser && !_cc?.otherUser && _cachedMsgs.length === 0);
+  const [messagesLoading, setMessagesLoading] = useState(_cachedMsgs.length === 0);
   const [error, setError] = useState(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
@@ -200,11 +202,10 @@ const ChatPage = ({ user }) => {
         const cachedMsgs = getCachedChatMessages(matchId);
         if (cachedMsgs && cachedMsgs.length > 0 && messages.length === 0) {
           setMessages(cachedMsgs);
+          setMessagesLoading(false);
         }
-        // Always drop loading immediately if we have user + any messages
-        if (!cancelled && (cachedMsgs?.length > 0 || messages.length > 0)) {
-          setLoading(false);
-        }
+        // Drop full-page loading if we have user
+        if (!cancelled) setLoading(false);
 
         // Fetch fresh messages + privacy in parallel (background update)
         const [msgRes, privRes] = await Promise.allSettled([
@@ -228,6 +229,7 @@ const ChatPage = ({ user }) => {
           }
           if (privRes.status === 'fulfilled') setPrivacySettings(privRes.value.data);
           setLoading(false);
+          setMessagesLoading(false);
           checkMuteStatus();
         }
       } catch (err) {
@@ -431,6 +433,11 @@ const ChatPage = ({ user }) => {
     if (!hasScrolledInitial.current || nearBottom) {
       requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; });
       if (messages.length > 0) hasScrolledInitial.current = true;
+    }
+    // Cache messages on every update for instant re-open
+    if (messages.length > 0 && otherUser) {
+      cacheChatMessages(matchId, messages);
+      setPageData('chat', { messages, otherUser }, matchId);
     }
   }, [messages.length, loading]);
 
@@ -743,6 +750,12 @@ const ChatPage = ({ user }) => {
           </div>
         )}
         <div className="flex-1" />{/* Spacer pushes messages to bottom when few messages */}
+        {messagesLoading && messages.length === 0 && (
+          <div className="text-center py-8">
+            <div className="inline-block w-6 h-6 border-2 border-pink-300 border-t-pink-500 rounded-full animate-spin mb-2" />
+            <p className="text-xs" style={{ color: 'var(--m3-on-surface-variant, #888)' }}>Loading messages...</p>
+          </div>
+        )}
         {messages.map((msg, i) => {
           const isOwn = msg.sender_id === user.id;
           const showAvatar = !isOwn && (i === 0 || messages[i - 1]?.sender_id === user.id);
