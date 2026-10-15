@@ -39,9 +39,9 @@ const ChatPage = ({ user }) => {
   const [messages, setMessages] = useState(_cachedMsgs);
   const [newMessage, setNewMessage] = useState('');
   const [otherUser, setOtherUser] = useState(_routeUser || _cc?.otherUser || null);
-  // Never show full-page loading if we have the user — show chat UI with message loading
-  const [loading, setLoading] = useState(!_routeUser && !_cc?.otherUser && _cachedMsgs.length === 0);
-  const [messagesLoading, setMessagesLoading] = useState(_cachedMsgs.length === 0);
+  // Show chat UI instantly — header from route/cache, messages from cache
+  const [loading, setLoading] = useState(false);
+  const [messagesLoading, setMessagesLoading] = useState(_cachedMsgs.length === 0 && !_routeUser);
   const [error, setError] = useState(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isTyping, setIsTyping] = useState(false);

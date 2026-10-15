@@ -14,7 +14,7 @@ const LikesYouPage = ({ user }) => {
   const [activeTab, setActiveTab] = useState('all');
   const _lc = getPageData('likes', user?.id);
   const [likes, setLikes] = useState(_lc?.likes || { regular_likes: [], super_likes: [], total_count: 0 });
-  const [loading, setLoading] = useState(!_lc);
+  const [loading, setLoading] = useState(false); // Never block — cached or empty instant
   const [processingId, setProcessingId] = useState(null);
   const [revealedProfiles, setRevealedProfiles] = useState([]);
   const [crushes, setCrushes] = useState(_lc?.crushes || { crushes: [], total: 0 });

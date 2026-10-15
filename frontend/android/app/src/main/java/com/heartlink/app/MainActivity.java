@@ -186,21 +186,17 @@ public class MainActivity extends BridgeActivity {
     
     @Override
     public void onBackPressed() {
-        // Let Capacitor/JavaScript handle back button (double-press-to-exit logic)
-        // Do NOT call finishAffinity() — it kills the app immediately
+        // Let JavaScript handle ALL back button logic (double-press-to-exit)
+        // Do NOT call super.onBackPressed() — it exits the app before JS can handle it
         if (getBridge() != null && getBridge().getWebView() != null) {
             getBridge().getWebView().evaluateJavascript(
                 "(function() { " +
                 "  try { " +
-                "    var event = new CustomEvent('capacitorBackButton', { detail: { canGoBack: window.history.length > 1 } }); " +
-                "    window.dispatchEvent(event); " +
-                "  } catch(e) {} " +
+                "    window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App && " +
+                "    window.Capacitor.Plugins.App.notifyListeners('backButton', { canGoBack: window.history.length > 1 }); " +
+                "  } catch(e) { console.error('Back handler error:', e); } " +
                 "})();", null
             );
-            // Let Capacitor plugin handle it
-            super.onBackPressed();
-        } else {
-            super.onBackPressed();
         }
     }
 }

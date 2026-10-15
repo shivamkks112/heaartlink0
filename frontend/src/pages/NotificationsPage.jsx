@@ -16,7 +16,7 @@ const NotificationsPage = ({ user }) => {
   const navigate = useNavigate();
   const _nc = getPageData('notifications', user?.id);
   const [notifications, setNotifications] = useState(_nc?.notifications || []);
-  const [loading, setLoading] = useState(!_nc);
+  const [loading, setLoading] = useState(false);
   const [unreadCount, setUnreadCount] = useState(_nc?.unreadCount || 0);
 
   useEffect(() => {

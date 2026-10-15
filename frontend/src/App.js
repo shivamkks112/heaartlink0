@@ -159,8 +159,8 @@ function BackButtonHandler() {
         handle = await App.addListener('backButton', ({ canGoBack }) => {
           if (!mounted) return;
           const path = currentPath.current;
-          const isOnRecent = path === RECENT_TAB;
-          const isMainTab = MAIN_TABS.some(tab => path === tab);
+          const isOnRecent = path === RECENT_TAB || path === RECENT_TAB + '/';
+          const isMainTab = MAIN_TABS.some(tab => path === tab || path === tab + '/');
           
           if (isOnRecent) {
             const now = Date.now();

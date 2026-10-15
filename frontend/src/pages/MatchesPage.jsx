@@ -129,7 +129,7 @@ const MatchesPage = ({ user }) => {
   const [chatFilter, setChatFilter] = useState('recent');
   const [matchFilter, setMatchFilter] = useState('recent');
   const [activeUsers, setActiveUsers] = useState(_mc?.activeUsers || []);
-  const [loading, setLoading] = useState(!_mc);
+  const [loading, setLoading] = useState(false); // Never block — cached or empty state instant
   // Auto-switch to messages tab if navigated back from chat
   const [activeTab, setActiveTab] = useState(location.state?.tab || 'matches');
   const [unreadCounts, setUnreadCounts] = useState({});
