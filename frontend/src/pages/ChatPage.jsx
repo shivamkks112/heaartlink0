@@ -181,7 +181,11 @@ const ChatPage = ({ user }) => {
 
     const init = async () => {
       try {
-        // If we already have otherUser from route state or cache, skip the user fetch
+        // Fire messages + privacy immediately (parallel with user info)
+        const dataPromise = Promise.allSettled([
+          axios.get(`${API}/messages/${matchId}?user_id=${user.id}&limit=30`),
+          axios.get(`${API}/privacy/${user.id}`),
+        ]);
         let matchUser = otherUser;
         
         if (!matchUser) {
@@ -208,10 +212,7 @@ const ChatPage = ({ user }) => {
         if (!cancelled) setLoading(false);
 
         // Fetch fresh messages + privacy in parallel (background update)
-        const [msgRes, privRes] = await Promise.allSettled([
-          axios.get(`${API}/messages/${matchId}?user_id=${user.id}&limit=30`),
-          axios.get(`${API}/privacy/${user.id}`),
-        ]);
+        const [msgRes, privRes] = await dataPromise;
 
         if (!cancelled) {
           if (msgRes.status === 'fulfilled') {

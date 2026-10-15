@@ -232,6 +232,68 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 api_router = APIRouter(prefix="/api")
 
+
+def _public_base(request: Request) -> str:
+    host = request.headers.get("x-forwarded-host") or request.headers.get("host", "")
+    proto = request.headers.get("x-forwarded-proto", "https").split(",")[0]
+    return f"{proto}://{host}"
+
+
+def _photo_url(base: str, uid: str, slot, value: str) -> str:
+    v = hashlib.md5(f"{len(value)}{value[-64:]}".encode()).hexdigest()[:10]
+    return f"{base}/api/photo/{uid}/{slot}?v={v}"
+
+
+def slim_photos(obj, request: Request):
+    """Replace inline base64 photos with cacheable URLs (keeps list responses tiny)."""
+    base = _public_base(request)
+
+    def walk(o):
+        if isinstance(o, list):
+            return [walk(x) for x in o]
+        if not isinstance(o, dict):
+            return o
+        uid = o.get("id") or o.get("user_id")
+        out = {k: walk(v) for k, v in o.items()}
+        if uid:
+            pp = out.get("profile_picture")
+            if isinstance(pp, str) and pp.startswith("data:"):
+                out["profile_picture"] = _photo_url(base, uid, "p", pp)
+            photos = out.get("photos")
+            if isinstance(photos, list):
+                out["photos"] = [
+                    _photo_url(base, uid, i, p) if isinstance(p, str) and p.startswith("data:") else p
+                    for i, p in enumerate(photos)
+                ]
+        return out
+
+    return walk(obj)
+
+
+@api_router.get("/photo/{user_id}/{slot}")
+async def get_user_photo(user_id: str, slot: str):
+    u = await db.users.find_one({"id": user_id}, {"_id": 0, "photos": 1, "profile_picture": 1})
+    if not u:
+        raise HTTPException(status_code=404, detail="Not found")
+    if slot == "p":
+        value = u.get("profile_picture") or ((u.get("photos") or [None])[0])
+    else:
+        photos = u.get("photos") or []
+        idx = int(slot) if slot.isdigit() else -1
+        value = photos[idx] if 0 <= idx < len(photos) else None
+    if not value:
+        raise HTTPException(status_code=404, detail="Not found")
+    if not value.startswith("data:"):
+        return Response(status_code=302, headers={"Location": value})
+    header, _, b64 = value.partition(",")
+    media = header[5:].split(";")[0] or "image/jpeg"
+    try:
+        data = base64.b64decode(b64)
+    except Exception:
+        raise HTTPException(status_code=404, detail="Bad image")
+    return Response(content=data, media_type=media, headers={"Cache-Control": "public, max-age=31536000, immutable"})
+
+
 # Include extracted route modules
 from routes.ads import router as ads_router
 from routes.games import router as games_router
@@ -3944,7 +4006,7 @@ async def send_typing_indicator(match_id: str, user_id: str, is_typing: bool = T
 
 
 @api_router.get("/chat/{match_id}/info")
-async def get_chat_info(match_id: str, user_id: str):
+async def get_chat_info(match_id: str, user_id: str, request: Request):
     """Fast endpoint: get match info + other user data in one call"""
     match = await db.matches.find_one({"id": match_id})
     if not match:
@@ -3953,7 +4015,7 @@ async def get_chat_info(match_id: str, user_id: str):
     other_user = await db.users.find_one({"id": other_id})
     if not other_user:
         raise HTTPException(404, "User not found")
-    return {
+    return slim_photos({
         "match_id": match_id,
         "other_user": {
             "id": other_user["id"],
@@ -3967,7 +4029,8 @@ async def get_chat_info(match_id: str, user_id: str):
             "is_ai_profile": other_user.get("is_ai_profile", False),
             "verified": other_user.get("verified", False),
         }
-    }
+    }, request)
+
 
 @api_router.get("/chat/{match_id}/messages")
 async def get_chat_messages(match_id: str, user_id: str, limit: int = 50, skip: int = 0):
@@ -5094,7 +5157,7 @@ async def mark_crush(user_id: str, target_user_id: str):
     return {"action": "crush_sent", "mutual": False}
 
 @api_router.get("/crushes/{user_id}")
-async def get_crushes(user_id: str):
+async def get_crushes(user_id: str, request: Request):
     """Get users who crushed on you — premium sees full data, free sees blurred."""
     # Server-side premium check
     requesting_user = await db.users.find_one({"id": user_id}, {"_id": 0, "is_premium": 1, "gender": 1})
@@ -5138,7 +5201,7 @@ async def get_crushes(user_id: str):
         r["is_mutual"] = r["user"]["id"] in my_crush_ids
     
     total = await db.crushes.count_documents({"crushed_id": user_id})
-    return {"crushes": result, "total": total, "is_premium": user_has_premium}
+    return slim_photos({"crushes": result, "total": total, "is_premium": user_has_premium}, request)
 
 @api_router.get("/crushes/{user_id}/sent")
 async def get_sent_crushes(user_id: str):
@@ -5150,7 +5213,7 @@ async def get_sent_crushes(user_id: str):
 # ==================== WHO VIEWED PROFILE (ENHANCED) ====================
 
 @api_router.get("/profile-viewers/{user_id}")
-async def get_profile_viewers_enhanced(user_id: str):
+async def get_profile_viewers_enhanced(user_id: str, request: Request):
     """Get who viewed your profile - blurred for free, full for premium. Premium checked server-side."""
     views = await db.profile_views.find(
         {"viewed_user_id": user_id}
@@ -5193,22 +5256,22 @@ async def get_profile_viewers_enhanced(user_id: str):
                     "locked": True
                 })
     
-    return {
+    return slim_photos({
         "viewers": viewers,
         "total_views": total_views,
         "today_views": today_views,
         "is_premium": user_has_premium
-    }
+    }, request)
 
 # Matches Routes
 @api_router.get("/matches/{user_id}")
-async def get_matches(user_id: str):
+async def get_matches(user_id: str, request: Request):
     """Get user matches - OPTIMIZED with caching and batch queries"""
     # Check cache first
     cache_key = f"matches_{user_id}"
     cached = matches_cache.get(cache_key)
     if cached:
-        return cached
+        return slim_photos(cached, request)
     
     # Get current user blocked list only
     current_user = await db.users.find_one(
@@ -5273,8 +5336,8 @@ async def get_matches(user_id: str):
         
         user_data = {
             "id": other_user["id"],
-            "name": other_user["name"],
-            "age": other_user["age"],
+            "name": other_user.get("name", ""),
+            "age": other_user.get("age"),
             "verified": other_user.get("verified", False),
             "is_online": other_user.get("is_online", False),
             "last_active": other_user.get("last_active")
@@ -5297,7 +5360,7 @@ async def get_matches(user_id: str):
     
     # Cache result
     matches_cache[cache_key] = result
-    return result
+    return slim_photos(result, request)
 
 @api_router.post("/likes/{user_id}/mark-seen")
 async def mark_likes_seen(user_id: str):
@@ -5310,7 +5373,7 @@ async def mark_likes_seen(user_id: str):
     return {"success": True}
 
 @api_router.get("/likes/{user_id}")
-async def get_likes(user_id: str):
+async def get_likes(user_id: str, request: Request):
     """Get users who liked the current user. Non-premium see blurred/limited data."""
     # Check premium status
     requesting_user = await db.users.find_one({"id": user_id}, {"_id": 0, "is_premium": 1, "gender": 1})
@@ -5329,11 +5392,14 @@ async def get_likes(user_id: str):
         "total_count": 0
     }
     
+    liker_ids = list({lk["user1_id"] for lk in likes if lk.get("user2_action") != "pass"})
+    liker_map = {u["id"]: u async for u in db.users.find({"id": {"$in": liker_ids}}, {"_id": 0})}
+
     for like in likes:
         if like.get("user2_action") == "pass":
             continue
             
-        liker_user = await db.users.find_one({"id": like["user1_id"]})
+        liker_user = liker_map.get(like["user1_id"])
         
         if liker_user:
             if user_has_premium:
@@ -5380,7 +5446,7 @@ async def get_likes(user_id: str):
     result["total_count"] = len(result["regular_likes"]) + len(result["super_likes"])
     result["is_premium"] = user_has_premium
     
-    return result
+    return slim_photos(result, request)
 
 @api_router.get("/active-users/{user_id}")
 async def get_active_users(user_id: str, limit: int = 20):
@@ -5454,7 +5520,7 @@ async def get_active_users(user_id: str, limit: int = 20):
 
 
 @api_router.get("/conversations/{user_id}")
-async def get_conversations(user_id: str):
+async def get_conversations(user_id: str, request: Request):
     """Get all conversations with last message and unread count in ONE query — avoids N+1"""
     # Get all matched matches
     matches = await db.matches.find({
@@ -5523,7 +5589,7 @@ async def get_conversations(user_id: str):
     
     # Sort by last message time, newest first
     conversations.sort(key=lambda c: c["lastMessage"].get("created_at", ""), reverse=True)
-    return conversations
+    return slim_photos(conversations, request)
 
 
 # Chat Routes

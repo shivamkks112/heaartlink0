@@ -27,7 +27,11 @@ const LikesYouPage = ({ user }) => {
 
   useEffect(() => {
     // Fetch all data in parallel
-    Promise.allSettled([fetchLikes(), fetchCrushes(), fetchViewers()]).then(() => setLoading(false));
+    Promise.allSettled([fetchLikes(), fetchCrushes(), fetchViewers()]).then(([l, c, v]) => {
+      setLoading(false);
+      const prev = getPageData('likes', user.id) || {};
+      setPageData('likes', { likes: l.value || prev.likes, crushes: c.value || prev.crushes, viewers: v.value || prev.viewers }, user.id);
+    });
     fetch(`${API}/likes/${user.id}/mark-seen`, { method: 'POST' }).catch(() => {});
     const revealed = JSON.parse(localStorage.getItem('heartlink_revealed_likes') || '[]');
     setRevealedProfiles(revealed);
@@ -40,7 +44,7 @@ const LikesYouPage = ({ user }) => {
       const response = await fetch(`${API}/likes/${user.id}`);
       const data = await response.json();
       setLikes(data);
-      setPageData('likes', { likes: data, crushes, viewers }, user.id);
+      return data;
     } catch (error) {
       console.error('Error fetching likes:', error);
     }
@@ -50,6 +54,7 @@ const LikesYouPage = ({ user }) => {
     try {
       const res = await axios.get(`${API}/crushes/${user.id}`);
       setCrushes(res.data);
+      return res.data;
     } catch (e) {
       console.error('Error fetching crushes:', e);
     }
@@ -59,6 +64,7 @@ const LikesYouPage = ({ user }) => {
     try {
       const res = await axios.get(`${API}/profile-viewers/${user.id}`);
       setViewers(res.data);
+      return res.data;
     } catch (e) {
       console.error('Error fetching viewers:', e);
     }
