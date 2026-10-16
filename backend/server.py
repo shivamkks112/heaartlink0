@@ -2150,8 +2150,9 @@ class ConnectionManager:
         await websocket.accept()
         self.active_connections[user_id] = websocket
 
-    def disconnect(self, user_id: str):
-        if user_id in self.active_connections:
+    def disconnect(self, user_id: str, websocket: WebSocket = None):
+        current = self.active_connections.get(user_id)
+        if current is not None and (websocket is None or current is websocket):
             del self.active_connections[user_id]
 
     async def send_message(self, user_id: str, message: dict):
@@ -6502,7 +6503,9 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
                     )
                 )
     except WebSocketDisconnect:
-        manager.disconnect(user_id)
+        manager.disconnect(user_id, websocket)
+        if user_id in manager.active_connections:
+            return  # a newer socket for this user is still live
         
         # Set user offline
         await db.users.update_one(

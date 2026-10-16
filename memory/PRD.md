@@ -78,3 +78,10 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 - Likes: N+1 user lookups batched with $in. Matches: fixed KeyError 'age' 500.
 - ChatPage: messages+privacy fetched in parallel with chat info. LikesYouPage: caches likes/crushes/viewers correctly.
 - Tested: iteration_39 (backend 9/11 → remaining issue was Cache-Control override, fixed in app; preview ingress still overrides header).
+
+## 2026-06 — Read receipts + first-load blank fix
+- Ticks: `_ack_message` (delivered when receiver online/AI; AI marks read after 2-5s), `_deliver_pending` on WS connect, mark-read sets delivered. WS path now acks. ConnectionManager.disconnect only removes the same socket. Index (receiver_id, delivered).
+- UI ticks: clock → ✓ → grey ✓✓ → blue ✓✓ (lucide). ackRef handles ack-before-REST race.
+- Photos: Mongo `$project` markers (no base64 transfer) for likes/matches/conversations; `/api/photo` thumbnails `?w=` via PIL (840KB→22KB).
+- Prefetch fixed: was calling non-existent /api/profiles (404) → now /api/discover; warms image cache. Likes skeleton on first load. DailyReward modal suppressed on /chat.
+- Tested: iteration_40 (backend 11/11, frontend 100%).

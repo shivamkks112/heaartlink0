@@ -123,6 +123,7 @@ async def create_indexes():
         await db.messages.create_index("sender_id", background=True)
         await db.messages.create_index([("match_id", 1), ("timestamp", 1)], background=True)
         await db.messages.create_index("receiver_id", background=True)
+        await db.messages.create_index([("receiver_id", 1), ("delivered", 1)], background=True)
 
         await db.notifications.create_index("user_id", background=True)
         await db.notifications.create_index([("user_id", 1), ("read", 1)], background=True)

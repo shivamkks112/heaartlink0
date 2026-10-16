@@ -1,0 +1,42 @@
+{
+  "summary": "Tested read receipts (backend WS and REST, plus ChatPage ticks) and the photo-thumbnail/Likes-skeleton/prefetch changes. Backend: 11/11 pytest pass. (1) Receiver online, REST send: the sender gets message_delivered with the right message_id and the DB has delivered=true. mark-read then sends messages_read (read_by=B) and the DB has read=true and delivered=true. (2) The WS send path also gives delivered and the receiver gets the message event. (3) Receiver offline: no delivered event and delivered stays false. When B connects WS, the sender gets message_delivered with all:true and the DB is updated. (4) AI receiver (Sara Mehta): delivered arrives immediately and messages_read about 3.6s later. /api/likes, /api/matches, /api/conversations and /api/chat/{id}/info have no data:image. Profile pictures carry &w=400 and photos &w=720. The thumbnail at /api/photo/4fc1d920.../p?w=400 is 22.7KB vs the 843KB original. The v hash from /api/likes (Mongo marker path) equals the md5 computed from the full base64 value, so it is consistent with the other endpoints. /api/discover/{id} returns 200. Frontend (390x844): login works. likes-skeleton renders on first load with empty cache, then content shows. Discover does not crash when hl_discover_{uid} and hl_discover_cache_{uid} hold objects. Likes, Matches and Chat pages have 0 broken images and 0 page errors. Chat with the AI match: the tick goes clock, then grey CheckCheck (0.1s), then blue CheckCheck rgb(79,195,247) at 2.1s, and stays blue after reload.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "WS /api/ws/{user_id}", "issue": "Pre-existing: no authentication. Anyone can connect as any user_id, receive that user's messages and trigger delivered acks or _deliver_pending for them."},
+      {"endpoint": "ConnectionManager.disconnect", "issue": "Only one socket is kept per user, and disconnect(user_id) deletes it by key without checking which socket closed. If an old socket closes after a reconnect (or a second tab/device closes), the live connection is removed. The receiver then looks offline, so ticks stay as a single check until the next connect. Fix: disconnect(user_id, websocket) and only delete if it is the same socket, or keep a set of sockets per user."},
+      {"endpoint": "POST /api/messages/{match_id}/mark-read/{user_id}", "issue": "Pre-existing: no auth or ownership check."},
+      {"endpoint": "_deliver_pending", "issue": "Runs an aggregate on messages {receiver_id, delivered:{$ne:true}} on every WS connect. Add a compound index (receiver_id, delivered) to keep it cheap."},
+      {"endpoint": "GET /api/admin/feature-flags", "issue": "Returns 401 about 5 times on every page load for the admin user (frontend calls it without auth or with the wrong auth). Log noise only."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Chat HTTP fallback", "issue": "Minor race: if a message_delivered or messages_read WS event arrives before the REST response replaces the temp message, the replacement (response.data with delivered=false) can bring the tick back down until the next event.", "affected_selectors": ["[data-testid^='msg-status-']"]}
+    ],
+    "design_issues": [
+      {"screen": "ChatPage", "issues": ["The DailyRewardModal (data-testid daily-reward-modal) pops up over an open chat about 2-3s after it loads, even after it was closed once, and blocks the send button. This made one test message silently fail to send. Consider suppressing it on /chat routes."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_read_receipts_iter40.py", "/app/test_reports/pytest/pytest_iter40.xml"],
+  "action_items": [
+    "Make ConnectionManager.disconnect socket-aware (or keep multiple sockets per user) so stale socket closes don't mark an online receiver offline. This directly affects delivered ticks.",
+    "Optional: add a db.messages index on (receiver_id, delivered).",
+    "Optional: suppress DailyRewardModal on the chat route; fix the repeated 401s from /api/admin/feature-flags.",
+    "Pre-existing security: authenticate the WS and mark-read endpoints."
+  ],
+  "critical_code_review_comments": [
+    "server.py is 12.3k lines; split it into routers (messages/ws, photos, likes).",
+    "_ack_message for AI marks all unread messages in the match as read with update_many, which is correct. Delivered for real users depends on the in-process manager.active_connections, which only works with --workers 1. Multi-worker production would need Redis pub/sub.",
+    "Message model has no delivered or read defaults, so old docs lack the field (the frontend treats missing as false, which is fine).",
+    "DiscoverPage.fetchProfiles does setProfiles(response.data) without an Array.isArray guard. If the API ever returns an object, the page breaks."
+  ],
+  "updated_files": ["/app/backend/tests/test_read_receipts_iter40.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "Created temporary TEST_RR_ messages and a temporary like (matches.id TEST_RR_like_seed*) from 4fc1d920 to admin. All are removed at teardown/cleanup, along with AI replies in match 1b98d381 created during the test window.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "test_read_receipts_iter40.py uses the admin<->review@heartlink match 5f5b1722 for real-user WS tests and the admin<->Sara Mehta (AI) match 1b98d381. It connects WS directly to wss://{BACKEND}/api/ws/{uid}. In Playwright, close DailyRewardModal via [data-testid=close-daily-reward] before clicking send-btn; it may reappear.",
+  "rca of the issue": "Ticks: before this change the backend never set delivered or emitted message_delivered. It now does so via _ack_message (on send) and _deliver_pending (on WS connect), and the frontend handles both events. Verified working."
+}

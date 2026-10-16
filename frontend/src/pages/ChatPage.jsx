@@ -156,8 +156,17 @@ const ChatPage = ({ user }) => {
     }
   }, []);
 
+  // Acks can arrive before the REST response replaces the temp message — remember them
+  const ackRef = useRef({ delivered: new Set(), readAt: 0 });
+  const withAcks = (m) => ({
+    ...m,
+    delivered: m.delivered || ackRef.current.delivered.has(m.id) || ackRef.current.readAt > 0 && new Date(m.created_at || m.timestamp).getTime() <= ackRef.current.readAt,
+    read: m.read || (ackRef.current.readAt > 0 && new Date(m.created_at || m.timestamp).getTime() <= ackRef.current.readAt),
+  });
+
   const handleWsMessagesRead = useCallback((data) => {
     if (data.match_id !== matchId) return;
+    ackRef.current.readAt = Date.now();
     setMessages(prev => prev.map(msg =>
       msg.sender_id === user.id && !msg.read ? { ...msg, read: true, delivered: true } : msg
     ));
@@ -165,6 +174,7 @@ const ChatPage = ({ user }) => {
 
   const handleWsMessageDelivered = useCallback((data) => {
     if (data.match_id !== matchId) return;
+    if (data.message_id) ackRef.current.delivered.add(data.message_id);
     setMessages(prev => prev.map(msg =>
       (data.all ? msg.sender_id === user.id : msg.id === data.message_id) ? { ...msg, delivered: true } : msg
     ));
@@ -501,7 +511,7 @@ const ChatPage = ({ user }) => {
             const hasReal = prev.some(m => !m._temp && m.id && m.content === messageContent && m.sender_id === user.id);
             if (hasReal) return prev; // Echo already arrived, skip
             return prev.map(msg =>
-              msg._temp && msg.content === messageContent ? response.data : msg
+              msg._temp && msg.content === messageContent ? withAcks(response.data) : msg
             );
           });
         } catch (err) {
@@ -522,7 +532,7 @@ const ChatPage = ({ user }) => {
         });
         // Replace temp message with server response
         setMessages(prev => prev.map(msg =>
-          msg._temp && msg.content === messageContent ? response.data : msg
+          msg._temp && msg.content === messageContent ? withAcks(response.data) : msg
         ));
       } catch (error) {
         toast.error('Failed to send message');

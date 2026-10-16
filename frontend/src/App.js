@@ -426,7 +426,7 @@ function App() {
           )}
 
           {/* Daily Reward Modal — only if welcome is not showing */}
-          {showDailyReward && user && !welcomeData && (
+          {showDailyReward && user && !welcomeData && !window.location.pathname.startsWith('/chat') && (
             <Suspense fallback={null}>
               <DailyRewardModal user={user} onClose={() => setShowDailyReward(false)} />
             </Suspense>
