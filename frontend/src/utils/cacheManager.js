@@ -96,7 +96,7 @@ export async function prefetchAllData(userId, apiBase) {
       fetch(`${apiBase}/matches/${userId}`).then(r => r.json()),
       fetch(`${apiBase}/conversations/${userId}`).then(r => r.json()),
       fetch(`${apiBase}/likes/${userId}`).then(r => r.json()),
-      fetch(`${apiBase}/profiles/${userId}?limit=10`).then(r => r.json()),
+      fetch(`${apiBase}/discover/${userId}`).then(r => r.json()),
       fetch(`${apiBase}/crushes/${userId}`).then(r => r.json()),
       fetch(`${apiBase}/profile-viewers/${userId}`).then(r => r.json()),
     ]);
@@ -104,17 +104,23 @@ export async function prefetchAllData(userId, apiBase) {
     const matches = matchesRes.status === 'fulfilled' ? matchesRes.value : [];
     const convs = convsRes.status === 'fulfilled' ? convsRes.value : [];
     const likes = likesRes.status === 'fulfilled' ? likesRes.value : {};
-    const profiles = profilesRes.status === 'fulfilled' ? profilesRes.value : {};
+    const profiles = profilesRes.status === 'fulfilled' && Array.isArray(profilesRes.value) ? profilesRes.value : null;
     const crushes = crushesRes.status === 'fulfilled' ? crushesRes.value : {};
     const viewers = viewersRes.status === 'fulfilled' ? viewersRes.value : {};
     
     // Cache for instant page loads
     setPageData('matches', { matches, conversations: convs, activeUsers: [] }, userId);
     setPageData('likes', { likes, crushes, viewers }, userId);
-    if (profiles.profiles) {
-      setPageData('discover', { profiles: profiles.profiles, filters: {} }, userId);
-      cacheDiscoverProfiles(userId, profiles.profiles);
+    if (profiles) {
+      setPageData('discover', profiles, userId);
+      cacheDiscoverProfiles(userId, profiles);
     }
+    // Warm image cache so Likes/Discover/Chats show photos instantly
+    const warm = [
+      ...(likes.super_likes || []), ...(likes.regular_likes || []),
+      ...(profiles || []).slice(0, 5), ...(convs || []).map(c => c.user).filter(Boolean),
+    ].slice(0, 30);
+    warm.forEach(p => { const u = p.profile_picture || p.photos?.[0]; if (u) { const img = new Image(); img.src = u; } });
     cacheConversations(userId, convs);
     
     // Prefetch ALL chat messages (not just top 3)

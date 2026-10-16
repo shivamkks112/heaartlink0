@@ -239,9 +239,30 @@ def _public_base(request: Request) -> str:
     return f"{proto}://{host}"
 
 
-def _photo_url(base: str, uid: str, slot, value: str) -> str:
-    v = hashlib.md5(f"{len(value)}{value[-64:]}".encode()).hexdigest()[:10]
-    return f"{base}/api/photo/{uid}/{slot}?v={v}"
+def _photo_url(base: str, uid: str, slot, value: str, w: int = 0) -> str:
+    sig = value[4:] if value.startswith("B64:") else f"{len(value)}{value[-16:]}"
+    v = hashlib.md5(sig.encode()).hexdigest()[:10]
+    return f"{base}/api/photo/{uid}/{slot}?v={v}" + (f"&w={w}" if w else "")
+
+
+def _B64_MARK(field):
+    """Mongo expr: replace base64 value with short marker 'B64:<len><tail>' (avoids transferring MBs)."""
+    return {"$cond": [
+        {"$and": [{"$eq": [{"$type": field}, "string"]}, {"$eq": [{"$substrCP": [field, 0, 5]}, "data:"]}]},
+        {"$concat": ["B64:", {"$toString": {"$strLenCP": field}},
+                     {"$substrCP": [field, {"$subtract": [{"$strLenCP": field}, 16]}, 16]}]},
+        field,
+    ]}
+
+
+async def find_users_light(query: dict, fields: list) -> list:
+    """Fetch users with photo fields reduced to short markers (no MB-sized base64 transfer)."""
+    proj = {"_id": 0, **{f: 1 for f in fields if f not in ("photos", "profile_picture")}}
+    if "profile_picture" in fields:
+        proj["profile_picture"] = _B64_MARK("$profile_picture")
+    if "photos" in fields:
+        proj["photos"] = {"$map": {"input": {"$ifNull": ["$photos", []]}, "as": "p", "in": _B64_MARK("$$p")}}
+    return await db.users.aggregate([{"$match": query}, {"$project": proj}]).to_list(None)
 
 
 def slim_photos(obj, request: Request):
@@ -257,12 +278,12 @@ def slim_photos(obj, request: Request):
         out = {k: walk(v) for k, v in o.items()}
         if uid:
             pp = out.get("profile_picture")
-            if isinstance(pp, str) and pp.startswith("data:"):
-                out["profile_picture"] = _photo_url(base, uid, "p", pp)
+            if isinstance(pp, str) and (pp.startswith("data:") or pp.startswith("B64:")):
+                out["profile_picture"] = _photo_url(base, uid, "p", pp, 400)
             photos = out.get("photos")
             if isinstance(photos, list):
                 out["photos"] = [
-                    _photo_url(base, uid, i, p) if isinstance(p, str) and p.startswith("data:") else p
+                    _photo_url(base, uid, i, p, 720) if isinstance(p, str) and (p.startswith("data:") or p.startswith("B64:")) else p
                     for i, p in enumerate(photos)
                 ]
         return out
@@ -270,8 +291,22 @@ def slim_photos(obj, request: Request):
     return walk(obj)
 
 
+_thumb_cache: Dict[str, tuple] = {}
+
+
+def _make_thumb(data: bytes, w: int) -> bytes:
+    from PIL import Image
+    import io
+    img = Image.open(io.BytesIO(data))
+    img = img.convert("RGB")
+    img.thumbnail((w, w * 2))
+    out = io.BytesIO()
+    img.save(out, "JPEG", quality=78, optimize=True)
+    return out.getvalue()
+
+
 @api_router.get("/photo/{user_id}/{slot}")
-async def get_user_photo(user_id: str, slot: str):
+async def get_user_photo(user_id: str, slot: str, w: int = 0, v: str = ""):
     u = await db.users.find_one({"id": user_id}, {"_id": 0, "photos": 1, "profile_picture": 1})
     if not u:
         raise HTTPException(status_code=404, detail="Not found")
@@ -291,6 +326,20 @@ async def get_user_photo(user_id: str, slot: str):
         data = base64.b64decode(b64)
     except Exception:
         raise HTTPException(status_code=404, detail="Bad image")
+    if w:
+        w = max(64, min(w, 1080))
+        ck = f"{user_id}:{slot}:{w}:{v}"
+        if ck in _thumb_cache:
+            data = _thumb_cache[ck]
+        else:
+            try:
+                data = await asyncio.to_thread(_make_thumb, data, w)
+            except Exception:
+                pass
+            if len(_thumb_cache) > 2000:
+                _thumb_cache.clear()
+            _thumb_cache[ck] = data
+        media = "image/jpeg"
     return Response(content=data, media_type=media, headers={"Cache-Control": "public, max-age=31536000, immutable"})
 
 
@@ -5303,14 +5352,11 @@ async def get_matches(user_id: str, request: Request):
         return []
     
     # Batch fetch all matched users in ONE query
-    matched_users = await db.users.find(
+    matched_users = await find_users_light(
         {"id": {"$in": other_user_ids}},
-        {
-            "_id": 0, "id": 1, "name": 1, "age": 1, "verified": 1,
-            "is_online": 1, "last_active": 1, "photos": 1,
-            "profile_picture": 1, "privacy_settings": 1, "blocked_users": 1
-        }
-    ).to_list(None)
+        ["id", "name", "age", "verified", "is_online", "last_active", "photos",
+         "profile_picture", "privacy_settings", "blocked_users"]
+    )
     
     # Create lookup dict
     users_dict = {u["id"]: u for u in matched_users}
@@ -5393,7 +5439,13 @@ async def get_likes(user_id: str, request: Request):
     }
     
     liker_ids = list({lk["user1_id"] for lk in likes if lk.get("user2_action") != "pass"})
-    liker_map = {u["id"]: u async for u in db.users.find({"id": {"$in": liker_ids}}, {"_id": 0})}
+    liker_map = {u["id"]: u async for u in db.users.aggregate([
+        {"$match": {"id": {"$in": liker_ids}}},
+        {"$project": {"_id": 0, "id": 1, "name": 1, "age": 1, "bio": 1, "interests": 1, "verified": 1,
+                      "location": 1, "is_online": 1, "last_active": 1,
+                      "profile_picture": _B64_MARK("$profile_picture"),
+                      "photos": {"$map": {"input": {"$ifNull": ["$photos", []]}, "as": "p", "in": _B64_MARK("$$p")}}}},
+    ])}
 
     for like in likes:
         if like.get("user2_action") == "pass":
@@ -5561,10 +5613,9 @@ async def get_conversations(user_id: str, request: Request):
             continue
         
         # Get other user info
-        other_user = await db.users.find_one({"id": other_user_id}, {
-            "_id": 0, "id": 1, "name": 1, "age": 1, "profile_picture": 1, "photos": 1,
-            "is_online": 1, "last_active": 1, "verified": 1, "is_ai_profile": 1
-        })
+        other_user = next(iter(await find_users_light({"id": other_user_id}, [
+            "id", "name", "age", "profile_picture", "photos",
+            "is_online", "last_active", "verified", "is_ai_profile"])), None)
         if not other_user:
             continue
         
@@ -5709,7 +5760,7 @@ async def mark_messages_as_read(match_id: str, user_id: str):
             "receiver_id": user_id,
             "read": {"$ne": True}
         },
-        {"$set": {"read": True, "read_at": datetime.now(timezone.utc).isoformat()}}
+        {"$set": {"read": True, "delivered": True, "read_at": datetime.now(timezone.utc).isoformat()}}
     )
     
     # Notify sender that messages were read via WebSocket
@@ -6187,18 +6238,9 @@ async def send_message_http(message_data: Message):
     await manager.send_message(message_data.receiver_id, message_payload)
     await manager.send_message(message_data.sender_id, message_payload)
     
-    # Mark as delivered if receiver is online (connected via WebSocket)
-    if message_data.receiver_id in manager.active_connections:
-        await db.messages.update_one(
-            {"id": message_dict["id"]},
-            {"$set": {"delivered": True, "delivered_at": datetime.now(timezone.utc).isoformat()}}
-        )
-        # Notify sender about delivery
-        await manager.send_message(message_data.sender_id, {
-            "type": "message_delivered",
-            "message_id": message_dict["id"],
-            "match_id": message_data.match_id
-        })
+    asyncio.create_task(_ack_message(
+        message_dict["id"], message_data.match_id, message_data.sender_id, message_data.receiver_id,
+        bool(receiver and (receiver.get("is_ai_profile") or receiver.get("auto_chat_enabled")))))
     
     # Check if sender is muted by receiver
     muted_users = receiver.get('muted_users', [])
@@ -6256,6 +6298,41 @@ async def send_message_http(message_data: Message):
     return clean_message
 
 # WebSocket for real-time chat
+async def _ack_message(message_id: str, match_id: str, sender_id: str, receiver_id: str, ai_receiver: bool = False):
+    """Delivered tick when receiver online (or AI); AI 'reads' after a short delay."""
+    try:
+        now = datetime.now(timezone.utc).isoformat()
+        if ai_receiver or receiver_id in manager.active_connections:
+            await db.messages.update_one({"id": message_id}, {"$set": {"delivered": True, "delivered_at": now}})
+            await manager.send_message(sender_id, {"type": "message_delivered", "message_id": message_id, "match_id": match_id})
+        if ai_receiver:
+            await asyncio.sleep(random.uniform(2, 5))
+            await db.messages.update_many(
+                {"match_id": match_id, "receiver_id": receiver_id, "read": {"$ne": True}},
+                {"$set": {"read": True, "delivered": True, "read_at": datetime.now(timezone.utc).isoformat()}})
+            await manager.send_message(sender_id, {"type": "messages_read", "match_id": match_id, "read_by": receiver_id})
+    except Exception as e:
+        logging.error(f"ack_message error: {e}")
+
+
+async def _deliver_pending(user_id: str):
+    """User came online: mark their pending incoming messages delivered and notify senders."""
+    try:
+        pending = await db.messages.aggregate([
+            {"$match": {"receiver_id": user_id, "delivered": {"$ne": True}}},
+            {"$group": {"_id": {"m": "$match_id", "s": "$sender_id"}}},
+        ]).to_list(500)
+        if not pending:
+            return
+        await db.messages.update_many(
+            {"receiver_id": user_id, "delivered": {"$ne": True}},
+            {"$set": {"delivered": True, "delivered_at": datetime.now(timezone.utc).isoformat()}})
+        for p in pending:
+            await manager.send_message(p["_id"]["s"], {"type": "message_delivered", "match_id": p["_id"]["m"], "all": True})
+    except Exception as e:
+        logging.error(f"deliver_pending error: {e}")
+
+
 @api_router.websocket("/ws/{user_id}")
 async def websocket_endpoint(websocket: WebSocket, user_id: str):
     await manager.connect(user_id, websocket)
@@ -6276,6 +6353,7 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
     
     # Notify matches that user is online (throttled: max once per 30 min per user)
     asyncio.create_task(_send_online_notification_to_matches(user_id))
+    asyncio.create_task(_deliver_pending(user_id))
     
     # Send initial badge counts to user on connect
     try:
@@ -6395,6 +6473,8 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
             
             # Send back to sender (for confirmation)
             await manager.send_message(user_id, message_payload)
+            asyncio.create_task(_ack_message(message_dict["id"], message_data["match_id"], user_id,
+                                             message_data["receiver_id"], bool(is_ai_receiver)))
             
             # NOTE: FCM push notification handled by HTTP POST /api/messages endpoint
             # Do NOT send FCM here to prevent duplicate notifications

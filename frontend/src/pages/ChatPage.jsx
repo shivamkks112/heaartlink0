@@ -41,7 +41,7 @@ const ChatPage = ({ user }) => {
   const [otherUser, setOtherUser] = useState(_routeUser || _cc?.otherUser || null);
   // Show chat UI instantly — header from route/cache, messages from cache
   const [loading, setLoading] = useState(false);
-  const [messagesLoading, setMessagesLoading] = useState(_cachedMsgs.length === 0 && !_routeUser);
+  const [messagesLoading, setMessagesLoading] = useState(_cachedMsgs.length === 0);
   const [error, setError] = useState(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
@@ -159,16 +159,16 @@ const ChatPage = ({ user }) => {
   const handleWsMessagesRead = useCallback((data) => {
     if (data.match_id !== matchId) return;
     setMessages(prev => prev.map(msg =>
-      msg.sender_id === user.id && !msg.read ? { ...msg, read: true } : msg
+      msg.sender_id === user.id && !msg.read ? { ...msg, read: true, delivered: true } : msg
     ));
   }, [matchId, user.id]);
 
   const handleWsMessageDelivered = useCallback((data) => {
     if (data.match_id !== matchId) return;
     setMessages(prev => prev.map(msg =>
-      msg.id === data.message_id ? { ...msg, delivered: true } : msg
+      (data.all ? msg.sender_id === user.id : msg.id === data.message_id) ? { ...msg, delivered: true } : msg
     ));
-  }, [matchId]);
+  }, [matchId, user.id]);
 
   // ── Initialize chat ──
   useEffect(() => {
@@ -787,7 +787,12 @@ const ChatPage = ({ user }) => {
                 <div className={`text-[10px] mt-1 flex items-center gap-1 ${isOwn ? 'justify-end text-white/60' : ''}`} style={!isOwn ? { color: 'var(--m3-on-surface-variant, #666)' } : {}}>
                   {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) : ''}
                   {isOwn && !msg.is_deleted_for_all && (
-                    <span>{msg._temp ? '...' : msg.delivered ? (msg.read ? '✓✓' : '✓') : '✓'}</span>
+                    <span data-testid={`msg-status-${msg.id || i}`} className="inline-flex items-center">
+                      {msg._temp ? <Clock className="w-3 h-3" />
+                        : msg.read ? <CheckCheck className="w-3.5 h-3.5" style={{ color: '#4FC3F7' }} />
+                        : msg.delivered ? <CheckCheck className="w-3.5 h-3.5" />
+                        : <Check className="w-3.5 h-3.5" />}
+                    </span>
                   )}
                 </div>
               </div>

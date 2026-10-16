@@ -14,7 +14,7 @@ const LikesYouPage = ({ user }) => {
   const [activeTab, setActiveTab] = useState('all');
   const _lc = getPageData('likes', user?.id);
   const [likes, setLikes] = useState(_lc?.likes || { regular_likes: [], super_likes: [], total_count: 0 });
-  const [loading, setLoading] = useState(false); // Never block — cached or empty instant
+  const [loading, setLoading] = useState(!_lc);
   const [processingId, setProcessingId] = useState(null);
   const [revealedProfiles, setRevealedProfiles] = useState([]);
   const [crushes, setCrushes] = useState(_lc?.crushes || { crushes: [], total: 0 });
@@ -346,8 +346,10 @@ const LikesYouPage = ({ user }) => {
             )}
           </div>
         ) : loading ? (
-          <div className="flex justify-center items-center py-20">
-            <div className="animate-spin rounded-full h-10 w-10 border-2 border-pink-200 border-t-pink-500"></div>
+          <div className="grid grid-cols-2 gap-3" data-testid="likes-skeleton">
+            {[0, 1, 2, 3].map(k => (
+              <div key={k} className="aspect-[3/4] rounded-2xl animate-pulse bg-gray-200 dark:bg-gray-700" />
+            ))}
           </div>
         ) : displayedLikes.length === 0 ? (
           <div className="text-center py-12 px-4">

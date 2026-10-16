@@ -57,7 +57,7 @@ if (!BACKEND_URL) {
 const DiscoverPage = ({ user }) => {
   const navigate = useNavigate();
   const _cached = getCachedDiscoverProfiles(user?.id) || getPageData('discover', user?.id);
-  const [profiles, setProfiles] = useState(_cached || []);
+  const [profiles, setProfiles] = useState(Array.isArray(_cached) ? _cached : []);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(false); // Never block UI — show cached or empty state instantly
   const [photoIndex, setPhotoIndex] = useState(0);
