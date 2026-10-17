@@ -1,0 +1,35 @@
+{
+  "summary": "Tested per-persona reply speed and online-hours schedule. Backend: 20/20 pytest pass. Covered PUT /api/admin/ai-profiles/{id}/schedule: 401 with no token, 404 for a non-AI or unknown id, 10 validation cases returning 400, saving custom values and hours, persistence via GET /api/admin/ai-profiles, is_online computed and written to the DB right away (online, offline and wrap-past-midnight cases), reset to defaults, and numeric strings accepted. Delivery gating: a message to Priya Sharma while she is outside her online hours, sent via REST or WS, produced no message_delivered or messages_read event within 10s, and the DB message stayed delivered=false/read=false. For always-online Sara Mehta, message_delivered arrived and delivered=true. Frontend (desktop): Admin -> AI Girls tab shows 92 schedule cards. Invalid custom speed (10>2) showed the error toast. Custom 2.5-7 with hours 10-22 showed 'Ananya Patel schedule saved', and the values were the same after reload. Busy + Always also stayed the same after reload. Reset to Default works. AI Reply Timing section is visible and GET/PUT still works. All schedules touched (Priya, Ananya, Sara) were reset to defaults; DB check confirms no AI profile has a non-default schedule. TEST_SCHED_ messages were deleted.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "ai_chatbot.handle_ai_message (offline wait)", "issue": "When a persona is offline, the reply task runs asyncio.sleep until her online window starts (up to about 23h) using the ai_user snapshot taken at send time. If the admin later changes or clears her schedule, the waiting task still waits for the old window. The wait is also kept only in memory, so a backend restart or hot reload drops the reply for good. After waking, the task re-checks only is_active_ai. Consider a persisted queue, or a periodic check that re-reads the schedule."},
+      {"endpoint": "keep_ai_profiles_online / offline->online transition", "issue": "When a persona comes back online, pending undelivered messages are not marked delivered and the sender gets no message_delivered event. Messages flip straight to read when handle_ai_message wakes up. Ticks therefore skip the 'delivered' state, which may be acceptable. The loop also runs only every 5 min, so the is_online badge can lag the schedule by up to 5 min."},
+      {"endpoint": "ai_chatbot.py line ~2658 (pre-existing, unrelated)", "issue": "auto_match_ai_profiles(db, None, None, None, new_profile_id=profile_id) raises TypeError because the function takes no new_profile_id argument. The backend log shows 'Auto-match failed for new AI ...'. auto_match_new_ai_with_users(db, profile_id) is probably the intended call."},
+      {"endpoint": "PUT schedule", "issue": "online_start == online_end is accepted and treated as Always online. The UI allows choosing the same hour for start and end without telling the admin it means Always. Minor UX point."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin AI Girls grid", "issues": ["Cards in the same row have different heights (the custom-speed and hours rows expand), so the Deactivate/Delete buttons sit at different heights from card to card.", "The cards do not show whether each persona is online right now; a small Online/Offline dot would help admins check the schedule."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_ai_schedule_iter41.py", "/app/test_reports/pytest/pytest_iter41.xml"],
+  "action_items": [
+    "Fix the auto_match_ai_profiles new_profile_id TypeError in ai_chatbot.py (~line 2658).",
+    "Optional: make the offline reply wait robust (re-read the schedule after waking or periodically; survive restarts).",
+    "Optional: show an Online/Offline indicator on admin AI cards and align card heights."
+  ],
+  "critical_code_review_comments": [
+    "In _ack_message, the old 'AI reads after 2-5s' branch can no longer run for real AI personas (is_ai_profile always returns early); now only stealth auto_chat accounts reach it. This is intended, but worth a comment.",
+    "AdminDashboard.jsx is far over 700 lines; it would be good to keep splitting it into components (AiPersonaSchedule is a good start)."
+  ],
+  "updated_files": ["/app/backend/tests/test_ai_schedule_iter41.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "None persisted. A synthetic match_id TEST_SCHED_MATCH_PRIYA was used for messages to Priya; those messages were deleted. The offline reply tasks for Priya are still sleeping in memory until her old 2-3 AM window and will try to reply into this nonexistent match unless the backend restarts first. Sara Mehta may post one real AI reply in the admin/Sara match from the control test.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run pytest /app/backend/tests/test_ai_schedule_iter41.py; it uses relative IST hours so it works at any time, and teardown resets Priya, Ananya Patel and Sara to defaults. Admin login body: email_or_phone; token is in access_token. The UI uses the Ananya Patel card (4abeebfc-99e9-4c99-b167-9d31d1003ed9)."
+}

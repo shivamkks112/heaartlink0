@@ -95,3 +95,10 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 - Admin → AI Girls tab → "AI Reply Timing": toggle Custom/Default + min/max minutes for Night (11pm-7am), Morning (7-10am), Day (10am-7pm), Evening (7-11pm) IST.
 - API: GET/PUT /api/admin/ai-reply-timing (require_admin, validation 0.1-180, min<=max). Stored in app_settings type=ai_reply_timing.
 - Applied in ai_chatbot.handle_ai_message and handle_stealth_auto_reply via `_admin_reply_delay_minutes`; falls back to built-in timing when disabled.
+
+## 2026-06 — Per-persona timing + online hours
+- Admin → AI Girls cards: Reply speed (Default/Quick/Normal/Busy/Custom) + Online hours (IST, Always or start–end) + online dot. API PUT /api/admin/ai-profiles/{id}/schedule (fields reply_delay_min/max, online_hours{start,end}).
+- Persona speed overrides global AI Reply Timing. keep_ai_profiles_online respects online_hours (5-min loop); offline personas: no delivered/read ticks, reply deferred.
+- resume_pending_ai_replies (runs in 5-min loop): replies to unread user msgs (3min–24h old, last msg from user) for personas online now — survives restarts/schedule changes.
+- Fixed pre-existing TypeError: daily AI creator now calls auto_match_new_ai_with_users.
+- Tested iteration_41 (backend 20/20, frontend 100%).

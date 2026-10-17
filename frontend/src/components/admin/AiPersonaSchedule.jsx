@@ -65,7 +65,11 @@ export const AiPersonaSchedule = ({ profile }) => {
         </div>
       )}
       <div className="flex items-center justify-between gap-2">
-        <span className="font-semibold text-gray-700">Online hours</span>
+        <span className="font-semibold text-gray-700 flex items-center gap-1.5">
+          Online hours
+          <span className={`w-2 h-2 rounded-full ${profile.is_online ? 'bg-green-500' : 'bg-gray-400'}`} data-testid={`ai-online-dot-${id}`} />
+          <span className="font-normal text-gray-500">{profile.is_online ? 'online now' : 'offline'}</span>
+        </span>
         <label className="flex items-center gap-1">
           <input type="checkbox" checked={always} onChange={e => setAlways(e.target.checked)} data-testid={`ai-always-online-${id}`} />
           Always
@@ -82,6 +86,7 @@ export const AiPersonaSchedule = ({ profile }) => {
           </select>
         </div>
       )}
+      {!always && start === end && <p className="text-amber-600 text-right">Same start & end = always online</p>}
       <button onClick={save} disabled={saving} className="w-full h-8 rounded-md bg-purple-500 text-white font-semibold hover:bg-purple-600 disabled:opacity-60" data-testid={`ai-schedule-save-${id}`}>
         {saving ? 'Saving...' : 'Save schedule'}
       </button>

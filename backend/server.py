@@ -86,6 +86,7 @@ from ai_chatbot import (
     auto_match_new_ai_with_users,
     batch_generate_ai_photos,
     ai_online_now,
+    resume_pending_ai_replies,
 )
 
 # Import Safety Module
@@ -760,6 +761,7 @@ async def keep_ai_profiles_online(db_ref):
                     "is_online": True, "last_active": datetime.now(timezone.utc).isoformat()}})
             if off_ids:
                 await db_ref.users.update_many({"id": {"$in": off_ids}, "is_online": True}, {"$set": {"is_online": False}})
+            await resume_pending_ai_replies(db_ref, manager)
             
             # Mark stale users as offline (no activity for 5 minutes, not AI)
             cutoff = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()

@@ -1934,6 +1934,41 @@ def minutes_until_online(ai_user: dict) -> float:
     return (start - now).total_seconds() / 60
 
 
+_pending_ai_replies: set = set()
+
+
+async def resume_pending_ai_replies(db, websocket_manager):
+    """Reply to recent unanswered msgs for personas that are online now (after offline hours / restarts)."""
+    since = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+    stale = (datetime.now(timezone.utc) - timedelta(minutes=3)).isoformat()
+    ais = await db.users.find({"is_ai_profile": True, "is_active_ai": True},
+                              {"_id": 0, "password_hash": 0, "photos": 0, "profile_picture": 0}).to_list(None)
+    ai_map = {a["id"]: a for a in ais if ai_online_now(a)}
+    if not ai_map:
+        return
+    pending = await db.messages.aggregate([
+        {"$match": {"receiver_id": {"$in": list(ai_map)}, "read": {"$ne": True},
+                    "created_at": {"$gte": since, "$lte": stale}}},
+        {"$sort": {"created_at": -1}},
+        {"$group": {"_id": "$match_id", "sender_id": {"$first": "$sender_id"},
+                    "receiver_id": {"$first": "$receiver_id"}, "content": {"$first": "$content"}}},
+    ]).to_list(200)
+    for p in pending:
+        if p["_id"] in _pending_ai_replies:
+            continue
+        last = await db.messages.find_one({"match_id": p["_id"]}, {"_id": 0, "sender_id": 1}, sort=[("created_at", -1)])
+        if not last or last["sender_id"] != p["sender_id"]:
+            continue
+        sender = await db.users.find_one({"id": p["sender_id"]}, {"_id": 0, "name": 1})
+        await db.messages.update_many(
+            {"match_id": p["_id"], "receiver_id": p["receiver_id"], "delivered": {"$ne": True}},
+            {"$set": {"delivered": True, "delivered_at": datetime.now(timezone.utc).isoformat()}})
+        if websocket_manager:
+            await websocket_manager.send_message(p["sender_id"], {"type": "message_delivered", "match_id": p["_id"], "all": True})
+        asyncio.create_task(handle_ai_message(db, websocket_manager, p["_id"], p["sender_id"],
+                                              ai_map[p["receiver_id"]], p["content"] or "", (sender or {}).get("name", "User")))
+
+
 async def handle_ai_message(db, websocket_manager, match_id: str, sender_id: str, ai_user: dict, user_message: str, user_name: str):
     """Handle message to AI profile — generate and send natural reply with human-like timing."""
     flags = await db.app_settings.find_one({"type": "feature_flags"}, {"_id": 0})
@@ -1980,15 +2015,20 @@ async def handle_ai_message(db, websocket_manager, match_id: str, sender_id: str
         delay_minutes = random.uniform(min(lo, hi), max(lo, hi))
 
     # Outside her online hours: wait till she "comes online", then a few minutes more
-    offline_wait = minutes_until_online(ai_user)
-    if offline_wait > 0:
-        offline_wait += random.uniform(1, 10)
-        logger.info(f"AI {ai_user.get('name')} offline — will reply after {offline_wait:.0f} min")
-        await asyncio.sleep(offline_wait * 60)
-        fresh = await db.users.find_one({"id": ai_user["id"]}, {"_id": 0, "is_active_ai": 1})
-        if not fresh or not fresh.get("is_active_ai", True):
-            return
+    # Outside her online hours: leave it unread — resume_pending_ai_replies picks it up when she's online
+    if not ai_online_now(ai_user):
+        logger.info(f"AI {ai_user.get('name')} offline — reply deferred until online hours")
+        return
+    if match_id in _pending_ai_replies:
+        return
+    _pending_ai_replies.add(match_id)
+    try:
+        await _handle_ai_reply_flow(db, websocket_manager, match_id, sender_id, ai_user, user_message, user_name, delay_minutes, personality, ist_hour)
+    finally:
+        _pending_ai_replies.discard(match_id)
 
+
+async def _handle_ai_reply_flow(db, websocket_manager, match_id, sender_id, ai_user, user_message, user_name, delay_minutes, personality, ist_hour):
     delay_seconds = delay_minutes * 60
     logger.info(f"AI {ai_user.get('name')} replying in {delay_minutes:.1f} min (IST hour: {ist_hour})")
 
@@ -2655,7 +2695,7 @@ async def create_daily_ai_profiles(db, count=3):
         
         # Auto-match with active male users
         try:
-            await auto_match_ai_profiles(db, None, None, None, new_profile_id=profile_id)
+            await auto_match_new_ai_with_users(db, profile_id)
         except Exception as e:
             logger.error(f"Auto-match failed for new AI {name}: {e}")
     
