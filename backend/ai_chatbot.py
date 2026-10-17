@@ -1909,6 +1909,31 @@ async def _admin_reply_delay_minutes(db):
     return random.uniform(min(lo, hi), max(lo, hi))
 
 
+def _ist_now():
+    return datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)
+
+
+def ai_online_now(ai_user: dict) -> bool:
+    """True if persona is inside her admin-set online hours (or has no schedule)."""
+    oh = ai_user.get("online_hours") or {}
+    a, b = oh.get("start"), oh.get("end")
+    if a is None or b is None or int(a) == int(b):
+        return True
+    h = _ist_now().hour
+    a, b = int(a), int(b)
+    return a <= h < b if a < b else (h >= a or h < b)
+
+
+def minutes_until_online(ai_user: dict) -> float:
+    if ai_online_now(ai_user):
+        return 0
+    now = _ist_now()
+    start = now.replace(hour=int(ai_user["online_hours"]["start"]), minute=0, second=0, microsecond=0)
+    if start <= now:
+        start += timedelta(days=1)
+    return (start - now).total_seconds() / 60
+
+
 async def handle_ai_message(db, websocket_manager, match_id: str, sender_id: str, ai_user: dict, user_message: str, user_name: str):
     """Handle message to AI profile — generate and send natural reply with human-like timing."""
     flags = await db.app_settings.find_one({"type": "feature_flags"}, {"_id": 0})
@@ -1950,6 +1975,19 @@ async def handle_ai_message(db, websocket_manager, match_id: str, sender_id: str
     admin_delay = await _admin_reply_delay_minutes(db)
     if admin_delay is not None:
         delay_minutes = admin_delay
+    if ai_user.get("reply_delay_min") is not None and ai_user.get("reply_delay_max") is not None:
+        lo, hi = float(ai_user["reply_delay_min"]), float(ai_user["reply_delay_max"])
+        delay_minutes = random.uniform(min(lo, hi), max(lo, hi))
+
+    # Outside her online hours: wait till she "comes online", then a few minutes more
+    offline_wait = minutes_until_online(ai_user)
+    if offline_wait > 0:
+        offline_wait += random.uniform(1, 10)
+        logger.info(f"AI {ai_user.get('name')} offline — will reply after {offline_wait:.0f} min")
+        await asyncio.sleep(offline_wait * 60)
+        fresh = await db.users.find_one({"id": ai_user["id"]}, {"_id": 0, "is_active_ai": 1})
+        if not fresh or not fresh.get("is_active_ai", True):
+            return
 
     delay_seconds = delay_minutes * 60
     logger.info(f"AI {ai_user.get('name')} replying in {delay_minutes:.1f} min (IST hour: {ist_hour})")
@@ -1958,6 +1996,9 @@ async def handle_ai_message(db, websocket_manager, match_id: str, sender_id: str
     seen_delay = random.uniform(3, min(delay_seconds * 0.3, 30))
     await asyncio.sleep(seen_delay)
     
+    await db.messages.update_many(
+        {"match_id": match_id, "receiver_id": ai_user["id"], "read": {"$ne": True}},
+        {"$set": {"read": True, "delivered": True, "read_at": datetime.now(timezone.utc).isoformat()}})
     # Send "seen" via websocket
     if websocket_manager:
         await websocket_manager.send_message(sender_id, {

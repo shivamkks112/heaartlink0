@@ -27,6 +27,7 @@ import AppUpdateSettings from '@/components/admin/AppUpdateSettings';
 import SmartNotificationConfig from '@/components/admin/SmartNotificationConfig';
 import SafetyDashboard from '@/components/admin/SafetyDashboard';
 import AiReplyTiming from '@/components/admin/AiReplyTiming';
+import AiPersonaSchedule from '@/components/admin/AiPersonaSchedule';
 
 import { BACKEND_URL } from '@/config/api';
 
@@ -1744,6 +1745,8 @@ const AdminDashboard = ({ user }) => {
                         <span className="flex items-center gap-1"><Heart className="w-3 h-3" /> {profile.total_matches || 0} matches</span>
                         <span className="flex items-center gap-1"><MessageCircle className="w-3 h-3" /> {profile.total_messages_sent || 0} msgs</span>
                       </div>
+
+                      <AiPersonaSchedule profile={profile} />
 
                       <div className="flex gap-2 mt-4">
                         <button

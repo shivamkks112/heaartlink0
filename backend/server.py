@@ -85,6 +85,7 @@ from ai_chatbot import (
     create_daily_ai_profiles,
     auto_match_new_ai_with_users,
     batch_generate_ai_photos,
+    ai_online_now,
 )
 
 # Import Safety Module
@@ -748,14 +749,17 @@ async def keep_ai_profiles_online(db_ref):
     """Background task to keep AI profiles online and clean stale online statuses."""
     while True:
         try:
-            # Keep AI profiles online
-            await db_ref.users.update_many(
-                {"is_ai_profile": True, "is_active_ai": True},
-                {"$set": {
-                    "is_online": True,
-                    "last_active": datetime.now(timezone.utc).isoformat()
-                }}
-            )
+            # Keep AI profiles online — respecting each persona's online hours
+            ais = await db_ref.users.find(
+                {"is_ai_profile": True, "is_active_ai": True}, {"_id": 0, "id": 1, "online_hours": 1}
+            ).to_list(None)
+            on_ids = [a["id"] for a in ais if ai_online_now(a)]
+            off_ids = [a["id"] for a in ais if a["id"] not in set(on_ids)]
+            if on_ids:
+                await db_ref.users.update_many({"id": {"$in": on_ids}}, {"$set": {
+                    "is_online": True, "last_active": datetime.now(timezone.utc).isoformat()}})
+            if off_ids:
+                await db_ref.users.update_many({"id": {"$in": off_ids}, "is_online": True}, {"$set": {"is_online": False}})
             
             # Mark stale users as offline (no activity for 5 minutes, not AI)
             cutoff = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
@@ -6303,6 +6307,15 @@ async def _ack_message(message_id: str, match_id: str, sender_id: str, receiver_
     """Delivered tick when receiver online (or AI); AI 'reads' after a short delay."""
     try:
         now = datetime.now(timezone.utc).isoformat()
+        persona = None
+        if ai_receiver:
+            persona = await db.users.find_one({"id": receiver_id}, {"_id": 0, "is_ai_profile": 1, "online_hours": 1})
+        if persona and persona.get("is_ai_profile"):
+            # AI persona: delivered only while she's "online"; seen/read handled by handle_ai_message
+            if ai_online_now(persona):
+                await db.messages.update_one({"id": message_id}, {"$set": {"delivered": True, "delivered_at": now}})
+                await manager.send_message(sender_id, {"type": "message_delivered", "message_id": message_id, "match_id": match_id})
+            return
         if ai_receiver or receiver_id in manager.active_connections:
             await db.messages.update_one({"id": message_id}, {"$set": {"delivered": True, "delivered_at": now}})
             await manager.send_message(sender_id, {"type": "message_delivered", "message_id": message_id, "match_id": match_id})
@@ -10115,6 +10128,39 @@ async def get_feature_flags(admin: dict = Depends(require_admin)):
     # Always merge defaults so newly added flags are visible
     merged = {**DEFAULT_FEATURE_FLAGS, **{k: v for k, v in flags.items() if k != "type"}}
     return merged
+
+@api_router.put("/admin/ai-profiles/{profile_id}/schedule")
+async def update_ai_profile_schedule(profile_id: str, data: dict, admin: dict = Depends(require_admin)):
+    """Per-persona reply speed (minutes) and online hours (IST, 0-23). Null values = use defaults."""
+    def num(v, lo, hi, name):
+        if v is None or v == "":
+            return None
+        try:
+            v = float(v)
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail=f"Invalid {name}")
+        if not lo <= v <= hi:
+            raise HTTPException(status_code=400, detail=f"{name} {lo}-{hi} ke beech hona chahiye")
+        return v
+    rmin = num(data.get("reply_delay_min"), 0.1, 180, "reply_delay_min")
+    rmax = num(data.get("reply_delay_max"), 0.1, 180, "reply_delay_max")
+    if (rmin is None) != (rmax is None) or (rmin is not None and rmin > rmax):
+        raise HTTPException(status_code=400, detail="Reply min aur max dono do, aur min <= max")
+    start = num(data.get("online_start"), 0, 23, "online_start")
+    end = num(data.get("online_end"), 0, 23, "online_end")
+    if (start is None) != (end is None):
+        raise HTTPException(status_code=400, detail="Online start aur end dono do")
+    online_hours = {"start": int(start), "end": int(end)} if start is not None else None
+    res = await db.users.update_one(
+        {"id": profile_id, "is_ai_profile": True},
+        {"$set": {"reply_delay_min": rmin, "reply_delay_max": rmax, "online_hours": online_hours}})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="AI profile not found")
+    online = ai_online_now({"online_hours": online_hours})
+    upd = {"is_online": online, **({"last_active": datetime.now(timezone.utc).isoformat()} if online else {})}
+    await db.users.update_one({"id": profile_id}, {"$set": upd})
+    return {"reply_delay_min": rmin, "reply_delay_max": rmax, "online_hours": online_hours, "is_online": online}
+
 
 @api_router.get("/admin/ai-reply-timing")
 async def get_ai_reply_timing(admin: dict = Depends(require_admin)):
