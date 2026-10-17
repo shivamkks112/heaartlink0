@@ -85,3 +85,8 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 - Photos: Mongo `$project` markers (no base64 transfer) for likes/matches/conversations; `/api/photo` thumbnails `?w=` via PIL (840KB→22KB).
 - Prefetch fixed: was calling non-existent /api/profiles (404) → now /api/discover; warms image cache. Likes skeleton on first load. DailyReward modal suppressed on /chat.
 - Tested: iteration_40 (backend 11/11, frontend 100%).
+
+## 2026-06 — AI persona natural chat
+- `_humanize()` in ai_chatbot.py: strips emoji, "!", AI-tell lines; matches user msg length (≤3 words → 1 sentence). Applied to AI + stealth replies & fallbacks. Prompt gets `[reply style: ...]` hint per message.
+- First/follow-up/stealth openers simplified to "hii", "hey", "hi kaise ho" etc. Dangling double-messages ("btw", "wait ek aur baat") removed. AI "seen" event fixed to `messages_read`.
+- Live LLM check: hi→"hey", "kahan se ho"→"delhi se".

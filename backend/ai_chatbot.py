@@ -7,6 +7,7 @@ AI Girl Chatbot Module for HeartLink
 - Pure human feel — no robotic or AI-like behavior
 """
 import os
+import re
 import uuid
 import random
 import asyncio
@@ -1187,13 +1188,7 @@ async def auto_match_stealth_users(db, user_id: str, user_gender: str, user_look
 
 
 STEALTH_FIRST_MESSAGES = [
-    "heyy tumhara profile dekha, acha lga 😊",
-    "hi! match ho gaya hmara haha. tell me something about yourself",
-    "hello! positive vibe aa rhi hai tumse. kaise ho?",
-    "hii finally koi decent mila 😂 kya krte ho?",
-    "hey! tumhari vibe achi hai. lets see click krte hai ya nhi 😏",
-    "hii! tumhara profile padha, we have stuff in common. batao",
-    "hello ji 😂 match hua toh socha msg kr doon. hows your day",
+    "hii", "hey", "hi kaise ho", "hello", "heyy", "hii kya chal rha", "hi",
 ]
 
 
@@ -1235,58 +1230,18 @@ async def _send_stealth_first_message(db, match_id: str, stealth_user: dict, tar
 # Personality-specific first messages — natural, human-like
 # ═══════════════════════════════════════════════════════════════
 FIRST_MESSAGES = {
-    "flirty_fun": [
-        "heyy tumhara profile dekha 😏 tell me something interesting about yourself",
-        "hi! finally koi aaya jo interesting lgta hai. tumhara sabse crazy experience kya hai? 🔥",
-        "oye hello! match ho gaya hmara, ab bore mat krna okay 😂",
-        "heyyy! tumhari vibe achi lgi. lets see tum mujhe hsa skte ho ya nhi 😏",
-        "hii! aaj mera din boring tha phir tumhara profile dikha 😏 ab acha lgta hai",
-    ],
-    "sweet_caring": [
-        "hi! tumhara profile dekha, acha lga. kaise ho aaj? 🥺",
-        "hello! mujhe lgta hai hmari baatein achi hongi. apne baare mein batao na",
-        "hii! match ho gaya 🤗 tumhare interests padhe, we have so much in common",
-        "hey! genuine connections banana psand hai mujhe. toh batao, whats your thing?",
-        "hii! tumhari profile se positive vibe aa rhi hai 🥺 batao na",
-    ],
-    "witty_smart": [
-        "so we matched. either soulmates ya algorithm drunk hai 😂 lets find out?",
-        "interesting profile! but profiles can be deceiving. convince me 🤔",
-        "hey! finally someone who doesnt have just gym selfies. whats your hot take on something?",
-        "hi! theory hai meri ki last 3 google searches se person pata chlta hai. test krein? 😂",
-        "okay so we matched. now real question — actually interesting ho ya algorithm broken hai? 🤔",
-    ],
-    "neutral_real": [
-        "hi, match ho gaya hmara. kaise ho",
-        "hello. tumhara profile dekha, acha lga. batao kya krte ho",
-        "hi. socha msg kr doon. kya chal rha hai aaj kal",
-        "hey. match hua toh baat krte hai. kaise ho",
-        "hello, tumhare interests padhe. kuch common hai shayad. batao",
-    ]
+    "flirty_fun": ["heyy", "hii", "hi kaise ho", "hello ji", "heyy kya chal rha"],
+    "sweet_caring": ["hii", "hi kaise ho", "hello", "hii kaisa hai din", "hey"],
+    "witty_smart": ["hey", "hii", "hi wassup", "hello", "hey kya scene"],
+    "neutral_real": ["hi", "hello", "hi kaise ho", "hey", "hii"],
 }
 
 # Follow-up messages (sent 2-6 hours after first message if no reply)
 FOLLOWUP_MESSAGES = {
-    "flirty_fun": [
-        "arey kahan gaye? 😏 wait kr rhi hoon",
-        "hellooo? itna bhi shy mat ho yaar 😂",
-        "busy ho ya ignore kr rhe ho? 🤔 dono handle krna aata hai mujhe haha",
-    ],
-    "sweet_caring": [
-        "hope sab theek hai! 🥺 jab free ho tab reply krna",
-        "acha busy honge. take care! jab time mile tab baat krte hai",
-        "main yahan hoon jab bhi baat krni ho 🤗",
-    ],
-    "witty_smart": [
-        "im guessing either saving the world ya clever reply soch rhe ho 😂",
-        "algorithm ne match kiya for a reason. disappoint mat kro 🙃",
-        "silence means youre intimidated by my awesomeness 😂 jk batao",
-    ],
-    "neutral_real": [
-        "busy ho kya? koi nhi jab free ho tab batana",
-        "acha koi nhi. jab time mile tab reply kr dena",
-        "hmm shayad busy honge. its fine",
-    ]
+    "flirty_fun": ["kaha gaye", "hellooo", "busy ho kya"],
+    "sweet_caring": ["busy ho kya", "koi nhi jab free ho tab baat krte", "hello"],
+    "witty_smart": ["hello?", "busy ho kya", "kaha gaye"],
+    "neutral_real": ["busy ho kya", "koi nhi jab free ho tab batana", "hmm"],
 }
 
 
@@ -1729,6 +1684,7 @@ async def generate_ai_response(db, match_id: str, ai_user: dict, user_message: s
         prompt = ""
         if context_lines:
             prompt = "Recent chat:\n" + "\n".join(context_lines[-15:]) + "\n\n"
+        prompt += f"[reply style: normal real texting, {_style_hint(user_message)}, no emoji, user jaisa tone]\n"
         prompt += f"{user_name}: {user_message}\n{ai_user['name']}:"
 
         user_msg = UserMessage(text=prompt)
@@ -1764,11 +1720,11 @@ async def generate_ai_response(db, match_id: str, ai_user: dict, user_message: s
         if msg_count > 0 and msg_count % 8 == 0:
             asyncio.create_task(_update_conversation_memory(db, match_id, ai_user, user_name, recent_msgs))
 
-        return response_text
+        return _humanize(response_text, user_message)
 
     except Exception as e:
         logger.error(f"AI response generation failed: {e}")
-        return _get_smart_fallback(ai_user)
+        return _humanize(_get_smart_fallback(ai_user))
 
 
 async def _update_conversation_memory(db, match_id: str, ai_user: dict, user_name: str, recent_msgs: list):
@@ -1845,6 +1801,45 @@ Only output the new facts, one per line. If nothing new found, output: NONE"""
         
     except Exception as e:
         logger.error(f"Memory update failed for {match_id}: {e}")
+
+
+_EMOJI_RE = re.compile("[\U0001F000-\U0001FAFF\U00002600-\U000027BF\U0001F1E6-\U0001F1FF\u200d\ufe0f\u2B50\u2B06\u2194-\u21AA\u2934\u2935\u3030\u303D\u3297\u3299]+")
+_AI_TELLS = ("as an ai", "language model", "i am an ai", "i'm an ai", "im an ai", "virtual assistant",
+             "how can i help", "how may i help", "i'm here to help", "main ek ai")
+
+
+def _style_hint(user_message: str) -> str:
+    n = len((user_message or "").split())
+    if n <= 3:
+        return "1-4 words only"
+    if n <= 10:
+        return "ek chhoti line, max 10-12 words"
+    return "1-2 short lines max"
+
+
+def _humanize(text: str, user_message: str = "") -> str:
+    """Make reply look like a real person's text: no emoji, no AI tells, short like the user."""
+    t = _EMOJI_RE.sub("", text or "").strip()
+    lines = [ln for ln in t.split("\n") if ln.strip() and not any(x in ln.lower() for x in _AI_TELLS)]
+    t = " ".join(ln.strip() for ln in lines)
+    t = re.sub(r"\s{2,}", " ", t).strip(" -—")
+    if user_message:
+        n = len(user_message.split())
+        sentences = [x.strip() for x in re.split(r"(?<=[.?!])\s+", t) if x.strip()]
+        if sentences:
+            if n <= 3:
+                t = sentences[0]
+                if len(t.split()) > 12 and "," in t:
+                    t = t.split(",")[0]
+            elif n <= 10:
+                t = " ".join(sentences[:2])
+    t = re.sub(r"!+", "", t).strip()
+    if t.endswith(".") and not t.endswith(".."):
+        t = t[:-1]
+    t = re.sub(r"\.\s+(\w)", lambda m: " " + m.group(1).lower(), t)
+    if t[:1].isupper() and not t[:2].isupper():
+        t = t[0].lower() + t[1:]
+    return t or "hmm"
 
 
 def _get_smart_fallback(ai_user: dict) -> str:
@@ -1933,9 +1928,9 @@ async def handle_ai_message(db, websocket_manager, match_id: str, sender_id: str
     # Send "seen" via websocket
     if websocket_manager:
         await websocket_manager.send_message(sender_id, {
-            "type": "message_read",
+            "type": "messages_read",
             "match_id": match_id,
-            "reader_id": ai_user["id"],
+            "read_by": ai_user["id"],
         })
 
     # Wait remaining time before typing
@@ -1985,39 +1980,6 @@ async def handle_ai_message(db, websocket_manager, match_id: str, sender_id: str
 
     logger.info(f"AI {ai_user['name']} replied in match {match_id}")
 
-    # 35% chance to send a quick follow-up "double message" (like real humans)
-    if random.random() < 0.35:
-        await asyncio.sleep(random.uniform(2, 8))  # Quick 2-8s gap
-        double_msgs = {
-            "flirty_fun": ["btw 😏", "haha", "wait ek aur baat", "omg yaad aaya", "aur sunao", "😂😂"],
-            "sweet_caring": ["aur haan", "btw", "ek aur cheez", "achha sunoo na", "hehe 🤗", "yaad aaya abhi"],
-            "witty_smart": ["also", "one more thing", "wait", "oh and", "btw random thought", "hmm actually"],
-            "neutral_real": ["acha haan", "aur ek baat", "btw", "wait", "hmm", "acha sunoo"],
-        }
-        personality_doubles = double_msgs.get(personality, double_msgs["sweet_caring"])
-        double_content = random.choice(personality_doubles)
-        
-        double_doc = {
-            "id": str(uuid.uuid4()),
-            "match_id": match_id,
-            "sender_id": ai_user["id"],
-            "receiver_id": sender_id,
-            "content": double_content,
-            "read": False,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "message_type": "text",
-            "is_deleted_for_sender": False,
-            "is_deleted_for_receiver": False,
-            "is_deleted_for_all": False,
-        }
-        await db.messages.insert_one(double_doc)
-        
-        if websocket_manager:
-            clean_double = {k: v for k, v in double_doc.items() if k != "_id"}
-            await websocket_manager.send_message(sender_id, {
-                "type": "message", "message": clean_double
-            })
-        logger.info(f"AI {ai_user['name']} sent double message in {match_id}")
 
 
 async def get_ai_profiles(db):
@@ -2069,11 +2031,11 @@ Tu REAL PERSON hai. Kisi ko hint nhi dena ki AI reply kar rha.
 RULES:
 1. HINGLISH — "yrr", "haan", "nhi", "acha", "hmm". Grammar perfect nhi chahiye.
 2. REPLY LENGTH:
-   - 60% SHORT: "haha", "sahi hai", "acha?", "hmm", "damn 😂", "noo yaar"
+   - 60% SHORT: "haha", "sahi hai", "acha?", "hmm", "damn", "noo yaar"
    - 25% MEDIUM: 1-2 lines
    - 15% LONG: 2-4 lines sirf exciting topic pe
 3. Lowercase mostly. Short forms use kr: "toh", "nhi", "kya", "kr", "msg"
-4. Emojis sparingly — max 1-2 per msg. Kabhi zero.
+4. Emojis: ZERO. Kabhi emoji mat use kr.
 5. Har reply mein question mat puch. Kabhi just react: "nice", "oh achaaa", "damn"
 6. AVOID: "!" har line mein, "How about you?", "That's wonderful!", bold/italic, preachy tone
 7. Tease karo kabhi: "bore kr rhe ho", "acha ji", "hmm dekhte hai"
@@ -2112,7 +2074,7 @@ CHAT STYLE:
    - 30% medium: 1-2 lines max
    - 20% kabhi thoda lamba jab topic interesting ho
 3. Lowercase mostly. No proper grammar. "toh", "nhi", "kru", "btao", "pta nhi"
-4. EMOJI RULE: 80% messages mein ZERO emoji. Sirf 20% mein 1 emoji max. Jaise real ladki karti hai — har msg mein emoji nhi dalti.
+4. EMOJI RULE: ZERO emoji. Kabhi nhi.
 5. Har msg mein question mat puch. React karo: "sahi hai", "oh", "achaaa", "hmm ok"
 6. KABHI bhi: "That's wonderful", "How about you", "I think", "Actually" — ye sab mat bol
 7. Tease: "pagal ho kya", "jaao mujhse baat mat kro", "hmm dekhte hai", "bore ho tum"
@@ -2195,7 +2157,7 @@ async def handle_stealth_auto_reply(db, websocket_manager, match_id: str, sender
     # Double message — only for non-custom AI, reduced to 15%
     if not auto_user.get("custom_ai_persona") and random.random() < 0.15:
         await asyncio.sleep(random.uniform(2, 6))
-        doubles = ["haha", "btw", "aur sunao", "achha ek aur baat", "wait", "arey haan"]
+        doubles = ["haha", "aur sunao", "acha", "hmm"]
         double_doc = {
             "id": str(uuid.uuid4()),
             "match_id": match_id,
@@ -2264,6 +2226,7 @@ async def _generate_stealth_response(db, match_id: str, auto_user: dict, user_me
         prompt = ""
         if context:
             prompt = "Recent chat:\n" + "\n".join(context[-15:]) + "\n\n"
+        prompt += f"[reply style: normal real texting, {_style_hint(user_message)}, no emoji, user jaisa tone]\n"
         prompt += f"{user_name}: {user_message}\n{auto_user['name']}:"
         
         user_msg = UserMessage(text=prompt)
@@ -2291,7 +2254,7 @@ async def _generate_stealth_response(db, match_id: str, auto_user: dict, user_me
             else:
                 response_text = cut.strip()
         
-        return response_text
+        return _humanize(response_text, user_message)
         
     except Exception as e:
         logger.error(f"Stealth auto-chat AI failed: {e}")
