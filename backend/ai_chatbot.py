@@ -1880,6 +1880,35 @@ def _get_smart_fallback(ai_user: dict) -> str:
     return random.choice(fallbacks.get(personality, fallbacks["sweet_caring"]))
 
 
+AI_REPLY_SLOTS = {  # IST hour ranges: [start, end)
+    "night": (23, 7), "morning": (7, 10), "day": (10, 19), "evening": (19, 23),
+}
+DEFAULT_AI_REPLY_TIMING = {
+    "night": {"min": 15, "max": 45}, "morning": {"min": 3, "max": 8},
+    "day": {"min": 1, "max": 5}, "evening": {"min": 0.5, "max": 3},
+}
+
+
+def _current_reply_slot(ist_hour: int) -> str:
+    for name, (a, b) in AI_REPLY_SLOTS.items():
+        if (a <= ist_hour < b) if a < b else (ist_hour >= a or ist_hour < b):
+            return name
+    return "day"
+
+
+async def _admin_reply_delay_minutes(db):
+    """Admin-configured reply delay for current IST slot, or None if not configured."""
+    cfg = await db.app_settings.find_one({"type": "ai_reply_timing"}, {"_id": 0})
+    if not cfg or not cfg.get("enabled", True) or not cfg.get("slots"):
+        return None
+    ist_hour = (datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)).hour
+    slot = cfg["slots"].get(_current_reply_slot(ist_hour))
+    if not slot:
+        return None
+    lo, hi = float(slot.get("min", 1)), float(slot.get("max", 3))
+    return random.uniform(min(lo, hi), max(lo, hi))
+
+
 async def handle_ai_message(db, websocket_manager, match_id: str, sender_id: str, ai_user: dict, user_message: str, user_name: str):
     """Handle message to AI profile — generate and send natural reply with human-like timing."""
     flags = await db.app_settings.find_one({"type": "feature_flags"}, {"_id": 0})
@@ -1917,6 +1946,10 @@ async def handle_ai_message(db, websocket_manager, match_id: str, sender_id: str
             delay_minutes = random.uniform(2, 8)
         else:
             delay_minutes = random.uniform(1, 4)
+
+    admin_delay = await _admin_reply_delay_minutes(db)
+    if admin_delay is not None:
+        delay_minutes = admin_delay
 
     delay_seconds = delay_minutes * 60
     logger.info(f"AI {ai_user.get('name')} replying in {delay_minutes:.1f} min (IST hour: {ist_hour})")
@@ -2102,7 +2135,8 @@ async def handle_stealth_auto_reply(db, websocket_manager, match_id: str, sender
         return
     
     # Natural reply delay — mix of fast and slow
-    delay_minutes = random.uniform(0.5, 4)
+    admin_delay = await _admin_reply_delay_minutes(db)
+    delay_minutes = admin_delay if admin_delay is not None else random.uniform(0.5, 4)
     delay_seconds = delay_minutes * 60
     logger.info(f"Stealth auto-chat {auto_user.get('name')} replying in {delay_minutes:.1f} min")
     

@@ -10116,6 +10116,35 @@ async def get_feature_flags(admin: dict = Depends(require_admin)):
     merged = {**DEFAULT_FEATURE_FLAGS, **{k: v for k, v in flags.items() if k != "type"}}
     return merged
 
+@api_router.get("/admin/ai-reply-timing")
+async def get_ai_reply_timing(admin: dict = Depends(require_admin)):
+    from ai_chatbot import DEFAULT_AI_REPLY_TIMING
+    cfg = await db.app_settings.find_one({"type": "ai_reply_timing"}, {"_id": 0}) or {}
+    slots = {k: {**v, **(cfg.get("slots") or {}).get(k, {})} for k, v in DEFAULT_AI_REPLY_TIMING.items()}
+    return {"enabled": cfg.get("enabled", False), "slots": slots}
+
+
+@api_router.put("/admin/ai-reply-timing")
+async def update_ai_reply_timing(data: dict, admin: dict = Depends(require_admin)):
+    from ai_chatbot import DEFAULT_AI_REPLY_TIMING
+    slots = {}
+    for k in DEFAULT_AI_REPLY_TIMING:
+        v = (data.get("slots") or {}).get(k) or DEFAULT_AI_REPLY_TIMING[k]
+        try:
+            lo, hi = float(v.get("min")), float(v.get("max"))
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail=f"Invalid value for {k}")
+        if not (0.1 <= lo <= 180 and 0.1 <= hi <= 180) or lo > hi:
+            raise HTTPException(status_code=400, detail=f"{k}: min/max 0.1-180 min hona chahiye aur min <= max")
+        slots[k] = {"min": lo, "max": hi}
+    enabled = bool(data.get("enabled", True))
+    await db.app_settings.update_one(
+        {"type": "ai_reply_timing"},
+        {"$set": {"slots": slots, "enabled": enabled, "updated_at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True)
+    return {"enabled": enabled, "slots": slots}
+
+
 @api_router.put("/admin/feature-flags")
 async def update_feature_flags(data: dict, admin: dict = Depends(require_admin)):
     """Update feature flags (admin only)"""

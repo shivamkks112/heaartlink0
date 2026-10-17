@@ -26,6 +26,7 @@ import AdAnalyticsPanel from '@/components/admin/AdAnalyticsPanel';
 import AppUpdateSettings from '@/components/admin/AppUpdateSettings';
 import SmartNotificationConfig from '@/components/admin/SmartNotificationConfig';
 import SafetyDashboard from '@/components/admin/SafetyDashboard';
+import AiReplyTiming from '@/components/admin/AiReplyTiming';
 
 import { BACKEND_URL } from '@/config/api';
 
@@ -1707,6 +1708,8 @@ const AdminDashboard = ({ user }) => {
                 <RotateCcw className="w-4 h-4 mr-2" /> Re-seed Profiles
               </Button>
             </div>
+
+            <AiReplyTiming />
 
             {aiLoading ? (
               <div className="text-center py-10 text-gray-500">Loading AI profiles...</div>

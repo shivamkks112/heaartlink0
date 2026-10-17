@@ -90,3 +90,8 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 - `_humanize()` in ai_chatbot.py: strips emoji, "!", AI-tell lines; matches user msg length (≤3 words → 1 sentence). Applied to AI + stealth replies & fallbacks. Prompt gets `[reply style: ...]` hint per message.
 - First/follow-up/stealth openers simplified to "hii", "hey", "hi kaise ho" etc. Dangling double-messages ("btw", "wait ek aur baat") removed. AI "seen" event fixed to `messages_read`.
 - Live LLM check: hi→"hey", "kahan se ho"→"delhi se".
+
+## 2026-06 — AI Reply Timing (admin)
+- Admin → AI Girls tab → "AI Reply Timing": toggle Custom/Default + min/max minutes for Night (11pm-7am), Morning (7-10am), Day (10am-7pm), Evening (7-11pm) IST.
+- API: GET/PUT /api/admin/ai-reply-timing (require_admin, validation 0.1-180, min<=max). Stored in app_settings type=ai_reply_timing.
+- Applied in ai_chatbot.handle_ai_message and handle_stealth_auto_reply via `_admin_reply_delay_minutes`; falls back to built-in timing when disabled.
