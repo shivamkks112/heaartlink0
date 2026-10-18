@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import wsService from '@/services/WebSocketService';
 import { API } from '@/config/api';
 import { getPageData, setPageData } from '@/utils/pageCache';
+import adsService from '@/services/AdsService';
+import { toast } from 'sonner';
 
 
 const LikesYouPage = ({ user }) => {
@@ -134,6 +136,23 @@ const LikesYouPage = ({ user }) => {
     return list;
   }, [likes, activeTab, sortBy]); // eslint-disable-line
   
+  const [revealingId, setRevealingId] = useState(null);
+  const revealWithAd = async (likerId) => {
+    setRevealingId(likerId);
+    const result = await adsService.showRewardedForSwipes(async (reward) => {
+      if (!reward.success) return;
+      try {
+        await axios.post(`${API}/likes/${user.id}/reveal`, { liker_id: likerId });
+        await fetchLikes();
+        toast.success('Profile reveal ho gaya!');
+      } catch (e) {
+        toast.error(e.response?.data?.detail || 'Reveal nahi hua, try again');
+      }
+    });
+    if (!result.success && result.error) toast.error(result.error);
+    setRevealingId(null);
+  };
+
   // Handle profile reveal after watching ad
   const handleProfileReveal = (profileId) => {
     const newRevealed = [...revealedProfiles, profileId];
@@ -395,7 +414,7 @@ const LikesYouPage = ({ user }) => {
             
             <div className="grid grid-cols-2 gap-3">
               {displayedLikes.map((likedUser, index) => {
-                const isLocked = !isPremium;
+                const isLocked = !isPremium && !likedUser.revealed;
                 return (
                   <div
                     key={likedUser.id}
@@ -452,13 +471,23 @@ const LikesYouPage = ({ user }) => {
 
                     {/* Action buttons — compact */}
                     {isLocked ? (
-                      <button
-                        onClick={() => navigate('/premium')}
-                        className="w-full py-2.5 text-[11px] font-bold text-amber-700 bg-amber-50 flex items-center justify-center gap-1"
-                        data-testid={`unlock-like-${likedUser.id}`}
-                      >
-                        <Crown className="w-3.5 h-3.5" /> Unlock
-                      </button>
+                      <div className="flex">
+                        <button
+                          onClick={() => revealWithAd(likedUser.id)}
+                          disabled={revealingId === likedUser.id}
+                          className="flex-1 py-2.5 text-[11px] font-bold text-pink-600 bg-pink-50 flex items-center justify-center gap-1 border-r border-white disabled:opacity-60"
+                          data-testid={`reveal-ad-${likedUser.id}`}
+                        >
+                          <Play className="w-3.5 h-3.5" /> {revealingId === likedUser.id ? '...' : 'Watch Ad'}
+                        </button>
+                        <button
+                          onClick={() => navigate('/premium')}
+                          className="flex-1 py-2.5 text-[11px] font-bold text-amber-700 bg-amber-50 flex items-center justify-center gap-1"
+                          data-testid={`unlock-like-${likedUser.id}`}
+                        >
+                          <Crown className="w-3.5 h-3.5" /> Unlock
+                        </button>
+                      </div>
                     ) : (
                       <div className="flex">
                         <button
@@ -470,7 +499,7 @@ const LikesYouPage = ({ user }) => {
                           <X className="w-3.5 h-3.5" /> Pass
                         </button>
                         <button
-                          onClick={() => handleAction(likedUser.id, 'like_back')}
+                          onClick={() => (isPremium ? handleAction(likedUser.id, 'like_back') : navigate('/premium'))}
                           disabled={processingId === likedUser.id}
                           data-testid={`like-back-btn-${likedUser.id}`}
                           className="flex-1 py-2.5 text-xs font-bold text-emerald-600 flex items-center justify-center gap-1 active:bg-emerald-50"

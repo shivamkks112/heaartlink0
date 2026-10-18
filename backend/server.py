@@ -4973,6 +4973,75 @@ async def undo_action(user_id: str, request: Request):
     return {"success": True, "message": "Swipe undone! Profile restored."}
 
 
+FREE_DAILY_SWIPES = 50
+EXTRA_SWIPES_PER_AD = 10
+MAX_SWIPE_ADS_PER_DAY = 5
+MAX_LIKE_REVEALS_PER_DAY = 3
+
+
+def _ist_day() -> str:
+    return (datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)).strftime("%Y-%m-%d")
+
+
+def _ist_day_start_utc() -> str:
+    ist = datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)
+    return (ist.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(hours=5, minutes=30)).isoformat()
+
+
+async def _swipe_status(user_id: str) -> dict:
+    u = await db.users.find_one({"id": user_id}, {"_id": 0, "swipe_day": 1, "swipe_count": 1, "extra_swipes": 1}) or {}
+    used = u.get("swipe_count", 0) if u.get("swipe_day") == _ist_day() else 0
+    extra = max(int(u.get("extra_swipes", 0) or 0), 0)
+    return {"limit": FREE_DAILY_SWIPES, "used": used, "extra": extra,
+            "remaining": max(FREE_DAILY_SWIPES - used, 0) + extra}
+
+
+async def _consume_swipe(user_id: str) -> bool:
+    """Atomically use one free daily swipe, else one extra (ad) swipe. False if none left."""
+    today = _ist_day()
+    r = await db.users.update_one({"id": user_id, "swipe_day": {"$ne": today}},
+                                  {"$set": {"swipe_day": today, "swipe_count": 1}})
+    if r.modified_count:
+        return True
+    r = await db.users.update_one({"id": user_id, "swipe_day": today, "swipe_count": {"$lt": FREE_DAILY_SWIPES}},
+                                  {"$inc": {"swipe_count": 1}})
+    if r.modified_count:
+        return True
+    r = await db.users.update_one({"id": user_id, "extra_swipes": {"$gt": 0}}, {"$inc": {"extra_swipes": -1}})
+    return bool(r.modified_count)
+
+
+@api_router.get("/swipes/{user_id}")
+async def get_swipe_status(user_id: str):
+    return await _swipe_status(user_id)
+
+
+class LikeRevealRequest(BaseModel):
+    liker_id: str
+
+
+@api_router.post("/likes/{user_id}/reveal")
+async def reveal_like_with_ad(user_id: str, data: LikeRevealRequest):
+    """Free user watched a rewarded ad -> reveal one person who liked them (max 3/day)."""
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "is_premium": 1, "gender": 1, "revealed_likes": 1})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if is_user_premium(user):
+        return {"success": True, "already_premium": True}
+    like = await db.matches.find_one({"user1_id": data.liker_id, "user2_id": user_id, "user1_liked": True, "matched": False}, {"_id": 1})
+    if not like:
+        raise HTTPException(status_code=404, detail="Like not found")
+    if data.liker_id in (user.get("revealed_likes") or []):
+        return {"success": True, "already_revealed": True}
+    used = await db.ad_rewards.count_documents({"user_id": user_id, "reward_type": "like_reveal", "created_at": {"$gte": _ist_day_start_utc()}})
+    if used >= MAX_LIKE_REVEALS_PER_DAY:
+        raise HTTPException(status_code=429, detail=f"Aaj ke {MAX_LIKE_REVEALS_PER_DAY} free reveals ho gaye. Kal try karo ya Premium lo")
+    await db.ad_rewards.insert_one({"id": str(uuid.uuid4()), "user_id": user_id, "reward_type": "like_reveal", "amount": 1,
+                                    "target_id": data.liker_id, "created_at": datetime.now(timezone.utc).isoformat()})
+    await db.users.update_one({"id": user_id}, {"$addToSet": {"revealed_likes": data.liker_id}})
+    return {"success": True, "remaining_today": MAX_LIKE_REVEALS_PER_DAY - used - 1}
+
+
 @api_router.post("/action/{user_id}")
 @api_router.post("/api/action/{user_id}")
 async def user_action(user_id: str, action: LikeAction):
@@ -4999,6 +5068,11 @@ async def user_action(user_id: str, action: LikeAction):
         elif action.action == "like":
             if not user_premium:
                 raise HTTPException(status_code=403, detail="Premium required to like. Subscribe at /premium")
+
+    if action.action in ("like", "pass"):
+        swiper = await db.users.find_one({"id": user_id}, {"_id": 0, "is_premium": 1, "gender": 1})
+        if swiper and not is_user_premium(swiper) and not await _consume_swipe(user_id):
+            raise HTTPException(status_code=429, detail="out_of_swipes")
 
     # Check if there's an existing record where target user liked current user
     existing_like = await db.matches.find_one({
@@ -5429,8 +5503,9 @@ async def mark_likes_seen(user_id: str):
 async def get_likes(user_id: str, request: Request):
     """Get users who liked the current user. Non-premium see blurred/limited data."""
     # Check premium status
-    requesting_user = await db.users.find_one({"id": user_id}, {"_id": 0, "is_premium": 1, "gender": 1})
+    requesting_user = await db.users.find_one({"id": user_id}, {"_id": 0, "is_premium": 1, "gender": 1, "revealed_likes": 1})
     user_has_premium = is_user_premium(requesting_user) if requesting_user else False
+    revealed_ids = set((requesting_user or {}).get("revealed_likes") or [])
 
     # Find all matches where user2_id is current user and user1 has liked
     likes = await db.matches.find({
@@ -5461,8 +5536,8 @@ async def get_likes(user_id: str, request: Request):
         liker_user = liker_map.get(like["user1_id"])
         
         if liker_user:
-            if user_has_premium:
-                # Premium: full data
+            if user_has_premium or liker_user["id"] in revealed_ids:
+                # Premium (or revealed via rewarded ad): full data
                 user_data = {
                     "id": liker_user["id"],
                     "name": liker_user["name"],
@@ -5477,6 +5552,7 @@ async def get_likes(user_id: str, request: Request):
                     "last_active": liker_user.get("last_active"),
                     "liked_at": like.get("created_at"),
                     "is_superlike": like.get("is_superlike", False),
+                    "revealed": not user_has_premium,
                 }
             else:
                 # Non-premium: blurred/hidden data — only count and blurred photo

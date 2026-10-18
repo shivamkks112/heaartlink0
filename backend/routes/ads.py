@@ -76,11 +76,20 @@ async def track_ad_reward(data: AdRewardRequest):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    amount = data.amount
+    if data.reward_type == "extra_swipes":
+        ist = datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)
+        day_start = (ist.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(hours=5, minutes=30)).isoformat()
+        used = await db.ad_rewards.count_documents({"user_id": data.user_id, "reward_type": "extra_swipes", "created_at": {"$gte": day_start}})
+        if used >= 5:
+            raise HTTPException(status_code=429, detail="Aaj ke ad rewards khatam. Kal try karo ya Premium lo")
+        amount = max(0, min(int(amount), 10))
+
     reward_doc = {
         "id": str(uuid.uuid4()),
         "user_id": data.user_id,
         "reward_type": data.reward_type,
-        "amount": data.amount,
+        "amount": amount,
         "timestamp": data.timestamp,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
@@ -88,7 +97,7 @@ async def track_ad_reward(data: AdRewardRequest):
 
     update_fields = {}
     if data.reward_type == "extra_swipes":
-        update_fields["extra_swipes"] = user.get("extra_swipes", 0) + data.amount
+        update_fields["extra_swipes"] = max(int(user.get("extra_swipes", 0) or 0), 0) + amount
     elif data.reward_type == "profile_boost":
         boost_end = datetime.now(timezone.utc) + timedelta(minutes=data.amount)
         update_fields["profile_boost_end"] = boost_end.isoformat()
@@ -99,7 +108,7 @@ async def track_ad_reward(data: AdRewardRequest):
     if update_fields:
         await db.users.update_one({"id": data.user_id}, {"$set": update_fields})
     invalidate_user_cache(data.user_id)
-    return {"success": True, "reward_applied": data.reward_type, "amount": data.amount}
+    return {"success": True, "reward_applied": data.reward_type, "amount": amount}
 
 
 @router.get("/ads/stats/{user_id}")

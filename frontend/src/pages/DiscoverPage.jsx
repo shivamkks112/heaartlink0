@@ -200,6 +200,7 @@ const DiscoverPage = ({ user }) => {
       setDailySwipeCount(parseInt(localStorage.getItem('heartlink_swipe_count') || '0'));
     }
     setExtraSwipes(parseInt(localStorage.getItem('heartlink_extra_swipes') || '0'));
+    syncSwipes();
 
     if (user?.id) {
       wsService.connect(user.id);
@@ -348,7 +349,10 @@ const DiscoverPage = ({ user }) => {
           toast.success('Super Like sent!');
         }
       } catch (error) {
-        if (error.response?.status !== 400) {
+        if (error.response?.status === 429) {
+          setShowOutOfSwipes(true);
+          syncSwipes();
+        } else if (error.response?.status !== 400) {
           toast.error('Action failed, please try again');
         }
       } finally {
@@ -356,6 +360,18 @@ const DiscoverPage = ({ user }) => {
       }
     })();
   };
+
+  // Server is the source of truth for free + extra swipes
+  async function syncSwipes() {
+    if (!user?.id) return;
+    try {
+      const { data } = await axios.get(`${API}/swipes/${user.id}`);
+      localStorage.setItem('heartlink_swipe_count', String(data.used));
+      localStorage.setItem('heartlink_extra_swipes', String(data.extra));
+      setDailySwipeCount(data.used);
+      setExtraSwipes(data.extra);
+    } catch (_) {}
+  }
 
   // ── UNDO SWIPE (Premium Only) ──
   const handleUndo = async () => {
@@ -396,14 +412,15 @@ const DiscoverPage = ({ user }) => {
 
   const handleWatchAdForSwipes = async () => {
     setShowingAd(true);
-    const result = await adsService.showRewardedForSwipes((reward) => {
-      if (reward.success) {
-        const cur = parseInt(localStorage.getItem('heartlink_extra_swipes') || '0');
-        const nv = cur + reward.swipes;
-        localStorage.setItem('heartlink_extra_swipes', String(nv));
-        setExtraSwipes(nv);
-        toast.success(`+${reward.swipes} Extra Swipes Added!`);
+    const result = await adsService.showRewardedForSwipes(async (reward) => {
+      if (!reward.success) return;
+      try {
+        const r = await axios.post(`${API}/ads/reward`, { user_id: user.id, reward_type: 'extra_swipes', amount: reward.swipes, timestamp: new Date().toISOString() });
+        await syncSwipes();
+        toast.success(`+${r.data.amount} Extra Swipes Added!`);
         setShowOutOfSwipes(false);
+      } catch (e) {
+        toast.error(e.response?.data?.detail || 'Reward add nahi hua, try again');
       }
     });
     setShowingAd(false);
