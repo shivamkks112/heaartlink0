@@ -1,0 +1,37 @@
+{
+  "summary": "Iteration 42: Tested server-side swipe limits, extra_swipes ad reward caps, rewarded 'See who liked you' reveal (backend + frontend). Backend 13/13 functional tests pass. One concurrency bug found: /api/ads/reward overwrites extra_swipes with a read-then-$set, so parallel rewards (or a swipe made while the reward is being processed) lose updates. Frontend: on the Likes page, locked cards show Watch Ad + Unlock; Watch Ad (simulated on web) calls reveal, the card unblurs showing 'Kavya0, 23', and it stays revealed after reload; Like on a revealed card goes to /premium; Unlock goes to /premium. Discover page overwrites the faked localStorage (999 extra) with the server value (0); at 50 used, a pass returns 429 and the 'Swipes Khatam' modal opens; Watch Ad gives +10 (toast) and the next pass uses one extra (server shows 9). No page errors.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/ads/reward (routes/ads.py L100,109)", "issue": "Lost update: extra_swipes is computed from a stale user read and then $set. 15 parallel requests: 5 returned 200 (cap held), but extra_swipes=30 instead of 50. It also wipes any _consume_swipe $inc:-1 that happens during the request, so the user gets those swipes back. Fix: use {'$inc': {'extra_swipes': amount}} (same for priority_messages)."},
+      {"endpoint": "POST /api/ads/reward & POST /api/likes/{id}/reveal", "issue": "The daily cap is check-then-insert (count_documents, then insert), so very fast concurrent calls could go over it. The cap held in the test (reveal: exactly 3/8 succeeded). The endpoints have no auth/SSV, so any client can claim rewards for any user_id without watching an ad. This is limited by the 5/day and 3/day caps."},
+      {"endpoint": "GET /api/likes/{id}", "issue": "Premium response now includes 'revealed': false on every item (small schema change, harmless)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Discover 429 out_of_swipes", "issue": "The card advances optimistically before the API 429 comes back, so the profile the user swiped is skipped without being recorded (it reappears later). Minor UX issue.", "affected_selectors": ["[data-testid='pass-btn']"]},
+      {"flow": "LikesYouPage Pass on revealed card (non-premium)", "issue": "Pass now uses up a swipe; at 0 swipes the API returns 429, but the card is already removed optimistically and no error is shown.", "affected_selectors": ["pass-btn-{id}"]},
+      {"flow": "AdsService web simulation", "issue": "onReward(async) is not awaited, so the revealingId/showingAd spinner clears before the reveal/reward API finishes. Cosmetic."}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_iter42_swipes_reveal.py", "/app/backend/tests/test_iter42_concurrency.py", "/app/backend/tests/seed_iter42_ui.py", "/app/test_reports/pytest/pytest_iter42.xml"],
+  "action_items": [
+    "routes/ads.py track_ad_reward: replace the read-modify-$set of extra_swipes (and priority_messages) with an atomic $inc",
+    "Optional: make the daily caps atomic (e.g. a per-day counter on the user doc with a conditional $inc) and add auth to /ads/reward and /likes/{id}/reveal",
+    "Optional: on a 429 in Discover/Likes, put the optimistically removed card back"
+  ],
+  "critical_code_review_comments": [
+    "reveal_like_with_ad does not exclude likes where user2_action == 'pass' (get_likes hides those), so a user can reveal someone they already passed on and use up a reveal.",
+    "server.py is 12.5k lines and should be split up."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter42_swipes_reveal.py", "/app/backend/tests/test_iter42_concurrency.py", "/app/backend/tests/seed_iter42_ui.py"],
+  "success_rate": {"backend": "93% (14/15 incl. concurrency)", "frontend": "100%"},
+  "test_credentials": "Temporary user test_iter42ui@example.com / TestIter42@2026 (deleted after testing). Existing users were not modified.",
+  "seed_data_creation": "TEST_ITER42* users, matches and ad_rewards were created and then fully deleted (verified count 0).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend/tests && pytest test_iter42_swipes_reveal.py test_iter42_concurrency.py. UI: run 'python seed_iter42_ui.py seed', then set localStorage user + heartlink_daily_reward_date=today, dismiss the welcome modal with 'Skip for now', and run 'seed_iter42_ui.py clean' after."
+}

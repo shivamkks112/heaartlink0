@@ -350,6 +350,7 @@ const DiscoverPage = ({ user }) => {
         }
       } catch (error) {
         if (error.response?.status === 429) {
+          setCurrentIndex(prevIndex);
           setShowOutOfSwipes(true);
           syncSwipes();
         } else if (error.response?.status !== 400) {

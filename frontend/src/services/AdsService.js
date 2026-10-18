@@ -390,7 +390,7 @@ class AdsService {
     if (!this.isNative() || !this.admob) {
       // Web simulation
       const result = { success: true, swipes: EXTRA_SWIPES_REWARD, simulated: true };
-      if (onReward) onReward(result);
+      if (onReward) await onReward(result);
       return result;
     }
 
@@ -432,7 +432,7 @@ class AdsService {
       });
 
       if (result.success && onReward) {
-        onReward(result);
+        await onReward(result);
       }
 
       // Prepare next rewarded ad

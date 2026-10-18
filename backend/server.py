@@ -5033,11 +5033,15 @@ async def reveal_like_with_ad(user_id: str, data: LikeRevealRequest):
         raise HTTPException(status_code=404, detail="Like not found")
     if data.liker_id in (user.get("revealed_likes") or []):
         return {"success": True, "already_revealed": True}
-    used = await db.ad_rewards.count_documents({"user_id": user_id, "reward_type": "like_reveal", "created_at": {"$gte": _ist_day_start_utc()}})
+    doc = {"id": str(uuid.uuid4()), "user_id": user_id, "reward_type": "like_reveal", "amount": 1,
+           "target_id": data.liker_id, "created_at": datetime.now(timezone.utc).isoformat()}
+    await db.ad_rewards.insert_one(doc)
+    used = await db.ad_rewards.count_documents({
+        "user_id": user_id, "reward_type": "like_reveal", "created_at": {"$gte": _ist_day_start_utc()},
+        "$or": [{"created_at": {"$lt": doc["created_at"]}}, {"created_at": doc["created_at"], "id": {"$lt": doc["id"]}}]})
     if used >= MAX_LIKE_REVEALS_PER_DAY:
+        await db.ad_rewards.delete_one({"id": doc["id"]})
         raise HTTPException(status_code=429, detail=f"Aaj ke {MAX_LIKE_REVEALS_PER_DAY} free reveals ho gaye. Kal try karo ya Premium lo")
-    await db.ad_rewards.insert_one({"id": str(uuid.uuid4()), "user_id": user_id, "reward_type": "like_reveal", "amount": 1,
-                                    "target_id": data.liker_id, "created_at": datetime.now(timezone.utc).isoformat()})
     await db.users.update_one({"id": user_id}, {"$addToSet": {"revealed_likes": data.liker_id}})
     return {"success": True, "remaining_today": MAX_LIKE_REVEALS_PER_DAY - used - 1}
 

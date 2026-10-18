@@ -104,6 +104,11 @@ const LikesYouPage = ({ user }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ target_user_id: targetUserId, action })
       });
+      if (response.status === 429) {
+        toast.error('Aaj ke swipes khatam. Discover pe ad dekh ke aur lo ya Premium lo');
+        fetchLikes();
+        return;
+      }
       const result = await response.json();
       
       if (result.action === 'matched') {

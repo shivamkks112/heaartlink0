@@ -80,9 +80,6 @@ async def track_ad_reward(data: AdRewardRequest):
     if data.reward_type == "extra_swipes":
         ist = datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)
         day_start = (ist.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(hours=5, minutes=30)).isoformat()
-        used = await db.ad_rewards.count_documents({"user_id": data.user_id, "reward_type": "extra_swipes", "created_at": {"$gte": day_start}})
-        if used >= 5:
-            raise HTTPException(status_code=429, detail="Aaj ke ad rewards khatam. Kal try karo ya Premium lo")
         amount = max(0, min(int(amount), 10))
 
     reward_doc = {
@@ -94,16 +91,27 @@ async def track_ad_reward(data: AdRewardRequest):
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.ad_rewards.insert_one(reward_doc)
+    if data.reward_type == "extra_swipes":
+        # Insert-then-count keeps the daily cap safe under parallel requests
+        earlier = await db.ad_rewards.count_documents({
+            "user_id": data.user_id, "reward_type": "extra_swipes",
+            "created_at": {"$gte": day_start}, "$or": [
+                {"created_at": {"$lt": reward_doc["created_at"]}},
+                {"created_at": reward_doc["created_at"], "id": {"$lt": reward_doc["id"]}}]})
+        if earlier >= 5:
+            await db.ad_rewards.delete_one({"id": reward_doc["id"]})
+            raise HTTPException(status_code=429, detail="Aaj ke ad rewards khatam. Kal try karo ya Premium lo")
 
     update_fields = {}
     if data.reward_type == "extra_swipes":
-        update_fields["extra_swipes"] = max(int(user.get("extra_swipes", 0) or 0), 0) + amount
+        await db.users.update_one({"id": data.user_id, "extra_swipes": {"$lt": 0}}, {"$set": {"extra_swipes": 0}})
+        await db.users.update_one({"id": data.user_id}, {"$inc": {"extra_swipes": amount}})
     elif data.reward_type == "profile_boost":
         boost_end = datetime.now(timezone.utc) + timedelta(minutes=data.amount)
         update_fields["profile_boost_end"] = boost_end.isoformat()
         update_fields["is_boosted"] = True
     elif data.reward_type == "priority_message":
-        update_fields["priority_messages"] = user.get("priority_messages", 0) + data.amount
+        await db.users.update_one({"id": data.user_id}, {"$inc": {"priority_messages": data.amount}})
 
     if update_fields:
         await db.users.update_one({"id": data.user_id}, {"$set": update_fields})

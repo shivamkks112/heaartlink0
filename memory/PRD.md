@@ -102,3 +102,8 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 - resume_pending_ai_replies (runs in 5-min loop): replies to unread user msgs (3min–24h old, last msg from user) for personas online now — survives restarts/schedule changes.
 - Fixed pre-existing TypeError: daily AI creator now calls auto_match_new_ai_with_users.
 - Tested iteration_41 (backend 20/20, frontend 100%).
+
+## 2026-06 — Rewarded ads: Like reveal + server-side swipes
+- Likes page: locked cards have "Watch Ad" (rewarded) → POST /api/likes/{uid}/reveal {liker_id} (max 3/IST day, non-premium only) → /likes returns full data with revealed:true. "Unlock" → /premium. Like on revealed (non-premium) → /premium.
+- Swipes server-side: users.swipe_day/swipe_count/extra_swipes; FREE_DAILY_SWIPES=50; /api/action consumes (non-premium like/pass) else 429 out_of_swipes; GET /api/swipes/{uid}. Discover syncs from server, ad reward → POST /api/ads/reward (amount ≤10, max 5/day, $inc atomic, insert-then-count cap).
+- Tested iteration_42 + concurrency recheck (10 parallel → exactly 5 granted).
