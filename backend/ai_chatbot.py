@@ -1583,7 +1583,61 @@ def _build_user_context(user_data: dict, ai_location: str) -> str:
     return ctx
 
 
-def _get_ai_system_prompt(ai_user: dict, user_data: dict = None) -> str:
+PROMPT_LABELS = {
+    "ai_template": "AI Persona — main rules (template)",
+    "flirty_fun": "Personality: Flirty Fun",
+    "sweet_caring": "Personality: Sweet Caring",
+    "witty_smart": "Personality: Witty Smart",
+    "neutral_real": "Personality: Neutral Real",
+    "stealth_template": "Auto-chat (stealth) accounts — rules",
+    "custom_persona_template": "Custom persona accounts — rules",
+}
+PROMPT_PLACEHOLDERS = {
+    "ai_template": ["name", "age", "location", "bio", "vibe", "interests", "personality_prompt", "user_context", "user_city"],
+    "stealth_template": ["name", "age", "location", "bio", "interests"],
+    "custom_persona_template": ["name", "age", "location", "bio"],
+}
+
+
+def default_prompts() -> dict:
+    return {"ai_template": AI_SYSTEM_PROMPT_TEMPLATE, **PERSONALITY_PROMPTS,
+            "stealth_template": STEALTH_SYSTEM_PROMPT, "custom_persona_template": CUSTOM_PERSONA_SHIVAM}
+
+
+_prompt_cache = {"ts": 0.0, "data": {}}
+
+
+async def get_prompt_overrides(db) -> dict:
+    import time
+    if time.time() - _prompt_cache["ts"] < 60:
+        return _prompt_cache["data"]
+    doc = await db.app_settings.find_one({"type": "ai_prompts"}, {"_id": 0}) or {}
+    _prompt_cache.update(ts=time.time(), data=doc.get("prompts") or {})
+    return _prompt_cache["data"]
+
+
+def clear_prompt_cache():
+    _prompt_cache["ts"] = 0.0
+
+
+class _KeepMissing(dict):
+    def __missing__(self, k):
+        return "{" + k + "}"
+
+
+def safe_format(template: str, **kw):
+    try:
+        return template.format_map(_KeepMissing(kw))
+    except (ValueError, IndexError, AttributeError):
+        return None
+
+
+def _with_persona_context(prompt: str, persona: dict) -> str:
+    ctx = (persona.get("persona_context") or "").strip()
+    return prompt + ("\n\nEXTRA CONTEXT (admin set — follow this):\n" + ctx if ctx else "")
+
+
+def _get_ai_system_prompt(ai_user: dict, user_data: dict = None, overrides: dict = None) -> str:
     """Build personality-specific system prompt with user context."""
     profile_data = None
     for p in AI_PROFILES:
@@ -1592,7 +1646,9 @@ def _get_ai_system_prompt(ai_user: dict, user_data: dict = None) -> str:
             break
 
     personality_type = ai_user.get("ai_personality", "sweet_caring")
-    personality_prompt = PERSONALITY_PROMPTS.get(personality_type, PERSONALITY_PROMPTS["sweet_caring"])
+    overrides = overrides or {}
+    personality_prompt = (overrides.get(personality_type)
+                          or PERSONALITY_PROMPTS.get(personality_type, PERSONALITY_PROMPTS["sweet_caring"]))
     
     vibe = profile_data.get("vibe", "") if profile_data else ""
     
@@ -1614,7 +1670,7 @@ def _get_ai_system_prompt(ai_user: dict, user_data: dict = None) -> str:
     
     user_city = user_data.get("location", "") if user_data else ""
 
-    return AI_SYSTEM_PROMPT_TEMPLATE.format(
+    fields = dict(
         name=ai_user.get("name", "Priya"),
         age=ai_user.get("age", 23),
         location=ai_user.get("location", "Delhi"),
@@ -1625,6 +1681,9 @@ def _get_ai_system_prompt(ai_user: dict, user_data: dict = None) -> str:
         user_context=user_context,
         user_city=user_city or "unknown city",
     )
+    prompt = (safe_format(overrides["ai_template"], **fields) if overrides.get("ai_template") else None) \
+        or AI_SYSTEM_PROMPT_TEMPLATE.format(**fields)
+    return _with_persona_context(prompt, ai_user)
 
 
 async def generate_ai_response(db, match_id: str, ai_user: dict, user_message: str, user_name: str) -> str:
@@ -1646,7 +1705,7 @@ async def generate_ai_response(db, match_id: str, ai_user: dict, user_message: s
             {"_id": 0, "name": 1, "age": 1, "location": 1, "interests": 1, "bio": 1, "gender": 1}
         )
 
-    system_prompt = _get_ai_system_prompt(ai_user, user_data)
+    system_prompt = _get_ai_system_prompt(ai_user, user_data, await get_prompt_overrides(db))
     session_id = f"heartlink_ai_{match_id}"
 
     # Load conversation memory (persistent facts about this user)
@@ -2300,21 +2359,17 @@ async def _generate_stealth_response(db, match_id: str, auto_user: dict, user_me
         return _get_stealth_fallback()
     
     # Check if this user has custom AI persona enabled
+    ov = await get_prompt_overrides(db)
+    fields = dict(name=auto_user.get("name", ""), age=auto_user.get("age", 22),
+                  location=auto_user.get("location", "India"), bio=auto_user.get("bio", ""),
+                  interests=", ".join(auto_user.get("interests", [])))
     if auto_user.get("custom_ai_persona"):
-        system_prompt = CUSTOM_PERSONA_SHIVAM.format(
-            name=auto_user.get("name", ""),
-            age=auto_user.get("age", 22),
-            location=auto_user.get("location", "India"),
-            bio=auto_user.get("bio", ""),
-        )
+        system_prompt = (safe_format(ov["custom_persona_template"], **fields) if ov.get("custom_persona_template") else None) \
+            or CUSTOM_PERSONA_SHIVAM.format(**fields)
     else:
-        system_prompt = STEALTH_SYSTEM_PROMPT.format(
-            name=auto_user.get("name", ""),
-            age=auto_user.get("age", 22),
-            location=auto_user.get("location", "India"),
-            bio=auto_user.get("bio", ""),
-            interests=", ".join(auto_user.get("interests", []))
-        )
+        system_prompt = (safe_format(ov["stealth_template"], **fields) if ov.get("stealth_template") else None) \
+            or STEALTH_SYSTEM_PROMPT.format(**fields)
+    system_prompt = _with_persona_context(system_prompt, auto_user)
     
     session_id = f"stealth_chat_{match_id}"
     

@@ -10244,6 +10244,91 @@ async def update_ai_profile_schedule(profile_id: str, data: dict, admin: dict = 
     return {"reply_delay_min": rmin, "reply_delay_max": rmax, "online_hours": online_hours, "is_online": online}
 
 
+@api_router.get("/admin/ai-prompts")
+async def get_ai_prompts(admin: dict = Depends(require_admin)):
+    import ai_chatbot as ac
+    doc = await db.app_settings.find_one({"type": "ai_prompts"}, {"_id": 0}) or {}
+    return {"labels": ac.PROMPT_LABELS, "placeholders": ac.PROMPT_PLACEHOLDERS,
+            "defaults": ac.default_prompts(), "overrides": doc.get("prompts") or {},
+            "updated_at": doc.get("updated_at")}
+
+
+@api_router.put("/admin/ai-prompts")
+async def update_ai_prompts(data: dict, admin: dict = Depends(require_admin)):
+    """Body: {prompts: {key: text}}; empty text = reset that key to default."""
+    import ai_chatbot as ac
+    doc = await db.app_settings.find_one({"type": "ai_prompts"}, {"_id": 0}) or {}
+    prompts = dict(doc.get("prompts") or {})
+    for k, v in (data.get("prompts") or {}).items():
+        if k not in ac.PROMPT_LABELS:
+            raise HTTPException(status_code=400, detail=f"Unknown prompt key: {k}")
+        v = (v or "").strip()
+        if not v:
+            prompts.pop(k, None)
+            continue
+        if len(v) > 20000:
+            raise HTTPException(status_code=400, detail=f"{k}: bahut lamba hai (max 20000 chars)")
+        if k in ac.PROMPT_PLACEHOLDERS and ac.safe_format(v, **{p: "x" for p in ac.PROMPT_PLACEHOLDERS[k]}) is None:
+            raise HTTPException(status_code=400, detail=f"{k}: template mein galat {{ }} hai. Literal bracket ke liye {{{{ }}}} use karo")
+        prompts[k] = v
+    await db.app_settings.update_one(
+        {"type": "ai_prompts"},
+        {"$set": {"prompts": prompts, "updated_at": datetime.now(timezone.utc).isoformat(), "updated_by": admin.get("id")}},
+        upsert=True)
+    ac.clear_prompt_cache()
+    return {"overrides": prompts}
+
+
+@api_router.get("/admin/ai-personas")
+async def list_ai_personas(admin: dict = Depends(require_admin)):
+    return await db.users.find(
+        {"is_ai_profile": True},
+        {"_id": 0, "id": 1, "name": 1, "age": 1, "location": 1, "bio": 1, "ai_personality": 1,
+         "persona_context": 1, "is_active_ai": 1}).sort("name", 1).to_list(None)
+
+
+@api_router.put("/admin/ai-personas/{profile_id}")
+async def update_ai_persona(profile_id: str, data: dict, admin: dict = Depends(require_admin)):
+    import ai_chatbot as ac
+    upd = {}
+    if "ai_personality" in data:
+        if data["ai_personality"] not in ac.PERSONALITY_PROMPTS:
+            raise HTTPException(status_code=400, detail="Invalid personality")
+        upd["ai_personality"] = data["ai_personality"]
+    if "persona_context" in data:
+        ctx = (data.get("persona_context") or "").strip()
+        if len(ctx) > 4000:
+            raise HTTPException(status_code=400, detail="Context max 4000 chars")
+        upd["persona_context"] = ctx
+    if "bio" in data:
+        bio = (data.get("bio") or "").strip()
+        if len(bio) > 500:
+            raise HTTPException(status_code=400, detail="Bio max 500 chars")
+        upd["bio"] = bio
+    if not upd:
+        raise HTTPException(status_code=400, detail="Nothing to update")
+    res = await db.users.update_one({"id": profile_id, "is_ai_profile": True}, {"$set": upd})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="AI profile not found")
+    invalidate_user_cache(profile_id)
+    return {"success": True, **upd}
+
+
+@api_router.post("/admin/ai-prompts/preview")
+async def preview_ai_reply(data: dict, admin: dict = Depends(require_admin)):
+    """Try a persona's reply to a sample message with current prompts (nothing is saved)."""
+    import ai_chatbot as ac
+    persona = await db.users.find_one({"id": data.get("profile_id"), "is_ai_profile": True},
+                                      {"_id": 0, "password_hash": 0, "photos": 0, "profile_picture": 0})
+    if not persona:
+        raise HTTPException(status_code=404, detail="AI profile not found")
+    msg = (data.get("message") or "").strip()[:500]
+    if not msg:
+        raise HTTPException(status_code=400, detail="Message likho")
+    reply = await ac.generate_ai_response(db, f"preview-{uuid.uuid4()}", persona, msg, data.get("user_name") or "Rahul")
+    return {"reply": reply}
+
+
 @api_router.get("/admin/ai-reply-timing")
 async def get_ai_reply_timing(admin: dict = Depends(require_admin)):
     from ai_chatbot import DEFAULT_AI_REPLY_TIMING

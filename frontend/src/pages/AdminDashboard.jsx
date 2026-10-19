@@ -28,6 +28,7 @@ import SmartNotificationConfig from '@/components/admin/SmartNotificationConfig'
 import SafetyDashboard from '@/components/admin/SafetyDashboard';
 import AiReplyTiming from '@/components/admin/AiReplyTiming';
 import AiPersonaSchedule from '@/components/admin/AiPersonaSchedule';
+import AiStyleEditor from '@/components/admin/AiStyleEditor';
 
 import { BACKEND_URL } from '@/config/api';
 
@@ -1258,6 +1259,13 @@ const AdminDashboard = ({ user }) => {
             <Bot className="w-4 h-4 mr-2" /> AI Girls
           </Button>
           <Button
+            onClick={() => setActiveTab('ai-style')}
+            className={activeTab === 'ai-style' ? 'bg-purple-600' : 'bg-gray-200 text-gray-700'}
+            data-testid="admin-ai-style-tab"
+          >
+            <Bot className="w-4 h-4 mr-2" /> AI Chat Style
+          </Button>
+          <Button
             onClick={() => setActiveTab('promo-codes')}
             className={activeTab === 'promo-codes' ? 'bg-amber-500' : 'bg-gray-200 text-gray-700'}
             data-testid="admin-promo-tab"
@@ -1698,6 +1706,8 @@ const AdminDashboard = ({ user }) => {
         {activeTab === 'approvals' && <ProfileApprovals />}
 
         {/* AI Girls Tab */}
+        {activeTab === 'ai-style' && <AiStyleEditor />}
+
         {activeTab === 'ai-profiles' && (
           <div className="space-y-6" data-testid="admin-ai-profiles-panel">
             <div className="flex items-center justify-between">
