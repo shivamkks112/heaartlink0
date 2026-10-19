@@ -21,7 +21,7 @@ const AD_CONFIG = {
   BANNER_ID: 'ca-app-pub-3735972538807236/9418160097',
 };
 
-const SWIPES_BEFORE_AD = 3;
+const SWIPES_BEFORE_AD = 5;
 const EXTRA_SWIPES_REWARD = 10;
 
 // Ad states
@@ -337,15 +337,15 @@ class AdsService {
     const now = Date.now();
     if (!this._interstitialHistory) this._interstitialHistory = [];
     
-    // Max 3 per session
-    if (this._interstitialHistory.length >= 3) {
-      this._log('Interstitial cap: max 3 per session reached');
+    // Max 6 per session
+    if (this._interstitialHistory.length >= 6) {
+      this._log('Interstitial cap: max 6 per session reached');
       return false;
     }
-    // Min 5 min between interstitials
+    // Min 2 min between interstitials
     const lastShown = this._interstitialHistory[this._interstitialHistory.length - 1] || 0;
-    if (now - lastShown < 300000) {
-      this._log('Interstitial cap: 5-min cooldown active');
+    if (now - lastShown < 120000) {
+      this._log('Interstitial cap: 2-min cooldown active');
       return false;
     }
 

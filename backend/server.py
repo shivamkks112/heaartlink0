@@ -768,13 +768,14 @@ async def _run_ai_profile_activity():
     flags = await db.app_settings.find_one({"type": "feature_flags"}, {"_id": 0}) or {}
     crush_on = flags.get("crush_feature", False)
     visitors = await db.users.find(
-        {"$or": [{"is_ai_profile": True, "is_active_ai": True}, {"auto_chat_enabled": True}], "gender": "female"},
+        {"$or": [{"is_ai_profile": True, "is_active_ai": True}, {"auto_chat_enabled": True}],
+         "gender": {"$regex": "^female$", "$options": "i"}},
         {"_id": 0, "id": 1, "online_hours": 1, "is_ai_profile": 1}).to_list(None)
     visitors = [v for v in visitors if not v.get("is_ai_profile") or ai_online_now(v)]
     if not visitors:
         return
     users = await db.users.find(
-        {"is_ai_profile": {"$ne": True}, "auto_chat_enabled": {"$ne": True}, "gender": "male",
+        {"is_ai_profile": {"$ne": True}, "auto_chat_enabled": {"$ne": True}, "gender": {"$regex": "^male$", "$options": "i"},
          "last_active": {"$gte": (now - timedelta(days=3)).isoformat()}},
         {"_id": 0, "id": 1, "ai_visit_day": 1, "ai_visit_count": 1, "ai_visit_target": 1, "last_ai_crush_at": 1}
     ).to_list(2000)
@@ -4834,7 +4835,10 @@ async def track_profile_view(user_id: str, viewer_id: str = None):
 
 async def _record_profile_view(user_id: str, viewer_id: str):
     """Store a view + notify. Free users only learn that *someone* viewed (who = Premium)."""
-    if True:
+    recent = await db.profile_views.find_one({
+        "viewed_user_id": user_id, "viewer_id": viewer_id,
+        "viewed_at": {"$gte": (datetime.now(timezone.utc) - timedelta(hours=6)).isoformat()}}, {"_id": 1})
+    if not recent:
         real_viewer = viewer_id
         view_doc = {
             "viewed_user_id": user_id,
@@ -5091,6 +5095,81 @@ async def _consume_swipe(user_id: str) -> bool:
     return bool(r.modified_count)
 
 
+FREE_AI_MSGS_PER_DAY = 30
+AI_MSGS_PER_AD = 10
+MAX_AI_CHAT_ADS_PER_DAY = 5
+MAX_CRUSH_REVEALS_PER_DAY = 2
+
+
+async def _claim_daily_reward(user_id: str, reward_type: str, cap: int, **extra) -> Optional[str]:
+    """Insert-then-count daily cap (safe under parallel requests). Returns reward id or None if cap hit."""
+    doc = {"id": str(uuid.uuid4()), "user_id": user_id, "reward_type": reward_type, "amount": 1,
+           "created_at": datetime.now(timezone.utc).isoformat(), **extra}
+    await db.ad_rewards.insert_one(doc)
+    earlier = await db.ad_rewards.count_documents({
+        "user_id": user_id, "reward_type": reward_type, "created_at": {"$gte": _ist_day_start_utc()},
+        "$or": [{"created_at": {"$lt": doc["created_at"]}}, {"created_at": doc["created_at"], "id": {"$lt": doc["id"]}}]})
+    if earlier >= cap:
+        await db.ad_rewards.delete_one({"id": doc["id"]})
+        return None
+    return doc["id"]
+
+
+async def _ai_chat_status(user_id: str) -> dict:
+    u = await db.users.find_one({"id": user_id}, {"_id": 0, "ai_msg_day": 1, "ai_msg_count": 1, "ai_msg_extra": 1,
+                                                  "is_premium": 1, "gender": 1}) or {}
+    if is_user_premium(u):
+        return {"unlimited": True}
+    used = u.get("ai_msg_count", 0) if u.get("ai_msg_day") == _ist_day() else 0
+    extra = max(int(u.get("ai_msg_extra", 0) or 0), 0)
+    return {"unlimited": False, "limit": FREE_AI_MSGS_PER_DAY, "used": used, "extra": extra,
+            "remaining": max(FREE_AI_MSGS_PER_DAY - used, 0) + extra}
+
+
+async def _consume_ai_msg(sender: dict) -> bool:
+    """Free users: 30 msgs/day to AI personas, then extra msgs earned via rewarded video."""
+    if is_user_premium(sender):
+        return True
+    uid, today = sender["id"], _ist_day()
+    r = await db.users.update_one({"id": uid, "ai_msg_day": {"$ne": today}}, {"$set": {"ai_msg_day": today, "ai_msg_count": 1}})
+    if r.modified_count:
+        return True
+    r = await db.users.update_one({"id": uid, "ai_msg_day": today, "ai_msg_count": {"$lt": FREE_AI_MSGS_PER_DAY}},
+                                  {"$inc": {"ai_msg_count": 1}})
+    if r.modified_count:
+        return True
+    r = await db.users.update_one({"id": uid, "ai_msg_extra": {"$gt": 0}}, {"$inc": {"ai_msg_extra": -1}})
+    return bool(r.modified_count)
+
+
+@api_router.get("/ai-chat/limit/{user_id}")
+async def get_ai_chat_limit(user_id: str):
+    return await _ai_chat_status(user_id)
+
+
+@api_router.post("/ai-chat/extend/{user_id}")
+async def extend_ai_chat_with_ad(user_id: str):
+    """User watched a rewarded video -> +10 AI chat messages (max 5 videos/day)."""
+    if not await _claim_daily_reward(user_id, "ai_chat_extend", MAX_AI_CHAT_ADS_PER_DAY):
+        raise HTTPException(status_code=429, detail="Aaj ke video rewards khatam. Kal try karo ya Premium lo")
+    await db.users.update_one({"id": user_id, "ai_msg_extra": {"$lt": 0}}, {"$set": {"ai_msg_extra": 0}})
+    await db.users.update_one({"id": user_id}, {"$inc": {"ai_msg_extra": AI_MSGS_PER_AD}})
+    return {"success": True, "added": AI_MSGS_PER_AD, **(await _ai_chat_status(user_id))}
+
+
+@api_router.post("/crushes/{user_id}/reveal")
+async def reveal_crush_with_ad(user_id: str):
+    """User watched a rewarded video -> reveal their newest hidden Secret Crush (max 2/day)."""
+    crush = await db.crushes.find_one({"crushed_id": user_id, "revealed": {"$ne": True}}, {"_id": 0, "id": 1},
+                                      sort=[("created_at", -1)])
+    if not crush:
+        raise HTTPException(status_code=404, detail="Koi hidden crush nahi hai")
+    if not await _claim_daily_reward(user_id, "crush_reveal", MAX_CRUSH_REVEALS_PER_DAY, target_id=crush["id"]):
+        raise HTTPException(status_code=429, detail=f"Aaj ke {MAX_CRUSH_REVEALS_PER_DAY} free reveals ho gaye. Kal try karo ya Premium lo")
+    await db.crushes.update_one({"id": crush["id"]}, {"$set": {"revealed": True, "revealed_at": datetime.now(timezone.utc).isoformat()}})
+    return {"success": True, "crush_id": crush["id"]}
+
+
 @api_router.get("/swipes/{user_id}")
 async def get_swipe_status(user_id: str):
     return await _swipe_status(user_id)
@@ -5315,17 +5394,19 @@ async def mark_crush(user_id: str, target_user_id: str):
     if user_id == target_user_id:
         raise HTTPException(status_code=400, detail="Cannot crush yourself")
     
-    # Check if already crushed
-    existing = await db.crushes.find_one({"crusher_id": user_id, "crushed_id": target_user_id})
-    if existing:
-        raise HTTPException(status_code=400, detail="Already marked as crush")
-    
     # Premium check — crush is a premium feature
     crusher = await db.users.find_one({"id": user_id}, {"_id": 0, "name": 1, "gender": 1, "is_premium": 1})
     if not crusher:
         raise HTTPException(status_code=404, detail="User not found")
     if not is_user_premium(crusher):
         raise HTTPException(status_code=403, detail="Premium required to send crush")
+    if not await db.users.find_one({"id": target_user_id}, {"_id": 1}):
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Check if already crushed
+    existing = await db.crushes.find_one({"crusher_id": user_id, "crushed_id": target_user_id})
+    if existing:
+        raise HTTPException(status_code=400, detail="Already marked as crush")
     
     # Save crush
     crush_doc = {
@@ -5377,11 +5458,9 @@ async def get_crushes(user_id: str, request: Request):
     requesting_user = await db.users.find_one({"id": user_id}, {"_id": 0, "is_premium": 1, "gender": 1})
     user_has_premium = is_user_premium(requesting_user) if requesting_user else False
     
-    if not user_has_premium:
-        total = await db.crushes.count_documents({"crushed_id": user_id})
-        return {"crushes": [], "total": total, "is_premium": False}
-
-    crushes = await db.crushes.find({"crushed_id": user_id}).sort("created_at", -1).limit(50).to_list(None)
+    total = await db.crushes.count_documents({"crushed_id": user_id})
+    q = {"crushed_id": user_id} if user_has_premium else {"crushed_id": user_id, "revealed": True}
+    crushes = await db.crushes.find(q).sort("created_at", -1).limit(50).to_list(None)
     
     result = []
     for c in crushes:
@@ -5418,8 +5497,8 @@ async def get_crushes(user_id: str, request: Request):
     for r in result:
         r["is_mutual"] = r["user"]["id"] in my_crush_ids
     
-    total = await db.crushes.count_documents({"crushed_id": user_id})
-    return slim_photos({"crushes": result, "total": total, "is_premium": user_has_premium}, request)
+    return slim_photos({"crushes": result, "total": total, "hidden": total - sum(1 for r in result if r["revealed"]),
+                        "is_premium": user_has_premium}, request)
 
 @api_router.get("/crushes/{user_id}/sent")
 async def get_sent_crushes(user_id: str):
@@ -6129,6 +6208,8 @@ async def send_message_http(message_data: Message):
     
     # Skip safety checks if receiver is an AI profile
     is_ai_receiver = receiver.get("is_ai_profile", False)
+    if is_ai_receiver and not await _consume_ai_msg(sender):
+        raise HTTPException(status_code=429, detail="ai_chat_limit")
     
     # === LADIES FIRST MODE CHECK ===
     if not is_ai_receiver and receiver.get("ladies_first_enabled"):
@@ -6607,6 +6688,12 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
             # ── GIRLS SAFETY CHECKS (skip for AI profiles) ──
             receiver_for_safety = await db.users.find_one({"id": message_data["receiver_id"]}, {"_id": 0, "is_ai_profile": 1, "auto_chat_enabled": 1})
             is_ai_receiver = receiver_for_safety and (receiver_for_safety.get("is_ai_profile") or receiver_for_safety.get("auto_chat_enabled"))
+            if receiver_for_safety and receiver_for_safety.get("is_ai_profile"):
+                ws_sender = await db.users.find_one({"id": user_id}, {"_id": 0, "id": 1, "is_premium": 1, "gender": 1})
+                if ws_sender and not await _consume_ai_msg(ws_sender):
+                    await manager.send_message(user_id, {"type": "ai_chat_limit", "match_id": message_data["match_id"],
+                                                         "content": message_data.get("content", "")})
+                    continue
             
             if not is_ai_receiver:
                 # 1. Safe Word check (girl types emergency keyword → instant block + report)
@@ -6959,6 +7046,8 @@ async def get_profile_viewers(user_id: str):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
+    if not is_user_premium(user):
+        return {"viewers": [], "total_views": user.get("profile_views", 0), "is_premium": False}
     viewers = user.get("profile_viewers", [])[-5:]  # Last 5
     
     # Get viewer details
@@ -10329,6 +10418,12 @@ async def update_ai_profile_schedule(profile_id: str, data: dict, admin: dict = 
     upd = {"is_online": online, **({"last_active": datetime.now(timezone.utc).isoformat()} if online else {})}
     await db.users.update_one({"id": profile_id}, {"$set": upd})
     return {"reply_delay_min": rmin, "reply_delay_max": rmax, "online_hours": online_hours, "is_online": online}
+
+
+@api_router.get("/feature-flags/public")
+async def get_public_feature_flags():
+    flags = await db.app_settings.find_one({"type": "feature_flags"}, {"_id": 0}) or {}
+    return {"crush_feature": bool(flags.get("crush_feature", False))}
 
 
 @api_router.get("/admin/ai-prompts")

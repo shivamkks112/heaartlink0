@@ -151,6 +151,11 @@ const LikesYouPage = ({ user }) => {
         {kind === 'crush' ? (count === 1 ? 'insaan ne tumhe Secret Crush kiya' : 'logon ne tumhe Secret Crush kiya') : (count === 1 ? 'insaan ne tumhari profile dekhi' : 'logon ne tumhari profile dekhi')}
       </p>
       <p className="text-sm text-gray-600 mt-1">Kaun hai? Premium pe dekho</p>
+      {kind === 'crush' && (
+        <button onClick={revealCrushWithAd} disabled={revealingId === 'crush'} className="mt-4 mr-2 px-5 py-2.5 bg-pink-500 text-white rounded-xl font-bold text-sm disabled:opacity-60" data-testid="crush-watch-video-btn">
+          <Play className="w-4 h-4 inline mr-1" /> {revealingId === 'crush' ? '...' : 'Watch Video'}
+        </button>
+      )}
       <button onClick={() => navigate('/premium')} className="mt-4 px-6 py-2.5 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-xl font-bold text-sm" data-testid={`${kind}-locked-premium-btn`}>
         <Crown className="w-4 h-4 inline mr-1" /> Reveal with Premium
       </button>
@@ -165,6 +170,23 @@ const LikesYouPage = ({ user }) => {
         await axios.post(`${API}/likes/${user.id}/reveal`, { liker_id: likerId });
         await fetchLikes();
         toast.success('Profile reveal ho gaya!');
+      } catch (e) {
+        toast.error(e.response?.data?.detail || 'Reveal nahi hua, try again');
+      }
+    });
+    if (!result.success && result.error) toast.error(result.error);
+    setRevealingId(null);
+  };
+
+  const revealCrushWithAd = async () => {
+    setRevealingId('crush');
+    const result = await adsService.showRewardedForSwipes(async (reward) => {
+      if (!reward.success) return;
+      try {
+        await axios.post(`${API}/crushes/${user.id}/reveal`);
+        const res = await axios.get(`${API}/crushes/${user.id}`);
+        setCrushes(res.data);
+        toast.success('Secret Crush reveal ho gaya!');
       } catch (e) {
         toast.error(e.response?.data?.detail || 'Reveal nahi hua, try again');
       }
@@ -273,7 +295,8 @@ const LikesYouPage = ({ user }) => {
         {/* Crushes Tab */}
         {activeTab === 'crushes' ? (
           <div className="space-y-4" data-testid="crushes-content">
-            {!crushes.is_premium && crushes.total > 0 ? lockedCard('crush', crushes.total) : crushes.crushes.length === 0 ? (
+            {!crushes.is_premium && (crushes.hidden ?? crushes.total) > 0 && lockedCard('crush', crushes.hidden ?? crushes.total)}
+            {crushes.crushes.length === 0 ? (crushes.total > 0 ? null : (
               <div className="text-center py-16">
                 <div className="w-24 h-24 mx-auto mb-4 bg-gradient-to-br from-orange-100 to-red-100 rounded-full flex items-center justify-center">
                   <Heart className="w-12 h-12 text-orange-400" />
@@ -281,7 +304,7 @@ const LikesYouPage = ({ user }) => {
                 <h3 className="text-xl font-semibold text-gray-800 mb-2">No crushes yet</h3>
                 <p className="text-gray-600">Jab koi tumhe Crush karega, yahan dikhega!</p>
               </div>
-            ) : (
+            )) : (
               crushes.crushes.map((crush) => (
                 <div key={crush.crush_id} className="bg-white rounded-2xl p-4 shadow-sm flex items-center gap-4" data-testid={`crush-card-${crush.crush_id}`}>
                   <div className="relative w-16 h-16 rounded-full overflow-hidden bg-gradient-to-br from-orange-200 to-red-200 flex-shrink-0">

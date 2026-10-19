@@ -171,7 +171,7 @@ const DiscoverPage = ({ user }) => {
 
   // Fetch feature flags once on mount
   useEffect(() => {
-    axios.get(`${API}/admin/feature-flags`).then(res => {
+    axios.get(`${API}/feature-flags/public`).then(res => {
       setCrushEnabled(!!res.data?.crush_feature);
     }).catch(() => {});
     

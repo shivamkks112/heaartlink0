@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import { BACKEND_URL, API } from '@/config/api';
+import adsService from '@/services/AdsService';
+import AiChatLimitModal from '@/components/AiChatLimitModal';
 import { getCachedChatMessages, cacheChatMessages } from '@/utils/cacheManager';
 import { getPageData, setPageData } from '@/utils/pageCache';
 import wsService from '@/services/WebSocketService';
@@ -260,6 +262,27 @@ const ChatPage = ({ user }) => {
     return () => { cancelled = true; };
   }, [matchId]); // eslint-disable-line
 
+  // ── Free AI chat limit (extend via rewarded video) ──
+  const [showAiLimit, setShowAiLimit] = useState(false);
+  const handleAiLimit = useCallback((content) => {
+    const t = pendingWsMessages.current.get(content);
+    if (t) { clearTimeout(t); pendingWsMessages.current.delete(content); }
+    setMessages(prev => prev.filter(m => !(m._temp && m.content === content)));
+    if (content) setNewMessage(content);
+    setShowAiLimit(true);
+  }, []);
+  const handleWsAiLimit = useCallback((data) => {
+    if (data.match_id === matchId) handleAiLimit(data.content);
+  }, [matchId, handleAiLimit]);
+
+  // ── Interstitial on chat exit (free male users; AdsService enforces frequency caps) ──
+  useEffect(() => {
+    const adUser = user?.gender?.toLowerCase() === 'male' && !user?.is_premium && !user?.isPremium;
+    if (!adUser) return undefined;
+    adsService.initialize();
+    return () => { adsService.showInterstitial().catch(() => {}); };
+  }, []); // eslint-disable-line
+
   // ── Subscribe to global wsService events ──
   useEffect(() => {
     const unsubs = [
@@ -271,6 +294,7 @@ const ChatPage = ({ user }) => {
       wsService.on('message_deleted', handleWsMessageDeleted),
       wsService.on('messages_read', handleWsMessagesRead),
       wsService.on('message_delivered', handleWsMessageDelivered),
+      wsService.on('ai_chat_limit', handleWsAiLimit),
     ];
 
     return () => {
@@ -280,7 +304,7 @@ const ChatPage = ({ user }) => {
       pendingWsMessages.current.forEach(timer => clearTimeout(timer));
       pendingWsMessages.current.clear();
     };
-  }, [handleWsNewMessage, handleWsTyping, handleWsStatusUpdate, handleWsScreenshot, handleWsSystemWarning, handleWsMessageDeleted, handleWsMessagesRead, handleWsMessageDelivered]);
+  }, [handleWsNewMessage, handleWsTyping, handleWsStatusUpdate, handleWsScreenshot, handleWsSystemWarning, handleWsMessageDeleted, handleWsMessagesRead, handleWsMessageDelivered, handleWsAiLimit]);
 
   // Tick every 30s to keep "last seen" label fresh (e.g. "5m ago" → "6m ago")
   useEffect(() => {
@@ -515,6 +539,7 @@ const ChatPage = ({ user }) => {
             );
           });
         } catch (err) {
+          if (err.response?.status === 429) { handleAiLimit(messageContent); return; }
           // HTTP also failed — remove temp message
           setMessages(prev => prev.filter(msg => !msg._temp || msg.content !== messageContent));
           toast.error('Message send failed');
@@ -535,6 +560,7 @@ const ChatPage = ({ user }) => {
           msg._temp && msg.content === messageContent ? withAcks(response.data) : msg
         ));
       } catch (error) {
+        if (error.response?.status === 429) { handleAiLimit(messageContent); return; }
         toast.error('Failed to send message');
         setMessages(prev => prev.filter(msg => !msg._temp || msg.content !== messageContent));
       }
@@ -995,6 +1021,7 @@ const ChatPage = ({ user }) => {
         </div>
       </div>
       )}
+      {showAiLimit && <AiChatLimitModal user={user} onClose={() => setShowAiLimit(false)} onExtended={() => setShowAiLimit(false)} />}
     </div>
   );
 };

@@ -1,0 +1,40 @@
+{
+  "summary": "Iteration 44: Tested paid Profile Views and Secret Crush (free users see counts only) and AI profile activity. Backend: 11/12 pytest pass. 1 test fails on purpose and shows a real bug: the AI activity skips users whose gender is stored as 'Male'. Passed: POST /profile/{id}/view now stores viewed_user_id and the count goes up. For a free owner, /profile-viewers returns viewers [] with correct total and today counts, and no viewer id or name appears anywhere in the response. Free owner's notification reads 'Kisi ne tumhari profile dekhi...', routes to /likes and has no viewer_id. Premium owner gets the full list, one entry per viewer, newest first, and the notification has the viewer's name and id. Incognito viewers are not stored. Crush with flag off -> 403 'paused'; flag on but non-premium -> 403 'Premium required to send crush'; female/premium -> crush_sent; repeat crush -> 400. Free /crushes -> {crushes:[], total:1}; premium -> full data with revealed true. Ran _run_ai_profile_activity directly with time set to 13:30 IST, random patched, and FCM stubbed: it sets ai_visit_day and ai_visit_target (1-3), the visit count reaches the target and never goes over it in 6 runs, visitors are distinct female AI or auto_chat accounts, and there is exactly 1 AI crush (6-day cap) with last_ai_crush_at set. The live background loop also ran during testing (log: 'AI activity: 2 profile visits'). Frontend at 390x844: a free male sees crush-locked-card (count 1) and viewers-locked-card (count 3) with no names leaked, and both 'Reveal with Premium' buttons go to /premium. A premium male sees the crush card with name and photo and 4 viewer cards (one came from the live AI loop). Discover crush button: it NEVER shows for non-admin users (see the integration issue below), so the non-premium crush -> toast + /premium path was only checked by reading the code.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "_run_ai_profile_activity (server.py ~L771/777)", "issue": "Uses exact gender matches: 'gender': 'male' for targets and 'female' for visitors. The DB has 3 real users with 'Male' (including Shivamkks122) and auto_chat accounts with 'Female', and these are silently skipped. The rest of server.py matches with {'$regex':'^male$','$options':'i'}. Test test_ai_activity_capitalized_male fails because of this.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/crush/{uid}", "issue": "The 'Already marked as crush' check (400) runs before the premium check. target_user_id is not checked to exist, and the endpoint has no auth (anyone can send a crush as any user_id)."},
+      {"endpoint": "GET /api/profile-viewers/{uid}, GET /api/crushes/{uid}", "issue": "No auth or ownership check. Anyone can pass a premium user's id and get that user's full viewer and crusher list. The paywall is enforced by the owner's premium status, not by who is asking."},
+      {"endpoint": "GET /api/user/{uid}/profile-viewers (legacy)", "issue": "Returns viewer names and photos with NO premium check (data comes from users.profile_viewers, filled by /user/{id}/track-view). The /profile-viewers page (ProfileViewersPage, linked from Privacy settings) uses it, so this is a possible paywall bypass. Right now no frontend code calls track-view, so it is mostly empty. Either gate it or remove it."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Discover Secret Crush button", "issue": "DiscoverPage fetches GET /api/admin/feature-flags, which requires an admin (401 without a token, 403 'Admin access required' for a normal premium user). So crushEnabled is always false for non-admin users and the crush button never shows, even when crush_feature=true. Add a public endpoint (e.g. GET /api/feature-flags/public returning crush_feature) or include the flag in /api/init.", "affected_selectors": ["[data-testid='crush-btn']"]},
+      {"flow": "Real user-to-user profile views", "issue": "No frontend code calls POST /api/profile/{id}/view (UserProfilePage only does GET /profile/{id}). So real views are never recorded; only AI activity creates profile_views. Call the view endpoint with viewer_id when a user opens someone's profile.", "affected_selectors": []}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_iter44_paid_views_crush.py", "/app/backend/tests/iter44_ui_seed.py", "/app/test_reports/pytest/pytest_iter44.xml"],
+  "action_items": [
+    "Use case-insensitive gender matching in _run_ai_profile_activity for both target males and female visitors",
+    "Expose crush_feature to non-admin users (public flags endpoint or /init) so the Discover crush button can show",
+    "Call POST /api/profile/{id}/view?viewer_id=me from UserProfilePage (and wherever a profile is opened) so real views are tracked",
+    "Put a premium gate on (or remove) the legacy GET /api/user/{id}/profile-viewers used by ProfileViewersPage",
+    "Optional: check auth/ownership on /profile-viewers, /crushes, /crush; check that the target exists; run the premium check before the duplicate check"
+  ],
+  "critical_code_review_comments": [
+    "_record_profile_view runs `if True:`, which is dead scaffolding. It also sends an FCM push for every AI visit (1-3 pushes a day per user); check this matches the intended notification volume.",
+    "In _run_ai_profile_activity the AI crush chance is 0.06 per run x ~28 runs a day, so a crush comes almost surely within about 1 day after the 6-day cooldown (about 1 per 6-7 days). OK, but the loop scans up to 2000 users with per-user DB queries every 30 min, so consider batching.",
+    "get_crushes: the else branch (premium_locked) can no longer be reached because free users return early. Remove it."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter44_paid_views_crush.py", "/app/backend/tests/iter44_ui_seed.py"],
+  "success_rate": {"backend": "92% (11/12; 1 failure = real gender-case bug)", "frontend": "Likes page 100%; Discover crush button not reachable for non-admin users"},
+  "seed_data_creation": "Temp users (test_tag iter44/iter44b/iter44ui) and their profile_views, crushes and notifications were created and all deleted. crush_feature was set back to false (its original value). The AI activity test used a fake date in 2027, so no real users were touched.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Run: cd /app/backend && python -m pytest tests/test_iter44_paid_views_crush.py. The fixture creates and cleans temp users and restores crush_feature. UI: python tests/iter44_ui_seed.py create|cleanup makes test_iter44ui_free@example.com and test_iter44ui_prem@example.com (pw TestIter44@2026). Set crush_feature in Mongo yourself if needed and restore it after. Close the daily reward modal with [data-testid=close-daily-reward]. Playwright page.route could not mock /api/admin/feature-flags (probably a service worker), so to test the crush button you need the backend fix."
+}

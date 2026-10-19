@@ -45,6 +45,9 @@ const UserProfilePage = ({ user }) => {
       const response = await axios.get(`${API}/profile/${userId}`);
       console.log('✅ Profile data:', response.data);
       setProfileUser(response.data);
+      if (user?.id && user.id !== userId) {
+        axios.post(`${API}/profile/${userId}/view?viewer_id=${user.id}`).catch(() => {});
+      }
     } catch (error) {
       console.error('❌ Error fetching profile:', error);
       toast.error('Failed to load profile');
