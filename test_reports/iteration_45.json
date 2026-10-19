@@ -1,0 +1,41 @@
+{
+  "summary": "Iteration 45: Tested the iter44 fixes, the AI chat daily limit with a rewarded-video extend, Secret Crush reveal via video, and the interstitial on chat exit. Backend: the new test_iter45_ads_ai_limit_crush.py passes 16/16. The iter44 regression passes 12/12 after 3 assertions were updated for the new behavior (6h view dedupe and the new 'hidden' field). What passed: public feature flags; the crush premium check now runs before the 'already crushed' check; crush on a missing target -> 404; legacy profile-viewers returns [] for free users; 6h view dedupe (1 record and 1 notification for 3 views); the AI activity matches 'Male'. AI limit: the status shape is right (free = 30, premium/girls unlimited), a stale day resets the count, the 31st message gets 429 'ai_chat_limit' and is not stored, 'Male' users are limited too, and real or stealth (auto_chat) receivers are not limited and do not touch the counter. Extend: +10, and the next send uses the extra messages. With 8 parallel extend calls exactly 5 succeed and 3 get 429 (extra = 50); the next call also gets 429. Over WebSocket the server sends {type:'ai_chat_limit', match_id, content} and does not store the message. Crush reveal: it reveals the newest hidden crush first, the 3rd reveal gets 429, no hidden crush -> 404, free users get revealed crushes with full data plus total and hidden, premium is unchanged. Frontend at 390x844: on the chat page at the limit, the temp message is removed, the text goes back into the input and ai-chat-limit-modal shows both buttons. Watch Video -> POST /ai-chat/extend 200 -> the modal closes, the resend is delivered and in the DB ai_msg_extra = 9. On the Likes Crush tab the count went 3 -> 2 -> 1 and Kavya, then Ananya, appeared as cards; the 3rd click got 429. Leaving the chat (interstitial is a no-op on web) caused no errors. UserProfilePage POSTs /profile/{id}/view. CRITICAL BUG FOUND AND FIXED: tapping the Discover crush button crashed the app with ReferenceError 'Cannot access isPremiumUser before initialization'. Fixed and retested: a free male now goes to /premium with no page errors.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/crushes/{uid}/reveal, POST /api/ai-chat/extend/{uid}", "issue": "The daily cap is only checked after the user has watched the video. On native, the 3rd crush reveal (or 6th extend) makes the user watch a full rewarded ad and then get 429. Nothing tells the client the remaining reveals or extends, so it cannot hide or disable Watch Video first."},
+      {"endpoint": "POST /api/messages (AI receiver)", "issue": "_consume_ai_msg runs before the social-link block. A message that gets dropped as blocked still uses up one of the user's AI messages. Low impact."},
+      {"endpoint": "/api/crushes/{uid}/reveal, /api/ai-chat/*", "issue": "There is no auth or ownership check on {user_id}; anyone can call these for any user id. This matches the existing app pattern."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "DiscoverPage handleAction (crush)", "issue": "FIXED: a second 'const isPremiumUser' inside handleAction (line ~280) shadowed the component-level one. Line 255 read it before initialization, so every crush tap threw a ReferenceError and showed the runtime error overlay, for premium users too. The duplicate declaration was removed.", "selector": "[data-testid=crush-btn]", "priority": "CRITICAL"},
+      {"component": "LikesYouPage / ChatPage toasts", "issue": "Neither LikesYouPage nor ChatPage renders <Toaster/>. ChatPage imports it but never renders it. As a result, no toast from the new features is visible: 'Secret Crush reveal ho gaya!', the 429 'Aaj ke 2 free reveals ho gaye...', '+10 messages unlock ho gaye', and the 429 from extend. Users get no feedback when a reveal hits the cap. The Playwright check confirmed no [data-sonner-toast] appeared.", "selector": "[data-sonner-toast]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Likes Crush locked card", "issues": ["Watch Video is still shown after the 2 daily reveals are used up, which leads to a wasted ad on native", "The subtitle 'Kaun hai? Premium pe dekho' ignores the video option"]},
+      {"screen": "AdsService / DiscoverPage comments", "issues": ["Outdated comments say 'Interstitial after every 6 swipes', 'No ads in chat', 'Max 1 per 5 minutes, max 3 per session'. The code uses 5 swipes, a 2-min cooldown and 6 per session, and now shows an ad on chat exit."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter45_ads_ai_limit_crush.py", "/app/backend/tests/test_iter44_paid_views_crush.py", "/app/backend/tests/iter45_ui_seed.py", "/app/test_reports/pytest/pytest_iter45.xml"],
+  "action_items": [
+    "Mount <Toaster/> (ideally once in App.js) so toasts show on ChatPage and LikesYouPage",
+    "Return the remaining crush reveals and AI extends (e.g. a reveals_left field on GET /crushes, extends_left on GET /ai-chat/limit) and hide or disable Watch Video at 0 so native users do not watch an ad for nothing",
+    "Consider not showing the interstitial when leaving the chat to go to /premium (the AiChatLimitModal Premium button)",
+    "Review the DiscoverPage fix (removed duplicate isPremiumUser in handleAction)"
+  ],
+  "critical_code_review_comments": [
+    "DiscoverPage.jsx is over 1000 lines and ChatPage.jsx is over 1000 lines; consider splitting them",
+    "UserProfilePage POSTs /profile/{id}/view twice on open (effect double-run or a second fetch); the server's 6h dedupe hides this, but it is still an extra request",
+    "AdsService native rewarded flow: the 60s timeout setTimeout is never cleared after it resolves (harmless leak)",
+    "ChatPage interstitial effect reads user from the mount-time closure with empty deps; fine in practice"
+  ],
+  "updated_files": ["/app/frontend/src/pages/DiscoverPage.jsx", "/app/backend/tests/test_iter44_paid_views_crush.py", "/app/backend/tests/test_iter45_ads_ai_limit_crush.py", "/app/backend/tests/iter45_ui_seed.py"],
+  "success_rate": {"backend": "100% (28/28 incl. iter44 regression)", "frontend": "90% (all flows work after the crush-btn fix; toasts do not render on Chat/Likes)"},
+  "seed_data_creation": "Temporary users tagged iter45/iter45ui (with matches, crushes, ad_rewards, messages) were all cleaned up. One late AI reply and 2 notifications were also removed. crush_feature is restored to false.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && python -m pytest tests/test_iter45_ads_ai_limit_crush.py tests/test_iter44_paid_views_crush.py. Both fixtures create and clean their own users and restore crush_feature. UI: python tests/iter45_ui_seed.py create|cleanup creates test_iter45ui_free@example.com (pw TestIter45@2026), already at the AI limit (30/30), with a match to an AI persona (match id printed) and 3 hidden crushes. The daily reward modal pops up late on /likes; call close-daily-reward before each click. The chat limit hit arrives through the WS ai_chat_limit event (not HTTP 429) when WS is connected. Set crush_feature=true in Mongo to see crush-btn on Discover."
+}

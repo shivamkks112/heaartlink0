@@ -1021,6 +1021,7 @@ const ChatPage = ({ user }) => {
         </div>
       </div>
       )}
+      <Toaster position="top-center" />
       {showAiLimit && <AiChatLimitModal user={user} onClose={() => setShowAiLimit(false)} onExtended={() => setShowAiLimit(false)} />}
     </div>
   );

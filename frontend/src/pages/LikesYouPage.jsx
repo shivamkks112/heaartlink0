@@ -9,6 +9,7 @@ import { API } from '@/config/api';
 import { getPageData, setPageData } from '@/utils/pageCache';
 import adsService from '@/services/AdsService';
 import { toast } from 'sonner';
+import { Toaster } from '@/components/ui/sonner';
 
 
 const LikesYouPage = ({ user }) => {
@@ -150,8 +151,10 @@ const LikesYouPage = ({ user }) => {
       <p className="font-semibold text-gray-800 mt-1">
         {kind === 'crush' ? (count === 1 ? 'insaan ne tumhe Secret Crush kiya' : 'logon ne tumhe Secret Crush kiya') : (count === 1 ? 'insaan ne tumhari profile dekhi' : 'logon ne tumhari profile dekhi')}
       </p>
-      <p className="text-sm text-gray-600 mt-1">Kaun hai? Premium pe dekho</p>
-      {kind === 'crush' && (
+      <p className="text-sm text-gray-600 mt-1">
+        {kind === 'crush' && crushes.reveals_left > 0 ? `Video dekh ke reveal karo (aaj ${crushes.reveals_left} baaki) ya Premium lo` : 'Kaun hai? Premium pe dekho'}
+      </p>
+      {kind === 'crush' && crushes.reveals_left > 0 && (
         <button onClick={revealCrushWithAd} disabled={revealingId === 'crush'} className="mt-4 mr-2 px-5 py-2.5 bg-pink-500 text-white rounded-xl font-bold text-sm disabled:opacity-60" data-testid="crush-watch-video-btn">
           <Play className="w-4 h-4 inline mr-1" /> {revealingId === 'crush' ? '...' : 'Watch Video'}
         </button>
@@ -583,6 +586,7 @@ const LikesYouPage = ({ user }) => {
 
       {/* Bottom Navigation */}
       <Navbar user={user} />
+      <Toaster position="top-center" />
     </div>
   );
 };

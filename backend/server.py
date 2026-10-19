@@ -5115,6 +5115,12 @@ async def _claim_daily_reward(user_id: str, reward_type: str, cap: int, **extra)
     return doc["id"]
 
 
+async def _rewards_left(user_id: str, reward_type: str, cap: int) -> int:
+    used = await db.ad_rewards.count_documents({"user_id": user_id, "reward_type": reward_type,
+                                                "created_at": {"$gte": _ist_day_start_utc()}})
+    return max(cap - used, 0)
+
+
 async def _ai_chat_status(user_id: str) -> dict:
     u = await db.users.find_one({"id": user_id}, {"_id": 0, "ai_msg_day": 1, "ai_msg_count": 1, "ai_msg_extra": 1,
                                                   "is_premium": 1, "gender": 1}) or {}
@@ -5123,7 +5129,8 @@ async def _ai_chat_status(user_id: str) -> dict:
     used = u.get("ai_msg_count", 0) if u.get("ai_msg_day") == _ist_day() else 0
     extra = max(int(u.get("ai_msg_extra", 0) or 0), 0)
     return {"unlimited": False, "limit": FREE_AI_MSGS_PER_DAY, "used": used, "extra": extra,
-            "remaining": max(FREE_AI_MSGS_PER_DAY - used, 0) + extra}
+            "remaining": max(FREE_AI_MSGS_PER_DAY - used, 0) + extra,
+            "videos_left": await _rewards_left(user_id, "ai_chat_extend", MAX_AI_CHAT_ADS_PER_DAY)}
 
 
 async def _consume_ai_msg(sender: dict) -> bool:
@@ -5497,8 +5504,9 @@ async def get_crushes(user_id: str, request: Request):
     for r in result:
         r["is_mutual"] = r["user"]["id"] in my_crush_ids
     
+    reveals_left = 0 if user_has_premium else await _rewards_left(user_id, "crush_reveal", MAX_CRUSH_REVEALS_PER_DAY)
     return slim_photos({"crushes": result, "total": total, "hidden": total - sum(1 for r in result if r["revealed"]),
-                        "is_premium": user_has_premium}, request)
+                        "is_premium": user_has_premium, "reveals_left": reveals_left}, request)
 
 @api_router.get("/crushes/{user_id}/sent")
 async def get_sent_crushes(user_id: str):

@@ -276,8 +276,7 @@ const DiscoverPage = ({ user }) => {
       return;
     }
 
-    // Swipe limit check FIRST (only blocking check)
-    const isPremiumUser = user?.is_premium || user?.isPremium || user?.gender?.toLowerCase() === 'female';
+    // Swipe limit check FIRST (only blocking check) — uses component-level isPremiumUser
     
     // Non-premium users cannot like — must subscribe first
     if (!isPremiumUser && action === 'like') {

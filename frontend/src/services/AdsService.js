@@ -328,7 +328,7 @@ class AdsService {
 
   /**
    * Show interstitial — only when LOADED, with frequency cap
-   * Max 1 per 5 minutes, max 3 per session
+   * Max 1 per 2 minutes, max 6 per session
    */
   async showInterstitial() {
     if (!this.isNative() || !this.admob) return false;

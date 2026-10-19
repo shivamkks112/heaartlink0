@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -9,6 +9,10 @@ import { API } from '@/config/api';
 export const AiChatLimitModal = ({ user, onClose, onExtended }) => {
   const navigate = useNavigate();
   const [watching, setWatching] = useState(false);
+  const [videosLeft, setVideosLeft] = useState(null);
+  useEffect(() => {
+    axios.get(`${API}/ai-chat/limit/${user.id}`).then(r => setVideosLeft(r.data.videos_left ?? 0)).catch(() => setVideosLeft(1));
+  }, [user.id]);
 
   const watchVideo = async () => {
     setWatching(true);
@@ -31,10 +35,12 @@ export const AiChatLimitModal = ({ user, onClose, onExtended }) => {
       <div className="w-full max-w-sm rounded-3xl p-6 text-center relative" style={{ background: 'var(--md-surface, #fff)' }}>
         <button onClick={onClose} className="absolute top-3 right-3 p-1 text-gray-400" data-testid="ai-chat-limit-close"><X className="w-5 h-5" /></button>
         <p className="text-lg font-bold" style={{ color: 'var(--md-on-surface, #111)' }}>Aaj ke free messages khatam</p>
-        <p className="text-sm text-gray-500 mt-1">Ek chhota video dekho aur 10 messages aur bhejo, ya Premium lo unlimited chat ke liye</p>
-        <button onClick={watchVideo} disabled={watching} className="mt-5 w-full py-3 rounded-2xl bg-pink-500 text-white font-bold flex items-center justify-center gap-2 disabled:opacity-60" data-testid="ai-chat-watch-video-btn">
+        <p className="text-sm text-gray-500 mt-1">
+          {videosLeft === 0 ? 'Aaj ke video rewards bhi khatam. Kal phir milenge, ya Premium lo unlimited chat ke liye' : 'Ek chhota video dekho aur 10 messages aur bhejo, ya Premium lo unlimited chat ke liye'}
+        </p>
+        {videosLeft !== 0 && <button onClick={watchVideo} disabled={watching} className="mt-5 w-full py-3 rounded-2xl bg-pink-500 text-white font-bold flex items-center justify-center gap-2 disabled:opacity-60" data-testid="ai-chat-watch-video-btn">
           <PlayCircle className="w-5 h-5" /> {watching ? 'Loading...' : 'Watch Video (+10 msgs)'}
-        </button>
+        </button>}
         <button onClick={() => navigate('/premium')} className="mt-3 w-full py-3 rounded-2xl bg-amber-50 text-amber-700 font-bold flex items-center justify-center gap-2" data-testid="ai-chat-premium-btn">
           <Crown className="w-5 h-5" /> Premium — Unlimited
         </button>

@@ -113,3 +113,11 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 - Per persona: personality, bio, extra context (persona_context appended to system prompt for AI + stealth).
 - Live preview: POST /api/admin/ai-prompts/preview (real LLM reply, nothing saved).
 - APIs: GET/PUT /api/admin/ai-prompts, GET /api/admin/ai-personas, PUT /api/admin/ai-personas/{id}. Tested iteration_43 (14/14 + UI).
+
+## 2026-06 — Paid Crush/Views + AI profile activity + Hybrid ads
+- Free users: /profile-viewers & /crushes return counts only (who = Premium). Legacy /user/{id}/profile-viewers gated. View notifications anonymous for free ("Kisi ne..."). Crush send = Premium (premium check first, target must exist).
+- Fixed: views stored as profile_id but read as viewed_user_id (real views never showed). UserProfilePage now records views (6h dedupe).
+- ai_profile_activity_loop (30 min, 9AM-11PM IST): female AI/auto-chat accounts visit active male users 1-3x/day; AI Secret Crush ≤1 per 6 days (only if crush_feature flag on). Gender case-insensitive.
+- Public GET /api/feature-flags/public (Discover crush button for non-admins).
+- Hybrid ads: interstitial every 5 swipes + on chat exit (caps 2 min / 6 per session). Rewarded "Watch Video": reveal Secret Crush (POST /api/crushes/{uid}/reveal, 2/day) and AI chat extend (+10 msgs, 5/day). Free AI chat limit 30 msgs/IST day to AI personas only (429 / WS ai_chat_limit). Caps exposed (reveals_left, videos_left) so Watch Video is hidden when exhausted.
+- Toaster added to Chat & Likes pages. Tested iteration_44/45 (backend 28/28).

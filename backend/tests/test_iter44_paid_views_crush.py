@@ -96,7 +96,7 @@ class TestProfileViews:
         _view(users["prem"], users["fviewer2"])
         r = requests.get(f"{BASE_URL}/api/profile-viewers/{users['prem']}")
         d = r.json()
-        assert d["is_premium"] is True and d["total_views"] == 3
+        assert d["is_premium"] is True and d["total_views"] == 2  # iter45: same viewer within 6h not re-recorded
         ids = [v["user"]["id"] for v in d["viewers"]]
         assert sorted(ids) == sorted([users["fviewer"], users["fviewer2"]])
         assert all(v["locked"] is False and v["user"]["name"].startswith("TEST_") for v in d["viewers"])
@@ -107,7 +107,7 @@ class TestProfileViews:
     def test_premium_notification_has_name(self, users):
         r = requests.get(f"{BASE_URL}/api/notifications/{users['prem']}")
         pv = [n for n in r.json()["notifications"] if n["type"] == "profile_view"]
-        assert len(pv) == 3
+        assert len(pv) == 2  # iter45: 6h dedupe
         assert any("TEST_ViewerGirl" in n["body"] for n in pv)
         assert any(n["data"].get("viewer_id") == users["fviewer"] for n in pv)
 
@@ -145,7 +145,7 @@ class TestCrush:
     def test_free_crushes_counts_only(self, users):
         r = requests.get(f"{BASE_URL}/api/crushes/{users['free']}")
         d = r.json()
-        assert d == {"crushes": [], "total": 1, "is_premium": False}
+        assert d == {"crushes": [], "total": 1, "hidden": 1, "is_premium": False}
 
     def test_premium_crushes_full(self, users):
         d = requests.get(f"{BASE_URL}/api/crushes/{users['prem']}").json()
