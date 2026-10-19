@@ -70,6 +70,8 @@ const PersonaEditor = ({ personas, onSaved }) => {
   const [reply, setReply] = useState('');
   const [previewing, setPreviewing] = useState(false);
 
+  useEffect(() => { if (!id && personas[0]?.id) setId(personas[0].id); }, [personas, id]);
+
   useEffect(() => {
     setForm({ ai_personality: p.ai_personality || 'sweet_caring', persona_context: p.persona_context || '', bio: p.bio || '' });
     setReply('');
@@ -144,11 +146,9 @@ export const AiStyleEditor = () => {
   const [data, setData] = useState(null);
   const [personas, setPersonas] = useState([]);
 
-  const load = () => {
-    adminApi.get('/admin/ai-prompts').then(r => setData(r.data)).catch(() => toast.error('Prompts load nahi hue'));
-    adminApi.get('/admin/ai-personas').then(r => setPersonas(r.data)).catch(() => {});
-  };
-  useEffect(load, []);
+  const loadPrompts = () => adminApi.get('/admin/ai-prompts').then(r => setData(r.data)).catch(() => toast.error('Prompts load nahi hue'));
+  const loadPersonas = () => adminApi.get('/admin/ai-personas').then(r => setPersonas(r.data)).catch(() => {});
+  useEffect(() => { loadPrompts(); loadPersonas(); }, []);
 
   if (!data) return <div className="text-center py-10 text-gray-500">Loading...</div>;
   return (
@@ -158,8 +158,8 @@ export const AiStyleEditor = () => {
         <p className="text-sm text-gray-500 mt-1">AI personas aur auto-chat accounts ka style, rules aur context yahan se badlo. Changes ~1 min mein live.</p>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <PromptEditor data={data} onSaved={load} />
-        <PersonaEditor personas={personas} onSaved={load} />
+        <PromptEditor data={data} onSaved={loadPrompts} />
+        <PersonaEditor personas={personas} onSaved={loadPersonas} />
       </div>
     </div>
   );

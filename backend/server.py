@@ -431,6 +431,7 @@ async def startup_event():
     
     # Keep AI profiles looking "online"
     asyncio.create_task(keep_ai_profiles_online(db))
+    asyncio.create_task(ai_profile_activity_loop())
     
     # Start background notification scheduler
     asyncio.create_task(notification_scheduler())
@@ -744,6 +745,74 @@ async def auto_update_notification():
         
     except Exception as e:
         logging.error(f"Auto update notification error: {e}")
+
+
+async def ai_profile_activity_loop():
+    """AI personas / chatbot accounts visit active male users' profiles (1-3/day) and
+    occasionally send a Secret Crush (~1/week). Runs every 30 min, only 9 AM - 11 PM IST."""
+    await asyncio.sleep(120)
+    while True:
+        try:
+            await _run_ai_profile_activity()
+        except Exception as e:
+            logging.error(f"AI profile activity error: {e}")
+        await asyncio.sleep(1800)
+
+
+async def _run_ai_profile_activity():
+    ist_hour = (datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)).hour
+    if not 9 <= ist_hour < 23:
+        return
+    today = _ist_day()
+    now = datetime.now(timezone.utc)
+    flags = await db.app_settings.find_one({"type": "feature_flags"}, {"_id": 0}) or {}
+    crush_on = flags.get("crush_feature", False)
+    visitors = await db.users.find(
+        {"$or": [{"is_ai_profile": True, "is_active_ai": True}, {"auto_chat_enabled": True}], "gender": "female"},
+        {"_id": 0, "id": 1, "online_hours": 1, "is_ai_profile": 1}).to_list(None)
+    visitors = [v for v in visitors if not v.get("is_ai_profile") or ai_online_now(v)]
+    if not visitors:
+        return
+    users = await db.users.find(
+        {"is_ai_profile": {"$ne": True}, "auto_chat_enabled": {"$ne": True}, "gender": "male",
+         "last_active": {"$gte": (now - timedelta(days=3)).isoformat()}},
+        {"_id": 0, "id": 1, "ai_visit_day": 1, "ai_visit_count": 1, "ai_visit_target": 1, "last_ai_crush_at": 1}
+    ).to_list(2000)
+    remaining_runs = max((23 - ist_hour) * 2, 1)
+    visits = crushes = 0
+    for u in users:
+        uid = u["id"]
+        if u.get("ai_visit_day") != today:
+            u.update(ai_visit_day=today, ai_visit_count=0, ai_visit_target=random.randint(1, 3))
+            await db.users.update_one({"id": uid}, {"$set": {"ai_visit_day": today, "ai_visit_count": 0,
+                                                             "ai_visit_target": u["ai_visit_target"]}})
+        left = u["ai_visit_target"] - u.get("ai_visit_count", 0)
+        if left > 0 and random.random() < min(1.0, left / remaining_runs * 1.5):
+            seen = await db.profile_views.distinct("viewer_id", {
+                "viewed_user_id": uid, "viewed_at": {"$gte": (now - timedelta(days=1)).isoformat()}})
+            pool = [v for v in visitors if v["id"] not in seen]
+            if pool:
+                await _record_profile_view(uid, random.choice(pool)["id"])
+                await db.users.update_one({"id": uid}, {"$inc": {"ai_visit_count": 1}})
+                visits += 1
+        last = u.get("last_ai_crush_at")
+        if crush_on and (not last or last < (now - timedelta(days=6)).isoformat()) and random.random() < 0.06:
+            done = await db.crushes.distinct("crusher_id", {"crushed_id": uid})
+            pool = [v for v in visitors if v["id"] not in done]
+            if pool:
+                await db.crushes.insert_one({"id": str(uuid.uuid4()), "crusher_id": random.choice(pool)["id"],
+                                             "crushed_id": uid, "created_at": now.isoformat(), "revealed": False})
+                await db.users.update_one({"id": uid}, {"$set": {"last_ai_crush_at": now.isoformat()}})
+                await create_in_app_notification(
+                    uid, "Secret Crush!", "Kisi ne tumhe Secret Crush kiya hai! Premium pe dekho kaun hai.",
+                    "crush", {"action": "open_crushes", "route": "/likes", "anonymous": True})
+                try:
+                    await fcm_service.send_to_user(db, uid, "Secret Crush!", "Kisi ne tumhe Secret Crush kiya hai! Kholke dekho.")
+                except Exception:
+                    pass
+                crushes += 1
+    if visits or crushes:
+        logging.info(f"AI activity: {visits} profile visits, {crushes} secret crushes")
 
 
 async def keep_ai_profiles_online(db_ref):
@@ -4759,16 +4828,28 @@ async def track_profile_view(user_id: str, viewer_id: str = None):
     
     # Only store who viewed if NOT in incognito mode
     if viewer_id and not viewer_incognito:
+        await _record_profile_view(user_id, viewer_id)
+    return {"message": "Profile view tracked", "incognito": viewer_incognito}
+
+
+async def _record_profile_view(user_id: str, viewer_id: str):
+    """Store a view + notify. Free users only learn that *someone* viewed (who = Premium)."""
+    if True:
+        real_viewer = viewer_id
         view_doc = {
+            "viewed_user_id": user_id,
             "profile_id": user_id,
             "viewer_id": viewer_id,
             "viewed_at": datetime.now(timezone.utc).isoformat()
         }
         await db.profile_views.insert_one(view_doc)
         
-        # Send real-time WebSocket notification
+        owner = await db.users.find_one({"id": user_id}, {"_id": 0, "is_premium": 1, "gender": 1})
+        owner_premium = is_user_premium(owner) if owner else False
         viewer_data = await db.users.find_one({"id": viewer_id}, {"_id": 0, "name": 1, "profile_picture": 1})
-        viewer_name = viewer_data.get("name", "Someone") if viewer_data else "Someone"
+        viewer_name = (viewer_data.get("name", "Someone") if viewer_data else "Someone") if owner_premium else "Kisi"
+        if not owner_premium:
+            viewer_id = None
         await manager.send_message(user_id, {
             "type": "profile_view",
             "viewer_id": viewer_id,
@@ -4778,22 +4859,21 @@ async def track_profile_view(user_id: str, viewer_id: str = None):
         # Store in-app notification for profile view
         await create_in_app_notification(
             user_id,
-            "👀 Profile Viewed",
-            f"{viewer_name} viewed your profile.",
+            "Profile Viewed",
+            f"{viewer_name} viewed your profile." if viewer_id else "Kisi ne tumhari profile dekhi. Premium lo aur dekho kaun hai",
             "profile_view",
-            {"viewer_id": viewer_id, "action": "open_profile", "route": f"/profile/{viewer_id}"}
+            {"viewer_id": viewer_id, "action": "open_profile", "route": f"/profile/{viewer_id}"} if viewer_id
+            else {"action": "open_likes", "route": "/likes"}
         )
         
         # Send OneSignal push notification for profile view
         try:
-            await fcm_service.notify_profile_view(db, user_id, viewer_name, viewer_id)
+            await fcm_service.notify_profile_view(db, user_id, viewer_name, real_viewer, anonymous=not owner_premium)
         except Exception as e:
             logger.error(f"Profile view push notification failed: {e}")
         
         # Update badge
         asyncio.create_task(manager.send_badge_update(user_id))
-    
-    return {"message": "Profile view tracked", "incognito": viewer_incognito}
 
 @api_router.post("/user/{user_id}/update-activity")
 async def update_last_active(user_id: str):
@@ -5297,6 +5377,10 @@ async def get_crushes(user_id: str, request: Request):
     requesting_user = await db.users.find_one({"id": user_id}, {"_id": 0, "is_premium": 1, "gender": 1})
     user_has_premium = is_user_premium(requesting_user) if requesting_user else False
     
+    if not user_has_premium:
+        total = await db.crushes.count_documents({"crushed_id": user_id})
+        return {"crushes": [], "total": total, "is_premium": False}
+
     crushes = await db.crushes.find({"crushed_id": user_id}).sort("created_at", -1).limit(50).to_list(None)
     
     result = []
@@ -5349,19 +5433,22 @@ async def get_sent_crushes(user_id: str):
 @api_router.get("/profile-viewers/{user_id}")
 async def get_profile_viewers_enhanced(user_id: str, request: Request):
     """Get who viewed your profile - blurred for free, full for premium. Premium checked server-side."""
-    views = await db.profile_views.find(
-        {"viewed_user_id": user_id}
-    ).sort("viewed_at", -1).limit(50).to_list(None)
-    
-    total_views = await db.profile_views.count_documents({"viewed_user_id": user_id})
+    q = {"$or": [{"viewed_user_id": user_id}, {"profile_id": user_id}]}
+    total_views = await db.profile_views.count_documents(q)
     today_views = await db.profile_views.count_documents({
-        "viewed_user_id": user_id,
-        "viewed_at": {"$gte": (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()}
+        **q, "viewed_at": {"$gte": (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()}
     })
     
     # Server-side premium check — NO client-side override
     user = await db.users.find_one({"id": user_id}, {"_id": 0, "is_premium": 1, "gender": 1})
     user_has_premium = is_user_premium(user) if user else False
+    if not user_has_premium:
+        # Free: counts only — who viewed is a Premium feature
+        return {"viewers": [], "total_views": total_views, "today_views": today_views, "is_premium": False}
+
+    views = await db.profile_views.find(q).sort("viewed_at", -1).limit(100).to_list(None)
+    seen_viewers = set()
+    views = [v for v in views if not (v.get("viewer_id") in seen_viewers or seen_viewers.add(v.get("viewer_id")))][:50]
     
     viewers = []
     for v in views:
@@ -10259,9 +10346,14 @@ async def update_ai_prompts(data: dict, admin: dict = Depends(require_admin)):
     import ai_chatbot as ac
     doc = await db.app_settings.find_one({"type": "ai_prompts"}, {"_id": 0}) or {}
     prompts = dict(doc.get("prompts") or {})
-    for k, v in (data.get("prompts") or {}).items():
+    incoming = data.get("prompts") or {}
+    if not isinstance(incoming, dict):
+        raise HTTPException(status_code=400, detail="prompts must be an object")
+    for k, v in incoming.items():
         if k not in ac.PROMPT_LABELS:
             raise HTTPException(status_code=400, detail=f"Unknown prompt key: {k}")
+        if v is not None and not isinstance(v, str):
+            raise HTTPException(status_code=400, detail=f"{k}: text hona chahiye")
         v = (v or "").strip()
         if not v:
             prompts.pop(k, None)
@@ -10292,15 +10384,19 @@ async def update_ai_persona(profile_id: str, data: dict, admin: dict = Depends(r
     import ai_chatbot as ac
     upd = {}
     if "ai_personality" in data:
-        if data["ai_personality"] not in ac.PERSONALITY_PROMPTS:
+        if not isinstance(data["ai_personality"], str) or data["ai_personality"] not in ac.PERSONALITY_PROMPTS:
             raise HTTPException(status_code=400, detail="Invalid personality")
         upd["ai_personality"] = data["ai_personality"]
     if "persona_context" in data:
+        if not isinstance(data.get("persona_context") or "", str):
+            raise HTTPException(status_code=400, detail="persona_context text hona chahiye")
         ctx = (data.get("persona_context") or "").strip()
         if len(ctx) > 4000:
             raise HTTPException(status_code=400, detail="Context max 4000 chars")
         upd["persona_context"] = ctx
     if "bio" in data:
+        if not isinstance(data.get("bio") or "", str):
+            raise HTTPException(status_code=400, detail="bio text hona chahiye")
         bio = (data.get("bio") or "").strip()
         if len(bio) > 500:
             raise HTTPException(status_code=400, detail="Bio max 500 chars")

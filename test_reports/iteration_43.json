@@ -1,0 +1,36 @@
+{
+  "summary": "Iteration 43: Tested the AI Chat Style admin tab (backend + frontend). Backend: 14/14 pytest pass. Checked: GET prompts (7 keys, labels, placeholders, defaults, overrides; 401 without token), PUT override, empty text resets, unknown key 400, broken braces 400 ('Tu {name hai', 'name}', '{0}', '{age:zz}'), unknown {foo} kept as-is, >20000 chars 400, list/update personas with validation and 404 for a non-AI id, preview 404/400. 2 real LLM previews: persona_context Indore -> 'indore se hoon'; personality override 'end with BANANA42' worked right after PUT (clear_prompt_cache works, single uvicorn worker). Frontend: found and fixed a CRITICAL race in PersonaEditor. The id state was set to '' because personas load after the editor mounts. So bio/context showed empty and Save sent PUT /api/admin/ai-personas/ (no id) -> 'Save failed', and preview would also send an empty id. After the fix: the prompt editor works (Default->Custom, '(custom)' tag in the dropdown, toast, Reset -> Default with the default text back, broken-brace error toast). The persona editor loads bio, switching persona works, save toast shows, data stays after reload, and the UI preview replied 'main indore se hoon'. Cleanup done: all prompt overrides cleared, Aarohi Rawat set back to sweet_caring with empty context.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PUT /api/admin/ai-prompts", "issue": "500 if prompts is not a dict (e.g. 'abc') or a value is not a string (e.g. 123): .items()/.strip() AttributeError. Validate types and return 400."},
+      {"endpoint": "PUT /api/admin/ai-personas/{id}", "issue": "500 if ai_personality is unhashable (e.g. a list): `in dict` raises TypeError. Check isinstance(str) first."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AiStyleEditor PersonaEditor", "issue": "FIXED by testing agent: id was initialized from an empty personas array, so the form was empty and Save/Preview hit /admin/ai-personas/ with no id. Added a useEffect that sets id to personas[0].id once loaded.", "selector": "[data-testid='ai-persona-save']", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "AI Chat Style", "issues": ["Saving in one editor calls load(), which reloads both prompts and personas and resets the OTHER editor's unsaved text (PromptEditor useEffect on [data], PersonaEditor on [personas]). Consider reloading only the part that changed."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_ai_style_iter43.py", "/app/test_reports/pytest/pytest_iter43.xml"],
+  "action_items": [
+    "Return 400 instead of 500 for bad types in PUT /admin/ai-prompts and PUT /admin/ai-personas/{id}",
+    "Optional: stop a save in one editor from wiping unsaved edits in the other editor",
+    "Review the PersonaEditor id fix made by the testing agent"
+  ],
+  "critical_code_review_comments": [
+    "_prompt_cache is per-process. Fine with --workers 1; with more workers, clear_prompt_cache only clears one worker and the others lag up to 60s.",
+    "safe_format catches ValueError/IndexError/AttributeError; KeyError cannot happen thanks to _KeepMissing. Good.",
+    "Preview only runs generate_ai_response (AI personas). Stealth/custom templates can't be previewed, and stealth accounts' persona_context can't be edited from this tab (the list only has is_ai_profile users)."
+  ],
+  "updated_files": ["/app/frontend/src/components/admin/AiStyleEditor.jsx", "/app/backend/tests/test_ai_style_iter43.py"],
+  "success_rate": {"backend": "100% (14/14)", "frontend": "100% after fix (persona save was broken before the fix)"},
+  "seed_data_creation": "None. Overrides were cleared, Aarohi Rawat persona was restored (persona_context None -> '').",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Admin login: /auth with shivamkks112@gmail.com/Shivam@2026, then /admin -> admin-ai-style-tab. 4 LLM preview calls used in total. Persona list is sorted by name; first is Aarohi Rawat (c186c2b5...)."
+}

@@ -252,6 +252,11 @@ const DiscoverPage = ({ user }) => {
 
     // Handle crush separately
     if (action === 'crush') {
+      if (!isPremiumUser) {
+        toast('Secret Crush Premium feature hai', { description: 'Premium lo aur chupke se crush bhejo' });
+        navigate('/premium');
+        return;
+      }
       try {
         const res = await axios.post(`${API}/crush/${user.id}?target_user_id=${profiles[currentIndex].id}`);
         if (res.data.mutual) {
@@ -262,6 +267,8 @@ const DiscoverPage = ({ user }) => {
       } catch (err) {
         if (err.response?.status === 400) {
           toast.info('Already crushed!');
+        } else if (err.response?.status === 403) {
+          toast.error(err.response.data?.detail === 'Premium required to send crush' ? 'Secret Crush Premium feature hai' : 'Crush abhi band hai');
         } else {
           toast.error('Crush failed');
         }

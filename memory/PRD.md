@@ -107,3 +107,9 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 - Likes page: locked cards have "Watch Ad" (rewarded) → POST /api/likes/{uid}/reveal {liker_id} (max 3/IST day, non-premium only) → /likes returns full data with revealed:true. "Unlock" → /premium. Like on revealed (non-premium) → /premium.
 - Swipes server-side: users.swipe_day/swipe_count/extra_swipes; FREE_DAILY_SWIPES=50; /api/action consumes (non-premium like/pass) else 429 out_of_swipes; GET /api/swipes/{uid}. Discover syncs from server, ad reward → POST /api/ads/reward (amount ≤10, max 5/day, $inc atomic, insert-then-count cap).
 - Tested iteration_42 + concurrency recheck (10 parallel → exactly 5 granted).
+
+## 2026-06 — Admin "AI Chat Style" tab
+- Edit global AI rules template, 4 personality prompts, stealth & custom-persona templates (override stored app_settings type=ai_prompts; empty = default; brace validation; 60s cache cleared on save).
+- Per persona: personality, bio, extra context (persona_context appended to system prompt for AI + stealth).
+- Live preview: POST /api/admin/ai-prompts/preview (real LLM reply, nothing saved).
+- APIs: GET/PUT /api/admin/ai-prompts, GET /api/admin/ai-personas, PUT /api/admin/ai-personas/{id}. Tested iteration_43 (14/14 + UI).

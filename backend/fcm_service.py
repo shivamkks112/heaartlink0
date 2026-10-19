@@ -272,9 +272,15 @@ async def notify_superlike(db, user_id: str, liker_name: str, liker_id: str = ""
         data={"type": "superlike", "route": "/likes"},
     )
 
-async def notify_profile_view(db, user_id: str, viewer_name: str, viewer_id: str):
+async def notify_profile_view(db, user_id: str, viewer_name: str, viewer_id: str, anonymous: bool = False):
     if not await _should_notify_by_gender(db, user_id, viewer_id):
         return None
+    if anonymous:
+        return await send_to_user(db, user_id,
+            title="Kisi ne tumhari profile dekhi",
+            body="Dekho kaun hai — Premium pe reveal karo",
+            data={"type": "profile_view", "route": "/likes"},
+        )
     return await send_to_user(db, user_id,
         title="Profile Viewed!",
         body=f"{viewer_name} viewed your profile.",
