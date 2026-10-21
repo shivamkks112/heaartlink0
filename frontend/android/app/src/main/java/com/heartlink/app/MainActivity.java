@@ -183,20 +183,7 @@ public class MainActivity extends BridgeActivity {
         setIntent(intent);
         checkPendingNavigation();
     }
-    
-    @Override
-    public void onBackPressed() {
-        // Let JavaScript handle ALL back button logic (double-press-to-exit)
-        // Do NOT call super.onBackPressed() — it exits the app before JS can handle it
-        if (getBridge() != null && getBridge().getWebView() != null) {
-            getBridge().getWebView().evaluateJavascript(
-                "(function() { " +
-                "  try { " +
-                "    window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App && " +
-                "    window.Capacitor.Plugins.App.notifyListeners('backButton', { canGoBack: window.history.length > 1 }); " +
-                "  } catch(e) { console.error('Back handler error:', e); } " +
-                "})();", null
-            );
-        }
-    }
+
+    // Back button: handled by @capacitor/app OnBackPressedCallback -> JS BackButtonHandler (App.js).
+    // Do NOT override onBackPressed() — skipping super blocks the dispatcher on Android <= 15.
 }

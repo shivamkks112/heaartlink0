@@ -177,8 +177,10 @@ function BackButtonHandler() {
             }
           } else if (isMainTab) {
             navigateRef.current(RECENT_TAB, { replace: true });
-          } else if (canGoBack) {
+          } else if (canGoBack && window.history.length > 1) {
             window.history.back();
+          } else {
+            navigateRef.current(RECENT_TAB, { replace: true });
           }
         });
       } catch {}

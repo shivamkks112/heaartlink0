@@ -137,3 +137,9 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 - Story photos: PUT /api/admin/ai-story-photos {enabled, every_days}; ai_story_photo_loop every 3h posts new main photo for max 3 due AI girls (keeps 5 photos). Default OFF.
 - Online tab: real users first, online AI personas with photos fill remaining slots. Discover AI requires photo. Daily reward modal suppressed on /admin.
 - Tested iteration_46 (all core flows) + fixes verified via curl.
+
+## 2026-06 — Back button fix (needs device verification)
+- Root cause: MainActivity.onBackPressed() override (no super) blocked OnBackPressedDispatcher on Android ≤15, so @capacitor/app callback never fired; JS fallback called non-existent Plugins.App.notifyListeners. Removed override.
+- @capacitor/app downgraded 8.1.2 → 7.1.2 to match Capacitor core/android 7.4.3.
+- BackButtonHandler: inner page without history (e.g. opened from notification) → navigate to /matches.
+- Note: @capacitor/geolocation & local-notifications are v8 (mismatch with core 7) — not changed.
