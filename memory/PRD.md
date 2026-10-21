@@ -145,3 +145,4 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 - Note: @capacitor/geolocation & local-notifications are v8 (mismatch with core 7) — not changed.
 - Plugins: @capacitor/geolocation 7.1.8, @capacitor/local-notifications 7.0.7 (match core 7). Back closes Radix dialogs (Escape) / custom modals (close button) first.
 - Manifest android:enableOnBackInvokedCallback=true so Android 13-15 swipe-back gesture uses the same dispatcher/JS handler as back button.
+- Back on Chats tab: scrolls list to top first (scrollListToTop), then double-press exit.

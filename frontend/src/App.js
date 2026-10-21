@@ -135,6 +135,19 @@ function NavigationHelper() {
 
 
 // Back button handler — navigate to Recent tab first, then double-press to exit
+// On the Chats tab, back first scrolls the list to the top. Returns true if it scrolled.
+function scrollListToTop() {
+  if (window.scrollY > 50) { window.scrollTo({ top: 0, behavior: 'smooth' }); return true; }
+  const scrolled = [...document.querySelectorAll('main, div, section, ul')].filter(el => {
+    if (el.scrollTop <= 50) return false;
+    const oy = getComputedStyle(el).overflowY;
+    return oy === 'auto' || oy === 'scroll';
+  });
+  if (!scrolled.length) return false;
+  scrolled.forEach(el => el.scrollTo({ top: 0, behavior: 'smooth' }));
+  return true;
+}
+
 // Back closes open popups/sheets first. Returns true if something was closed.
 function closeTopPopup() {
   const visible = (el) => el && el.getClientRects().length > 0;
@@ -176,6 +189,7 @@ function BackButtonHandler() {
         handle = await App.addListener('backButton', ({ canGoBack }) => {
           if (!mounted) return;
           if (closeTopPopup()) return;
+          if ((currentPath.current === RECENT_TAB || currentPath.current === '/') && scrollListToTop()) return;
           const path = currentPath.current;
           const isOnRecent = path === RECENT_TAB || path === RECENT_TAB + '/';
           const isMainTab = MAIN_TABS.some(tab => path === tab || path === tab + '/');
