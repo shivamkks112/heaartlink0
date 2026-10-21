@@ -30,6 +30,7 @@ import AiReplyTiming from '@/components/admin/AiReplyTiming';
 import AiPersonaSchedule from '@/components/admin/AiPersonaSchedule';
 import AiStyleEditor from '@/components/admin/AiStyleEditor';
 import AiPhotoRegen from '@/components/admin/AiPhotoRegen';
+import AiPhotoReview from '@/components/admin/AiPhotoReview';
 
 import { BACKEND_URL } from '@/config/api';
 
@@ -1267,6 +1268,13 @@ const AdminDashboard = ({ user }) => {
             <Bot className="w-4 h-4 mr-2" /> AI Chat Style
           </Button>
           <Button
+            onClick={() => setActiveTab('ai-photos')}
+            className={activeTab === 'ai-photos' ? 'bg-purple-600' : 'bg-gray-200 text-gray-700'}
+            data-testid="admin-ai-photos-tab"
+          >
+            <Bot className="w-4 h-4 mr-2" /> AI Photos
+          </Button>
+          <Button
             onClick={() => setActiveTab('promo-codes')}
             className={activeTab === 'promo-codes' ? 'bg-amber-500' : 'bg-gray-200 text-gray-700'}
             data-testid="admin-promo-tab"
@@ -1708,6 +1716,7 @@ const AdminDashboard = ({ user }) => {
 
         {/* AI Girls Tab */}
         {activeTab === 'ai-style' && <AiStyleEditor />}
+        {activeTab === 'ai-photos' && <AiPhotoReview />}
 
         {activeTab === 'ai-profiles' && (
           <div className="space-y-6" data-testid="admin-ai-profiles-panel">

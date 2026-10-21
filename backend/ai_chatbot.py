@@ -2547,7 +2547,7 @@ async def _moderate_ai_photo(img_base64: str, name: str, age: int) -> bool:
         return True  # On error, allow photo (don't block generation)
 
 
-async def _generate_ai_photo(db, profile_id: str, name: str, age: int, city: str, num_photos: int = 1, replace: bool = False):
+async def _generate_ai_photo(db, profile_id: str, name: str, age: int, city: str, num_photos: int = 1, replace: bool = False, save: bool = True):
     """Generate realistic Indian girl profile photos using Gemini Nano Banana. Appends to existing."""
     try:
         if not EMERGENT_LLM_KEY:
@@ -2640,6 +2640,8 @@ async def _generate_ai_photo(db, profile_id: str, name: str, age: int, city: str
                 logger.error(f"Photo gen failed for {name} ({angle_name}): {e}")
                 continue
         
+        if not save:
+            return new_photos
         if new_photos:
             # Combine existing + new (existing first), or replace with the new natural set
             all_photos = new_photos if replace else existing_photos + new_photos
@@ -2657,8 +2659,10 @@ async def _generate_ai_photo(db, profile_id: str, name: str, age: int, city: str
                 }}
             )
             logger.info(f"🖼️ {len(new_photos)} photos added for {name} (total: {len(all_photos)})")
+        return new_photos
     except Exception as e:
         logger.error(f"AI photo generation failed for {name}: {e}")
+        return []
 
 
 async def batch_generate_ai_photos(db, num_photos_per_profile: int = 3):
@@ -2696,6 +2700,51 @@ async def batch_generate_ai_photos(db, num_photos_per_profile: int = 3):
 
 
 _photo_regen_status = {"running": False, "done": 0, "total": 0}
+_photo_redo_busy: set = set()
+
+
+async def redo_single_photo(db, profile_id: str, index: int):
+    """Regenerate one photo of an AI persona in place (admin review grid)."""
+    key = f"{profile_id}:{index}"
+    if key in _photo_redo_busy:
+        return
+    _photo_redo_busy.add(key)
+    try:
+        p = await db.users.find_one({"id": profile_id, "is_ai_profile": True}, {"_id": 0, "id": 1, "name": 1, "age": 1, "location": 1})
+        if not p:
+            return
+        new = await _generate_ai_photo(db, p["id"], p["name"], p.get("age", 23), (p.get("location") or "Delhi").split(",")[0],
+                                       num_photos=1, save=False)
+        if not new:
+            return
+        u = await db.users.find_one({"id": profile_id}, {"_id": 0, "photos": 1, "profile_picture": 1})
+        photos = list(u.get("photos") or [])
+        was_main = index < len(photos) and u.get("profile_picture") == photos[index]
+        if index < len(photos):
+            photos[index] = new[0]
+        else:
+            photos.append(new[0])
+        upd = {"photos": photos, "photos_approved": False}
+        if was_main or not u.get("profile_picture"):
+            upd["profile_picture"] = new[0]
+        await db.users.update_one({"id": profile_id}, {"$set": upd})
+    finally:
+        _photo_redo_busy.discard(key)
+
+
+async def post_story_photo(db, profile: dict, max_photos: int = 5):
+    """AI girl 'posts' a fresh casual photo: becomes her main photo; oldest dropped beyond max."""
+    new = await _generate_ai_photo(db, profile["id"], profile["name"], profile.get("age", 23),
+                                   (profile.get("location") or "Delhi").split(",")[0], num_photos=1, save=False)
+    now = datetime.now(timezone.utc).isoformat()
+    if not new:
+        await db.users.update_one({"id": profile["id"]}, {"$set": {"last_story_photo_at": now}})
+        return False
+    u = await db.users.find_one({"id": profile["id"]}, {"_id": 0, "photos": 1})
+    photos = ([new[0]] + list(u.get("photos") or []))[:max_photos]
+    await db.users.update_one({"id": profile["id"]}, {"$set": {
+        "photos": photos, "profile_picture": new[0], "last_story_photo_at": now, "photos_approved": False}})
+    return True
 
 
 async def regenerate_natural_photos(db, photos_per_profile: int = 2, profile_ids: list = None):

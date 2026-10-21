@@ -432,6 +432,7 @@ async def startup_event():
     # Keep AI profiles looking "online"
     asyncio.create_task(keep_ai_profiles_online(db))
     asyncio.create_task(ai_profile_activity_loop())
+    asyncio.create_task(ai_story_photo_loop())
     
     # Start background notification scheduler
     asyncio.create_task(notification_scheduler())
@@ -10404,6 +10405,97 @@ async def get_feature_flags(admin: dict = Depends(require_admin)):
     # Always merge defaults so newly added flags are visible
     merged = {**DEFAULT_FEATURE_FLAGS, **{k: v for k, v in flags.items() if k != "type"}}
     return merged
+
+@api_router.get("/admin/ai-photos")
+async def admin_list_ai_photos(request: Request, pending_only: bool = False, admin: dict = Depends(require_admin)):
+    import ai_chatbot as ac
+    q = {"is_ai_profile": True, "is_active_ai": True}
+    if pending_only:
+        q["photos_approved"] = {"$ne": True}
+    users = await find_users_light(q, ["id", "name", "age", "photos", "profile_picture", "photos_approved", "last_story_photo_at"])
+    users.sort(key=lambda u: (bool(u.get("photos_approved")), u.get("name", "")))
+    out = slim_photos(users, request)
+    for u in out:
+        u["busy"] = [int(k.split(":")[1]) for k in ac._photo_redo_busy if k.startswith(u["id"] + ":")]
+    cfg = await db.app_settings.find_one({"type": "ai_story_photos"}, {"_id": 0}) or {}
+    return {"profiles": out, "story": {"enabled": cfg.get("enabled", False), "every_days": cfg.get("every_days", 4)}}
+
+
+@api_router.post("/admin/ai-photos/{profile_id}/approve")
+async def admin_approve_ai_photos(profile_id: str, admin: dict = Depends(require_admin)):
+    r = await db.users.update_one({"id": profile_id, "is_ai_profile": True}, {"$set": {"photos_approved": True}})
+    if not r.matched_count:
+        raise HTTPException(status_code=404, detail="AI profile not found")
+    return {"success": True}
+
+
+@api_router.post("/admin/ai-photos/{profile_id}/{index}/redo")
+async def admin_redo_ai_photo(profile_id: str, index: int, admin: dict = Depends(require_admin)):
+    import ai_chatbot as ac
+    if not 0 <= index <= 5:
+        raise HTTPException(status_code=400, detail="Invalid photo index")
+    asyncio.create_task(ac.redo_single_photo(db, profile_id, index))
+    return {"started": True}
+
+
+@api_router.post("/admin/ai-photos/{profile_id}/{index}/main")
+async def admin_set_main_ai_photo(profile_id: str, index: int, admin: dict = Depends(require_admin)):
+    u = await db.users.find_one({"id": profile_id, "is_ai_profile": True}, {"_id": 0, "photos": 1})
+    if not u or not 0 <= index < len(u.get("photos") or []):
+        raise HTTPException(status_code=404, detail="Photo not found")
+    photos = u["photos"]
+    photos.insert(0, photos.pop(index))
+    await db.users.update_one({"id": profile_id}, {"$set": {"photos": photos, "profile_picture": photos[0]}})
+    return {"success": True}
+
+
+@api_router.delete("/admin/ai-photos/{profile_id}/{index}")
+async def admin_delete_ai_photo(profile_id: str, index: int, admin: dict = Depends(require_admin)):
+    u = await db.users.find_one({"id": profile_id, "is_ai_profile": True}, {"_id": 0, "photos": 1, "profile_picture": 1})
+    photos = list((u or {}).get("photos") or [])
+    if not 0 <= index < len(photos):
+        raise HTTPException(status_code=404, detail="Photo not found")
+    if len(photos) == 1:
+        raise HTTPException(status_code=400, detail="Aakhri photo delete nahi ho sakti — Redo karo")
+    removed = photos.pop(index)
+    upd = {"photos": photos}
+    if u.get("profile_picture") == removed:
+        upd["profile_picture"] = photos[0]
+    await db.users.update_one({"id": profile_id}, {"$set": upd})
+    return {"success": True}
+
+
+@api_router.put("/admin/ai-story-photos")
+async def admin_update_story_photos(data: dict, admin: dict = Depends(require_admin)):
+    every = int(data.get("every_days", 4))
+    if not 1 <= every <= 30:
+        raise HTTPException(status_code=400, detail="every_days 1-30")
+    cfg = {"enabled": bool(data.get("enabled")), "every_days": every}
+    await db.app_settings.update_one({"type": "ai_story_photos"}, {"$set": cfg}, upsert=True)
+    return cfg
+
+
+async def ai_story_photo_loop():
+    """Every 3h: a few AI girls whose photo is older than `every_days` post a fresh casual photo."""
+    import ai_chatbot as ac
+    await asyncio.sleep(300)
+    while True:
+        try:
+            cfg = await db.app_settings.find_one({"type": "ai_story_photos"}, {"_id": 0}) or {}
+            if cfg.get("enabled"):
+                cutoff = (datetime.now(timezone.utc) - timedelta(days=cfg.get("every_days", 4))).isoformat()
+                due = await db.users.find(
+                    {"is_ai_profile": True, "is_active_ai": True,
+                     "$or": [{"last_story_photo_at": {"$exists": False}}, {"last_story_photo_at": {"$lt": cutoff}}]},
+                    {"_id": 0, "id": 1, "name": 1, "age": 1, "location": 1}).to_list(200)
+                for p in random.sample(due, min(3, len(due))):
+                    if await ac.post_story_photo(db, p):
+                        logging.info(f"AI story photo posted for {p['name']}")
+                    await asyncio.sleep(5)
+        except Exception as e:
+            logging.error(f"AI story photo loop error: {e}")
+        await asyncio.sleep(3 * 3600)
+
 
 @api_router.post("/admin/ai-profiles/regenerate-photos")
 async def admin_regenerate_ai_photos(data: dict, admin: dict = Depends(require_admin)):
