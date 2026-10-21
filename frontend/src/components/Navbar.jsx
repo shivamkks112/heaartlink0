@@ -1,5 +1,6 @@
 import { Heart, Compass, MessageSquare, User, Bell } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { scrollListToTop } from '@/utils/scrollToTop';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import React from 'react';
 import wsService from '@/services/WebSocketService';
@@ -83,7 +84,7 @@ const Navbar = ({ user }) => {
             <button
               key={tab.id}
               data-testid={`nav-${tab.id}`}
-              onClick={() => { haptic.light(); navigate(tab.path); }}
+              onClick={() => { haptic.light(); if (location.pathname === tab.path) scrollListToTop(0); else navigate(tab.path); }}
               className="flex-1 flex flex-col items-center justify-center gap-[2px] touch-manipulation relative"
               style={{
                 WebkitTapHighlightColor: 'transparent',
