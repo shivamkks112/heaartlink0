@@ -2523,7 +2523,8 @@ async def _moderate_ai_photo(img_base64: str, name: str, age: int) -> bool:
                 "Analyze the image and respond with ONLY 'PASS' or 'FAIL' followed by a brief reason. "
                 "PASS if the photo looks like a real, natural Indian girl's dating profile photo. "
                 "FAIL if: distorted face, extra limbs/fingers, text/watermark, cartoon/anime, "
-                "multiple people, NSFW content, blurry/low quality, uncanny valley, "
+                "more than one clearly visible person, NSFW content, so blurry the face is unrecognizable, uncanny valley, "
+                "Casual amateur phone quality (slight noise, imperfect framing, ordinary background) is GOOD — PASS it. "
                 "wrong gender, clearly AI-generated artifacts, or not suitable for dating profile."
             )
         )
@@ -2546,7 +2547,7 @@ async def _moderate_ai_photo(img_base64: str, name: str, age: int) -> bool:
         return True  # On error, allow photo (don't block generation)
 
 
-async def _generate_ai_photo(db, profile_id: str, name: str, age: int, city: str, num_photos: int = 1):
+async def _generate_ai_photo(db, profile_id: str, name: str, age: int, city: str, num_photos: int = 1, replace: bool = False):
     """Generate realistic Indian girl profile photos using Gemini Nano Banana. Appends to existing."""
     try:
         if not EMERGENT_LLM_KEY:
@@ -2560,45 +2561,56 @@ async def _generate_ai_photo(db, profile_id: str, name: str, age: int, city: str
         user = await db.users.find_one({"id": profile_id}, {"_id": 0, "photos": 1, "profile_picture": 1})
         existing_photos = user.get("photos", []) if user else []
         
-        # Different angle/scene prompts for variety
+        # Casual, amateur phone-photo variety — avoid the "professional travel ad" look
         ANGLE_PROMPTS = [
-            ("close-up face selfie, slight head tilt, front-facing camera, natural indoor lighting", "selfie"),
-            ("half-body shot from chest up, slight angle, outdoor natural light, casual candid pose", "casual"),
-            ("full smile portrait, looking slightly to the side, golden hour sunlight, warm tones", "golden"),
-            ("mirror selfie style, relaxed pose, bedroom or living room background, phone in hand", "mirror"),
-            ("candid walking shot, street background, natural movement, wind in hair", "street"),
-            ("sitting in a cafe, coffee cup nearby, cozy warm lighting, relaxed expression", "cafe"),
-            ("outdoor park setting, trees in background, natural daylight, cheerful expression", "park"),
-            ("close-up with soft focus background, eye contact with camera, gentle smile", "portrait"),
+            ("front-camera selfie at arm's length, face slightly off-center, bedroom wall behind, warm tubelight", "selfie"),
+            ("mirror selfie with phone partly covering the chin, messy room or lift mirror, flash glare", "mirror"),
+            ("photo taken by a friend, laughing and looking away, sitting on college canteen bench", "candid"),
+            ("selfie in a car or auto-rickshaw seat, window light on one side of the face", "car"),
+            ("close-up selfie lying on bed or sofa, cushion visible, soft evening lamp light", "bed"),
+            ("photo with chai or coffee at a small local cafe table, cropped at shoulders, slightly tilted frame", "cafe"),
+            ("standing on a home terrace or balcony with plants and clothes line, cloudy daylight", "terrace"),
+            ("side profile looking at phone, metro or bus seat background, slightly motion blurred", "commute"),
+            ("dressed up at a family function, fairy lights and relatives' chairs blurred behind, slightly tilted photo", "function"),
+            ("selfie with sunglasses on head at a crowded market street, harsh noon sun", "market"),
         ]
-        
+        CAMERAS = [
+            "taken on a budget Android phone, slight noise and soft focus",
+            "iPhone front camera, a bit overexposed",
+            "low light, grainy, auto white balance slightly yellow",
+            "natural daylight, sharp but unedited",
+            "Snapchat-style casual framing, no filter",
+        ]
+        EXPRESSIONS = ["soft smile", "big laugh", "neutral relaxed face", "playful pout", "shy half smile", "squinting in the sun"]
+
         skin_tones = ["fair", "wheatish", "dusky", "medium brown", "light brown"]
-        hair_styles = ["long straight black hair", "wavy dark brown hair", "shoulder-length hair with soft curls", "long hair with side parting", "messy bun", "open hair flowing"]
-        outfits = ["casual kurta", "modern western top", "denim jacket", "floral dress", "simple t-shirt", "ethnic wear", "hoodie", "crop top"]
-        
-        # Pick consistent appearance for this profile (same skin/hair across photos)
-        random.seed(hash(name))  # Same appearance for same name
-        skin = random.choice(skin_tones)
-        hair = random.choice(hair_styles)
-        random.seed()  # Reset seed
-        
+        hair_styles = ["long straight black hair", "wavy dark brown hair", "shoulder-length hair with soft curls",
+                       "long hair with side parting", "messy bun", "short bob cut", "braided hair", "hair tied in a ponytail"]
+        builds = ["slim", "average build", "curvy", "petite", "tall"]
+        extras = ["", "wearing spectacles", "small nose pin", "a few pimples and natural skin", "light kajal", "no makeup"]
+        outfits = ["casual kurti", "oversized t-shirt", "denim jacket", "simple salwar suit", "college hoodie",
+                   "printed top and jeans", "saree for a function", "gym wear", "night-suit at home", "shirt and trousers"]
+
+        # Consistent appearance for this profile across photos
+        rnd = random.Random(f"{profile_id}-{name}")
+        skin, hair, build, extra = rnd.choice(skin_tones), rnd.choice(hair_styles), rnd.choice(builds), rnd.choice(extras)
+
         new_photos = []
-        # Pick random angles (avoid duplicates)
-        angles = random.sample(ANGLE_PROMPTS, min(num_photos, len(ANGLE_PROMPTS)))
-        
+        angles = random.sample(ANGLE_PROMPTS, min(num_photos * 2, len(ANGLE_PROMPTS)))  # extras = retries
+
         for angle_prompt, angle_name in angles:
+            if len(new_photos) >= num_photos:
+                break
             try:
-                outfit = random.choice(outfits)
-                
                 prompt = (
-                    f"Generate a single photorealistic portrait photo of a {age}-year-old Indian girl. "
-                    f"She has {skin} skin tone and {hair}, wearing a {outfit}. "
-                    f"Pose: {angle_prompt}. "
-                    f"Location feel: {city}, India. "
-                    f"MUST look like a real photo taken on a smartphone camera. "
-                    f"Natural skin texture, realistic lighting, no filters. "
-                    f"NOT cartoon, NOT anime, NOT illustration, NOT AI-looking. "
-                    f"Dating app profile photo quality. One person only."
+                    f"A real, unedited smartphone photo of an ordinary {age}-year-old Indian woman from {city}, "
+                    f"{build}, {skin} skin, {hair}{', ' + extra if extra else ''}, wearing a {random.choice(outfits)}, "
+                    f"{random.choice(EXPRESSIONS)}. Scene: {angle_prompt}. Camera: {random.choice(CAMERAS)}. "
+                    f"Everyday amateur photo like on a real Instagram or dating profile: imperfect framing, cluttered "
+                    f"real background, natural skin texture with pores, no retouching. "
+                    f"NO famous landmarks, NO professional photoshoot, NO studio lighting, NO golden-hour glamour, "
+                    f"NO model pose, NOT perfectly centered. Not cartoon or illustration. One woman only. "
+                    f"No readable signs, shop boards or any text anywhere. Hands relaxed and natural or out of frame."
                 )
                 
                 session_id = f"ai-photo-{profile_id}-{angle_name}-{random.randint(1000,9999)}"
@@ -2629,11 +2641,11 @@ async def _generate_ai_photo(db, profile_id: str, name: str, age: int, city: str
                 continue
         
         if new_photos:
-            # Combine existing + new (existing first)
-            all_photos = existing_photos + new_photos
+            # Combine existing + new (existing first), or replace with the new natural set
+            all_photos = new_photos if replace else existing_photos + new_photos
             
             # Set first photo as profile picture if none exists
-            profile_pic = user.get("profile_picture") if user else None
+            profile_pic = None if replace else (user.get("profile_picture") if user else None)
             if not profile_pic and all_photos:
                 profile_pic = all_photos[0]
             
@@ -2681,6 +2693,28 @@ async def batch_generate_ai_photos(db, num_photos_per_profile: int = 3):
     
     logger.info(f"🖼️ Batch photo gen complete: {generated} profiles updated, {skipped} skipped (already had enough)")
     return {"generated": generated, "skipped": skipped, "total": total}
+
+
+_photo_regen_status = {"running": False, "done": 0, "total": 0}
+
+
+async def regenerate_natural_photos(db, photos_per_profile: int = 2, profile_ids: list = None):
+    """Replace AI persona photos with the new natural phone-photo style (runs in background)."""
+    if _photo_regen_status["running"]:
+        return
+    q = {"is_ai_profile": True, "is_active_ai": True}
+    if profile_ids:
+        q["id"] = {"$in": profile_ids}
+    profiles = await db.users.find(q, {"_id": 0, "id": 1, "name": 1, "age": 1, "location": 1}).to_list(None)
+    _photo_regen_status.update(running=True, done=0, total=len(profiles))
+    try:
+        for p in profiles:
+            await _generate_ai_photo(db, p["id"], p["name"], p.get("age", 23), (p.get("location") or "Delhi").split(",")[0],
+                                     num_photos=photos_per_profile, replace=True)
+            _photo_regen_status["done"] += 1
+            await asyncio.sleep(3)
+    finally:
+        _photo_regen_status["running"] = False
 
 
 async def create_daily_ai_profiles(db, count=3):

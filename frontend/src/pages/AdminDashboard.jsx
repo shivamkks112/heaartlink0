@@ -29,6 +29,7 @@ import SafetyDashboard from '@/components/admin/SafetyDashboard';
 import AiReplyTiming from '@/components/admin/AiReplyTiming';
 import AiPersonaSchedule from '@/components/admin/AiPersonaSchedule';
 import AiStyleEditor from '@/components/admin/AiStyleEditor';
+import AiPhotoRegen from '@/components/admin/AiPhotoRegen';
 
 import { BACKEND_URL } from '@/config/api';
 
@@ -1718,6 +1719,7 @@ const AdminDashboard = ({ user }) => {
               <Button onClick={reseedAiProfiles} variant="outline" data-testid="reseed-ai-btn">
                 <RotateCcw className="w-4 h-4 mr-2" /> Re-seed Profiles
               </Button>
+              <AiPhotoRegen />
             </div>
 
             <AiReplyTiming />

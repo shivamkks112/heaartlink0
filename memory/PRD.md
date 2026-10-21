@@ -126,3 +126,8 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 - /app/store_assets: seed_demo.py (demo account with AI-persona data), compose.py (gradient + device frame + captions, Poppins). Output final/phone (1080x1920 x7), final/tablet (1440x2560 x7), zip HeartLink_PlayStore_Screenshots.zip. Only AI-generated photos used.
 - Discover now includes active AI personas; liking an AI persona = instant match (AI auto-like inserted).
 - AI profile visits: 1/day per active male user, notifications anonymous ("Someone viewed your profile") for everyone; premium Views tab still lists visitors.
+
+## 2026-06 — Online tab AI + natural AI photos
+- /active-users (Online tab) now includes active AI personas that are online (is_online by schedule).
+- _generate_ai_photo rewritten: amateur phone-photo variety (selfie/mirror/candid/car/bed/cafe/terrace/commute/function/market, camera quality, expression, consistent look per profile via profile-seeded RNG), no landmarks/text; retries on moderation fail; moderation accepts casual quality. replace=True option.
+- Admin AI Girls tab: "Natural Photos" button → POST /api/admin/ai-profiles/regenerate-photos (background, 2 photos/profile, replaces) + status polling.

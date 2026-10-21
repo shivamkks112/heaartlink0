@@ -5814,13 +5814,12 @@ async def get_active_users(user_id: str, limit: int = 20):
         "gender": {"$regex": f"^{looking_for}$", "$options": "i"},
         "looking_for": {"$regex": f"^{my_gender}$", "$options": "i"},
         "privacy_settings.show_profile": {"$ne": False},
-        "is_ai_profile": {"$ne": True},
         "is_permanently_banned": {"$ne": True},
         "is_shadow_banned": {"$ne": True},
-        "$or": [
-            {"id": {"$in": ws_connected_ids}},
-            {"last_active": {"$gte": active_threshold}}
-        ]
+        "$and": [
+            {"$or": [{"is_ai_profile": {"$ne": True}}, {"is_active_ai": True, "is_online": True}]},
+            {"$or": [{"id": {"$in": ws_connected_ids}}, {"last_active": {"$gte": active_threshold}}]},
+        ],
     }
     
     users = await db.users.find(query).sort("last_active", -1).limit(limit).to_list(None)
@@ -10405,6 +10404,24 @@ async def get_feature_flags(admin: dict = Depends(require_admin)):
     # Always merge defaults so newly added flags are visible
     merged = {**DEFAULT_FEATURE_FLAGS, **{k: v for k, v in flags.items() if k != "type"}}
     return merged
+
+@api_router.post("/admin/ai-profiles/regenerate-photos")
+async def admin_regenerate_ai_photos(data: dict, admin: dict = Depends(require_admin)):
+    """Replace AI persona photos with natural, varied phone-style photos (background job)."""
+    import ai_chatbot as ac
+    if ac._photo_regen_status["running"]:
+        return {"started": False, **ac._photo_regen_status}
+    n = max(1, min(int(data.get("photos_per_profile", 2)), 4))
+    ids = data.get("profile_ids") or None
+    asyncio.create_task(ac.regenerate_natural_photos(db, n, ids))
+    return {"started": True, "photos_per_profile": n}
+
+
+@api_router.get("/admin/ai-profiles/regenerate-photos/status")
+async def admin_regenerate_ai_photos_status(admin: dict = Depends(require_admin)):
+    import ai_chatbot as ac
+    return ac._photo_regen_status
+
 
 @api_router.put("/admin/ai-profiles/{profile_id}/schedule")
 async def update_ai_profile_schedule(profile_id: str, data: dict, admin: dict = Depends(require_admin)):
