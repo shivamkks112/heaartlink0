@@ -25,3 +25,7 @@
 - Meera Reddy (23, Hyderabad)
 - Riya Gupta (21, Lucknow)
 - Nisha Verma (26, Pune)
+
+## Play Store demo account (preview only, seeded by /app/store_assets/seed_demo.py)
+- Email: demo.rahul@heartlink.co.in
+- Password: DemoStore@2026

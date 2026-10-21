@@ -748,7 +748,7 @@ async def auto_update_notification():
 
 
 async def ai_profile_activity_loop():
-    """AI personas / chatbot accounts visit active male users' profiles (1-3/day) and
+    """AI personas / chatbot accounts visit active male users' profiles (1/day, anonymous) and
     occasionally send a Secret Crush (~1/week). Runs every 30 min, only 9 AM - 11 PM IST."""
     await asyncio.sleep(120)
     while True:
@@ -784,7 +784,7 @@ async def _run_ai_profile_activity():
     for u in users:
         uid = u["id"]
         if u.get("ai_visit_day") != today:
-            u.update(ai_visit_day=today, ai_visit_count=0, ai_visit_target=random.randint(1, 3))
+            u.update(ai_visit_day=today, ai_visit_count=0, ai_visit_target=1)
             await db.users.update_one({"id": uid}, {"$set": {"ai_visit_day": today, "ai_visit_count": 0,
                                                              "ai_visit_target": u["ai_visit_target"]}})
         left = u["ai_visit_target"] - u.get("ai_visit_count", 0)
@@ -793,7 +793,7 @@ async def _run_ai_profile_activity():
                 "viewed_user_id": uid, "viewed_at": {"$gte": (now - timedelta(days=1)).isoformat()}})
             pool = [v for v in visitors if v["id"] not in seen]
             if pool:
-                await _record_profile_view(uid, random.choice(pool)["id"])
+                await _record_profile_view(uid, random.choice(pool)["id"], anonymous=True)
                 await db.users.update_one({"id": uid}, {"$inc": {"ai_visit_count": 1}})
                 visits += 1
         last = u.get("last_ai_crush_at")
@@ -4514,7 +4514,7 @@ async def discover_users(user_id: str, limit: int = 10, relationship_intent: str
         "privacy_settings.show_profile": {"$ne": False},
         "is_shadow_banned": {"$ne": True},
         "is_permanently_banned": {"$ne": True},
-        "is_ai_profile": {"$ne": True}
+        "$or": [{"is_ai_profile": {"$ne": True}}, {"is_active_ai": True}],
     }
     
     # Gender lock logic
@@ -4833,7 +4833,7 @@ async def track_profile_view(user_id: str, viewer_id: str = None):
     return {"message": "Profile view tracked", "incognito": viewer_incognito}
 
 
-async def _record_profile_view(user_id: str, viewer_id: str):
+async def _record_profile_view(user_id: str, viewer_id: str, anonymous: bool = False):
     """Store a view + notify. Free users only learn that *someone* viewed (who = Premium)."""
     recent = await db.profile_views.find_one({
         "viewed_user_id": user_id, "viewer_id": viewer_id,
@@ -4851,7 +4851,10 @@ async def _record_profile_view(user_id: str, viewer_id: str):
         owner = await db.users.find_one({"id": user_id}, {"_id": 0, "is_premium": 1, "gender": 1})
         owner_premium = is_user_premium(owner) if owner else False
         viewer_data = await db.users.find_one({"id": viewer_id}, {"_id": 0, "name": 1, "profile_picture": 1})
-        viewer_name = (viewer_data.get("name", "Someone") if viewer_data else "Someone") if owner_premium else "Kisi"
+        real_premium = owner_premium
+        if anonymous:
+            owner_premium = False
+        viewer_name = (viewer_data.get("name", "Someone") if viewer_data else "Someone") if owner_premium else "Someone"
         if not owner_premium:
             viewer_id = None
         await manager.send_message(user_id, {
@@ -4864,7 +4867,9 @@ async def _record_profile_view(user_id: str, viewer_id: str):
         await create_in_app_notification(
             user_id,
             "Profile Viewed",
-            f"{viewer_name} viewed your profile." if viewer_id else "Kisi ne tumhari profile dekhi. Premium lo aur dekho kaun hai",
+            f"{viewer_name} viewed your profile." if viewer_id else (
+                "Someone viewed your profile. Views tab mein dekho" if real_premium
+                else "Someone viewed your profile. Premium lo aur dekho kaun hai"),
             "profile_view",
             {"viewer_id": viewer_id, "action": "open_profile", "route": f"/profile/{viewer_id}"} if viewer_id
             else {"action": "open_likes", "route": "/likes"}
@@ -5250,6 +5255,12 @@ async def user_action(user_id: str, action: LikeAction):
         "user2_id": user_id,
         "user1_liked": True
     })
+    if not existing_like and action.action in ("like", "superlike"):
+        target_ai = await db.users.find_one({"id": action.target_user_id, "is_ai_profile": True, "is_active_ai": True}, {"_id": 1})
+        if target_ai:
+            ai_like = Match(user1_id=action.target_user_id, user2_id=user_id, user1_liked=True, matched=False).dict()
+            await db.matches.insert_one(ai_like)
+            existing_like = await db.matches.find_one({"id": ai_like["id"]})
     
     if action.action == "pass":
         # If someone liked us and we pass, mark user2_liked as False

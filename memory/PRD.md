@@ -121,3 +121,8 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 - Public GET /api/feature-flags/public (Discover crush button for non-admins).
 - Hybrid ads: interstitial every 5 swipes + on chat exit (caps 2 min / 6 per session). Rewarded "Watch Video": reveal Secret Crush (POST /api/crushes/{uid}/reveal, 2/day) and AI chat extend (+10 msgs, 5/day). Free AI chat limit 30 msgs/IST day to AI personas only (429 / WS ai_chat_limit). Caps exposed (reveals_left, videos_left) so Watch Video is hidden when exhausted.
 - Toaster added to Chat & Likes pages. Tested iteration_44/45 (backend 28/28).
+
+## 2026-06 — Play Store screenshots + AI on Discover
+- /app/store_assets: seed_demo.py (demo account with AI-persona data), compose.py (gradient + device frame + captions, Poppins). Output final/phone (1080x1920 x7), final/tablet (1440x2560 x7), zip HeartLink_PlayStore_Screenshots.zip. Only AI-generated photos used.
+- Discover now includes active AI personas; liking an AI persona = instant match (AI auto-like inserted).
+- AI profile visits: 1/day per active male user, notifications anonymous ("Someone viewed your profile") for everyone; premium Views tab still lists visitors.
