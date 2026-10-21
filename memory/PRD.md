@@ -131,3 +131,9 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 - /active-users (Online tab) now includes active AI personas that are online (is_online by schedule).
 - _generate_ai_photo rewritten: amateur phone-photo variety (selfie/mirror/candid/car/bed/cafe/terrace/commute/function/market, camera quality, expression, consistent look per profile via profile-seeded RNG), no landmarks/text; retries on moderation fail; moderation accepts casual quality. replace=True option.
 - Admin AI Girls tab: "Natural Photos" button → POST /api/admin/ai-profiles/regenerate-photos (background, 2 photos/profile, replaces) + status polling.
+
+## 2026-06 — AI Photo Review grid + Story photos
+- Admin tab "AI Photos": per persona photo grid (thumb via /api/photo w=300), Redo single photo (background Gemini gen, busy polling), Set main, Delete (not last), Approve; "Sirf pending" filter. APIs: GET /api/admin/ai-photos, POST .../{id}/approve, POST .../{id}/{i}/redo|main, DELETE .../{id}/{i}.
+- Story photos: PUT /api/admin/ai-story-photos {enabled, every_days}; ai_story_photo_loop every 3h posts new main photo for max 3 due AI girls (keeps 5 photos). Default OFF.
+- Online tab: real users first, online AI personas with photos fill remaining slots. Discover AI requires photo. Daily reward modal suppressed on /admin.
+- Tested iteration_46 (all core flows) + fixes verified via curl.

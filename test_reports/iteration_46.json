@@ -1,0 +1,40 @@
+{
+  "summary": "Tested AI Photo Review grid APIs (list/pending filter/approve/main/delete/redo), story-photo settings, post_story_photo (direct call), Online tab AI personas, and Admin 'AI Photos' UI. 2 real Gemini generations used (1 redo via API, 1 post_story_photo direct). All core flows work. One bug: PUT /api/admin/ai-story-photos with non-numeric every_days returns 500. Data restored (Priya Sharma & Ananya Patel photos/profile_picture/photos_approved), ai_story_photos reset to disabled/4.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PUT /api/admin/ai-story-photos", "issue": "every_days='abc' (or null) -> int() ValueError -> 500. Wrap in try/except and return 400."},
+      {"endpoint": "POST /api/admin/ai-photos/{id}/{index}/redo", "issue": "Returns {started:true} for non-existent / non-AI profile id (no 404 check); task silently no-ops."},
+      {"endpoint": "GET /api/active-users/{uid}", "issue": "AI personas get last_active refreshed every 5 min by keep_ai_profiles_online and query sorts by last_active desc with limit 20 -> result was 20/20 AI (102 AI online). Real active users will be crowded out of the Online tab whenever >20 AIs are online. Also AI personas with 0 photos (~20 profiles) can appear in Online tab without a photo."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AiPhotoReview '+ Add photo'", "issue": "Redo at index == photos.length has no busy indicator (no tile exists for that index), so admin gets no spinner until the poll shows the new photo; clicking again starts nothing visible.", "selector": "[data-testid^=ai-photo-add-]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/admin (all tabs)", "issues": ["Daily Reward modal pops over the admin dashboard and blocks clicks until dismissed", "App bottom-nav (Discover/Likes/...) is shown fixed on the admin page and overlaps the bottom row of photo cards"]},
+      {"screen": "AI Photos grid", "issues": ["Many existing persona photos are still the old landmark/travel style (e.g. Charminar, Ganga aarti, forest hike) — admin may want to run Redo/Regenerate", "~20 profiles have 0 photos yet show an Approve button"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter46_ai_photo_review.py", "/app/backend/tests/manual_story_photo_iter46.py", "/app/test_reports/pytest/pytest_iter46.xml"],
+  "action_items": [
+    "Validate every_days type in admin_update_story_photos (400 instead of 500)",
+    "Add 404 check for profile existence in admin_redo_ai_photo",
+    "In get_active_users, cap/mix AI personas so real active users aren't pushed out of limit=20 (e.g. fetch real users first, fill rest with AIs; exclude AI with no photos)",
+    "Show a pending placeholder tile for 'Add photo' redo (busy index >= photos.length)",
+    "Suppress daily-reward modal and bottom-nav on /admin"
+  ],
+  "critical_code_review_comments": [
+    "redo_single_photo uses index captured at request time; if admin deletes/reorders photos while a redo is running, the new photo overwrites the wrong slot (or appends). Consider matching by version/value instead of index.",
+    "_photo_redo_busy is in-process memory; with multiple workers busy[] is inconsistent (fine for single worker).",
+    "server.py is ~12.9k lines; ai_chatbot.py ~2.9k lines — should be split into modules."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter46_ai_photo_review.py", "/app/backend/tests/manual_story_photo_iter46.py"],
+  "success_rate": {"backend": "90% (9/10 pytest; story direct check passed)", "frontend": "100% of tested flows"},
+  "seed_data_creation": "None persistent. Temporary fake PNG photos injected into Priya Sharma (cb373ffe...) and Ananya Patel (4abeebfc...) and restored afterwards.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Admin login POST /api/auth/login {email_or_phone,password} -> access_token; UI uses localStorage heartlink_token + user. Dismiss daily-reward-modal before clicking on /admin. Redo took ~40s end-to-end and works (busy listed, version changes, photos_approved false, MAIN follows). post_story_photo verified: prepends new main, caps at 5, sets last_story_photo_at, photos_approved false. Some AI photos are external https URLs (static.prod-images) not /api/photo — that's valid. Run redo test sparingly (costs credits): pytest --deselect ...::TestRedo."
+}

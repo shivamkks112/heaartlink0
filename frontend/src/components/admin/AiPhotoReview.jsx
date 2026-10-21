@@ -79,7 +79,7 @@ export const AiPhotoReview = () => {
 
   if (!data) return <div className="text-center py-10 text-gray-500">Loading...</div>;
   return (
-    <div className="space-y-5" data-testid="admin-ai-photos-panel">
+    <div className="space-y-5 pb-24" data-testid="admin-ai-photos-panel">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-bold text-gray-900">AI Photo Review</h2>
@@ -95,7 +95,9 @@ export const AiPhotoReview = () => {
           <div key={p.id} className="bg-white rounded-2xl border border-gray-200 p-3" data-testid={`ai-photo-card-${p.id}`}>
             <div className="flex items-center justify-between mb-2">
               <p className="font-semibold text-gray-900 text-sm">{p.name}{p.age ? `, ${p.age}` : ''}</p>
-              {p.photos_approved
+              {!(p.photos || []).length
+                ? <span className="text-xs text-amber-600 font-semibold">No photo</span>
+                : p.photos_approved
                 ? <span className="text-xs text-green-600 font-semibold flex items-center gap-1"><Check className="w-3.5 h-3.5" /> Approved</span>
                 : <Button size="sm" onClick={() => act(p, 'approve')} className="h-7 bg-green-500 hover:bg-green-600 text-xs" data-testid={`ai-photo-approve-${p.id}`}>Approve</Button>}
             </div>
@@ -103,7 +105,12 @@ export const AiPhotoReview = () => {
               {(p.photos || []).map((url, i) => (
                 <PhotoTile key={i} profile={p} url={url} index={i} busy={p.busy?.includes(i)} onAction={(a, idx) => act(p, a, idx)} />
               ))}
-              {(p.photos || []).length < 5 && (
+              {p.busy?.includes((p.photos || []).length) && (
+                <div className="aspect-[3/4] rounded-xl bg-gray-100 flex items-center justify-center text-xs text-gray-600" data-testid={`ai-photo-adding-${p.id}`}>
+                  <RefreshCw className="w-4 h-4 animate-spin mr-1" /> Ban rahi hai
+                </div>
+              )}
+              {(p.photos || []).length < 5 && !p.busy?.includes((p.photos || []).length) && (
                 <button onClick={() => act(p, 'redo', (p.photos || []).length)} className="aspect-[3/4] rounded-xl border-2 border-dashed border-gray-300 text-xs text-gray-500" data-testid={`ai-photo-add-${p.id}`}>
                   + Add photo
                 </button>

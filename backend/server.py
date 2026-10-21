@@ -4515,7 +4515,7 @@ async def discover_users(user_id: str, limit: int = 10, relationship_intent: str
         "privacy_settings.show_profile": {"$ne": False},
         "is_shadow_banned": {"$ne": True},
         "is_permanently_banned": {"$ne": True},
-        "$or": [{"is_ai_profile": {"$ne": True}}, {"is_active_ai": True}],
+        "$or": [{"is_ai_profile": {"$ne": True}}, {"is_active_ai": True, "photos.0": {"$exists": True}}],
     }
     
     # Gender lock logic
@@ -5817,13 +5817,17 @@ async def get_active_users(user_id: str, limit: int = 20):
         "privacy_settings.show_profile": {"$ne": False},
         "is_permanently_banned": {"$ne": True},
         "is_shadow_banned": {"$ne": True},
-        "$and": [
-            {"$or": [{"is_ai_profile": {"$ne": True}}, {"is_active_ai": True, "is_online": True}]},
-            {"$or": [{"id": {"$in": ws_connected_ids}}, {"last_active": {"$gte": active_threshold}}]},
-        ],
+        "$or": [{"id": {"$in": ws_connected_ids}}, {"last_active": {"$gte": active_threshold}}],
     }
     
-    users = await db.users.find(query).sort("last_active", -1).limit(limit).to_list(None)
+    # Real users first; online AI personas (with photos) only fill remaining slots, shuffled
+    real = await db.users.find({**query, "is_ai_profile": {"$ne": True}}).sort("last_active", -1).limit(limit).to_list(None)
+    users = real
+    if len(real) < limit:
+        ai = await db.users.find({**query, "is_ai_profile": True, "is_active_ai": True, "is_online": True,
+                                  "photos.0": {"$exists": True}}).limit(100).to_list(None)
+        random.shuffle(ai)
+        users = real + ai[:limit - len(real)]
     
     # Determine online status: WS-connected OR active in last 5 minutes
     five_min_ago = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
@@ -10434,6 +10438,8 @@ async def admin_redo_ai_photo(profile_id: str, index: int, admin: dict = Depends
     import ai_chatbot as ac
     if not 0 <= index <= 5:
         raise HTTPException(status_code=400, detail="Invalid photo index")
+    if not await db.users.find_one({"id": profile_id, "is_ai_profile": True}, {"_id": 1}):
+        raise HTTPException(status_code=404, detail="AI profile not found")
     asyncio.create_task(ac.redo_single_photo(db, profile_id, index))
     return {"started": True}
 
@@ -10467,7 +10473,10 @@ async def admin_delete_ai_photo(profile_id: str, index: int, admin: dict = Depen
 
 @api_router.put("/admin/ai-story-photos")
 async def admin_update_story_photos(data: dict, admin: dict = Depends(require_admin)):
-    every = int(data.get("every_days", 4))
+    try:
+        every = int(data.get("every_days", 4))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="every_days 1-30")
     if not 1 <= every <= 30:
         raise HTTPException(status_code=400, detail="every_days 1-30")
     cfg = {"enabled": bool(data.get("enabled")), "every_days": every}
