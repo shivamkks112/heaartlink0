@@ -135,6 +135,23 @@ function NavigationHelper() {
 
 
 // Back button handler — navigate to Recent tab first, then double-press to exit
+// Back closes open popups/sheets first. Returns true if something was closed.
+function closeTopPopup() {
+  const visible = (el) => el && el.getClientRects().length > 0;
+  const radix = [...document.querySelectorAll('[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"], [data-radix-popper-content-wrapper]')].filter(visible);
+  if (radix.length) {
+    const target = radix[radix.length - 1];
+    target.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true }));
+    return true;
+  }
+  const modals = [...document.querySelectorAll('[data-testid*="modal"], [data-testid*="sheet"], [data-testid*="popup"]')].filter(visible);
+  for (let i = modals.length - 1; i >= 0; i--) {
+    const btn = modals[i].querySelector('[data-testid*="close"], [aria-label="Close"], [data-testid*="dismiss"]');
+    if (btn) { btn.click(); return true; }
+  }
+  return false;
+}
+
 function BackButtonHandler() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -158,6 +175,7 @@ function BackButtonHandler() {
         
         handle = await App.addListener('backButton', ({ canGoBack }) => {
           if (!mounted) return;
+          if (closeTopPopup()) return;
           const path = currentPath.current;
           const isOnRecent = path === RECENT_TAB || path === RECENT_TAB + '/';
           const isMainTab = MAIN_TABS.some(tab => path === tab || path === tab + '/');

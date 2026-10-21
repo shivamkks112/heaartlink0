@@ -143,3 +143,4 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 - @capacitor/app downgraded 8.1.2 → 7.1.2 to match Capacitor core/android 7.4.3.
 - BackButtonHandler: inner page without history (e.g. opened from notification) → navigate to /matches.
 - Note: @capacitor/geolocation & local-notifications are v8 (mismatch with core 7) — not changed.
+- Plugins: @capacitor/geolocation 7.1.8, @capacitor/local-notifications 7.0.7 (match core 7). Back closes Radix dialogs (Escape) / custom modals (close button) first.
