@@ -5354,21 +5354,24 @@ async def user_action(user_id: str, action: LikeAction):
     
     if existing and existing.get("user1_liked"):
         # It's a match!
-        user1 = await db.users.find_one({"id": user_id})
-        user2 = await db.users.find_one({"id": action.target_user_id})
+        light = {"_id": 0, "photos": 0, "password_hash": 0}
+        user1, user2 = await asyncio.gather(
+            db.users.find_one({"id": user_id}, light),
+            db.users.find_one({"id": action.target_user_id}, light))
         
-        # Calculate AI compatibility
-        score, analysis = await calculate_ai_compatibility(user1, user2)
-        
+        # Persist the match first so both Match tabs see it immediately
         await db.matches.update_one(
             {"id": existing["id"]},
-            {"$set": {
-                "user2_liked": True,
-                "matched": True,
-                "compatibility_score": score,
-                "ai_analysis": analysis
-            }}
+            {"$set": {"user2_liked": True, "matched": True, "matched_at": datetime.now(timezone.utc).isoformat()}}
         )
+        
+        # AI compatibility (slow LLM call) runs in background
+        async def _compat():
+            sc, an = await calculate_ai_compatibility(user1, user2)
+            await db.matches.update_one({"id": existing["id"]}, {"$set": {"compatibility_score": sc, "ai_analysis": an}})
+            return sc, an
+        asyncio.create_task(_compat())
+        score, analysis = None, None
         
         # Invalidate matches cache for both users
         for uid in [user_id, action.target_user_id]:
@@ -5662,7 +5665,7 @@ async def get_matches(user_id: str, request: Request):
     # Get current user blocked list only
     current_user = await db.users.find_one(
         {"id": user_id},
-        {"_id": 0, "blocked_users": 1}
+        {"_id": 0, "id": 1, "blocked_users": 1}
     )
     if not current_user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -6895,8 +6898,9 @@ async def register_fcm_token(request: FCMTokenRequest):
         
         if result.modified_count == 0 and result.matched_count == 0:
             raise HTTPException(status_code=404, detail="User not found")
-        
-        logger.info(f"FCM token registered for user {request.user_id}: {request.fcm_token[:30]}...")
+        # One device = one account: stop pushes for accounts previously logged in on this phone
+        await db.users.update_many({"fcm_token": request.fcm_token, "id": {"$ne": request.user_id}}, {"$set": {"fcm_token": None}})
+        logger.info(f"FCM token registered for user {request.user_id}")
         return {"success": True, "message": "FCM token registered"}
     except HTTPException:
         raise
@@ -6929,9 +6933,7 @@ async def fcm_diagnostics(user_id: str):
     return {
         "user_id": user_id,
         "name": user.get("name"),
-        "email": user.get("email"),
         "has_fcm_token": has_token,
-        "fcm_token_prefix": token[:30] + "..." if token else None,
         "fcm_token_updated_at": user.get("fcm_token_updated_at"),
         "firebase_initialized": fcm_service.is_fcm_ready(),
         "test_send_result": send_result,

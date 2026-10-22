@@ -61,15 +61,6 @@
             </intent-filter>
         </activity>
 
-        <service
-            android:name=".HeartLinkMessagingService"
-            android:exported="false"
-            android:directBootAware="true">
-            <intent-filter>
-                <action android:name="com.google.firebase.MESSAGING_EVENT" />
-            </intent-filter>
-        </service>
-
         <!-- Firebase Notification Config -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
@@ -79,7 +70,7 @@
             android:resource="@color/colorPrimary" />
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="heartlink_notifications" />
+            android:value="heartlink_messages" />
 
         <!-- Google AdMob App ID -->
         <meta-data

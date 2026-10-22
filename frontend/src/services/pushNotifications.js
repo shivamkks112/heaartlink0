@@ -44,7 +44,7 @@ export const initPushNotifications = async (userId) => {
   let perm = await PushNotifications.checkPermissions();
   console.log(TAG, 'Permission status:', perm.receive);
 
-  if (perm.receive === 'prompt') {
+  if (perm.receive === 'prompt' || perm.receive === 'prompt-with-rationale') {
     perm = await PushNotifications.requestPermissions();
     console.log(TAG, 'Permission after request:', perm.receive);
   }

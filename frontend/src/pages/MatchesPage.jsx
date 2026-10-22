@@ -308,10 +308,12 @@ const MatchesPage = ({ user }) => {
     let cancelled = false;
     const loadAll = async () => {
       try {
+        // Show each list as soon as it arrives (Match tab must not wait for the slower Active list)
+        const show = (p, fn) => p.then(r => { if (!cancelled) fn(r.data || []); return r; });
         const [matchRes, convRes, activeRes] = await Promise.allSettled([
-          axios.get(`${API}/matches/${user.id}`),
-          axios.get(`${API}/conversations/${user.id}`),
-          axios.get(`${API}/active-users/${user.id}`),
+          show(axios.get(`${API}/matches/${user.id}`), d => { setMatches(d); setLoading(false); }),
+          show(axios.get(`${API}/conversations/${user.id}`), setConversations),
+          show(axios.get(`${API}/active-users/${user.id}`), setActiveUsers),
         ]);
         if (cancelled) return;
         if (matchRes.status === 'fulfilled') setMatches(matchRes.value.data || []);

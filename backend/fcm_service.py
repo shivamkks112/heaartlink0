@@ -153,7 +153,10 @@ async def send_to_user(db, user_id: str, title: str, body: str, data: Optional[D
     user = await db.users.find_one({"id": user_id}, {"_id": 0, "fcm_token": 1})
     if not user or not user.get("fcm_token"):
         return {"success": False, "error": "no_token"}
-    return await asyncio.to_thread(send_fcm, user["fcm_token"], title, body, data)
+    result = await asyncio.to_thread(send_fcm, user["fcm_token"], title, body, data)
+    if result.get("stale"):
+        await db.users.update_one({"id": user_id, "fcm_token": user["fcm_token"]}, {"$set": {"fcm_token": None}})
+    return result
 
 
 async def send_to_users(db, user_ids: List[str], title: str, body: str, data: Optional[Dict] = None) -> Dict:
