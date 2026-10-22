@@ -195,7 +195,7 @@ const ChatPage = ({ user }) => {
       try {
         // Fire messages + privacy immediately (parallel with user info)
         const dataPromise = Promise.allSettled([
-          axios.get(`${API}/messages/${matchId}?user_id=${user.id}&limit=30`),
+          axios.get(`${API}/messages/${matchId}?user_id=${user.id}&limit=30&order=desc`),
           axios.get(`${API}/privacy/${user.id}`),
         ]);
         let matchUser = otherUser;
@@ -326,7 +326,7 @@ const ChatPage = ({ user }) => {
     const handleVisibility = () => {
       if (document.visibilityState === 'visible' && matchId && user?.id) {
         // Quick fetch to catch any missed messages
-        axios.get(`${API}/messages/${matchId}?user_id=${user.id}&limit=50`)
+        axios.get(`${API}/messages/${matchId}?user_id=${user.id}&limit=50&order=desc`)
           .then(res => {
             const freshMsgs = res.data || [];
             if (freshMsgs.length > 0) {
@@ -363,7 +363,7 @@ const ChatPage = ({ user }) => {
     setLoadingOlder(true);
     try {
       const oldest = messages[0];
-      const res = await axios.get(`${API}/messages/${matchId}?user_id=${user.id}&limit=30&before=${oldest.timestamp || oldest.created_at}`);
+      const res = await axios.get(`${API}/messages/${matchId}?user_id=${user.id}&limit=30&order=desc&before=${oldest.timestamp || oldest.created_at}`);
       const olderMsgs = res.data?.messages || res.data || [];
       if (olderMsgs.length === 0) { setHasOlderMessages(false); }
       else {

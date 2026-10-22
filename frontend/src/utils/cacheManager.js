@@ -75,7 +75,7 @@ export async function prefetchRecentChats(userId, apiBase) {
     const top3 = (allMatches || []).slice(0, 3);
     for (const m of top3) {
       try {
-        const msgRes = await fetch(`${apiBase}/messages/${m.match_id}?user_id=${userId}&limit=20`);
+        const msgRes = await fetch(`${apiBase}/messages/${m.match_id}?user_id=${userId}&limit=20&order=desc`);
         if (msgRes.ok) {
           const msgs = await msgRes.json();
           cacheChatMessages(m.match_id, msgs);
@@ -127,7 +127,7 @@ export async function prefetchAllData(userId, apiBase) {
     const allConvs = (convs || []).slice(0, 10);
     await Promise.allSettled(allConvs.map(async (conv) => {
       try {
-        const msgRes = await fetch(`${apiBase}/messages/${conv.match_id}?user_id=${userId}&limit=20`);
+        const msgRes = await fetch(`${apiBase}/messages/${conv.match_id}?user_id=${userId}&limit=20&order=desc`);
         if (msgRes.ok) {
           const msgs = await msgRes.json();
           cacheChatMessages(conv.match_id, msgs);

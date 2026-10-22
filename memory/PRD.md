@@ -164,3 +164,8 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 - /api/discover/{id} now uses aggregate with _B64_MARK + slim_photos (photo URLs, no base64)
 - /api/profile/{id}?slim=1 (used by UserProfilePage only; own ProfilePage stays full to keep edits safe). Base64 user: 2.25MB -> 951B
 - Settings: AdDebugPanel (native only) shows ad SDK states, AdMob error log, Test ad button — for diagnosing ads not showing on user Cap8 build
+
+## 2026-06 — Chat speed
+- POST /messages: AI vulgarity check moved to background (_after_message_sent); flagged msg retracted via message_deleted WS; push + in-app notif sent after check. sender/receiver fetched without photos. Send 2.8s -> 0.15s
+- Chat history now loads NEWEST messages (order=desc in ChatPage + cacheManager); previously oldest 30 were loaded
+- /chat/{id}/info uses find_users_light (no base64 transfer)

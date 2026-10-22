@@ -4138,9 +4138,10 @@ async def get_chat_info(match_id: str, user_id: str, request: Request):
     if not match:
         raise HTTPException(404, "Match not found")
     other_id = match["user2_id"] if match["user1_id"] == user_id else match["user1_id"]
-    other_user = await db.users.find_one({"id": other_id})
-    if not other_user:
+    found = await find_users_light({"id": other_id}, ["id", "name", "age", "profile_picture", "photos", "is_online", "last_active", "bio", "is_ai_profile", "verified"])
+    if not found:
         raise HTTPException(404, "User not found")
+    other_user = found[0]
     return slim_photos({
         "match_id": match_id,
         "other_user": {
@@ -6224,8 +6225,10 @@ async def get_chat_image(path: str):
 async def send_message_http(message_data: Message):
     """Send message with women safety checks"""
     # Get sender and receiver
-    sender = await db.users.find_one({"id": message_data.sender_id})
-    receiver = await db.users.find_one({"id": message_data.receiver_id})
+    light = {"_id": 0, "photos": 0, "profile_picture": 0, "password_hash": 0}
+    sender, receiver = await asyncio.gather(
+        db.users.find_one({"id": message_data.sender_id}, light),
+        db.users.find_one({"id": message_data.receiver_id}, light))
     
     if not sender or not receiver:
         raise HTTPException(status_code=404, detail="User not found")
@@ -6335,12 +6338,6 @@ async def send_message_http(message_data: Message):
         if night_blocked:
             return {"id": message_dict.get("id", ""), "status": "sent"}
         
-        is_creepy = await handle_creepy_detection(
-            db, message_data.sender_id, message_data.receiver_id, message_data.match_id,
-            original_content, ws_manager=manager
-        )
-        if is_creepy:
-            return {"id": message_dict.get("id", ""), "status": "sent"}
     
     # === PERSONAL INFO DETECTION & MASKING ===
     # Detect phone numbers and mask them
@@ -6525,32 +6522,12 @@ async def send_message_http(message_data: Message):
     muted_users = receiver.get('muted_users', [])
     sender_not_muted = message_data.sender_id not in muted_users
     
-    # Send push notification via FCM — always send (frontend handles dedup)
-    if not is_ai_receiver and sender and sender_not_muted:
-        # Throttle: max 1 FCM per sender→receiver per 10s (prevents rapid chat spam)
-        import time as _time
-        throttle_key = f"msg_fcm_{message_data.sender_id}_{message_data.receiver_id}"
-        last_sent = getattr(manager, '_fcm_throttle', {}).get(throttle_key, 0)
-        now_ts = _time.time()
-        if now_ts - last_sent > 10:
-            if not hasattr(manager, '_fcm_throttle'):
-                manager._fcm_throttle = {}
-            manager._fcm_throttle[throttle_key] = now_ts
-            asyncio.create_task(_send_push_to_user(
-                user_id=message_data.receiver_id,
-                title=f"New message from {sender['name']}",
-                message=message_data.content[:100],
-                data={"type": "message", "action": "open_chat", "match_id": message_data.match_id, "route": f"/chat/{message_data.match_id}"}
-            ))
-        
-        # Store in-app notification for message
-        await create_in_app_notification(
-            message_data.receiver_id,
-            f"New message from {sender['name']}",
-            message_data.content[:100],
-            "message",
-            {"match_id": message_data.match_id, "sender_id": message_data.sender_id, "action": "open_chat", "route": f"/chat/{message_data.match_id}"}
-        )
+    # Vulgarity AI check + push run in background so the message reaches the receiver instantly
+    asyncio.create_task(_after_message_sent(
+        message_dict["id"], message_data.match_id, message_data.sender_id, message_data.receiver_id,
+        sender.get("name", "Someone"), original_content, message_data.content,
+        needs_ai_safety=not is_ai_receiver and not receiver.get("auto_chat_enabled"),
+        send_push=not is_ai_receiver and sender_not_muted))
     
     # === AI CHATBOT: If receiver is an AI profile, generate auto-reply ===
     if receiver.get("is_ai_profile") and receiver.get("is_active_ai"):
@@ -6575,6 +6552,35 @@ async def send_message_http(message_data: Message):
     asyncio.create_task(manager.send_badge_update(message_data.receiver_id))
     
     return clean_message
+
+_fcm_throttle: Dict[str, float] = {}
+
+
+async def _after_message_sent(message_id, match_id, sender_id, receiver_id, sender_name, original_content, content,
+                              needs_ai_safety: bool, send_push: bool):
+    """Background: retract the message if AI flags it as vulgar, otherwise push-notify the receiver."""
+    try:
+        if needs_ai_safety and await handle_creepy_detection(db, sender_id, receiver_id, match_id, original_content, ws_manager=manager):
+            await db.messages.update_one({"id": message_id}, {"$set": {"is_deleted_for_all": True, "content": "This message was deleted"}})
+            for uid in (receiver_id, sender_id):
+                await manager.send_message(uid, {"type": "message_deleted", "message_id": message_id, "deleted_for_all": True})
+            return
+        if not send_push:
+            return
+        import time as _time
+        key = f"{sender_id}_{receiver_id}"
+        now_ts = _time.time()
+        if now_ts - _fcm_throttle.get(key, 0) > 10:
+            _fcm_throttle[key] = now_ts
+            asyncio.create_task(_send_push_to_user(
+                user_id=receiver_id, title=f"New message from {sender_name}", message=content[:100],
+                data={"type": "message", "action": "open_chat", "match_id": match_id, "route": f"/chat/{match_id}"}))
+        await create_in_app_notification(
+            receiver_id, f"New message from {sender_name}", content[:100], "message",
+            {"match_id": match_id, "sender_id": sender_id, "action": "open_chat", "route": f"/chat/{match_id}"})
+    except Exception as e:
+        logging.error(f"after_message_sent error: {e}")
+
 
 # WebSocket for real-time chat
 async def _ack_message(message_id: str, match_id: str, sender_id: str, receiver_id: str, ai_receiver: bool = False):
