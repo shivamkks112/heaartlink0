@@ -6986,8 +6986,8 @@ async def make_me_admin_once(request: MakeAdminRequest):
         )
     
     # Verify secret code
-    expected_secret = os.environ.get('ADMIN_SECRET_CODE', 'HeartLink@Admin#2024')
-    if request.secret_code != expected_secret:
+    expected_secret = os.environ.get('ADMIN_SECRET_CODE')
+    if not expected_secret or request.secret_code != expected_secret:
         raise HTTPException(status_code=403, detail="Invalid secret code")
     
     # Make user admin
@@ -7308,7 +7308,8 @@ async def get_all_users(
     limit: int = 20,
     gender: str = None,
     status: str = None,
-    sort: str = "newest"
+    sort: str = "newest",
+    admin: dict = Depends(require_admin)
 ):
     """Get all users with search, filters, sorting and pagination for admin"""
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
@@ -9887,7 +9888,8 @@ async def get_engagement_notification_templates(admin: dict = Depends(require_ad
 async def send_engagement_to_users(
     template_key: str,
     user_ids: Optional[List[str]] = None,
-    send_to_all: bool = False
+    send_to_all: bool = False,
+    admin: dict = Depends(require_admin)
 ):
     """
     Send engagement notification using pre-defined templates
@@ -9991,7 +9993,8 @@ async def send_custom_notification(
     message: str,
     user_ids: Optional[List[str]] = None,
     send_to_all: bool = False,
-    action: str = "open_app"
+    action: str = "open_app",
+    admin: dict = Depends(require_admin)
 ):
     """Send custom notification with custom title and message"""
     if send_to_all:
