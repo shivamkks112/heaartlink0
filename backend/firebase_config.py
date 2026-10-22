@@ -58,7 +58,7 @@ def send_notification(token: str, title: str, body: str, data: dict = None):
             android=messaging.AndroidConfig(
                 priority='high',
                 notification=messaging.AndroidNotification(
-                    channel_id='heartlink_notifications',
+                    channel_id='heartlink_messages',
                     priority='max',
                     default_sound=True,
                     default_vibrate_timings=True,
@@ -96,7 +96,7 @@ def send_notification_to_multiple(tokens: list, title: str, body: str, data: dic
             android=messaging.AndroidConfig(
                 priority='high',
                 notification=messaging.AndroidNotification(
-                    channel_id='heartlink_notifications',
+                    channel_id='heartlink_messages',
                     priority='max',
                     default_sound=True,
                     default_vibrate_timings=True,
@@ -106,7 +106,7 @@ def send_notification_to_multiple(tokens: list, title: str, body: str, data: dic
             ),
         )
 
-        response = messaging.send_multicast(message)
+        response = messaging.send_each_for_multicast(message)
         logger.info(f"FCM multicast: {response.success_count} ok, {response.failure_count} fail")
         return {
             "success": True,
