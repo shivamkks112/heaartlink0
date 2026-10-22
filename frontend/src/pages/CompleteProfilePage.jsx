@@ -175,6 +175,7 @@ const CompleteProfilePage = ({ onLogin }) => {
 
       const response = await axios.post(`${API}/auth/phone-signup`, submitData);
       const userData = response.data.user;
+      if (response.data.access_token) localStorage.setItem('heartlink_token', response.data.access_token);
       
       // Photo already uploaded and included in signup, just update profile_picture field
       if (photoURL) {

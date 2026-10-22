@@ -47,7 +47,7 @@ if not JWT_SECRET_KEY:
     import logging as _log
     _log.warning("JWT_SECRET_KEY not set in .env — using random key (tokens will reset on restart)")
 JWT_ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 30  # 30 days
 REFRESH_TOKEN_EXPIRE_DAYS = 30
 
 # Password Config

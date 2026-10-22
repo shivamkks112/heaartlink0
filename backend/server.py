@@ -164,6 +164,23 @@ class AdminAuthMiddleware(BaseHTTPMiddleware):
 # ═══════════════════════════════════════════════════════════════
 # ADMIN AUTH DEPENDENCY — reusable guard for admin-only endpoints
 # ═══════════════════════════════════════════════════════════════
+PRIVATE_USER_FIELDS = ("email", "phone", "fcm_token", "firebase_uid", "device_ids", "blocked_device_ids", "password_hash")
+
+
+def _viewer_id(request: Request):
+    """User id from a valid Bearer token, else None."""
+    auth = request.headers.get("authorization", "")
+    payload = verify_access_token(auth[7:]) if auth.startswith("Bearer ") else None
+    return payload.get("user_id") if payload else None
+
+
+def _hide_private(user: dict, owner_id: str, request: Request) -> dict:
+    """Private contact/device fields only for the verified owner."""
+    if _viewer_id(request) == owner_id:
+        return user
+    return {k: v for k, v in user.items() if k not in PRIVATE_USER_FIELDS}
+
+
 async def require_admin(request: Request) -> dict:
     """Extract token, verify JWT, check is_admin. Returns admin user dict."""
     token = None
@@ -424,7 +441,7 @@ async def api_health_check():
 
 # === COMBINED INIT ENDPOINT - Single call for all page data ===
 @api_router.get("/init/{user_id}")
-async def get_init_data(user_id: str):
+async def get_init_data(user_id: str, request: Request):
     """Combined endpoint - returns user data, counts, feature flags in ONE call"""
     try:
         # Run all queries in parallel
@@ -444,7 +461,7 @@ async def get_init_data(user_id: str):
         feature_flags = {k: v for k, v in (flags or {}).items() if k != "type"} if flags else {"referral_system": True, "daily_rewards": True}
         
         return {
-            "user": user,
+            "user": _hide_private(user, user_id, request),
             "likes_count": likes_count,
             "notification_count": notif_count,
             "unread_messages": unread_msgs,
@@ -3140,7 +3157,8 @@ async def phone_signup(data: PhoneSignup):
             _schedule_ai_likes_for_new_user(user_id, data.name)
         )
     
-    return {"message": "Signup successful", "user": clean_user}
+    token_data = {"user_id": clean_user.get("id"), "email": clean_user.get("email")}
+    return {"message": "Signup successful", "user": clean_user, "access_token": create_access_token(token_data)}
 
 
 @api_router.post("/auth/forgot-password")
@@ -3524,6 +3542,7 @@ async def get_profile(user_id: str, request: Request, slim: bool = False):
     """Get user profile - OPTIMIZED with caching; slim=1 serves photo URLs instead of base64"""
     cached = get_cached_user(user_id)
     if cached:
+        cached = _hide_private(cached, user_id, request)
         return slim_photos(cached, request) if slim else cached
     
     # Use projection to fetch only needed fields (faster query)
@@ -3537,10 +3556,11 @@ async def get_profile(user_id: str, request: Request, slim: bool = False):
     # Clean and cache
     clean_user = clean_user_data(user)
     set_cached_user(user_id, clean_user)
+    clean_user = _hide_private(clean_user, user_id, request)
     return slim_photos(clean_user, request) if slim else clean_user
 
 @api_router.put("/profile/{user_id}")
-async def update_profile(user_id: str, updates: dict):
+async def update_profile(user_id: str, updates: dict, request: Request):
     """Update user profile - OPTIMIZED"""
     # Remove sensitive/locked fields that should NEVER be changed directly
     # Email and phone can only be updated via dedicated link endpoints
@@ -3595,7 +3615,7 @@ async def update_profile(user_id: str, updates: dict):
     # Clean and update cache
     clean_user = clean_user_data(user)
     set_cached_user(user_id, clean_user)
-    return clean_user
+    return _hide_private(clean_user, user_id, request)
 
 
 # ==================== EMAIL/PHONE LINKING ====================
