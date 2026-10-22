@@ -596,7 +596,7 @@ const SafetyDashboard = () => {
             <div className="text-xs text-blue-700 space-y-1.5">
               <p><span className="font-bold">AI Detection:</span> Har message AI se check hota hai. Inappropriate → sender ko warning. 3 warnings → auto-ban.</p>
               <p><span className="font-bold">Safe Word:</span> Girl chat mein safe word type kare → instantly block + report + admin ko FCM push.</p>
-              <p><span className="font-bold">Night Safety:</span> 11PM-6AM new matches (48hr) ke boys girl ko msg nahi bhej sakte.</p>
+              <p><span className="font-bold">Night Safety:</span> 1AM-6AM new matches (48hr) ke boys girl ko msg nahi bhej sakte.</p>
               <p><span className="font-bold">Admin FCM:</span> Safe word trigger + auto-ban pe sabhi admins ko instant push notification with full details.</p>
             </div>
           </div>

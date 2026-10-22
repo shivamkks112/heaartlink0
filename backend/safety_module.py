@@ -18,7 +18,7 @@ EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY")
 DEFAULT_SAFE_WORDS = ["heartlink sos", "hl sos", "i feel unsafe"]
 
 # ── NIGHT MODE CONFIG ──
-NIGHT_START_HOUR = 23  # 11 PM IST
+NIGHT_START_HOUR = 1   # 1 AM IST
 NIGHT_END_HOUR = 6     # 6 AM IST
 NEW_MATCH_HOURS = 48   # Only block for matches < 48 hours old
 
@@ -206,10 +206,12 @@ async def handle_creepy_detection(db, sender_id: str, receiver_id: str, match_id
 
 
 def is_night_mode_ist() -> bool:
-    """Check if current IST time is between 11pm-6am."""
+    """Check if current IST time is inside the night window (1am-6am)."""
     ist = timezone(timedelta(hours=5, minutes=30))
-    now_ist = datetime.now(ist)
-    return now_ist.hour >= NIGHT_START_HOUR or now_ist.hour < NIGHT_END_HOUR
+    h = datetime.now(ist).hour
+    if NIGHT_START_HOUR < NIGHT_END_HOUR:
+        return NIGHT_START_HOUR <= h < NIGHT_END_HOUR
+    return h >= NIGHT_START_HOUR or h < NIGHT_END_HOUR
 
 
 async def check_night_mode_block(db, sender_id: str, receiver_id: str, match_id: str) -> tuple:

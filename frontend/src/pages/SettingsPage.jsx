@@ -787,7 +787,7 @@ const SettingsPage = ({ user, setUser }) => {
                 </div>
                 <div>
                   <p className="font-semibold text-gray-900 text-sm">Night Safety Mode</p>
-                  <p className="text-xs text-gray-500">11PM-6AM new matches can't message you</p>
+                  <p className="text-xs text-gray-500">1AM-6AM new matches can't message you</p>
                 </div>
               </div>
               <button
