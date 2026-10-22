@@ -14,6 +14,7 @@ import { haptic } from '@/utils/haptics';
 
 import { BACKEND_URL, API } from '@/config/api';
 import { getPageData, setPageData } from '@/utils/pageCache';
+import { MatchChatUnlock, isChatUnlocked } from '@/components/MatchChatUnlock';
 if (!BACKEND_URL) {
   console.error('⚠️ REACT_APP_BACKEND_URL is not set!');
 }
@@ -136,6 +137,7 @@ const MatchesPage = ({ user }) => {
   const [showSafetyModal, setShowSafetyModal] = useState(false);
   const [pendingChatId, setPendingChatId] = useState(null);
   const [pendingChatUser, setPendingChatUser] = useState(null);
+  const [unlockMatch, setUnlockMatch] = useState(null);
 
   // Filtered & sorted conversations based on chatFilter
   const filteredConversations = useMemo(() => {
@@ -200,7 +202,11 @@ const MatchesPage = ({ user }) => {
   };
 
   // Handle chat navigation with safety check
-  const handleChatClick = (matchId, chatUser) => {
+  const needsUnlock = (matchId) => user?.gender?.toLowerCase() === 'male' && !user?.is_premium && !user?.isPremium
+    && !conversations.some(c => c.match_id === matchId) && !isChatUnlocked(matchId);
+
+  const handleChatClick = (matchId, chatUser, skipGate = false) => {
+    if (!skipGate && needsUnlock(matchId)) { setUnlockMatch({ matchId, user: chatUser }); return; }
     // Clear the unread badge instantly (chat open marks them read on the server)
     setConversations(prev => {
       const next = prev.map(c => (c.match_id === matchId ? { ...c, unreadCount: 0 } : c));
@@ -928,6 +934,12 @@ const MatchesPage = ({ user }) => {
       </div>
       </PullToRefresh>
       
+      <MatchChatUnlock
+        match={unlockMatch}
+        onClose={() => setUnlockMatch(null)}
+        onPremium={() => navigate('/premium')}
+        onUnlocked={() => { const m = unlockMatch; setUnlockMatch(null); handleChatClick(m.matchId, m.user, true); }}
+      />
       {/* Safety Message Modal */}
       <SafetyMessageModal 
         isOpen={showSafetyModal} 

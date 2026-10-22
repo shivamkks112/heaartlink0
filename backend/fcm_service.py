@@ -279,12 +279,12 @@ async def notify_profile_view(db, user_id: str, viewer_name: str, viewer_id: str
     if anonymous:
         return await send_to_user(db, user_id,
             title="Someone viewed your profile",
-            body="Dekho kaun hai — Premium pe reveal karo",
+            body="Kisi ne tumhari profile dekhi",
             data={"type": "profile_view", "route": "/likes"},
         )
     return await send_to_user(db, user_id,
-        title="Profile Viewed!",
-        body=f"{viewer_name} viewed your profile.",
+        title=viewer_name,
+        body="Tumhari profile dekhi",
         data={"type": "profile_view", "viewer_id": viewer_id, "route": f"/profile/{viewer_id}"},
     )
 

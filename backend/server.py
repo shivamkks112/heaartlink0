@@ -847,10 +847,10 @@ async def _run_ai_profile_activity():
                                              "crushed_id": uid, "created_at": now.isoformat(), "revealed": False})
                 await db.users.update_one({"id": uid}, {"$set": {"last_ai_crush_at": now.isoformat()}})
                 await create_in_app_notification(
-                    uid, "Secret Crush!", "Kisi ne tumhe Secret Crush kiya hai! Premium pe dekho kaun hai.",
+                    uid, "Secret Crush", "Kisi ne tumhe Secret Crush kiya hai",
                     "crush", {"action": "open_crushes", "route": "/likes", "anonymous": True})
                 try:
-                    await fcm_service.send_to_user(db, uid, "Secret Crush!", "Kisi ne tumhe Secret Crush kiya hai! Kholke dekho.")
+                    await fcm_service.send_to_user(db, uid, "Secret Crush", "Kisi ne tumhe Secret Crush kiya hai")
                 except Exception:
                     pass
                 crushes += 1
@@ -6622,7 +6622,7 @@ async def _after_message_sent(message_id, match_id, sender_id, receiver_id, send
         if now_ts - _fcm_throttle.get(key, 0) > 10:
             _fcm_throttle[key] = now_ts
             asyncio.create_task(_send_push_to_user(
-                user_id=receiver_id, title=f"New message from {sender_name}", message=content[:100],
+                user_id=receiver_id, title=sender_name, message=content[:100],
                 data={"type": "message", "action": "open_chat", "match_id": match_id, "route": f"/chat/{match_id}"}))
         await create_in_app_notification(
             receiver_id, f"New message from {sender_name}", content[:100], "message",

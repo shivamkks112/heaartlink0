@@ -40,7 +40,9 @@ const ChatPage = ({ user }) => {
   const _cachedMsgs = _cc?.messages || getCachedChatMessages(matchId) || [];
   const [messages, setMessages] = useState(_cachedMsgs);
   const [newMessage, setNewMessage] = useState('');
-  const [otherUser, setOtherUser] = useState(_routeUser || _cc?.otherUser || null);
+  const _mcache = getPageData('matches', user?.id);
+  const _fromList = [...(_mcache?.conversations || []), ...(_mcache?.matches || [])].find(c => c.match_id === matchId)?.user || null;
+  const [otherUser, setOtherUser] = useState(_routeUser || _cc?.otherUser || _fromList);
   // Show chat UI instantly — header from route/cache, messages from cache
   const [loading, setLoading] = useState(false);
   const [messagesLoading, setMessagesLoading] = useState(_cachedMsgs.length === 0);

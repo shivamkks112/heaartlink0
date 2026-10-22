@@ -183,3 +183,8 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 
 ## 2026-06 — Image proxy
 - /api/img?u=&w= resizes external (emergent static / firebase) images to JPEG, memory cached; slim_photos rewrites those URLs (800KB -> ~50-90KB)
+
+## 2026-06 — Simple notifs + chat unlock
+- Push: message title=sender name, body=message; removed premium upsell lines (profile view, crush)
+- MatchChatUnlock sheet: male free users starting a NEW chat from Match tab watch 2 rewarded videos (progress saved in localStorage heartlink_chat_unlocks) or Premium; skipped if conversation exists
+- ChatPage takes otherUser from cached matches/conversations -> instant open from notification
