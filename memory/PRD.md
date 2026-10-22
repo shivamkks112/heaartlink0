@@ -188,3 +188,11 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 - Push: message title=sender name, body=message; removed premium upsell lines (profile view, crush)
 - MatchChatUnlock sheet: male free users starting a NEW chat from Match tab watch 2 rewarded videos (progress saved in localStorage heartlink_chat_unlocks) or Premium; skipped if conversation exists
 - ChatPage takes otherUser from cached matches/conversations -> instant open from notification
+
+## 2026-06 — Audit (read-only) findings, awaiting approval
+- C1 privacy: unauthenticated /api/init/{id} & /api/profile/{id} return email/phone of any user
+- H1 /active-users 12-15s (sometimes 520): full docs w/ base64, case-insensitive regex, blockers full docs
+- H2 /conversations 3.7-5.9s: N+1 sequential per match; messages lack (match_id, created_at) index (existing index uses timestamp)
+- H3 matches collection has no index on "id" (find_one by id everywhere)
+- M1 new_match WS sends profile_picture possibly base64
+- Notifications/ads: need prod logs / device debug panel
