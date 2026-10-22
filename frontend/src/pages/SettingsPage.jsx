@@ -14,6 +14,7 @@ import {
 import { useTheme } from '@/hooks/useTheme';
 
 import { BACKEND_URL, API } from '@/config/api';
+import { AdDebugPanel } from '@/components/ads/AdDebugPanel';
 
 const DailyRewardsWidget = ({ userId, isGirl }) => {
   const [status, setStatus] = useState(null);
@@ -815,6 +816,8 @@ const SettingsPage = ({ user, setUser }) => {
             </div>
           </div>
         )}
+
+        <AdDebugPanel />
 
         {/* Feedback & Support */}
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 shadow-sm mb-4" data-testid="feedback-section">

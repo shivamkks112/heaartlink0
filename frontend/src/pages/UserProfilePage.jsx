@@ -42,7 +42,7 @@ const UserProfilePage = ({ user }) => {
   const fetchUserProfile = async () => {
     try {
       console.log('🔍 Fetching user profile:', userId);
-      const response = await axios.get(`${API}/profile/${userId}`);
+      const response = await axios.get(`${API}/profile/${userId}?slim=1`);
       console.log('✅ Profile data:', response.data);
       setProfileUser(response.data);
       if (user?.id && user.id !== userId) {

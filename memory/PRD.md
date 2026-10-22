@@ -159,3 +159,8 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 - NATIVE_ID ca-app-pub-3735972538807236/9004238889 in AdsService AD_CONFIG; impressions tracked as ad_type native; admin analytics shows Native column
 - Risk: @codetrix-studio/capacitor-google-auth peer is cap6 (works via ignore), needs phone test
 - Pending: phone testing by user
+
+## 2026-06 — Speed + ad diagnostics
+- /api/discover/{id} now uses aggregate with _B64_MARK + slim_photos (photo URLs, no base64)
+- /api/profile/{id}?slim=1 (used by UserProfilePage only; own ProfilePage stays full to keep edits safe). Base64 user: 2.25MB -> 951B
+- Settings: AdDebugPanel (native only) shows ad SDK states, AdMob error log, Test ad button — for diagnosing ads not showing on user Cap8 build

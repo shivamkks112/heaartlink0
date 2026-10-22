@@ -3479,12 +3479,11 @@ async def delete_account_request(request: DeleteAccountRequest):
 # Profile Routes
 @api_router.get("/profile/{user_id}")
 @api_router.get("/api/profile/{user_id}")
-async def get_profile(user_id: str):
-    """Get user profile - OPTIMIZED with caching"""
-    # Check cache first
+async def get_profile(user_id: str, request: Request, slim: bool = False):
+    """Get user profile - OPTIMIZED with caching; slim=1 serves photo URLs instead of base64"""
     cached = get_cached_user(user_id)
     if cached:
-        return cached
+        return slim_photos(cached, request) if slim else cached
     
     # Use projection to fetch only needed fields (faster query)
     user = await db.users.find_one(
@@ -3497,7 +3496,7 @@ async def get_profile(user_id: str):
     # Clean and cache
     clean_user = clean_user_data(user)
     set_cached_user(user_id, clean_user)
-    return clean_user
+    return slim_photos(clean_user, request) if slim else clean_user
 
 @api_router.put("/profile/{user_id}")
 async def update_profile(user_id: str, updates: dict):
@@ -4457,7 +4456,7 @@ async def report_user(user_id: str, report_data: ReportUser):
 
 # Discovery Routes
 @api_router.get("/discover/{user_id}")
-async def discover_users(user_id: str, limit: int = 10, relationship_intent: str = None, trust_badge_level: str = None, last_active_hours: int = None, city: str = None):
+async def discover_users(request: Request, user_id: str, limit: int = 10, relationship_intent: str = None, trust_badge_level: str = None, last_active_hours: int = None, city: str = None):
     """
     Discover users with safety filters - OPTIMIZED
     - Uses projection to fetch only needed fields
@@ -4557,7 +4556,9 @@ async def discover_users(user_id: str, limit: int = 10, relationship_intent: str
         "selfie_verification_status": 1,
     }
     
-    users = await db.users.find(query, discover_projection).limit(limit * 3).to_list(None)
+    discover_projection["profile_picture"] = _B64_MARK("$profile_picture")
+    discover_projection["photos"] = {"$map": {"input": {"$ifNull": ["$photos", []]}, "as": "p", "in": _B64_MARK("$$p")}}
+    users = await db.users.aggregate([{"$match": query}, {"$limit": limit * 3}, {"$project": discover_projection}]).to_list(None)
     
     # Post-process: Check gender lock from other user's perspective and Indian location
     filtered_users = []
@@ -4698,7 +4699,7 @@ async def discover_users(user_id: str, limit: int = 10, relationship_intent: str
         
         result.append(entry)
     
-    return result
+    return slim_photos(result, request)
 
 # ==================== LOCATION & NEARBY MATCHES ====================
 
