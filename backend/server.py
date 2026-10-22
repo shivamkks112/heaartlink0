@@ -285,14 +285,15 @@ def _B64_MARK(field):
     ]}
 
 
-async def find_users_light(query: dict, fields: list) -> list:
+async def find_users_light(query: dict, fields: list, sort: dict = None, limit: int = 0) -> list:
     """Fetch users with photo fields reduced to short markers (no MB-sized base64 transfer)."""
     proj = {"_id": 0, **{f: 1 for f in fields if f not in ("photos", "profile_picture")}}
     if "profile_picture" in fields:
         proj["profile_picture"] = _B64_MARK("$profile_picture")
     if "photos" in fields:
         proj["photos"] = {"$map": {"input": {"$ifNull": ["$photos", []]}, "as": "p", "in": _B64_MARK("$$p")}}
-    return await db.users.aggregate([{"$match": query}, {"$project": proj}]).to_list(None)
+    pipeline = [{"$match": query}] + ([{"$sort": sort}] if sort else []) + ([{"$limit": limit}] if limit else []) + [{"$project": proj}]
+    return await db.users.aggregate(pipeline).to_list(None)
 
 
 def slim_photos(obj, request: Request):
@@ -5044,6 +5045,8 @@ async def get_icebreakers():
 # Like/Match Routes
 async def _post_match_tasks(match_id, user_id, target_id, user_name, target_name, user_pic, target_pic):
     """Background: notifications, WS, FCM after match. Runs after API response sent for speed."""
+    user_pic = user_pic if isinstance(user_pic, str) and user_pic.startswith("http") else None
+    target_pic = target_pic if isinstance(target_pic, str) and target_pic.startswith("http") else None
     try:
         await manager.send_message(target_id, {
             "type": "new_match", "match_id": match_id,
@@ -5697,6 +5700,8 @@ async def get_matches(user_id: str, request: Request):
     
     result = []
     for match in matches:
+        if not match.get("id"):
+            continue
         other_id = match["user2_id"] if match["user1_id"] == user_id else match["user1_id"]
         
         if other_id in blocked_users:
@@ -5837,9 +5842,9 @@ async def get_likes(user_id: str, request: Request):
     return slim_photos(result, request)
 
 @api_router.get("/active-users/{user_id}")
-async def get_active_users(user_id: str, limit: int = 20):
+async def get_active_users(user_id: str, request: Request, limit: int = 20):
     """Get recently active users who are not blocked and not matched"""
-    current_user = await db.users.find_one({"id": user_id})
+    current_user = await db.users.find_one({"id": user_id}, {"_id": 0, "blocked_users": 1, "looking_for": 1, "gender": 1})
     if not current_user:
         raise HTTPException(status_code=404, detail="User not found")
     
@@ -5847,18 +5852,8 @@ async def get_active_users(user_id: str, limit: int = 20):
     blocked_users = current_user.get("blocked_users", [])
     
     # Find users who blocked current user
-    blockers = await db.users.find({"blocked_users": user_id}).limit(1000).to_list(None)
+    blockers = await db.users.find({"blocked_users": user_id}, {"_id": 0, "id": 1}).limit(1000).to_list(None)
     blocker_ids = [u["id"] for u in blockers]
-    
-    # Get already matched users
-    matches = await db.matches.find({
-        "$or": [{"user1_id": user_id}, {"user2_id": user_id}],
-        "matched": True
-    }).limit(1000).to_list(None)
-    matched_ids = set()
-    for m in matches:
-        matched_ids.add(m["user1_id"])
-        matched_ids.add(m["user2_id"])
     
     # Active threshold: users active in last 30 minutes or connected via WS
     active_threshold = (datetime.now(timezone.utc) - timedelta(minutes=30)).isoformat()
@@ -5884,18 +5879,19 @@ async def get_active_users(user_id: str, limit: int = 20):
     }
     
     # Real users first; online AI personas (with photos) only fill remaining slots, shuffled
-    real = await db.users.find({**query, "is_ai_profile": {"$ne": True}}).sort("last_active", -1).limit(limit).to_list(None)
+    fields = ["id", "name", "age", "bio", "photos", "profile_picture", "interests", "verified", "location", "last_active"]
+    real = await find_users_light({**query, "is_ai_profile": {"$ne": True}}, fields, sort={"last_active": -1}, limit=limit)
     users = real
     if len(real) < limit:
-        ai = await db.users.find({**query, "is_ai_profile": True, "is_active_ai": True, "is_online": True,
-                                  "photos.0": {"$exists": True}}).limit(100).to_list(None)
+        ai = await find_users_light({**query, "is_ai_profile": True, "is_active_ai": True, "is_online": True,
+                                     "photos.0": {"$exists": True}}, fields, limit=100)
         random.shuffle(ai)
         users = real + ai[:limit - len(real)]
     
     # Determine online status: WS-connected OR active in last 5 minutes
     five_min_ago = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
     
-    return [{
+    return slim_photos([{
         "id": u["id"],
         "name": u["name"],
         "age": u.get("age", 0),
@@ -5907,7 +5903,7 @@ async def get_active_users(user_id: str, limit: int = 20):
         "location": u.get("location", ""),
         "last_active": u.get("last_active"),
         "is_online": (u["id"] in ws_connected_ids) or (u.get("last_active", "") >= five_min_ago if u.get("last_active") else False)
-    } for u in users]
+    } for u in users], request)
 
 
 @api_router.get("/conversations/{user_id}")
@@ -5925,43 +5921,33 @@ async def get_conversations(user_id: str, request: Request):
     ws_connected_ids = set(manager.active_connections.keys())
     five_min_ago = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
     conversations = []
-    
-    for match in matches:
-        match_id = match.get("id")
-        if not match_id:
-            continue
-        other_user_id = match["user2_id"] if match["user1_id"] == user_id else match["user1_id"]
-        
-        # Get last message and unread count in parallel
-        pipeline_last = [
-            {"$match": {"match_id": match_id, "is_deleted_for_all": {"$ne": True}}},
+    other_of = {m["id"]: (m["user2_id"] if m["user1_id"] == user_id else m["user1_id"]) for m in matches if m.get("id")}
+    match_ids = list(other_of.keys())
+    # 3 batched queries instead of 3 per match
+    last_rows, unread_rows, users = await asyncio.gather(
+        db.messages.aggregate([
+            {"$match": {"match_id": {"$in": match_ids}, "is_deleted_for_all": {"$ne": True}}},
             {"$sort": {"created_at": -1}},
-            {"$limit": 1},
-            {"$project": {"_id": 0}}
-        ]
-        pipeline_unread = [
-            {"$match": {"match_id": match_id, "receiver_id": user_id, "read": False, "is_deleted_for_all": {"$ne": True}}},
-            {"$count": "count"}
-        ]
-        
-        last_msgs = await db.messages.aggregate(pipeline_last).to_list(1)
-        unread_result = await db.messages.aggregate(pipeline_unread).to_list(1)
-        
-        last_message = last_msgs[0] if last_msgs else None
-        unread_count = unread_result[0]["count"] if unread_result else 0
-        
-        if not last_message:
+            {"$group": {"_id": "$match_id", "doc": {"$first": "$$ROOT"}}},
+        ]).to_list(None),
+        db.messages.aggregate([
+            {"$match": {"match_id": {"$in": match_ids}, "receiver_id": user_id, "read": False, "is_deleted_for_all": {"$ne": True}}},
+            {"$group": {"_id": "$match_id", "count": {"$sum": 1}}},
+        ]).to_list(None),
+        find_users_light({"id": {"$in": list(set(other_of.values()))}}, [
+            "id", "name", "age", "profile_picture", "photos", "is_online", "last_active", "verified", "is_ai_profile"]),
+    )
+    last_by = {r["_id"]: r["doc"] for r in last_rows}
+    unread_by = {r["_id"]: r["count"] for r in unread_rows}
+    user_by = {u["id"]: u for u in users}
+    
+    for match_id, other_user_id in other_of.items():
+        last_message = last_by.get(match_id)
+        other_user = user_by.get(other_user_id)
+        if not last_message or not other_user:
             continue
-        
-        # Get other user info
-        other_user = next(iter(await find_users_light({"id": other_user_id}, [
-            "id", "name", "age", "profile_picture", "photos",
-            "is_online", "last_active", "verified", "is_ai_profile"])), None)
-        if not other_user:
-            continue
-        
+        last_message.pop("_id", None)
         is_online = (other_user_id in ws_connected_ids) or (other_user.get("last_active", "") >= five_min_ago if other_user.get("last_active") else False)
-        
         conversations.append({
             "match_id": match_id,
             "user": {
@@ -5975,7 +5961,7 @@ async def get_conversations(user_id: str, request: Request):
                 "verified": other_user.get("verified", False),
             },
             "lastMessage": serialize_user_for_response(last_message, exclude_password=False),
-            "unreadCount": unread_count,
+            "unreadCount": unread_by.get(match_id, 0),
             "hasMessages": True,
         })
     
