@@ -1,4 +1,5 @@
 import { scrollListToTop } from '@/utils/scrollToTop';
+import BannerAdManager from '@/components/ads/BannerAdManager';
 import { useState, useEffect, lazy, Suspense, useRef, useCallback } from 'react';
 import '@/App.css';
 import '@/styles/material3.css';
@@ -399,6 +400,7 @@ function App() {
           <NavigationHelper />
           <PendingNavigationHandler user={user} />
           <BackButtonHandler />
+          <BannerAdManager user={user} />
           {user && <AppUpdateBanner />}
           {user && <RatingPrompt user={user} />}
           <Suspense fallback={<PageLoader />}>

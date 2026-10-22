@@ -143,3 +143,6 @@ code {
   height: 80px;
   margin-bottom: 70px;
 }
+
+/* Adaptive banner space (set by AdsService from the real ad height; 0 when no ad) */
+body.hl-banner #root { padding-bottom: var(--hl-banner-h, 0px); transition: padding-bottom 0.2s ease; }

@@ -209,6 +209,13 @@ class AdsService {
       this._addListener(BE.FailedToLoad, (err) => {
         this._log(`Banner FAILED to load: ${JSON.stringify(err)}`);
         this.bannerState = AdState.FAILED;
+        this._setBannerSpace(0); // no fill -> no empty gap
+      });
+
+      // Reserve exactly the banner's adaptive height so list content is never hidden behind it
+      this._addListener(BE.SizeChanged, (size) => {
+        const active = this.bannerState !== AdState.IDLE && this.bannerState !== AdState.FAILED;
+        this._setBannerSpace(active ? (size?.height || 0) : 0);
       });
 
       this._addListener(BE.Opened, () => {
@@ -219,6 +226,11 @@ class AdsService {
         this._log('Banner AD IMPRESSION recorded');
       });
     }
+  }
+
+  _setBannerSpace(px) {
+    document.documentElement.style.setProperty('--hl-banner-h', `${Math.round(px)}px`);
+    document.body.classList.toggle('hl-banner', px > 0);
   }
 
   _addListener(event, handler) {
@@ -454,7 +466,7 @@ class AdsService {
    * Show banner ad at bottom of screen
    * Call when entering a screen that should show banner (e.g., Discover)
    */
-  async showBanner() {
+  async showBanner(bottomMargin = 0) {
     if (!this.isNative() || !this.admob) return false;
     if (this.bannerState === AdState.SHOWING) {
       this._log('Banner already showing');
@@ -469,7 +481,7 @@ class AdsService {
         adId: AD_CONFIG.BANNER_ID,
         adSize: this._BannerAdSize?.ADAPTIVE_BANNER || 'ADAPTIVE_BANNER',
         position: this._BannerAdPosition?.BOTTOM_CENTER || 'BOTTOM_CENTER',
-        margin: 0,
+        margin: bottomMargin, // sits just above the bottom nav — never covers navigation
         isTesting: false,
       };
 
@@ -493,8 +505,9 @@ class AdsService {
     if (this.bannerState !== AdState.SHOWING) return false;
 
     try {
-      await this.admob.hideBanner();
+      await this.admob.removeBanner();
       this.bannerState = AdState.IDLE;
+      this._setBannerSpace(0);
       this._log('Banner HIDDEN');
       return true;
     } catch (error) {

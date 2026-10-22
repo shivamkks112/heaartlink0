@@ -147,3 +147,7 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 - Manifest android:enableOnBackInvokedCallback=true so Android 13-15 swipe-back gesture uses the same dispatcher/JS handler as back button.
 - Back on Chats tab: scrolls list to top first (scrollListToTop), then double-press exit.
 - Tap active bottom tab → scrollListToTop(0) (utils/scrollToTop.js, shared with back handler).
+
+## 2026-06 — Adaptive banner ads
+- BannerAdManager (App.js): ADAPTIVE_BANNER for free male users only on /matches, /likes, /notifications; placed above bottom nav (margin = nav height); shown 1.2s after page paint; removed on other routes and while any popup/modal is open. Real ad height → --hl-banner-h → #root padding (0 when no fill).
+- Native ads NOT done: @capacitor-community/admob native ads need v8.2.1+ (Capacitor 8); app is Capacitor 7.
