@@ -1,3 +1,4 @@
+import { BACKEND_URL } from '@/config/api';
 /**
  * HeartLink Ads Service — SINGLE SOURCE OF TRUTH
  * 
@@ -139,6 +140,7 @@ class AdsService {
     });
 
     this._addListener(IE.Showed, () => {
+      this._track('interstitial');
       this._log('Interstitial SHOWED (impression)');
       this.interstitialState = AdState.SHOWING;
     });
@@ -193,6 +195,7 @@ class AdsService {
 
     // Rewarded callback — this is where reward is confirmed
     this._addListener(RE.Rewarded, (reward) => {
+      this._track('rewarded');
       this._log(`Rewarded REWARD earned: ${JSON.stringify(reward)}`);
       this._lastRewardEarned = true;
     });
@@ -212,6 +215,8 @@ class AdsService {
         this._setBannerSpace(0); // no fill -> no empty gap
       });
 
+      if (BE.AdImpression) this._addListener(BE.AdImpression, () => this._track('banner'));
+
       // Reserve exactly the banner's adaptive height so list content is never hidden behind it
       this._addListener(BE.SizeChanged, (size) => {
         const active = this.bannerState !== AdState.IDLE && this.bannerState !== AdState.FAILED;
@@ -226,6 +231,17 @@ class AdsService {
         this._log('Banner AD IMPRESSION recorded');
       });
     }
+  }
+
+  _track(adType) {
+    try {
+      const u = JSON.parse(localStorage.getItem('user') || '{}');
+      if (!u.id) return;
+      fetch(`${BACKEND_URL}/api/ads/impression`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: u.id, ad_type: adType, timestamp: new Date().toISOString() }),
+      }).catch(() => {});
+    } catch (_) { /* ignore */ }
   }
 
   _setBannerSpace(px) {

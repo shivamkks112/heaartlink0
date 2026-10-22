@@ -197,6 +197,19 @@ async def get_admin_ad_analytics():
         {"$sort": {"_id": 1}}
     ]
     daily_impressions = await db.ad_impressions.aggregate(daily_pipeline).to_list(None)
+    ECPM_INR = {"banner": 10, "interstitial": 40, "rewarded": 100}  # rough India eCPM per 1000
+    by_day_type = await db.ad_impressions.aggregate([
+        {"$match": {"created_at": {"$gte": week_ago}}},
+        {"$group": {"_id": {"d": {"$substr": ["$created_at", 0, 10]}, "t": "$ad_type"}, "count": {"$sum": 1}}},
+    ]).to_list(None)
+    days = {}
+    for r in by_day_type:
+        d = days.setdefault(r["_id"]["d"], {"date": r["_id"]["d"], "banner": 0, "interstitial": 0, "rewarded": 0})
+        if r["_id"]["t"] in ECPM_INR:
+            d[r["_id"]["t"]] += r["count"]
+    for d in days.values():
+        d["est_inr"] = round(sum(d[t] * ECPM_INR[t] for t in ECPM_INR) / 1000, 2)
+    daily_by_type = sorted(days.values(), key=lambda x: x["date"], reverse=True)
 
     top_users_pipeline = [{"$group": {"_id": "$user_id", "count": {"$sum": 1}}}, {"$sort": {"count": -1}}, {"$limit": 10}]
     top_users_raw = await db.ad_impressions.aggregate(top_users_pipeline).to_list(None)
@@ -225,4 +238,6 @@ async def get_admin_ad_analytics():
         "reward_breakdown": {r["_id"]: {"count": r["count"], "total_amount": r["total_amount"]} for r in reward_breakdown},
         "daily_impressions": [{"date": d["_id"], "count": d["count"]} for d in daily_impressions],
         "top_users": top_users,
+        "daily_by_type": daily_by_type,
+        "ecpm_inr": ECPM_INR,
     }
