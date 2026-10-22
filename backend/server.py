@@ -247,6 +247,17 @@ def _photo_url(base: str, uid: str, slot, value: str, w: int = 0) -> str:
     return f"{base}/api/photo/{uid}/{slot}?v={v}" + (f"&w={w}" if w else "")
 
 
+_IMG_HOSTS = ("https://static.prod-images.emergentagent.com/", "https://firebasestorage.googleapis.com/")
+
+
+def _proxy_url(base: str, value, w: int):
+    """Route big external images through our resize proxy so phones download ~50KB instead of ~800KB."""
+    if isinstance(value, str) and value.startswith(_IMG_HOSTS):
+        from urllib.parse import quote
+        return f"{base}/api/img?w={w}&u={quote(value, safe='')}"
+    return value
+
+
 def _B64_MARK(field):
     """Mongo expr: replace base64 value with short marker 'B64:<len><tail>' (avoids transferring MBs)."""
     return {"$cond": [
@@ -290,6 +301,9 @@ def slim_photos(obj, request: Request):
                 ]
                 if "profile_picture" in out and not out["profile_picture"] and out["photos"]:
                     out["profile_picture"] = out["photos"][0]
+                out["photos"] = [_proxy_url(base, p, 720) for p in out["photos"]]
+            if "profile_picture" in out:
+                out["profile_picture"] = _proxy_url(base, out["profile_picture"], 400)
         return out
 
     return walk(obj)
@@ -307,6 +321,29 @@ def _make_thumb(data: bytes, w: int) -> bytes:
     out = io.BytesIO()
     img.save(out, "JPEG", quality=78, optimize=True)
     return out.getvalue()
+
+
+@api_router.get("/img")
+async def get_resized_image(u: str, w: int = 720):
+    if not u.startswith(_IMG_HOSTS):
+        raise HTTPException(status_code=400, detail="Host not allowed")
+    w = max(64, min(w, 1080))
+    ck = f"ext:{u}:{w}"
+    data = _thumb_cache.get(ck)
+    if data is None:
+        import httpx
+        async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+            r = await client.get(u)
+        if r.status_code != 200:
+            raise HTTPException(status_code=404, detail="Not found")
+        try:
+            data = await asyncio.to_thread(_make_thumb, r.content, w)
+        except Exception:
+            data = r.content
+        if len(_thumb_cache) > 2000:
+            _thumb_cache.clear()
+        _thumb_cache[ck] = data
+    return Response(content=data, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=31536000, immutable"})
 
 
 @api_router.get("/photo/{user_id}/{slot}")

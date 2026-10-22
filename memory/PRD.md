@@ -180,3 +180,6 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 ## 2026-06 — Photo/push speed
 - /photo endpoint fetches only requested slot ($slice)
 - FCM send runs in thread (no event-loop blocking); creepy check capped at 4s before push
+
+## 2026-06 — Image proxy
+- /api/img?u=&w= resizes external (emergent static / firebase) images to JPEG, memory cached; slim_photos rewrites those URLs (800KB -> ~50-90KB)
