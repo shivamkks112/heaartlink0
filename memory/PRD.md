@@ -176,3 +176,7 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 - Chat header -> profile opens instantly with preview (route state) and caches; skips conversations fetch
 - Push tap listener attached at app start (initPushTapListener), was delayed 3s
 - /conversations skips match docs without id (was 500)
+
+## 2026-06 — Photo/push speed
+- /photo endpoint fetches only requested slot ($slice)
+- FCM send runs in thread (no event-loop blocking); creepy check capped at 4s before push

@@ -311,15 +311,17 @@ def _make_thumb(data: bytes, w: int) -> bytes:
 
 @api_router.get("/photo/{user_id}/{slot}")
 async def get_user_photo(user_id: str, slot: str, w: int = 0, v: str = ""):
-    u = await db.users.find_one({"id": user_id}, {"_id": 0, "photos": 1, "profile_picture": 1})
+    idx = 0 if slot == "p" else (int(slot) if slot.isdigit() else -1)
+    if idx < 0:
+        raise HTTPException(status_code=404, detail="Not found")
+    proj = {"_id": 0, "photos": {"$slice": [idx, 1]}}
+    if slot == "p":
+        proj["profile_picture"] = 1
+    u = await db.users.find_one({"id": user_id}, proj)
     if not u:
         raise HTTPException(status_code=404, detail="Not found")
-    if slot == "p":
-        value = u.get("profile_picture") or ((u.get("photos") or [None])[0])
-    else:
-        photos = u.get("photos") or []
-        idx = int(slot) if slot.isdigit() else -1
-        value = photos[idx] if 0 <= idx < len(photos) else None
+    first = (u.get("photos") or [None])[0]
+    value = (u.get("profile_picture") or first) if slot == "p" else first
     if not value:
         raise HTTPException(status_code=404, detail="Not found")
     if not value.startswith("data:"):
@@ -6564,7 +6566,13 @@ async def _after_message_sent(message_id, match_id, sender_id, receiver_id, send
                               needs_ai_safety: bool, send_push: bool):
     """Background: retract the message if AI flags it as vulgar, otherwise push-notify the receiver."""
     try:
-        if needs_ai_safety and await handle_creepy_detection(db, sender_id, receiver_id, match_id, original_content, ws_manager=manager):
+        flagged = False
+        if needs_ai_safety:
+            try:
+                flagged = await asyncio.wait_for(handle_creepy_detection(db, sender_id, receiver_id, match_id, original_content, ws_manager=manager), 4)
+            except asyncio.TimeoutError:
+                logging.warning("creepy check timeout — delivering push")
+        if flagged:
             await db.messages.update_one({"id": message_id}, {"$set": {"is_deleted_for_all": True, "content": "This message was deleted"}})
             for uid in (receiver_id, sender_id):
                 await manager.send_message(uid, {"type": "message_deleted", "message_id": message_id, "deleted_for_all": True})
