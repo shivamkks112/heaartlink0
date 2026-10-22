@@ -202,3 +202,8 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 - Perf: active-users uses find_users_light(sort,limit)+slim_photos (preview 2.5s/8MB -> 0.14s/14KB); conversations = 3 batched queries; database.py _safe_index (one conflict no longer aborts all index creation — was failing since Aug); new indexes messages(match_id,created_at-1), (receiver_id,read), matches(user1_id/user2_id,matched)
 - /matches & /conversations skip match docs without id; new_match WS sends only http pics
 - Known remaining risks: /auth/phone-login trusts client phone (no Firebase token verify) = account takeover risk; write endpoints have no auth
+
+## 2026-06 — Push + instant match (checkpoint 7273c1c)
+- Root causes: custom HeartLinkMessagingService hijacked FCM (foreground taps had no route; Capacitor listeners bypassed) -> removed, default channel heartlink_messages, presentationOptions [] (JS shows foreground local notif, no dupes); permission only requested on 'prompt' (not 'prompt-with-rationale') -> fixed; same device token on multiple accounts -> register-token clears it from others; stale token cleared in send_to_user; /fcm/diagnostics no longer returns email/token prefix
+- Match: LLM compatibility blocked matched=True write (5.6s) -> match saved first, compat in background (score null in response); /matches returned 404 for users without blocked_users field (projection empty) -> fixed; MatchesPage shows matches as soon as /matches returns
+- Pending (device): background/closed delivery on real phone; OEM battery restrictions; duplicate-like race not handled (no schema change)
