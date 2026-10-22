@@ -291,6 +291,7 @@ function App() {
         import('@/services/WebSocketService').then((mod) => {
           mod.default.connect(userData.id);
         });
+        import('@/services/pushNotifications').then(({ initPushTapListener }) => initPushTapListener());
         // Push notifications (lower priority, delayed)
         setTimeout(() => {
           import('@/services/pushNotifications').then(({ initPushNotifications }) => {

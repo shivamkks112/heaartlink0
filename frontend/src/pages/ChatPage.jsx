@@ -736,7 +736,7 @@ const ChatPage = ({ user }) => {
           <button onClick={() => navigate('/matches', { state: { tab: fromTab } })} className="p-2 rounded-full active:bg-white/20">
             <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
           </button>
-          <button onClick={() => otherUser?.id && navigate(`/profile/${otherUser.id}`)} className="flex items-center gap-2.5 flex-1 min-w-0 active:opacity-80">
+          <button onClick={() => otherUser?.id && navigate(`/profile/${otherUser.id}`, { state: { preview: otherUser, matchId } })} className="flex items-center gap-2.5 flex-1 min-w-0 active:opacity-80">
             <div className="relative flex-shrink-0">
               <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-white/30 bg-white/20">
                 {otherUser?.profile_picture ? (

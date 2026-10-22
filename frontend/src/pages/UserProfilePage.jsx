@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { toast, Toaster } from 'react-hot-toast';
 import { Heart, X, Star, MapPin, Briefcase, GraduationCap, ArrowLeft, MessageCircle } from 'lucide-react';
@@ -12,18 +12,20 @@ import { getPageData, setPageData } from '@/utils/pageCache';
 const UserProfilePage = ({ user }) => {
   const { userId } = useParams();
   const navigate = useNavigate();
+  const nav = useLocation().state || {};
   const _up = getPageData('userprofile', userId);
-  const [profileUser, setProfileUser] = useState(_up?.profileUser || null);
-  const [loading, setLoading] = useState(!_up);
+  const preview = nav.preview?.id === userId ? nav.preview : null;
+  const [profileUser, setProfileUser] = useState(_up?.profileUser || preview);
+  const [loading, setLoading] = useState(!_up && !preview);
   const [actionLoading, setActionLoading] = useState(false);
-  const [matchInfo, setMatchInfo] = useState(_up?.matchInfo || null);
+  const [matchInfo, setMatchInfo] = useState(_up?.matchInfo || (nav.matchId ? { matched: true, match_id: nav.matchId } : null));
 
   useEffect(() => {
     if (userId) {
       fetchUserProfile();
-      checkMatchStatus();
+      if (!nav.matchId) checkMatchStatus();
     }
-  }, [userId]);
+  }, [userId]); // eslint-disable-line
 
   const checkMatchStatus = async () => {
     if (!user?.id) return;
@@ -45,6 +47,7 @@ const UserProfilePage = ({ user }) => {
       const response = await axios.get(`${API}/profile/${userId}?slim=1`);
       console.log('✅ Profile data:', response.data);
       setProfileUser(response.data);
+      setPageData('userprofile', { profileUser: response.data, matchInfo }, userId);
       if (user?.id && user.id !== userId) {
         axios.post(`${API}/profile/${userId}/view?viewer_id=${user.id}`).catch(() => {});
       }

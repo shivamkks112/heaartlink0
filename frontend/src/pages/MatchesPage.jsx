@@ -201,6 +201,15 @@ const MatchesPage = ({ user }) => {
 
   // Handle chat navigation with safety check
   const handleChatClick = (matchId, chatUser) => {
+    // Clear the unread badge instantly (chat open marks them read on the server)
+    setConversations(prev => {
+      const next = prev.map(c => (c.match_id === matchId ? { ...c, unreadCount: 0 } : c));
+      const cached = getPageData('matches', user.id);
+      if (cached) setPageData('matches', { ...cached, conversations: next }, user.id);
+      return next;
+    });
+    setUnreadCounts(prev => ({ ...prev, [matchId]: 0 }));
+    axios.post(`${API}/messages/${matchId}/mark-read/${user.id}`).catch(() => {});
     if (!hasSeenSafetyMessage()) {
       setPendingChatId(matchId);
       setPendingChatUser(chatUser);
@@ -739,10 +748,8 @@ const MatchesPage = ({ user }) => {
                         {/* Profile Picture */}
                         <div className="relative flex-shrink-0">
                           <div className="w-14 h-14 rounded-full overflow-hidden" style={{ background: 'var(--m3-surface-container-high)' }}>
-                            {conv.user.profile_picture ? (
-                              <img src={conv.user.profile_picture} alt={conv.user.name} className="w-full h-full object-cover" loading="lazy" decoding="async" />
-                            ) : conv.user.photos && conv.user.photos.length > 0 ? (
-                              <img src={conv.user.photos[0]} alt={conv.user.name} className="w-full h-full object-cover" loading="lazy" decoding="async" />
+                            {(conv.user.profile_picture || (conv.user.photos || []).find(Boolean)) ? (
+                              <img src={conv.user.profile_picture || conv.user.photos.find(Boolean)} alt="" className="w-full h-full object-cover" decoding="async" onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }} data-testid={`conv-avatar-${conv.match_id}`} />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center">
                                 <Heart className="w-7 h-7" style={{ color: 'var(--m3-outline)' }} />

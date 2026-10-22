@@ -20,6 +20,15 @@ let _currentUserId = null;
 
 // ─── Public API ──────────────────────────────────────────────────
 
+// Attach the tap handler right at app start so opening from a notification navigates instantly
+export const initPushTapListener = async () => {
+  if (!Capacitor.isNativePlatform()) return;
+  const { PushNotifications } = await import('@capacitor/push-notifications');
+  await PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+    navigateToScreen(action.notification?.data || {});
+  });
+};
+
 export const initPushNotifications = async (userId) => {
   if (!Capacitor.isNativePlatform()) {
     console.log(TAG, 'Skipped — web platform');

@@ -286,8 +286,10 @@ def slim_photos(obj, request: Request):
             if isinstance(photos, list):
                 out["photos"] = [
                     _photo_url(base, uid, i, p, 720) if isinstance(p, str) and (p.startswith("data:") or p.startswith("B64:")) else p
-                    for i, p in enumerate(photos)
+                    for i, p in enumerate(photos) if p
                 ]
+                if "profile_picture" in out and not out["profile_picture"] and out["photos"]:
+                    out["profile_picture"] = out["photos"][0]
         return out
 
     return walk(obj)
@@ -5866,7 +5868,9 @@ async def get_conversations(user_id: str, request: Request):
     conversations = []
     
     for match in matches:
-        match_id = match["id"]
+        match_id = match.get("id")
+        if not match_id:
+            continue
         other_user_id = match["user2_id"] if match["user1_id"] == user_id else match["user1_id"]
         
         # Get last message and unread count in parallel

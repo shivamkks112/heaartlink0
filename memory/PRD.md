@@ -169,3 +169,10 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 - POST /messages: AI vulgarity check moved to background (_after_message_sent); flagged msg retracted via message_deleted WS; push + in-app notif sent after check. sender/receiver fetched without photos. Send 2.8s -> 0.15s
 - Chat history now loads NEWEST messages (order=desc in ChatPage + cacheManager); previously oldest 30 were loaded
 - /chat/{id}/info uses find_users_light (no base64 transfer)
+
+## 2026-06 — Chat list/profile/notif fixes
+- slim_photos drops null photos and fills empty profile_picture from first photo
+- Chats list avatar: first valid photo, no lazy, hides on error; opening chat clears unread badge instantly + mark-read
+- Chat header -> profile opens instantly with preview (route state) and caches; skips conversations fetch
+- Push tap listener attached at app start (initPushTapListener), was delayed 3s
+- /conversations skips match docs without id (was 500)
