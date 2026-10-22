@@ -196,3 +196,9 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 - H3 matches collection has no index on "id" (find_one by id everywhere)
 - M1 new_match WS sends profile_picture possibly base64
 - Notifications/ads: need prod logs / device debug panel
+
+## 2026-06 — Approved fixes 1-5 DONE (checkpoints cecfa22 privacy, 0042500 perf)
+- Privacy: _viewer_id/_hide_private in server.py; GET /profile, GET /init, PUT /profile hide email/phone/fcm_token/firebase_uid/device ids unless Bearer token user_id == owner. Token expiry 30d (security.py). phone-signup now returns access_token. Frontend index.js axios interceptor adds Bearer heartlink_token to BACKEND_URL calls
+- Perf: active-users uses find_users_light(sort,limit)+slim_photos (preview 2.5s/8MB -> 0.14s/14KB); conversations = 3 batched queries; database.py _safe_index (one conflict no longer aborts all index creation — was failing since Aug); new indexes messages(match_id,created_at-1), (receiver_id,read), matches(user1_id/user2_id,matched)
+- /matches & /conversations skip match docs without id; new_match WS sends only http pics
+- Known remaining risks: /auth/phone-login trusts client phone (no Firebase token verify) = account takeover risk; write endpoints have no auth
