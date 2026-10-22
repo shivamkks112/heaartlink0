@@ -207,3 +207,6 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 - Root causes: custom HeartLinkMessagingService hijacked FCM (foreground taps had no route; Capacitor listeners bypassed) -> removed, default channel heartlink_messages, presentationOptions [] (JS shows foreground local notif, no dupes); permission only requested on 'prompt' (not 'prompt-with-rationale') -> fixed; same device token on multiple accounts -> register-token clears it from others; stale token cleared in send_to_user; /fcm/diagnostics no longer returns email/token prefix
 - Match: LLM compatibility blocked matched=True write (5.6s) -> match saved first, compat in background (score null in response); /matches returned 404 for users without blocked_users field (projection empty) -> fixed; MatchesPage shows matches as soon as /matches returns
 - Pending (device): background/closed delivery on real phone; OEM battery restrictions; duplicate-like race not handled (no schema change)
+
+## 2026-06 — Night safety 1-6am; firebase_config send_multicast->send_each_for_multicast (was failing live, engagement broadcasts reached nobody); channel heartlink_messages. Live logs: message/match single sends OK, both test users have distinct tokens.
+- OPEN: /admin/all-users has no auth (leaks user search) — awaiting approval
