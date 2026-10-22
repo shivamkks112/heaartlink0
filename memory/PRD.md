@@ -152,3 +152,10 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 - BannerAdManager (App.js): ADAPTIVE_BANNER for free male users only on /matches, /likes, /notifications; placed above bottom nav (margin = nav height); shown 1.2s after page paint; removed on other routes and while any popup/modal is open. Real ad height → --hl-banner-h → #root padding (0 when no fill).
 - Native ads NOT done: @capacitor-community/admob native ads need v8.2.1+ (Capacitor 8); app is Capacitor 7.
 - Ad Earnings: AdsService._track posts /api/ads/impression on banner impression, interstitial shown, rewarded earned. /admin/ad-analytics adds daily_by_type + est INR (eCPM banner 10, interstitial 40, rewarded 100). Table in AdAnalyticsPanel. Capacitor 8 upgrade NOT done.
+
+## 2026-06 — Capacitor 8 + Native Ads
+- Upgraded @capacitor/* to v8, admob 8.2.1 (Native Ads preview), capgo updater v8; android gradle AGP 8.13.0, wrapper 8.14.3, variables.gradle per Cap8, manifest configChanges +density; .yarnrc ignore-engines (cap cli needs Node 22)
+- New components/ads/NativeAdCard.jsx (useNativeAdFeed + NativeAdCard). Likes grid: full-width native ad after every 6 profiles (male non-premium, native app only). Likes page now uses inner scroll container (likes-scroll) so ad overlay never covers navbar/banner
+- NATIVE_ID ca-app-pub-3735972538807236/9004238889 in AdsService AD_CONFIG; impressions tracked as ad_type native; admin analytics shows Native column
+- Risk: @codetrix-studio/capacitor-google-auth peer is cap6 (works via ignore), needs phone test
+- Pending: phone testing by user

@@ -79,6 +79,7 @@ const AdAnalyticsPanel = () => {
                   interstitial: 'bg-blue-500',
                   rewarded: 'bg-purple-500',
                   banner: 'bg-emerald-500',
+                  native: 'bg-pink-500',
                 };
                 return (
                   <div key={type}>
@@ -170,17 +171,17 @@ const AdAnalyticsPanel = () => {
       )}
       <div className="bg-white rounded-2xl border border-gray-200 p-4 overflow-x-auto" data-testid="ad-daily-earnings">
         <h3 className="font-bold text-gray-900 mb-1">Daily ads & estimated earnings</h3>
-        <p className="text-xs text-gray-500 mb-3">Estimate (₹ per 1000): banner {data.ecpm_inr?.banner}, interstitial {data.ecpm_inr?.interstitial}, video {data.ecpm_inr?.rewarded}. Real amount AdMob dashboard mein.</p>
+        <p className="text-xs text-gray-500 mb-3">Estimate (₹ per 1000): banner {data.ecpm_inr?.banner}, native {data.ecpm_inr?.native}, interstitial {data.ecpm_inr?.interstitial}, video {data.ecpm_inr?.rewarded}. Real amount AdMob dashboard mein.</p>
         <table className="w-full text-sm">
-          <thead><tr className="text-left text-gray-500"><th className="py-1">Date</th><th>Banner</th><th>Interstitial</th><th>Video</th><th>Est. ₹</th></tr></thead>
+          <thead><tr className="text-left text-gray-500"><th className="py-1">Date</th><th>Banner</th><th>Native</th><th>Interstitial</th><th>Video</th><th>Est. ₹</th></tr></thead>
           <tbody>
             {(data.daily_by_type || []).map(d => (
               <tr key={d.date} className="border-t" data-testid={`ad-day-${d.date}`}>
-                <td className="py-1.5">{d.date}</td><td>{d.banner}</td><td>{d.interstitial}</td><td>{d.rewarded}</td>
+                <td className="py-1.5">{d.date}</td><td>{d.banner}</td><td>{d.native || 0}</td><td>{d.interstitial}</td><td>{d.rewarded}</td>
                 <td className="font-semibold text-green-600">₹{d.est_inr}</td>
               </tr>
             ))}
-            {!(data.daily_by_type || []).length && <tr><td colSpan={5} className="py-3 text-center text-gray-400">Abhi koi ad data nahi</td></tr>}
+            {!(data.daily_by_type || []).length && <tr><td colSpan={6} className="py-3 text-center text-gray-400">Abhi koi ad data nahi</td></tr>}
           </tbody>
         </table>
       </div>

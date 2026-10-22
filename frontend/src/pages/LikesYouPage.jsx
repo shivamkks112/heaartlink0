@@ -10,6 +10,7 @@ import { getPageData, setPageData } from '@/utils/pageCache';
 import adsService from '@/services/AdsService';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
+import { NativeAdCard, useNativeAdFeed, NATIVE_AD_EVERY } from '@/components/ads/NativeAdCard';
 
 
 const LikesYouPage = ({ user }) => {
@@ -27,6 +28,7 @@ const LikesYouPage = ({ user }) => {
   // Check if user is premium (girls always premium)
   const isGirl = user?.gender?.toLowerCase() === 'female';
   const isPremium = user?.is_premium || user?.isPremium || isGirl;
+  const { feed: adFeed, failed: adFailed } = useNativeAdFeed('likes-grid', user);
 
   useEffect(() => {
     // Fetch all data in parallel
@@ -211,9 +213,9 @@ const LikesYouPage = ({ user }) => {
   };
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--m3-surface-container-low)', paddingBottom: 'calc(var(--nav-total, 86px) + 16px)' }}>
+    <div className="flex flex-col overflow-hidden" style={{ background: 'var(--m3-surface-container-low)', height: 'calc(100dvh - var(--hl-banner-h, 0px))', paddingBottom: 'var(--nav-total, 86px)' }}>
       {/* Compact Header */}
-      <div className="z-40" style={{ background: 'linear-gradient(135deg, #D6336C 0%, #E8590C 100%)', paddingTop: 'calc(var(--safe-top, 24px) + 8px)' }}>
+      <div className="z-40 flex-none" style={{ background: 'linear-gradient(135deg, #D6336C 0%, #E8590C 100%)', paddingTop: 'calc(var(--safe-top, 24px) + 8px)' }}>
         <div className="max-w-2xl mx-auto px-4 pb-3">
           {/* Title Row */}
           <div className="flex items-center gap-3 mb-3">
@@ -262,6 +264,7 @@ const LikesYouPage = ({ user }) => {
         </div>
       </div>
 
+      <div className="flex-1 min-h-0 overflow-y-auto pb-4" data-testid="likes-scroll">
       {/* Sort Bar — only on likes tabs */}
       {(activeTab === 'all' || activeTab === 'super' || activeTab === 'regular') && displayedLikes.length > 1 && (
         <div className="max-w-2xl mx-auto px-4 pt-3">
@@ -466,9 +469,11 @@ const LikesYouPage = ({ user }) => {
             <div className="grid grid-cols-2 gap-3">
               {displayedLikes.map((likedUser, index) => {
                 const isLocked = !isPremium && !likedUser.revealed;
+                const adKey = `likes-ad-${Math.floor(index / NATIVE_AD_EVERY)}`;
                 return (
+                  <React.Fragment key={likedUser.id}>
+                  {index > 0 && index % NATIVE_AD_EVERY === 0 && <NativeAdCard feed={adFeed} slotKey={adKey} failed={adFailed} />}
                   <div
-                    key={likedUser.id}
                     className="relative bg-white rounded-2xl shadow-md overflow-hidden"
                     style={{ animation: `slideIn 0.2s ease-out ${index * 0.05}s both` }}
                   >
@@ -560,11 +565,13 @@ const LikesYouPage = ({ user }) => {
                       </div>
                     )}
                   </div>
+                  </React.Fragment>
                 );
               })}
             </div>
           </>
         )}
+      </div>
       </div>
 
       <style jsx>{`

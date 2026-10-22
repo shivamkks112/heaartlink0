@@ -197,14 +197,14 @@ async def get_admin_ad_analytics():
         {"$sort": {"_id": 1}}
     ]
     daily_impressions = await db.ad_impressions.aggregate(daily_pipeline).to_list(None)
-    ECPM_INR = {"banner": 10, "interstitial": 40, "rewarded": 100}  # rough India eCPM per 1000
+    ECPM_INR = {"banner": 10, "native": 25, "interstitial": 40, "rewarded": 100}  # rough India eCPM per 1000
     by_day_type = await db.ad_impressions.aggregate([
         {"$match": {"created_at": {"$gte": week_ago}}},
         {"$group": {"_id": {"d": {"$substr": ["$created_at", 0, 10]}, "t": "$ad_type"}, "count": {"$sum": 1}}},
     ]).to_list(None)
     days = {}
     for r in by_day_type:
-        d = days.setdefault(r["_id"]["d"], {"date": r["_id"]["d"], "banner": 0, "interstitial": 0, "rewarded": 0})
+        d = days.setdefault(r["_id"]["d"], {"date": r["_id"]["d"], "banner": 0, "native": 0, "interstitial": 0, "rewarded": 0})
         if r["_id"]["t"] in ECPM_INR:
             d[r["_id"]["t"]] += r["count"]
     for d in days.values():
@@ -224,7 +224,8 @@ async def get_admin_ad_analytics():
     interstitial_count = sum(t["count"] for t in type_breakdown if t["_id"] == "interstitial")
     rewarded_count = sum(t["count"] for t in type_breakdown if t["_id"] == "rewarded")
     banner_count = sum(t["count"] for t in type_breakdown if t["_id"] == "banner")
-    est_revenue = (interstitial_count * 0.75 + rewarded_count * 2.0 + banner_count * 0.15) / 1000
+    native_count = sum(t["count"] for t in type_breakdown if t["_id"] == "native")
+    est_revenue = (interstitial_count * 0.75 + rewarded_count * 2.0 + banner_count * 0.15 + native_count * 0.4) / 1000
 
     return {
         "summary": {

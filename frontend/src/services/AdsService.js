@@ -3,7 +3,7 @@ import { BACKEND_URL } from '@/config/api';
  * HeartLink Ads Service — SINGLE SOURCE OF TRUTH
  * 
  * Proper state machine: IDLE → LOADING → LOADED → SHOWING → DISMISSED → IDLE
- * Uses @capacitor-community/admob v7 event listeners for reliable state tracking.
+ * Uses @capacitor-community/admob v8 event listeners for reliable state tracking.
  * 
  * Rules:
  * - Only male, non-premium users see ads
@@ -20,6 +20,7 @@ const AD_CONFIG = {
   INTERSTITIAL_ID: 'ca-app-pub-3735972538807236/8105078421',
   REWARDED_ID: 'ca-app-pub-3735972538807236/8182111801',
   BANNER_ID: 'ca-app-pub-3735972538807236/9418160097',
+  NATIVE_ID: 'ca-app-pub-3735972538807236/9004238889',
 };
 
 const SWIPES_BEFORE_AD = 5;
