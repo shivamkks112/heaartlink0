@@ -210,3 +210,5 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 
 ## 2026-06 — Night safety 1-6am; firebase_config send_multicast->send_each_for_multicast (was failing live, engagement broadcasts reached nobody); channel heartlink_messages. Live logs: message/match single sends OK, both test users have distinct tokens.
 - OPEN: /admin/all-users has no auth (leaks user search) — awaiting approval
+
+- 2026-06: /admin/all-users, send-engagement, send-custom now require_admin; make-me-admin-once has no default secret
