@@ -13,6 +13,7 @@ import { INDIAN_STATES, CITIES_BY_STATE, POPULAR_CITIES } from '@/data/indianCit
 
 import { BACKEND_URL, API } from '@/config/api';
 import ProfilePromptsEditor from '@/components/ProfilePromptsEditor';
+import { compressImage } from '@/utils/compressImage';
 
 // Boost Button Component
 const BoostButton = ({ userId }) => {
@@ -186,13 +187,14 @@ const ProfilePage = ({ user, onUpdate }) => {
   };
 
   const handleImageUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Image must be less than 5MB');
+    const picked = e.target.files[0];
+    e.target.value = '';
+    if (!picked) return;
+    if (picked.size > 25 * 1024 * 1024) {
+      toast.error('Image must be less than 25MB');
       return;
     }
+    const file = await compressImage(picked);
 
     setUploading(true);
     try {
@@ -210,7 +212,8 @@ const ProfilePage = ({ user, onUpdate }) => {
       localStorage.setItem('user', JSON.stringify(response.data));
       toast.success('Profile picture updated!');
     } catch (error) {
-      toast.error('Failed to upload image');
+      console.error('Profile photo upload failed:', error);
+      toast.error(error?.response?.data?.detail || 'Photo upload nahi hui, internet check karke dobara try karo');
     } finally {
       setUploading(false);
     }

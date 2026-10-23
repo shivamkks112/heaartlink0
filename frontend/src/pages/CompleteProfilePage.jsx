@@ -11,6 +11,7 @@ import { INDIAN_STATES, CITIES_BY_STATE, POPULAR_CITIES } from '@/data/indianCit
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 import { BACKEND_URL, API } from '@/config/api';
+import { compressImage } from '@/utils/compressImage';
 
 const CompleteProfilePage = ({ onLogin }) => {
   const location = useLocation();
@@ -47,14 +48,13 @@ const CompleteProfilePage = ({ onLogin }) => {
       return;
     }
     
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Image size should be less than 5MB');
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error('Image size should be less than 25MB');
       return;
     }
-    
-    setProfilePicture(file);
-    setProfilePicturePreview(URL.createObjectURL(file));
+    const small = await compressImage(file);
+    setProfilePicture(small);
+    setProfilePicturePreview(URL.createObjectURL(small));
   };
 
   // Upload photo to Firebase

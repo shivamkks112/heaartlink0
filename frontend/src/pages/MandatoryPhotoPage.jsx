@@ -5,6 +5,8 @@ import { Toaster } from '@/components/ui/sonner';
 import axios from 'axios';
 import { API } from '@/config/api';
 import { useNavigate } from 'react-router-dom';
+import { compressImage } from '@/utils/compressImage';
+import { storage, ref, uploadBytes, getDownloadURL } from '@/firebase/config';
 
 const MAX_PHOTOS = 3;
 
@@ -17,11 +19,12 @@ const MandatoryPhotoPage = ({ user, onComplete }) => {
 
   const isDark = document.documentElement.classList.contains('dark');
 
-  const handleSelect = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/')) { toast.error('Please select an image file'); return; }
-    if (file.size > 5 * 1024 * 1024) { toast.error('Image should be less than 5MB'); return; }
+  const handleSelect = async (e) => {
+    const picked = e.target.files?.[0];
+    if (!picked) return;
+    if (!picked.type.startsWith('image/')) { toast.error('Please select an image file'); return; }
+    if (picked.size > 25 * 1024 * 1024) { toast.error('Image should be less than 25MB'); return; }
+    const file = await compressImage(picked);
     if (photos.length >= MAX_PHOTOS) { toast.error(`Maximum ${MAX_PHOTOS} photos allowed`); return; }
     setPhotos(prev => [...prev, file]);
     setPreviews(prev => [...prev, URL.createObjectURL(file)]);
@@ -46,10 +49,11 @@ const MandatoryPhotoPage = ({ user, onComplete }) => {
         formData.append('file', photo);
         formData.append('user_id', user.id);
         
-        // Try direct backend upload first
+        // Upload to Firebase Storage (same as Profile page); base64 only as last resort
         try {
-          const res = await axios.post(`${API}/upload/profile-photo`, formData);
-          uploadedUrls.push(res.data.url);
+          const storageRef = ref(storage, `profile_pictures/${user.id}/${Date.now()}_${photo.name}`);
+          await uploadBytes(storageRef, photo);
+          uploadedUrls.push(await getDownloadURL(storageRef));
         } catch {
           // Fallback: convert to base64 data URL
           const reader = new FileReader();
