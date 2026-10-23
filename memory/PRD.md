@@ -216,3 +216,5 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 ## 2026-06 — Message push root cause: WS send path never sent FCM (comment said HTTP handles it, but HTTP only runs as 3s fallback). Now WS path calls _after_message_sent (creepy check moved to background). Automated/AI pushes gated by fcm_service.allowed_auto_ids: only 9/14/19 IST hour slots, 1 per slot (users.auto_push_slot).
 
 ## 2026-06 — Photo upload: utils/compressImage.js (1280px JPEG) in ProfilePage/MandatoryPhotoPage/CompleteProfilePage; limit 25MB pre-compress. MandatoryPhotoPage used non-existent /upload/profile-photo -> now Firebase Storage. NOTE: Firebase Storage rules allow unauthenticated writes (security, not fixed).
+
+- 2026-06: ProfilePage/MandatoryPhotoPage: Firebase upload 15s cap, fallback to compressed data URL saved via PUT /profile (served as /api/photo thumbs)
