@@ -52,7 +52,7 @@ const MandatoryPhotoPage = ({ user, onComplete }) => {
         // Upload to Firebase Storage (same as Profile page); base64 only as last resort
         try {
           const storageRef = ref(storage, `profile_pictures/${user.id}/${Date.now()}_${photo.name}`);
-          await uploadBytes(storageRef, photo);
+          await Promise.race([uploadBytes(storageRef, photo), new Promise((_, rej) => setTimeout(() => rej(new Error('storage timeout')), 15000))]);
           uploadedUrls.push(await getDownloadURL(storageRef));
         } catch {
           // Fallback: convert to base64 data URL

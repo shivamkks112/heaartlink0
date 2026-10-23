@@ -198,9 +198,22 @@ const ProfilePage = ({ user, onUpdate }) => {
 
     setUploading(true);
     try {
-      const storageRef = ref(storage, `profile_pictures/${user.id}/${Date.now()}_${file.name}`);
-      await uploadBytes(storageRef, file);
-      const downloadURL = await getDownloadURL(storageRef);
+      // Firebase Storage first (15s cap); if it fails on the device, save the compressed photo directly
+      let downloadURL;
+      try {
+        const storageRef = ref(storage, `profile_pictures/${user.id}/${Date.now()}_${file.name}`);
+        const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('storage timeout')), 15000));
+        await Promise.race([uploadBytes(storageRef, file), timeout]);
+        downloadURL = await getDownloadURL(storageRef);
+      } catch (storageErr) {
+        console.error('Firebase storage upload failed, using direct save:', storageErr?.code || storageErr?.message);
+        downloadURL = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      }
 
       const response = await axios.put(`${API}/profile/${user.id}`, {
         profile_picture: downloadURL
