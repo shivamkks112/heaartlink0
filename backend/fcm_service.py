@@ -148,8 +148,28 @@ def send_fcm_multi(tokens: List[str], title: str, body: str, data: Optional[Dict
 
 # ─── DB-aware helpers (need db reference passed in) ──────────────
 
-async def send_to_user(db, user_id: str, title: str, body: str, data: Optional[Dict] = None) -> Dict:
+AUTO_SLOTS_IST = (9, 14, 19)  # automated/AI pushes only at 9 AM, 2 PM, 7 PM IST — max one per slot
+
+
+async def allowed_auto_ids(db, user_ids: List[str]) -> List[str]:
+    """Users who may get an automated (AI/engagement) push now; claims the current slot atomically."""
+    from datetime import timedelta
+    now = datetime.now(timezone(timedelta(hours=5, minutes=30)))
+    if now.hour not in AUTO_SLOTS_IST or not user_ids:
+        return []
+    slot = f"{now.date()}-{now.hour}"
+    allowed = []
+    for uid in user_ids:
+        r = await db.users.update_one({"id": uid, "auto_push_slot": {"$ne": slot}}, {"$set": {"auto_push_slot": slot}})
+        if r.modified_count:
+            allowed.append(uid)
+    return allowed
+
+
+async def send_to_user(db, user_id: str, title: str, body: str, data: Optional[Dict] = None, automated: bool = False) -> Dict:
     """Look up user's FCM token and send push. Returns result dict."""
+    if automated and not await allowed_auto_ids(db, [user_id]):
+        return {"success": False, "error": "outside_auto_slot"}
     user = await db.users.find_one({"id": user_id}, {"_id": 0, "fcm_token": 1})
     if not user or not user.get("fcm_token"):
         return {"success": False, "error": "no_token"}
@@ -159,8 +179,10 @@ async def send_to_user(db, user_id: str, title: str, body: str, data: Optional[D
     return result
 
 
-async def send_to_users(db, user_ids: List[str], title: str, body: str, data: Optional[Dict] = None) -> Dict:
+async def send_to_users(db, user_ids: List[str], title: str, body: str, data: Optional[Dict] = None, automated: bool = False) -> Dict:
     """Look up multiple users' FCM tokens and batch send."""
+    if automated:
+        user_ids = await allowed_auto_ids(db, user_ids)
     if not user_ids:
         return {"success": False, "error": "no_users"}
     users = await db.users.find(
@@ -276,7 +298,7 @@ async def notify_superlike(db, user_id: str, liker_name: str, liker_id: str = ""
         data={"type": "superlike", "route": "/likes"},
     )
 
-async def notify_profile_view(db, user_id: str, viewer_name: str, viewer_id: str, anonymous: bool = False):
+async def notify_profile_view(db, user_id: str, viewer_name: str, viewer_id: str, anonymous: bool = False, automated: bool = False):
     if not await _should_notify_by_gender(db, user_id, viewer_id):
         return None
     if anonymous:
@@ -284,11 +306,13 @@ async def notify_profile_view(db, user_id: str, viewer_name: str, viewer_id: str
             title="Someone viewed your profile",
             body="Kisi ne tumhari profile dekhi",
             data={"type": "profile_view", "route": "/likes"},
+            automated=automated,
         )
     return await send_to_user(db, user_id,
         title=viewer_name,
         body="Tumhari profile dekhi",
         data={"type": "profile_view", "viewer_id": viewer_id, "route": f"/profile/{viewer_id}"},
+        automated=automated,
     )
 
 async def notify_welcome(db, user_id: str, name: str):
@@ -351,6 +375,7 @@ async def notify_online_status(db, user_ids: List[str], online_name: str, online
         title=title,
         body=body,
         data={"type": "online_status", "route": "/matches", "user_id": online_user_id},
+        automated=True,
     )
 
 async def notify_unread_reminder(db, user_id: str, count: int):
@@ -358,6 +383,7 @@ async def notify_unread_reminder(db, user_id: str, count: int):
         title=f"{count} unread messages",
         body="Your matches are waiting for your reply!",
         data={"type": "unread_reminder", "route": "/matches"},
+        automated=True,
     )
 
 async def notify_screenshot(db, user_id: str, who_name: str, match_id: str):

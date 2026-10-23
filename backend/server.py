@@ -868,7 +868,7 @@ async def _run_ai_profile_activity():
                     uid, "Secret Crush", "Kisi ne tumhe Secret Crush kiya hai",
                     "crush", {"action": "open_crushes", "route": "/likes", "anonymous": True})
                 try:
-                    await fcm_service.send_to_user(db, uid, "Secret Crush", "Kisi ne tumhe Secret Crush kiya hai")
+                    await fcm_service.send_to_user(db, uid, "Secret Crush", "Kisi ne tumhe Secret Crush kiya hai", automated=True)
                 except Exception:
                     pass
                 crushes += 1
@@ -952,7 +952,8 @@ async def ai_girl_join_notification_scheduler():
                     {"_id": 0, "fcm_token": 1, "id": 1}
                 ).to_list(None)
                 
-                tokens = [u["fcm_token"] for u in male_users if u.get("fcm_token")]
+                ok_ids = set(await fcm_service.allowed_auto_ids(db, [u["id"] for u in male_users]))
+                tokens = [u["fcm_token"] for u in male_users if u.get("fcm_token") and u["id"] in ok_ids]
                 if tokens:
                     from firebase_config import send_notification_to_multiple
                     result = send_notification_to_multiple(
@@ -1004,7 +1005,7 @@ async def smart_nudge_scheduler():
                     "is_matched": False
                 })
                 
-                if like_count > 0 and u.get("fcm_token"):
+                if like_count > 0 and u.get("fcm_token") and await fcm_service.allowed_auto_ids(db, [u["id"]]):
                     template = random.choice(NUDGE_MESSAGES)
                     title = template[0].format(count=like_count)
                     body = template[1].format(count=like_count)
@@ -1056,10 +1057,11 @@ async def daily_ai_profile_creator():
                             "fcm_token": {"$exists": True, "$ne": None},
                             "is_banned": {"$ne": True},
                         },
-                        {"_id": 0, "fcm_token": 1}
+                        {"_id": 0, "fcm_token": 1, "id": 1}
                     ).to_list(None)
                     
-                    tokens = [u["fcm_token"] for u in male_users if u.get("fcm_token")]
+                    ok_ids = set(await fcm_service.allowed_auto_ids(db, [u["id"] for u in male_users]))
+                    tokens = [u["fcm_token"] for u in male_users if u.get("fcm_token") and u["id"] in ok_ids]
                     if tokens:
                         send_notification_to_multiple(
                             tokens,
@@ -1251,9 +1253,8 @@ async def _schedule_ai_likes_for_new_user(user_id: str, user_name: str):
                 await fcm_service.send_to_user(
                     db, user_id,
                     title=random.choice(notif_msgs),
-                    message="Unlock with Premium to see who!",
-                    data={"type": "ai_like_received", "route": "/likes"}
-                )
+                    body="Unlock with Premium to see who!",
+                    data={"type": "ai_like_received", "route": "/likes"}, automated=True)
             except Exception:
                 pass
             
@@ -1465,8 +1466,7 @@ async def _send_daily_engagement_notifications():
             await fcm_service.send_to_users(db, 
                 user_ids,
                 "New matches waiting for you! 💝",
-                "Aaj ke new profiles dekho - shayad tumhara perfect match mil jaye!"
-            )
+                "Aaj ke new profiles dekho - shayad tumhara perfect match mil jaye!", automated=True)
             logger.info(f"Sent daily engagement to {len(user_ids)} active users")
 
         # "We miss you" to inactive users (3-7 days)
@@ -1486,8 +1486,7 @@ async def _send_daily_engagement_notifications():
             await fcm_service.send_to_users(db, 
                 user_ids,
                 "Tumhe miss kar rahe hain! 🥺",
-                "Bahut din ho gaye tumhare bina. Naye log join ho rahe hain, wapas aao!"
-            )
+                "Bahut din ho gaye tumhare bina. Naye log join ho rahe hain, wapas aao!", automated=True)
             logger.info(f"Sent miss-you notification to {len(user_ids)} inactive users")
 
     except Exception as e:
@@ -1593,7 +1592,7 @@ async def _send_smart_reengagement_notifications():
                 body = "HeartLink pe bahut kuch naya hai. Aao dekho!"
             
             try:
-                await fcm_service.send_to_user(db, uid, title, body)
+                await fcm_service.send_to_user(db, uid, title, body, automated=True)
             except Exception:
                 pass
         
@@ -1672,7 +1671,7 @@ async def _send_daily_picks():
                 {"action": "open_discover", "route": "/discover", "picks": [c["id"] for c in top5]}
             )
             try:
-                await fcm_service.send_to_user(db, uid, title, body)
+                await fcm_service.send_to_user(db, uid, title, body, automated=True)
                 sent += 1
             except Exception:
                 pass
@@ -1961,9 +1960,8 @@ async def _send_weekly_highlights():
                 await fcm_service.send_to_user(
                     db, user_id,
                     title=title,
-                    message=body,
-                    data={"type": "weekly_highlights", "route": "/likes"}
-                )
+                    body=body,
+                    data={"type": "weekly_highlights", "route": "/likes"}, automated=True)
                 sent_count += 1
                 
                 # Small delay to avoid FCM rate limits
@@ -2111,7 +2109,7 @@ async def notification_scheduler():
                         await fcm_service.send_to_user(db, u["id"],
                             "Complete your HeartLink profile",
                             "Add a photo and a few details so people can get to know you better.",
-                            data={"type": "profile_reminder", "route": "/profile/edit"})
+                            data={"type": "profile_reminder", "route": "/profile/edit"}, automated=True)
                         await db.users.update_one({"id": u["id"]}, {"$set": {"profile_reminder_sent": True}})
                         await log_notification(u["id"], "profile_reminder")
                 
@@ -2133,7 +2131,7 @@ async def notification_scheduler():
                         await fcm_service.send_to_user(db, u["id"],
                             "We haven't seen you in a while",
                             "New people may have joined HeartLink. Come back and take a look.",
-                            data={"type": "comeback_3d", "route": "/discover"})
+                            data={"type": "comeback_3d", "route": "/discover"}, automated=True)
                         await db.users.update_one({"id": u["id"]}, {"$set": {"last_comeback_3d_at": now.isoformat()}})
                         await log_notification(u["id"], "comeback_3d")
                 
@@ -2155,7 +2153,7 @@ async def notification_scheduler():
                         await fcm_service.send_to_user(db, u["id"],
                             "Your HeartLink journey is waiting",
                             "See who's new and continue discovering meaningful connections.",
-                            data={"type": "comeback_7d", "route": "/discover"})
+                            data={"type": "comeback_7d", "route": "/discover"}, automated=True)
                         await db.users.update_one({"id": u["id"]}, {"$set": {"last_comeback_7d_at": now.isoformat()}})
                         await log_notification(u["id"], "comeback_7d")
                 
@@ -2229,7 +2227,7 @@ async def notification_scheduler():
                         
                         await fcm_service.send_to_user(db, girl["id"],
                             title, body,
-                            data={"type": "girls_retention", "route": "/discover"})
+                            data={"type": "girls_retention", "route": "/discover"}, automated=True)
                         await db.users.update_one({"id": girl["id"]}, {"$set": {"last_girls_retention_at": now.isoformat()}})
                         await log_notification(girl["id"], "girls_retention")
                         sent_count += 1
@@ -4942,7 +4940,8 @@ async def _record_profile_view(user_id: str, viewer_id: str, anonymous: bool = F
         
         # Send OneSignal push notification for profile view
         try:
-            await fcm_service.notify_profile_view(db, user_id, viewer_name, real_viewer, anonymous=not owner_premium)
+            viewer_is_ai = await db.users.count_documents({"id": real_viewer, "is_ai_profile": True}, limit=1)
+            await fcm_service.notify_profile_view(db, user_id, viewer_name, real_viewer, anonymous=not owner_premium, automated=bool(viewer_is_ai))
         except Exception as e:
             logger.error(f"Profile view push notification failed: {e}")
         
@@ -6799,13 +6798,6 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
                 if night_blocked:
                     continue
                 
-                # 3. Creepy Message Detection (AI) — blocks if vulgar/sexual
-                is_creepy = await handle_creepy_detection(
-                    db, user_id, message_data["receiver_id"], message_data["match_id"],
-                    message_data["content"], ws_manager=manager
-                )
-                if is_creepy:
-                    continue
             
             # Save message
             message = Message(
@@ -6834,12 +6826,18 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
             asyncio.create_task(_ack_message(message_dict["id"], message_data["match_id"], user_id,
                                              message_data["receiver_id"], bool(is_ai_receiver)))
             
-            # NOTE: FCM push notification handled by HTTP POST /api/messages endpoint
-            # Do NOT send FCM here to prevent duplicate notifications
+            # Fetch receiver/sender (no photos — keeps the socket loop fast)
+            light = {"_id": 0, "photos": 0, "profile_picture": 0, "password_hash": 0}
+            receiver = await db.users.find_one({"id": message_data["receiver_id"]}, light)
+            sender = await db.users.find_one({"id": user_id}, light)
             
-            # Fetch receiver/sender for AI checks only
-            receiver = await db.users.find_one({"id": message_data["receiver_id"]})
-            sender = await db.users.find_one({"id": user_id})
+            # Vulgarity check (may retract) + push notification, in background — same as HTTP path
+            if receiver and sender:
+                asyncio.create_task(_after_message_sent(
+                    message_dict["id"], message_data["match_id"], user_id, message_data["receiver_id"],
+                    sender.get("name", "Someone"), message_data["content"], message_data["content"],
+                    needs_ai_safety=not is_ai_receiver,
+                    send_push=not is_ai_receiver and user_id not in (receiver.get("muted_users") or [])))
             
             # AI Chatbot: If receiver is AI, generate auto-reply
             if receiver and receiver.get("is_ai_profile") and receiver.get("is_active_ai"):
