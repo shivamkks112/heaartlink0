@@ -212,3 +212,5 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 - OPEN: /admin/all-users has no auth (leaks user search) — awaiting approval
 
 - 2026-06: /admin/all-users, send-engagement, send-custom now require_admin; make-me-admin-once has no default secret
+
+## 2026-06 — Message push root cause: WS send path never sent FCM (comment said HTTP handles it, but HTTP only runs as 3s fallback). Now WS path calls _after_message_sent (creepy check moved to background). Automated/AI pushes gated by fcm_service.allowed_auto_ids: only 9/14/19 IST hour slots, 1 per slot (users.auto_push_slot).
