@@ -218,3 +218,5 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 ## 2026-06 — Photo upload: utils/compressImage.js (1280px JPEG) in ProfilePage/MandatoryPhotoPage/CompleteProfilePage; limit 25MB pre-compress. MandatoryPhotoPage used non-existent /upload/profile-photo -> now Firebase Storage. NOTE: Firebase Storage rules allow unauthenticated writes (security, not fixed).
 
 - 2026-06: ProfilePage/MandatoryPhotoPage: Firebase upload 15s cap, fallback to compressed data URL saved via PUT /profile (served as /api/photo thumbs)
+
+## 2026-06 — ROOT CAUSE realtime: prod runs 2 pods, ConnectionManager in-memory. Fix: manager.send_message relays to db.ws_relay (TTL 120s) when target not local; _ws_relay_loop (startup) polls every 0.3s and delivers to local sockets. Tested with 2 local uvicorn instances. Remaining: delivered ticks/online status still per-pod; recurring 500s on /active-users & /discover in prod not triaged; tier_0 CPU churn.
