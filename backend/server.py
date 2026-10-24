@@ -480,6 +480,7 @@ import time
 
 @app.on_event("startup")
 async def startup_event():
+    asyncio.create_task(_ws_relay_loop())
     """Run on app startup"""
     await create_indexes()
     logging.info("🚀 HeartLink server started with optimized indexes")
@@ -2289,12 +2290,20 @@ class ConnectionManager:
         if current is not None and (websocket is None or current is websocket):
             del self.active_connections[user_id]
 
-    async def send_message(self, user_id: str, message: dict):
+    async def send_message(self, user_id: str, message: dict, relay: bool = True):
         if user_id in self.active_connections:
             try:
                 await self.active_connections[user_id].send_json(message)
+                return
             except Exception:
                 self.disconnect(user_id)
+        if relay:
+            # Socket may live on another backend pod — hand it over via Mongo relay
+            try:
+                await db.ws_relay.insert_one({"target": user_id, "msg": message, "origin": WS_POD_ID,
+                                              "created_at": datetime.now(timezone.utc)})
+            except Exception as e:
+                logging.debug(f"ws relay insert failed: {e}")
     
     async def send_badge_update(self, user_id: str):
         """Send updated badge counts to a user"""
@@ -2330,6 +2339,35 @@ class ConnectionManager:
             await self.send_message(connected_user_id, status_message)
 
 manager = ConnectionManager()
+WS_POD_ID = str(uuid.uuid4())
+
+
+async def _ws_relay_loop():
+    """Deliver WS events written by other pods to sockets connected to this pod."""
+    try:
+        await db.ws_relay.create_index("created_at", expireAfterSeconds=120)
+    except Exception:
+        pass
+    since = datetime.now(timezone.utc)
+    seen = {}
+    while True:
+        try:
+            # 3s overlap window + seen-set: safe against clock skew between pods
+            rows = await db.ws_relay.find({"created_at": {"$gte": since - timedelta(seconds=3)}, "origin": {"$ne": WS_POD_ID}}).sort("created_at", 1).limit(1000).to_list(None)
+            for r in rows:
+                if r["_id"] in seen:
+                    continue
+                seen[r["_id"]] = r["created_at"]
+                since = max(since, r["created_at"].replace(tzinfo=timezone.utc) if r["created_at"].tzinfo is None else r["created_at"])
+                if r["target"] in manager.active_connections:
+                    await manager.send_message(r["target"], r["msg"], relay=False)
+            if len(seen) > 5000:
+                cutoff = since - timedelta(seconds=10)
+                seen = {k: v for k, v in seen.items() if (v.replace(tzinfo=timezone.utc) if v.tzinfo is None else v) >= cutoff}
+        except Exception as e:
+            logging.warning(f"ws relay loop error: {e}")
+            await asyncio.sleep(2)
+        await asyncio.sleep(0.3)
 
 # Pydantic models imported from models.schemas
 # Helper functions imported from services.helpers
