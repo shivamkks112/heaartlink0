@@ -14,6 +14,7 @@ import uuid
 from datetime import datetime, timezone, timedelta
 import base64
 import hashlib
+import secrets
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 import json
 import asyncio
@@ -164,6 +165,23 @@ class AdminAuthMiddleware(BaseHTTPMiddleware):
 # ═══════════════════════════════════════════════════════════════
 # ADMIN AUTH DEPENDENCY — reusable guard for admin-only endpoints
 # ═══════════════════════════════════════════════════════════════
+def _otp_new() -> str:
+    return f"{secrets.randbelow(1_000_000):06d}"
+
+
+def _otp_hash(key: str, code: str) -> str:
+    """HMAC so a DB leak doesn't reveal codes; key binds the code to one email/account."""
+    import hmac as _hmac
+    return _hmac.new((os.environ.get("JWT_SECRET_KEY") or "").encode(), f"{key}:{code}".encode(), hashlib.sha256).hexdigest()
+
+
+def _otp_matches(key: str, code: str, stored_hash, stored_plain=None) -> bool:
+    import hmac as _hmac
+    if stored_hash:
+        return _hmac.compare_digest(stored_hash, _otp_hash(key, (code or "").strip()))
+    return bool(stored_plain) and _hmac.compare_digest(str(stored_plain), (code or "").strip())
+
+
 PRIVATE_USER_FIELDS = ("email", "phone", "fcm_token", "firebase_uid", "device_ids", "blocked_device_ids", "password_hash")
 
 
@@ -2508,12 +2526,15 @@ async def send_signup_otp(request: Request):
         raise HTTPException(status_code=400, detail="Please enter a valid email address")
     
     # Check if email already registered
-    existing = await db.users.find_one({"email": {"$regex": f"^{email}$", "$options": "i"}})
+    existing = await db.users.find_one({"email": {"$regex": f"^{re.escape(email)}$", "$options": "i"}})
     if existing:
         raise HTTPException(status_code=400, detail="This email is already registered. Please login instead.")
     
-    # Generate 6-digit OTP
-    otp_code = ''.join([str(random.randint(0, 9)) for _ in range(6)])
+    # Resend cooldown: 60s between codes for the same email
+    prev = await db.signup_otps.find_one({"email": email}, {"_id": 0, "created_at": 1})
+    if prev and prev.get("created_at", "") > (datetime.now(timezone.utc) - timedelta(seconds=60)).isoformat():
+        raise HTTPException(status_code=429, detail="Please wait 60 seconds before requesting a new OTP.")
+    otp_code = _otp_new()
     otp_expires = datetime.now(timezone.utc) + timedelta(minutes=10)
     
     # Store OTP in DB (upsert — replaces any previous OTP for this email)
@@ -2521,7 +2542,8 @@ async def send_signup_otp(request: Request):
         {"email": email},
         {"$set": {
             "email": email,
-            "otp_code": otp_code,
+            "otp_hash": _otp_hash(email, otp_code),
+            "otp_code": None,
             "expires_at": otp_expires.isoformat(),
             "attempts": 0,
             "created_at": datetime.now(timezone.utc).isoformat()
@@ -2532,7 +2554,7 @@ async def send_signup_otp(request: Request):
     # Send OTP email
     try:
         from email_service import send_signup_otp_email
-        result = send_signup_otp_email(to_email=email, otp_code=otp_code, user_name="HeartLink User")
+        result = await asyncio.to_thread(send_signup_otp_email, to_email=email, otp_code=otp_code, user_name="HeartLink User")
         if result.get("success"):
             logger.info(f"Signup OTP sent to {email}")
             return {"message": "OTP sent to your email", "email": email}
@@ -2593,7 +2615,7 @@ async def verify_signup_otp(request: Request):
             pass
     
     # Verify code
-    if stored.get("otp_code") != otp_input:
+    if not _otp_matches(email, otp_input, stored.get("otp_hash"), stored.get("otp_code")):
         remaining = 5 - stored.get("attempts", 0) - 1
         raise HTTPException(status_code=400, detail=f"Incorrect OTP. {remaining} attempts remaining.")
     
@@ -3214,60 +3236,51 @@ async def forgot_password(req: Request, request: ForgotPasswordRequest):
         # For security, don't reveal if user exists
         return {"message": "If account exists, reset code has been sent"}
     
-    # Generate 6-digit OTP
-    import random
-    reset_code = ''.join([str(random.randint(0, 9)) for _ in range(6)])
-    reset_expires = datetime.now(timezone.utc) + timedelta(minutes=15)  # 15 min expiry
+    generic = {"message": "If account exists, reset code has been sent"}
+    last = user.get("password_reset_sent_at") or ""
+    if last > (datetime.now(timezone.utc) - timedelta(seconds=60)).isoformat():
+        raise HTTPException(status_code=429, detail="Please wait 60 seconds before requesting a new code.")
+    if not user.get("email"):
+        return generic  # SMS reset not available; never return the code in the response
     
-    # Store reset code in database
+    reset_code = _otp_new()
+    reset_expires = datetime.now(timezone.utc) + timedelta(minutes=15)
     await db.users.update_one(
         {"id": user["id"]},
         {"$set": {
-            "password_reset_code": reset_code,
+            "password_reset_hash": _otp_hash(user["id"], reset_code),
+            "password_reset_code": None,
+            "password_reset_attempts": 0,
+            "password_reset_sent_at": datetime.now(timezone.utc).isoformat(),
             "password_reset_expires": reset_expires.isoformat()
         }}
     )
-    
-    # Send OTP via email (if user has email)
-    if user.get("email"):
-        try:
-            from email_service import send_otp_email
-            
-            # Send OTP email using Titan SMTP
-            result = send_otp_email(
-                to_email=user.get('email'),
-                otp_code=reset_code,
-                user_name=user.get('name', 'User')
-            )
-            
-            if result.get('success'):
-                logger.info(f"✅ OTP email sent successfully to {user.get('email')}")
-                return {
-                    "message": "Reset code sent to your email",
-                    "email": user.get('email')
-                }
-            else:
-                logger.error(f"❌ Failed to send OTP email: {result.get('error')}")
-                return {
-                    "message": "Reset code generated but email failed",
-                    "dev_otp": reset_code,  # Fallback for development
-                    "note": "Email service error. OTP: " + reset_code
-                }
-        except Exception as e:
-            logger.error(f"Failed to send OTP email: {e}")
-            return {
-                "message": "Reset code generated but email failed",
-                "dev_otp": reset_code,  # For development
-                "note": "Email service error. OTP: " + reset_code
-            }
-    else:
-        # For phone-based users (SMS not implemented)
-        logger.info(f"Password reset OTP for phone user: {reset_code}")
-        return {
-            "message": "Reset code generated",
-            "dev_otp": reset_code,  # For development
-            "note": "SMS service not configured. OTP: " + reset_code
-        }
+    try:
+        from email_service import send_otp_email
+        result = await asyncio.to_thread(send_otp_email, to_email=user["email"], otp_code=reset_code, user_name=user.get("name", "User"))
+        if not result.get("success"):
+            logger.error(f"Password reset email failed: {result.get('error')}")
+            raise HTTPException(status_code=503, detail="Email service is busy. Please try again in a minute.")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Password reset email error: {e}")
+        raise HTTPException(status_code=503, detail="Email service is busy. Please try again in a minute.")
+    return {"message": "Reset code sent to your email"}
+
+
+async def _check_reset_code(user: dict, code: str):
+    """Shared check: max 5 wrong tries, expiry, constant-time compare."""
+    if not (user.get("password_reset_hash") or user.get("password_reset_code")):
+        raise HTTPException(status_code=400, detail="No reset code requested")
+    if (user.get("password_reset_attempts") or 0) >= 5:
+        raise HTTPException(status_code=400, detail="Too many attempts. Please request a new code.")
+    expires_at = datetime.fromisoformat(user["password_reset_expires"])
+    if datetime.now(timezone.utc) > expires_at:
+        raise HTTPException(status_code=400, detail="Reset code expired")
+    if not _otp_matches(user["id"], code, user.get("password_reset_hash"), user.get("password_reset_code")):
+        await db.users.update_one({"id": user["id"]}, {"$inc": {"password_reset_attempts": 1}})
+        raise HTTPException(status_code=400, detail="Invalid reset code")
 
 @api_router.post("/auth/verify-reset-code")
 async def verify_reset_code(email_or_phone: str, reset_code: str):
@@ -3282,18 +3295,7 @@ async def verify_reset_code(email_or_phone: str, reset_code: str):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Check if code exists and matches
-    if not user.get("password_reset_code"):
-        raise HTTPException(status_code=400, detail="No reset code requested")
-    
-    if user["password_reset_code"] != reset_code:
-        raise HTTPException(status_code=400, detail="Invalid reset code")
-    
-    # Check if code expired
-    expires_at = datetime.fromisoformat(user["password_reset_expires"])
-    if datetime.now(timezone.utc) > expires_at:
-        raise HTTPException(status_code=400, detail="Reset code expired")
-    
+    await _check_reset_code(user, reset_code)
     return {"message": "Code verified", "valid": True}
 
 @api_router.post("/auth/reset-password")
@@ -3316,17 +3318,7 @@ async def reset_password(request: Request, data: ResetPasswordRequest):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Verify code
-    if not user.get("password_reset_code"):
-        raise HTTPException(status_code=400, detail="No reset code requested")
-    
-    if user["password_reset_code"] != data.reset_code:
-        raise HTTPException(status_code=400, detail="Invalid reset code")
-    
-    # Check if code expired
-    expires_at = datetime.fromisoformat(user["password_reset_expires"])
-    if datetime.now(timezone.utc) > expires_at:
-        raise HTTPException(status_code=400, detail="Reset code expired")
+    await _check_reset_code(user, data.reset_code)
     
     # Update password with bcrypt
     new_password_hash = hash_password_secure(data.new_password)
@@ -3335,6 +3327,7 @@ async def reset_password(request: Request, data: ResetPasswordRequest):
         {"$set": {
             "password_hash": new_password_hash,
             "password_reset_code": None,
+            "password_reset_hash": None,
             "password_reset_expires": None
         }}
     )
@@ -8453,7 +8446,7 @@ async def send_notification_all_methods(data: AdminNotificationWithEmail, admin:
             )
     
     # 3. Send Email to users with email
-    if data.send_email:
+    if False and data.send_email:  # bulk email to all users disabled (transactional-only email policy)
         from email_service import send_email
         
         for user in users:
