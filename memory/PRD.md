@@ -222,3 +222,5 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 ## 2026-06 — ROOT CAUSE realtime: prod runs 2 pods, ConnectionManager in-memory. Fix: manager.send_message relays to db.ws_relay (TTL 120s) when target not local; _ws_relay_loop (startup) polls every 0.3s and delivers to local sockets. Tested with 2 local uvicorn instances. Remaining: delivered ticks/online status still per-pod; recurring 500s on /active-users & /discover in prod not triaged; tier_0 CPU churn.
 
 ## 2026-06 — Email: email_service.send_email -> Emergent managed email (EMERGENT_EMAIL_KEY, EMAIL_FROM_NAME=HeartLink, EMAIL_REPLY_TO=cs-heartlink@outlook.in), fallback old Resend key; SMTP office365 path removed. Outlook.com cannot send via basic SMTP. OTPs: secrets.randbelow, HMAC hash (JWT_SECRET_KEY), 60s resend cooldown, 5 attempts, forgot-password no longer returns dev_otp/email. Admin bulk email to users disabled.
+
+- 2026-06: PolicyPage.jsx -> /contact, /refund-policy, /shipping-policy (public). routes/razorpay_billing.py exists but NOT wired (gateways rejected).
