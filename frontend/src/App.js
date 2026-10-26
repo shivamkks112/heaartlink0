@@ -43,6 +43,7 @@ const CompleteProfilePage = lazy(() => import('@/pages/CompleteProfilePage'));
 const SelfieVerificationPage = lazy(() => import('@/pages/SelfieVerificationPage'));
 const DataDeletionPage = lazy(() => import('@/pages/DataDeletionPage'));
 const TermsPage = lazy(() => import('@/pages/TermsPage'));
+const PolicyPage = lazy(() => import('@/pages/PolicyPage'));
 const CityDatingPage = lazy(() => import('@/pages/CityDatingPage'));
 const AdminDashboard = lazy(() => import('@/pages/AdminDashboard'));
 
@@ -413,6 +414,9 @@ function App() {
             <Route path="/mandatory-photo" element={user ? <Suspense fallback={<QuickLoader />}><MandatoryPhotoPage user={user} onComplete={handleLogin} /></Suspense> : <Navigate to="/auth" />} />
             <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
             <Route path="/terms" element={<Suspense fallback={<QuickLoader />}><TermsPage /></Suspense>} />
+            <Route path="/contact" element={<Suspense fallback={<QuickLoader />}><PolicyPage page="contact" /></Suspense>} />
+            <Route path="/refund-policy" element={<Suspense fallback={<QuickLoader />}><PolicyPage page="refund" /></Suspense>} />
+            <Route path="/shipping-policy" element={<Suspense fallback={<QuickLoader />}><PolicyPage page="shipping" /></Suspense>} />
             <Route path="/data-deletion" element={<Suspense fallback={<QuickLoader />}><DataDeletionPage /></Suspense>} />
             <Route path="/dating-in-:city" element={<Suspense fallback={<QuickLoader />}><CityDatingPage /></Suspense>} />
             <Route path="/dating/:city" element={<Suspense fallback={<QuickLoader />}><CityDatingPage /></Suspense>} />
