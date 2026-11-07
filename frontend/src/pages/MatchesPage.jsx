@@ -202,6 +202,9 @@ const MatchesPage = ({ user }) => {
   };
 
   // Handle chat navigation with safety check
+  const isFreeMale = user?.gender?.toLowerCase() === 'male' && !user?.is_premium && !user?.isPremium;
+  const chatLocked = () => isFreeMale;
+
   const needsUnlock = (matchId) => user?.gender?.toLowerCase() === 'male' && !user?.is_premium && !user?.isPremium
     && !conversations.some(c => c.match_id === matchId) && !isChatUnlocked(matchId);
 
@@ -741,8 +744,8 @@ const MatchesPage = ({ user }) => {
                     <div
                       key={conv.match_id}
                       data-testid="message-card"
-                      onClick={() => handleChatClick(conv.match_id, conv.user)}
-                      className={`overflow-hidden transition-all duration-200 cursor-pointer active:scale-[0.99] ${
+                      onClick={() => (chatLocked(conv.match_id) ? navigate('/premium') : handleChatClick(conv.match_id, conv.user))}
+                      className={`relative overflow-hidden transition-all duration-200 cursor-pointer active:scale-[0.99] ${
                         conv.unreadCount > 0 ? 'ring-1.5 ring-offset-1' : ''
                       }`}
                       style={{
@@ -752,7 +755,14 @@ const MatchesPage = ({ user }) => {
                         ...(conv.unreadCount > 0 ? { ringColor: 'var(--m3-primary)' } : {}),
                       }}
                     >
-                      <div className="flex items-center p-3.5">
+                      {chatLocked(conv.match_id) && (
+                        <div className="absolute inset-0 z-10 flex items-center justify-center" data-testid={`chat-locked-${conv.match_id}`}>
+                          <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 text-white text-xs font-bold shadow">
+                            <Crown className="w-3.5 h-3.5" /> Premium se chat dekho
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex items-center p-3.5" style={chatLocked(conv.match_id) ? { filter: 'blur(7px)', pointerEvents: 'none', userSelect: 'none' } : undefined}>
                         {/* Profile Picture */}
                         <div className="relative flex-shrink-0">
                           <div className="w-14 h-14 rounded-full overflow-hidden" style={{ background: 'var(--m3-surface-container-high)' }}>

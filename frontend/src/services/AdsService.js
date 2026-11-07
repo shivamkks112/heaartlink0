@@ -23,7 +23,7 @@ const AD_CONFIG = {
   NATIVE_ID: 'ca-app-pub-3735972538807236/9004238889',
 };
 
-const SWIPES_BEFORE_AD = 5;
+const SWIPES_BEFORE_AD = 3;
 const EXTRA_SWIPES_REWARD = 10;
 
 // Ad states
@@ -367,13 +367,13 @@ class AdsService {
     if (!this._interstitialHistory) this._interstitialHistory = [];
     
     // Max 6 per session
-    if (this._interstitialHistory.length >= 6) {
+    if (this._interstitialHistory.length >= 15) {
       this._log('Interstitial cap: max 6 per session reached');
       return false;
     }
     // Min 2 min between interstitials
     const lastShown = this._interstitialHistory[this._interstitialHistory.length - 1] || 0;
-    if (now - lastShown < 120000) {
+    if (now - lastShown < 45000) {
       this._log('Interstitial cap: 2-min cooldown active');
       return false;
     }

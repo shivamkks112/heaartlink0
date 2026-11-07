@@ -224,3 +224,9 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 ## 2026-06 — Email: email_service.send_email -> Emergent managed email (EMERGENT_EMAIL_KEY, EMAIL_FROM_NAME=HeartLink, EMAIL_REPLY_TO=cs-heartlink@outlook.in), fallback old Resend key; SMTP office365 path removed. Outlook.com cannot send via basic SMTP. OTPs: secrets.randbelow, HMAC hash (JWT_SECRET_KEY), 60s resend cooldown, 5 attempts, forgot-password no longer returns dev_otp/email. Admin bulk email to users disabled.
 
 - 2026-06: PolicyPage.jsx -> /contact, /refund-policy, /shipping-policy (public). routes/razorpay_billing.py exists but NOT wired (gateways rejected).
+
+## 2026-06 Monetization update
+- Free male: poori chat list blur, tap -> /premium
+- Ads: every 3 swipes, app-open interstitial (once/session), cooldown 45s, cap 15/session
+- AI new-user: view ~5 min, like ~15 min, more likes 45-120 min gap
+- Pending: Paytm gateway (awaiting user keys)

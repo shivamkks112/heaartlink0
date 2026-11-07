@@ -840,7 +840,7 @@ async def ai_profile_activity_loop():
 
 async def _run_ai_profile_activity():
     ist_hour = (datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)).hour
-    if not 9 <= ist_hour < 23:
+    if not 9 <= ist_hour < 22:
         return
     today = _ist_day()
     now = datetime.now(timezone.utc)
@@ -856,14 +856,14 @@ async def _run_ai_profile_activity():
     users = await db.users.find(
         {"is_ai_profile": {"$ne": True}, "auto_chat_enabled": {"$ne": True}, "gender": {"$regex": "^male$", "$options": "i"},
          "last_active": {"$gte": (now - timedelta(days=3)).isoformat()}},
-        {"_id": 0, "id": 1, "ai_visit_day": 1, "ai_visit_count": 1, "ai_visit_target": 1, "last_ai_crush_at": 1}
+        {"_id": 0, "id": 1, "ai_visit_day": 1, "ai_visit_count": 1, "ai_visit_target": 1, "last_ai_crush_at": 1, "ai_like_day": 1}
     ).to_list(2000)
-    remaining_runs = max((23 - ist_hour) * 2, 1)
+    remaining_runs = max((22 - ist_hour) * 2, 1)
     visits = crushes = 0
     for u in users:
         uid = u["id"]
         if u.get("ai_visit_day") != today:
-            u.update(ai_visit_day=today, ai_visit_count=0, ai_visit_target=1)
+            u.update(ai_visit_day=today, ai_visit_count=0, ai_visit_target=random.choice([1, 1, 2]))
             await db.users.update_one({"id": uid}, {"$set": {"ai_visit_day": today, "ai_visit_count": 0,
                                                              "ai_visit_target": u["ai_visit_target"]}})
         left = u["ai_visit_target"] - u.get("ai_visit_count", 0)
@@ -875,6 +875,11 @@ async def _run_ai_profile_activity():
                 await _record_profile_view(uid, random.choice(pool)["id"], anonymous=True)
                 await db.users.update_one({"id": uid}, {"$inc": {"ai_visit_count": 1}})
                 visits += 1
+        # ~1 AI like per day, at a random moment between 9am-10pm
+        if u.get("ai_like_day") != today and random.random() < 1.0 / remaining_runs:
+            liker_pool = [v for v in visitors if v.get("is_ai_profile")]
+            if liker_pool and await _ai_send_like(uid, random.choice(liker_pool), push_now=False):
+                await db.users.update_one({"id": uid}, {"$set": {"ai_like_day": today}})
         last = u.get("last_ai_crush_at")
         if crush_on and (not last or last < (now - timedelta(days=6)).isoformat()) and random.random() < 0.06:
             done = await db.crushes.distinct("crusher_id", {"crushed_id": uid})
@@ -1191,101 +1196,54 @@ async def _delayed_ai_match(user_id: str, gender: str, looking_for: str):
     await auto_match_stealth_users(db, user_id, gender, looking_for)
 
 
+async def _ai_send_like(user_id: str, girl: dict, push_now: bool) -> bool:
+    """One pending AI like (user must like back). push_now=False -> push waits for the 9/2/7 slots."""
+    if await db.matches.find_one({"$or": [{"user1_id": girl["id"], "user2_id": user_id},
+                                          {"user1_id": user_id, "user2_id": girl["id"]}]}, {"_id": 1}):
+        return False
+    now_iso = datetime.now(timezone.utc).isoformat()
+    await db.matches.insert_one({"id": str(uuid.uuid4()), "user1_id": girl["id"], "user2_id": user_id,
+                                 "user1_liked": True, "user2_liked": False, "matched": False,
+                                 "is_superlike": random.random() < 0.1, "created_at": now_iso})
+    await db.likes.insert_one({"user_id": girl["id"], "liked_user_id": user_id, "action": "like",
+                               "is_matched": False, "created_at": now_iso})
+    title = random.choice(["Someone liked your profile", "You have a new like", "Someone is interested in you"])
+    await create_in_app_notification(user_id, title, "Open HeartLink to see who liked you", "like_received",
+                                     {"action": "open_likes", "route": "/likes"})
+    try:
+        await fcm_service.send_to_user(db, user_id, title=title, body="Open HeartLink to see who liked you",
+                                       data={"type": "ai_like_received", "route": "/likes"}, automated=not push_now)
+    except Exception:
+        pass
+    return True
+
+
 async def _schedule_ai_likes_for_new_user(user_id: str, user_name: str):
-    """30 min baad AI girls staggered likes bhejti hain — real human behaviour."""
-    # Wait 12-18 min (randomized around 15 min)
-    initial_delay = random.uniform(12 * 60, 18 * 60)
-    logger.info(f"🤖 AI likes for new user {user_name} scheduled in {initial_delay/60:.0f} min")
-    await asyncio.sleep(initial_delay)
-    
-    # Verify user still exists and is male
+    """New male user: an AI profile visits at ~5 min, first AI like at ~15 min, 1-2 more spread over hours."""
+    await asyncio.sleep(random.uniform(4.5 * 60, 5.5 * 60))
     user = await db.users.find_one({"id": user_id}, {"_id": 0, "gender": 1, "is_banned": 1})
     if not user or user.get("is_banned") or user.get("gender", "").lower() != "male":
         return
-    
-    # Pick 3-5 random active AI girl profiles
     ai_girls = await db.users.find(
         {"is_ai_profile": True, "is_active_ai": True, "gender": "female"},
-        {"_id": 0, "id": 1, "name": 1, "profile_picture": 1}
-    ).to_list(None)
-    
+        {"_id": 0, "id": 1, "name": 1}).to_list(None)
     if not ai_girls:
         return
-    
-    num_likes = random.randint(3, min(5, len(ai_girls)))
-    selected_girls = random.sample(ai_girls, num_likes)
-    
-    for i, girl in enumerate(selected_girls):
+    picks = random.sample(ai_girls, min(len(ai_girls), random.randint(2, 3)))
+    try:
+        await _record_profile_view(user_id, picks[0]["id"], anonymous=True, welcome=True)
+    except Exception as e:
+        logger.error(f"welcome AI view error: {e}")
+    await asyncio.sleep(random.uniform(9 * 60, 11 * 60))
+    for i, girl in enumerate(picks):
         try:
-            # Check if already liked/matched
-            existing = await db.matches.find_one({
-                "$or": [
-                    {"user1_id": girl["id"], "user2_id": user_id},
-                    {"user1_id": user_id, "user2_id": girl["id"]},
-                ]
-            })
-            if existing:
-                continue
-            
-            # Insert as a pending like (NOT matched — user has to like back)
-            like_doc = {
-                "id": str(uuid.uuid4()),
-                "user1_id": girl["id"],
-                "user2_id": user_id,
-                "user1_liked": True,
-                "user2_liked": False,
-                "matched": False,
-                "is_superlike": random.random() < 0.15,  # 15% chance of superlike
-                "created_at": datetime.now(timezone.utc).isoformat(),
-            }
-            await db.matches.insert_one(like_doc)
-            
-            # Also track in likes collection for count
-            await db.likes.insert_one({
-                "user_id": girl["id"],
-                "liked_user_id": user_id,
-                "action": "like",
-                "is_matched": False,
-                "created_at": datetime.now(timezone.utc).isoformat(),
-            })
-            
-            # Send notification — feels like a real person liked them
-            girl_name = girl.get("name", "Someone").split()[0]
-            notif_msgs = [
-                f"Someone liked your profile!",
-                f"You got a new like!",
-                f"A girl nearby liked you!",
-                f"Someone is interested in you!",
-                f"You have a new admirer!",
-            ]
-            
-            await create_in_app_notification(
-                user_id,
-                random.choice(notif_msgs),
-                "Open HeartLink to see who liked you",
-                "like_received",
-                {"action": "open_likes", "route": "/likes"}
-            )
-            
-            # Send push notification
-            try:
-                await fcm_service.send_to_user(
-                    db, user_id,
-                    title=random.choice(notif_msgs),
-                    body="Unlock with Premium to see who!",
-                    data={"type": "ai_like_received", "route": "/likes"}, automated=True)
-            except Exception:
-                pass
-            
-            logger.info(f"🤖 AI {girl_name} liked new user {user_name} ({i+1}/{num_likes})")
-            
-            # Staggered delay between likes — 8-25 min gap (feels natural)
-            if i < num_likes - 1:
-                gap = random.uniform(8 * 60, 25 * 60)
-                await asyncio.sleep(gap)
-                
+            if await _ai_send_like(user_id, girl, push_now=(i == 0)):
+                logger.info(f"AI like for new user {user_name} ({i+1}/{len(picks)})")
         except Exception as e:
-            logger.error(f"AI like failed for {girl.get('name')}: {e}")
+            logger.error(f"AI like error: {e}")
+        if i < len(picks) - 1:
+            await asyncio.sleep(random.uniform(45 * 60, 120 * 60))
+    return
 
 
 async def _notify_new_user_joined(user_id: str, name: str, gender: str, location: str):
@@ -4927,7 +4885,7 @@ async def track_profile_view(user_id: str, viewer_id: str = None):
     return {"message": "Profile view tracked", "incognito": viewer_incognito}
 
 
-async def _record_profile_view(user_id: str, viewer_id: str, anonymous: bool = False):
+async def _record_profile_view(user_id: str, viewer_id: str, anonymous: bool = False, welcome: bool = False):
     """Store a view + notify. Free users only learn that *someone* viewed (who = Premium)."""
     recent = await db.profile_views.find_one({
         "viewed_user_id": user_id, "viewer_id": viewer_id,
@@ -4972,7 +4930,7 @@ async def _record_profile_view(user_id: str, viewer_id: str, anonymous: bool = F
         # Send OneSignal push notification for profile view
         try:
             viewer_is_ai = await db.users.count_documents({"id": real_viewer, "is_ai_profile": True}, limit=1)
-            await fcm_service.notify_profile_view(db, user_id, viewer_name, real_viewer, anonymous=not owner_premium, automated=bool(viewer_is_ai))
+            await fcm_service.notify_profile_view(db, user_id, viewer_name, real_viewer, anonymous=not owner_premium, automated=bool(viewer_is_ai) and not welcome)
         except Exception as e:
             logger.error(f"Profile view push notification failed: {e}")
         

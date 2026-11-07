@@ -45,6 +45,14 @@ export const AdProvider = ({ children, user }) => {
     }
   }, [user]);
 
+  // App-open interstitial (once per session, free users)
+  useEffect(() => {
+    if (!isInitialized || !isEligible || sessionStorage.getItem('hl_app_open_ad')) return;
+    sessionStorage.setItem('hl_app_open_ad', '1');
+    const t = setTimeout(() => { adMobService.showInterstitial(user, 'app_open').catch(() => {}); }, 3000);
+    return () => clearTimeout(t);
+  }, [isInitialized, isEligible]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Check boost status
   useEffect(() => {
     const storedBoostEnd = localStorage.getItem('heartlink_boost_end');
