@@ -95,7 +95,7 @@ const DiscoverPage = ({ user }) => {
   const isPremiumUser = user?.is_premium || user?.isPremium || user?.gender?.toLowerCase() === 'female';
   const swipeAnimation = useRef(null);
 
-  const DAILY_SWIPE_LIMIT = 50;
+  const DAILY_SWIPE_LIMIT = 5;
   const shouldShowAds = user?.gender?.toLowerCase() === 'male' && !user?.is_premium && !user?.isPremium;
   const minSwipeDistance = 50;
 
@@ -329,7 +329,7 @@ const DiscoverPage = ({ user }) => {
           const newCount = dailySwipeCount + 1;
           localStorage.setItem('heartlink_swipe_count', String(newCount));
           setDailySwipeCount(newCount);
-          if (newCount === DAILY_SWIPE_LIMIT - 5) toast.warning('Sirf 5 swipes bache hain! Go Premium for unlimited', { action: { label: 'Premium', onClick: () => navigate('/premium') }, duration: 5000 });
+          if (newCount === DAILY_SWIPE_LIMIT - 2) toast.warning('Sirf 2 swipes bache hain! Go Premium for unlimited', { action: { label: 'Premium', onClick: () => navigate('/premium') }, duration: 5000 });
         }
         // Ad tracking — fully async
         if (shouldShowAds) {

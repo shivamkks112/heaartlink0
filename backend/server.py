@@ -2514,23 +2514,19 @@ async def send_signup_otp(request: Request):
         from email_service import send_signup_otp_email
         result = await asyncio.to_thread(send_signup_otp_email, to_email=email, otp_code=otp_code, user_name="HeartLink User")
         if result.get("success"):
-            logger.info(f"Signup OTP sent to {email}")
+            logger.info(f"Signup OTP sent via {result.get('provider')} to {email[:2]}***")
+            await db.signup_funnel.insert_one({"email": email, "step": "otp_sent", "timestamp": datetime.now(timezone.utc).isoformat()})
             return {"message": "OTP sent to your email", "email": email}
         else:
-            logger.error(f"Failed to send signup OTP: {result}")
+            logger.error(f"Signup OTP send failed: provider={result.get('provider')} error={result.get('error')}")
+            await db.signup_otps.delete_one({"email": email})
             raise HTTPException(status_code=500, detail="Failed to send OTP. Please try again.")
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Signup OTP email error: {e}")
+        logger.error(f"Signup OTP email error: {type(e).__name__}")
+        await db.signup_otps.delete_one({"email": email})
         raise HTTPException(status_code=500, detail="Email service error. Please try again.")
-    
-    # Track funnel: OTP sent
-    await db.signup_funnel.insert_one({
-        "email": email,
-        "step": "otp_sent",
-        "timestamp": datetime.now(timezone.utc).isoformat()
-    })
 
 
 @api_router.post("/auth/verify-signup-otp")

@@ -56,10 +56,10 @@ def send_email_resend(to_email: str, subject: str, html_body: str) -> dict:
             "reply_to": os.environ.get("EMAIL_REPLY_TO") or None,
         }
         result = resend.Emails.send(params)
-        logger.info(f"✅ Resend email sent to {to_email} (ID: {result.get('id', 'unknown')})")
+        logger.info(f"✅ Resend email sent to {to_email[:2]}*** (ID: {result.get('id', 'unknown')})")
         return {"success": True, "message": "Email sent via Resend", "provider": "resend"}
     except Exception as e:
-        logger.error(f"❌ Resend failed: {e}")
+        logger.error(f"❌ Resend failed: {type(e).__name__}")
         return {"success": False, "error": str(e), "provider": "resend"}
 
 
@@ -82,7 +82,7 @@ def send_email_smtp(to_email: str, subject: str, html_body: str, text_body: Opti
             server.login(SMTP_USER, SMTP_PASSWORD)
             server.send_message(msg)
         
-        logger.info(f"✅ SMTP email sent to {to_email}")
+        logger.info(f"✅ SMTP email sent to {to_email[:2]}***")
         return {"success": True, "message": "Email sent via SMTP", "provider": "smtp"}
     except Exception as e:
         logger.error(f"❌ SMTP failed: {e}")
@@ -190,7 +190,7 @@ def send_email_managed(to_email: str, subject: str, html_body: str) -> dict:
             return {"success": False, "error": code or f"http_{resp.status_code}", "provider": "emergent"}
         return {"success": True, "id": resp.json().get("id"), "provider": "emergent"}
     except Exception as e:
-        logger.error(f"Managed email error: {e}")
+        logger.error(f"Managed email error: {type(e).__name__}")
         return {"success": False, "error": str(e), "provider": "emergent"}
 
 

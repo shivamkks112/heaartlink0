@@ -282,7 +282,7 @@ const ChatPage = ({ user }) => {
     const adUser = user?.gender?.toLowerCase() === 'male' && !user?.is_premium && !user?.isPremium;
     if (!adUser) return undefined;
     adsService.initialize();
-    return () => { adsService.showInterstitial().catch(() => {}); };
+    return undefined;
   }, []); // eslint-disable-line
 
   // ── Subscribe to global wsService events ──

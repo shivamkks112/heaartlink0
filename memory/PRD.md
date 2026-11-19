@@ -230,3 +230,10 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 - Ads: every 3 swipes, app-open interstitial (once/session), cooldown 45s, cap 15/session
 - AI new-user: view ~5 min, like ~15 min, more likes 45-120 min gap
 - Pending: Paytm gateway (awaiting user keys)
+
+## 2026-11 Prod fix
+- OTP: Emergent email -> Resend fallback (RESEND_API_KEY not set), OTP deleted on send failure, masked logs
+- App Open ad (unit /8855153934): cold start + resume>30s, 4-min cap, skipped on chat/auth/premium routes
+- Chat: free males unlock per chat via rewarded ad; exit-chat interstitial removed
+- Free daily swipe limit 5 (DiscoverPage, client-side)
+- Pending: Discover native ad (skipped, 5-swipe limit), Android APK build by user, Paytm

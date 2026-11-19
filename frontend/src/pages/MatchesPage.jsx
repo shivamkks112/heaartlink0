@@ -203,8 +203,7 @@ const MatchesPage = ({ user }) => {
 
   // Handle chat navigation with safety check
   const isFreeMale = user?.gender?.toLowerCase() === 'male' && !user?.is_premium && !user?.isPremium;
-  const chatLocked = () => isFreeMale;
-  const [offerOpen, setOfferOpen] = useState(false);
+  const chatLocked = (matchId) => isFreeMale && !isChatUnlocked(matchId);
 
   const needsUnlock = (matchId) => user?.gender?.toLowerCase() === 'male' && !user?.is_premium && !user?.isPremium
     && !conversations.some(c => c.match_id === matchId) && !isChatUnlocked(matchId);
@@ -745,7 +744,7 @@ const MatchesPage = ({ user }) => {
                     <div
                       key={conv.match_id}
                       data-testid="message-card"
-                      onClick={() => (chatLocked(conv.match_id) ? setOfferOpen(true) : handleChatClick(conv.match_id, conv.user))}
+                      onClick={() => (chatLocked(conv.match_id) ? setUnlockMatch({ matchId: conv.match_id, user: conv.user }) : handleChatClick(conv.match_id, conv.user))}
                       className={`relative overflow-hidden transition-all duration-200 cursor-pointer active:scale-[0.99] ${
                         conv.unreadCount > 0 ? 'ring-1.5 ring-offset-1' : ''
                       }`}
@@ -759,7 +758,7 @@ const MatchesPage = ({ user }) => {
                       {chatLocked(conv.match_id) && (
                         <div className="absolute inset-0 z-10 flex items-center justify-center" data-testid={`chat-locked-${conv.match_id}`}>
                           <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 text-white text-xs font-bold shadow">
-                            <Crown className="w-3.5 h-3.5" /> Premium se chat dekho
+                            <Crown className="w-3.5 h-3.5" /> Ad dekho, chat kholo
                           </span>
                         </div>
                       )}
@@ -959,18 +958,6 @@ const MatchesPage = ({ user }) => {
         onClose={() => setShowSafetyModal(false)} 
         onProceed={handleSafetyProceed} 
       />
-      {offerOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm" onClick={() => setOfferOpen(false)} data-testid="premium-offer-popup">
-          <div className="w-full max-w-xs rounded-3xl p-6 text-center bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="mx-auto mb-3 w-14 h-14 rounded-full flex items-center justify-center bg-gradient-to-r from-amber-400 to-orange-500"><Crown className="w-7 h-7 text-white" /></div>
-            <p className="text-xs font-bold tracking-wide text-orange-500 uppercase">Aaj ka special offer</p>
-            <h3 className="mt-1 text-xl font-bold text-gray-900">Apni chats unlock karo</h3>
-            <p className="mt-2 text-sm text-gray-600">Premium lo aur saare messages dekho, unlimited chat karo, bina ads ke.</p>
-            <button data-testid="premium-offer-cta" onClick={() => navigate('/premium')} className="mt-5 w-full py-3 rounded-full font-bold text-white bg-gradient-to-r from-amber-400 to-orange-500 active:scale-95 transition-transform">Offer dekho</button>
-            <button data-testid="premium-offer-close" onClick={() => setOfferOpen(false)} className="mt-2 w-full py-2 text-sm text-gray-500">Baad mein</button>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

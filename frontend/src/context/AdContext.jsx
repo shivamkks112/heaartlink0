@@ -47,11 +47,16 @@ export const AdProvider = ({ children, user }) => {
 
   // App-open interstitial (once per session, free users)
   useEffect(() => {
-    if (!isInitialized || !isEligible || sessionStorage.getItem('hl_app_open_ad')) return;
-    sessionStorage.setItem('hl_app_open_ad', '1');
-    const t = setTimeout(() => { adMobService.showInterstitial(user, 'app_open').catch(() => {}); }, 3000);
-    return () => clearTimeout(t);
-  }, [isInitialized, isEligible]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!isInitialized || !isEligible) return;
+    let bgAt = 0, handle;
+    const tryShow = () => adMobService._ads.showAppOpen().catch(() => {});
+    const t = sessionStorage.getItem('hl_app_open_ad') ? null : setTimeout(() => { sessionStorage.setItem('hl_app_open_ad', '1'); tryShow(); }, 2500);
+    import('@capacitor/app').then(({ App }) => App.addListener('appStateChange', ({ isActive }) => {
+      if (!isActive) { bgAt = Date.now(); return; }
+      if (bgAt && Date.now() - bgAt > 30000) tryShow();
+    })).then(h => { handle = h; }).catch(() => {});
+    return () => { if (t) clearTimeout(t); handle?.remove(); };
+  }, [isInitialized, isEligible]);
 
   // Check boost status
   useEffect(() => {

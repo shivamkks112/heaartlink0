@@ -21,6 +21,7 @@ const AD_CONFIG = {
   REWARDED_ID: 'ca-app-pub-3735972538807236/8182111801',
   BANNER_ID: 'ca-app-pub-3735972538807236/9418160097',
   NATIVE_ID: 'ca-app-pub-3735972538807236/9004238889',
+  APP_OPEN_ID: 'ca-app-pub-3735972538807236/8855153934',
 };
 
 const SWIPES_BEFORE_AD = 3;
@@ -104,12 +105,47 @@ class AdsService {
 
       // Preload interstitial (user will swipe soon)
       this._prepareInterstitial();
+      this._setupAppOpen(mod);
 
       return true;
     } catch (error) {
       this._log(`Init FAILED: ${error.message}`);
       return false;
     }
+  }
+
+  // ── App Open ad: cold start + resume after 30s+ in background, never blocks UI ──
+  _setupAppOpen(mod) {
+    const E = mod.AppOpenAdPluginEvents;
+    this.appOpenLoaded = false;
+    this._lastAppOpen = 0;
+    this._appOpenShowing = false;
+    if (!E) return;
+    this.admob.addListener(E.Loaded, () => { this.appOpenLoaded = true; });
+    this.admob.addListener(E.FailedToLoad, () => { this.appOpenLoaded = false; });
+    this.admob.addListener(E.Closed, () => { this._appOpenShowing = false; this._prepareAppOpen(); });
+    this.admob.addListener(E.FailedToShow, () => { this._appOpenShowing = false; this._prepareAppOpen(); });
+    this._prepareAppOpen();
+  }
+
+  _prepareAppOpen() {
+    if (!this.admob?.loadAppOpen || this.appOpenLoaded) return;
+    this.admob.loadAppOpen({ adId: AD_CONFIG.APP_OPEN_ID }).catch(() => { this.appOpenLoaded = false; });
+  }
+
+  async showAppOpen() {
+    const path = window.location.pathname || '';
+    if (/^\/(chat|signup|login|register|onboarding|forgot|verify|premium)/.test(path)) return false;
+    const now = Date.now();
+    if (this._appOpenShowing || this.interstitialState === AdState.SHOWING || now - this._lastAppOpen < 4 * 60 * 1000) return false;
+    if (!this.appOpenLoaded) { this._prepareAppOpen(); return false; }
+    try {
+      this._appOpenShowing = true;
+      this.appOpenLoaded = false;
+      this._lastAppOpen = now;
+      await this.admob.showAppOpen();
+      return true;
+    } catch { this._appOpenShowing = false; this._prepareAppOpen(); return false; }
   }
 
   /**
