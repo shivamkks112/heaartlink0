@@ -4535,15 +4535,21 @@ async def discover_users(request: Request, user_id: str, limit: int = 10, relati
     
     matches_task = db.matches.find(
         {"$or": [{"user1_id": user_id}, {"user2_id": user_id}]},
-        {"_id": 0, "user1_id": 1, "user2_id": 1}
-    ).limit(500).to_list(None)
+        {"_id": 0, "user1_id": 1, "user2_id": 1, "user1_liked": 1, "matched": 1, "created_at": 1}
+    ).sort("created_at", -1).limit(1000).to_list(None)
     
     # Await both tasks concurrently
     blockers, matches = await asyncio.gather(blockers_task, matches_task)
     
     blocker_ids = [u["id"] for u in blockers]
     interacted_ids = set()
+    pass_cutoff = (datetime.now(timezone.utc) - timedelta(days=3)).isoformat()
+    # My own passes older than 3 days come back into Discover
+    recycled = {m["user2_id"] for m in matches if m.get("user1_id") == user_id and not m.get("user1_liked")
+                and not m.get("matched") and (m.get("created_at") or "") < pass_cutoff}
     for m in matches:
+        if m.get("user1_id") == user_id and m["user2_id"] in recycled and not m.get("user1_liked") and not m.get("matched"):
+            continue
         interacted_ids.add(m["user1_id"])
         interacted_ids.add(m["user2_id"])
     
