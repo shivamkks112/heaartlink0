@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
-import { Heart, X, MapPin, Play, Star, SlidersHorizontal, Flame, Crown, Undo2, Lock } from 'lucide-react';
+import { Heart, X, MapPin, Play, Star, SlidersHorizontal, Flame, Crown, Undo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
@@ -908,29 +908,13 @@ const DiscoverPage = ({ user }) => {
                   className="group relative rounded-full flex items-center justify-center active:scale-[0.75] transition-transform duration-75"
                   style={{
                     width: '66px', height: '66px',
-                    background: (user?.is_premium || user?.isPremium || user?.gender?.toLowerCase() === 'female')
-                      ? 'linear-gradient(145deg, #34d399, #059669)'
-                      : 'linear-gradient(145deg, rgba(120,120,120,0.4), rgba(80,80,80,0.3))',
-                    border: (user?.is_premium || user?.isPremium || user?.gender?.toLowerCase() === 'female')
-                      ? '2px solid rgba(255,255,255,0.2)'
-                      : '2px solid rgba(245,158,11,0.5)',
-                    boxShadow: (user?.is_premium || user?.isPremium || user?.gender?.toLowerCase() === 'female')
-                      ? '0 0 24px 4px rgba(16,185,129,0.35), 0 6px 20px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.2)'
-                      : '0 0 16px 2px rgba(245,158,11,0.2), 0 4px 12px rgba(0,0,0,0.2)',
+                    background: 'linear-gradient(145deg, #34d399, #059669)',
+                    border: '2px solid rgba(255,255,255,0.2)',
+                    boxShadow: '0 0 24px 4px rgba(16,185,129,0.35), 0 6px 20px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.2)',
                   }}
                 >
-                  {(user?.is_premium || user?.isPremium || user?.gender?.toLowerCase() === 'female') ? (
-                    <Heart className="w-8 h-8 text-white drop-shadow-sm" fill="white" strokeWidth={0} />
-                  ) : (
-                    <div className="flex flex-col items-center">
-                      <Lock className="w-6 h-6 text-amber-400" />
-                      <span className="text-[8px] text-amber-400 font-bold mt-0.5">PRO</span>
-                    </div>
-                  )}
-                  {/* Pulse ring — only for premium */}
-                  {(user?.is_premium || user?.isPremium || user?.gender?.toLowerCase() === 'female') && (
-                    <span className="absolute inset-0 rounded-full animate-ping opacity-20" style={{ background: 'rgba(16,185,129,0.5)', animationDuration: '2s' }} />
-                  )}
+                  <Heart className="w-8 h-8 text-white drop-shadow-sm" fill="white" strokeWidth={0} />
+                  <span className="absolute inset-0 rounded-full animate-ping opacity-20" style={{ background: 'rgba(16,185,129,0.5)', animationDuration: '2s' }} />
                 </button>
 
                 {/* CRUSH Button — only if admin-enabled */}
