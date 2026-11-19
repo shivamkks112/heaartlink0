@@ -278,13 +278,6 @@ const DiscoverPage = ({ user }) => {
 
     // Swipe limit check FIRST (only blocking check) — uses component-level isPremiumUser
     
-    // Non-premium users cannot like — must subscribe first
-    if (!isPremiumUser && action === 'like') {
-      haptic.error();
-      setShowPremiumSheet(true);
-      return;
-    }
-    
     if (!isPremiumUser && action === 'superlike') {
       haptic.error();
       setShowPremiumSheet(true);
@@ -981,12 +974,12 @@ const DiscoverPage = ({ user }) => {
             <div className="bg-gradient-to-br from-pink-500 to-rose-600 px-6 py-8 text-center text-white">
               <Heart className="w-12 h-12 mx-auto mb-3" />
               <h2 className="text-xl font-bold">Swipes Khatam!</h2>
-              <p className="text-white/80 text-sm mt-1.5">Kal naye swipes milenge</p>
+              <p className="text-white/80 text-sm mt-1.5">Roz 5 free swipes. Ek chhota ad dekho aur 3 extra swipes turant pao (din mein 5 baar)</p>
             </div>
             <div className="p-5">
               {shouldShowAds && (
                 <button onClick={handleWatchAdForSwipes} disabled={showingAd} className="w-full bg-emerald-500 text-white p-3.5 rounded-2xl flex items-center justify-center gap-2 font-semibold active:scale-[0.98] transition-transform" data-testid="watch-ad-swipes-btn">
-                  <Play className="w-5 h-5" /> Watch Ad for +{EXTRA_SWIPES_REWARD} Swipes
+                  <Play className="w-5 h-5" /> Ad dekho, +{EXTRA_SWIPES_REWARD} swipes pao
                 </button>
               )}
             </div>

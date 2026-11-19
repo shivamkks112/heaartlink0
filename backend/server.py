@@ -5113,8 +5113,8 @@ async def undo_action(user_id: str, request: Request):
     return {"success": True, "message": "Swipe undone! Profile restored."}
 
 
-FREE_DAILY_SWIPES = 50
-EXTRA_SWIPES_PER_AD = 10
+FREE_DAILY_SWIPES = 5
+EXTRA_SWIPES_PER_AD = 3
 MAX_SWIPE_ADS_PER_DAY = 5
 MAX_LIKE_REVEALS_PER_DAY = 3
 
@@ -5291,9 +5291,6 @@ async def user_action(user_id: str, action: LikeAction):
                     {"id": user_id},
                     {"$set": {"bonus_superlike_until": ""}}
                 )
-        elif action.action == "like":
-            if not user_premium:
-                raise HTTPException(status_code=403, detail="Premium required to like. Subscribe at /premium")
 
     if action.action in ("like", "pass"):
         swiper = await db.users.find_one({"id": user_id}, {"_id": 0, "is_premium": 1, "gender": 1})

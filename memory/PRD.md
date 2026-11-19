@@ -237,3 +237,7 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 - Chat: free males unlock per chat via rewarded ad; exit-chat interstitial removed
 - Free daily swipe limit 5 (DiscoverPage, client-side)
 - Pending: Discover native ad (skipped, 5-swipe limit), Android APK build by user, Paytm
+
+## 2026-11 Swipe limits
+- Server: FREE_DAILY_SWIPES=5 (like+pass, IST day), free users can like (premium gate removed), ad reward fixed +3 swipes (max 5 ads/day) in routes/ads.py
+- Frontend: out-of-swipes modal 'Ad dekho, +3 swipes pao'

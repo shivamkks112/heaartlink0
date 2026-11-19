@@ -80,7 +80,7 @@ async def track_ad_reward(data: AdRewardRequest):
     if data.reward_type == "extra_swipes":
         ist = datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)
         day_start = (ist.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(hours=5, minutes=30)).isoformat()
-        amount = max(0, min(int(amount), 10))
+        amount = 3
 
     reward_doc = {
         "id": str(uuid.uuid4()),

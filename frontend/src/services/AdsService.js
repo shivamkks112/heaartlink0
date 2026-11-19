@@ -25,7 +25,7 @@ const AD_CONFIG = {
 };
 
 const SWIPES_BEFORE_AD = 3;
-const EXTRA_SWIPES_REWARD = 10;
+const EXTRA_SWIPES_REWARD = 3;
 
 // Ad states
 const AdState = {
