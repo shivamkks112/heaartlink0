@@ -69,12 +69,37 @@ async def track_ad_impression(data: AdImpressionRequest):
     return result
 
 
+async def _premium_pass_ad(user: dict):
+    """3 rewarded ads = 30 min full access. Max 3 passes per IST day, 20s min gap between ads."""
+    now = datetime.now(timezone.utc)
+    day = (now + timedelta(hours=5, minutes=30)).strftime("%Y-%m-%d")
+    same_day = user.get("pass_day") == day
+    count = user.get("pass_ads_count", 0) if same_day else 0
+    passes = user.get("passes_today", 0) if same_day else 0
+    if passes >= 3:
+        raise HTTPException(status_code=429, detail="Aaj ke 3 free passes ho gaye. Kal phir try karein")
+    if (user.get("pass_last_ad_at") or "") > (now - timedelta(seconds=20)).isoformat():
+        raise HTTPException(status_code=429, detail="Thoda ruk ke agla video dekhein")
+    count += 1
+    upd = {"pass_day": day, "pass_last_ad_at": now.isoformat(), "pass_ads_count": count, "passes_today": passes}
+    pass_until = None
+    if count >= 3:
+        pass_until = (now + timedelta(minutes=30)).isoformat()
+        upd.update({"pass_ads_count": 0, "passes_today": passes + 1, "premium_pass_until": pass_until})
+    await db.users.update_one({"id": user["id"]}, {"$set": upd})
+    invalidate_user_cache(user["id"])
+    return {"success": True, "ads_watched": 3 if pass_until else count, "pass_until": pass_until}
+
+
 @router.post("/ads/reward")
 async def track_ad_reward(data: AdRewardRequest):
     """Track reward earned from watching ad"""
     user = await db.users.find_one({"id": data.user_id})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+
+    if data.reward_type == "premium_pass":
+        return await _premium_pass_ad(user)
 
     amount = data.amount
     if data.reward_type == "extra_swipes":

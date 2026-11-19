@@ -42,7 +42,7 @@ async def _grant(order_id: str, payment_id: str) -> dict:
     claimed = await db.razorpay_orders.update_one(
         {"order_id": order_id, "status": {"$ne": "paid"}},
         {"$set": {"status": "paid", "payment_id": payment_id, "paid_at": datetime.now(timezone.utc).isoformat()}})
-    user = await db.users.find_one({"id": order["user_id"]}, {"_id": 0, "premium_end": 1, "is_premium": 1})
+    user = await db.users.find_one({"id": order["user_id"]}, {"_id": 0, "premium_end": 1, "is_premium": 1, "premium_pass_until": 1})
     if claimed.modified_count == 0:
         return {"success": True, "is_premium": True, "expires_at": (user or {}).get("premium_end")}
     now = datetime.now(timezone.utc)
@@ -113,7 +113,7 @@ async def razorpay_webhook(request: Request):
 
 @router.get("/razorpay/status/{user_id}")
 async def premium_status(user_id: str):
-    user = await db.users.find_one({"id": user_id}, {"_id": 0, "is_premium": 1, "premium_end": 1, "premium_source": 1})
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "is_premium": 1, "premium_pass_until": 1, "premium_end": 1, "premium_source": 1})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     payments = await db.razorpay_orders.find({"user_id": user_id, "status": "paid"}, {"_id": 0, "order_id": 1, "payment_id": 1, "amount": 1, "paid_at": 1}).sort("paid_at", -1).limit(12).to_list(None)

@@ -40,7 +40,7 @@ async def check_welcome_message(user_id: str):
 
     if not user.get("welcome_shown_at") and settings.get("new_user_enabled", True):
         # Check if user is female — show special girls onboarding
-        full_user = await db.users.find_one({"id": user_id}, {"_id": 0, "gender": 1, "is_premium": 1})
+        full_user = await db.users.find_one({"id": user_id}, {"_id": 0, "gender": 1, "is_premium": 1, "premium_pass_until": 1})
         is_girl = full_user and full_user.get("gender", "").lower() == "female"
         
         if is_girl:

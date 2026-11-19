@@ -1,3 +1,4 @@
+import { openUnlock } from '@/components/UnlockSheet';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import { Heart, MessageCircle, Sparkles, Users, Zap, Mail, Shield, AlertTriangle, X, CheckCircle, Share2, ArrowUpDown, Clock, Filter, Crown } from 'lucide-react';
@@ -949,7 +950,7 @@ const MatchesPage = ({ user }) => {
       <MatchChatUnlock
         match={unlockMatch}
         onClose={() => setUnlockMatch(null)}
-        onPremium={() => navigate('/premium')}
+        onPremium={() => openUnlock()}
         onUnlocked={() => { const m = unlockMatch; setUnlockMatch(null); handleChatClick(m.matchId, m.user, true); }}
       />
       {/* Safety Message Modal */}

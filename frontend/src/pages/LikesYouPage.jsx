@@ -1,3 +1,4 @@
+import { openUnlock } from '@/components/UnlockSheet';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Heart, Sparkles, X, Check, User, Crown, Eye, Lock, Play, ArrowDownUp, Clock, TrendingUp } from 'lucide-react';
@@ -161,7 +162,7 @@ const LikesYouPage = ({ user }) => {
           <Play className="w-4 h-4 inline mr-1" /> {revealingId === 'crush' ? '...' : 'Watch Video'}
         </button>
       )}
-      <button onClick={() => navigate('/premium')} className="mt-4 px-6 py-2.5 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-xl font-bold text-sm" data-testid={`${kind}-locked-premium-btn`}>
+      <button onClick={() => openUnlock()} className="mt-4 px-6 py-2.5 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-xl font-bold text-sm" data-testid={`${kind}-locked-premium-btn`}>
         <Crown className="w-4 h-4 inline mr-1" /> Reveal with Premium
       </button>
     </div>
@@ -346,7 +347,7 @@ const LikesYouPage = ({ user }) => {
                     </button>
                   )}
                   {!crush.is_mutual && !crush.revealed && (
-                    <button onClick={() => navigate('/premium')} className="px-3 py-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-xl text-xs font-bold" data-testid="reveal-crush-btn">
+                    <button onClick={() => openUnlock()} className="px-3 py-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-xl text-xs font-bold" data-testid="reveal-crush-btn">
                       <Crown className="w-3 h-3 inline mr-1" /> Reveal
                     </button>
                   )}
@@ -412,7 +413,7 @@ const LikesYouPage = ({ user }) => {
                 <Crown className="w-6 h-6 text-blue-500 mx-auto mb-2" />
                 <p className="font-bold text-gray-900">Upgrade to Premium</p>
                 <p className="text-sm text-gray-600 mt-1">Dekho kisne tumhari profile dekhi — full names, photos & more!</p>
-                <button onClick={() => navigate('/premium')} className="mt-3 px-6 py-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-xl font-bold text-sm" data-testid="premium-viewers-btn">
+                <button onClick={() => openUnlock()} className="mt-3 px-6 py-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-xl font-bold text-sm" data-testid="premium-viewers-btn">
                   Get Premium — ₹49/mo
                 </button>
               </div>
@@ -456,7 +457,7 @@ const LikesYouPage = ({ user }) => {
                     </div>
                   </div>
                   <Button
-                    onClick={() => navigate('/premium')}
+                    onClick={() => openUnlock()}
                     className="bg-gradient-to-r from-amber-400 to-orange-500 text-white px-4 py-2 rounded-full text-sm font-semibold"
                     data-testid="premium-banner-btn"
                   >
@@ -537,7 +538,7 @@ const LikesYouPage = ({ user }) => {
                           <Play className="w-3.5 h-3.5" /> {revealingId === likedUser.id ? '...' : 'Watch Ad'}
                         </button>
                         <button
-                          onClick={() => navigate('/premium')}
+                          onClick={() => openUnlock()}
                           className="flex-1 py-2.5 text-[11px] font-bold text-amber-700 bg-amber-50 flex items-center justify-center gap-1"
                           data-testid={`unlock-like-${likedUser.id}`}
                         >
@@ -555,7 +556,7 @@ const LikesYouPage = ({ user }) => {
                           <X className="w-3.5 h-3.5" /> Pass
                         </button>
                         <button
-                          onClick={() => (isPremium ? handleAction(likedUser.id, 'like_back') : navigate('/premium'))}
+                          onClick={() => (isPremium ? handleAction(likedUser.id, 'like_back') : openUnlock())}
                           disabled={processingId === likedUser.id}
                           data-testid={`like-back-btn-${likedUser.id}`}
                           className="flex-1 py-2.5 text-xs font-bold text-emerald-600 flex items-center justify-center gap-1 active:bg-emerald-50"

@@ -1,3 +1,4 @@
+import { openUnlock } from '@/components/UnlockSheet';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Crown, Heart, Eye, Zap, Shield, Star, Ban, Check, X } from 'lucide-react';
@@ -74,7 +75,7 @@ const PremiumBottomSheet = ({ isOpen, onClose, title = 'Premium chahiye!' }) => 
 
           {/* Subscribe CTA */}
           <button
-            onClick={() => { haptic.heavy(); onClose(); navigate('/premium'); }}
+            onClick={() => { haptic.heavy(); onClose(); openUnlock(); }}
             className="w-full py-4 rounded-2xl text-base font-bold text-white active:scale-[0.97] transition-transform"
             style={{
               background: 'linear-gradient(135deg, #F59E0B 0%, #EF6C00 100%)',

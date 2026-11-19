@@ -1,3 +1,4 @@
+import { openUnlock } from '@/components/UnlockSheet';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { Heart, X, MapPin, Play, Star, SlidersHorizontal, Flame, Crown, Undo2 } from 'lucide-react';
@@ -254,7 +255,7 @@ const DiscoverPage = ({ user }) => {
     if (action === 'crush') {
       if (!isPremiumUser) {
         toast('Secret Crush Premium feature hai', { description: 'Premium lo aur chupke se crush bhejo' });
-        navigate('/premium');
+        openUnlock();
         return;
       }
       try {
@@ -322,7 +323,7 @@ const DiscoverPage = ({ user }) => {
           const newCount = dailySwipeCount + 1;
           localStorage.setItem('heartlink_swipe_count', String(newCount));
           setDailySwipeCount(newCount);
-          if (newCount === DAILY_SWIPE_LIMIT - 2) toast.warning('Sirf 2 likes bache hain! Go Premium for unlimited', { action: { label: 'Premium', onClick: () => navigate('/premium') }, duration: 5000 });
+          if (newCount === DAILY_SWIPE_LIMIT - 2) toast.warning('Sirf 2 likes bache hain! Go Premium for unlimited', { action: { label: 'Premium', onClick: () => openUnlock() }, duration: 5000 });
         }
         // Ad tracking — fully async
         if (shouldShowAds) {
@@ -378,7 +379,7 @@ const DiscoverPage = ({ user }) => {
     if (!lastSwipedProfile || undoing) return;
     const isPremiumUser = user?.is_premium || user?.isPremium || user?.gender?.toLowerCase() === 'female';
     if (!isPremiumUser) {
-      toast.error('Undo is a Premium feature. Upgrade to use it!', { action: { label: 'Premium', onClick: () => navigate('/premium') } });
+      toast.error('Undo is a Premium feature. Upgrade to use it!', { action: { label: 'Premium', onClick: () => openUnlock() } });
       return;
     }
 
@@ -537,12 +538,12 @@ const DiscoverPage = ({ user }) => {
             }}
             data-testid="smart-nudge-banner"
           >
-            <button onClick={() => navigate('/premium')} className="flex items-center gap-2 flex-1">
+            <button onClick={() => openUnlock()} className="flex items-center gap-2 flex-1">
               <Heart className="w-5 h-5 text-white" fill="white" />
               <span className="text-white text-sm font-bold">{pendingLikes} {pendingLikes === 1 ? 'person' : 'log'} ne tumhe like kiya!</span>
             </button>
             <div className="flex items-center gap-2">
-              <button onClick={() => navigate('/premium')} className="bg-white text-amber-600 text-xs font-bold px-3 py-1.5 rounded-full active:scale-95 transition-transform">Dekho</button>
+              <button onClick={() => openUnlock()} className="bg-white text-amber-600 text-xs font-bold px-3 py-1.5 rounded-full active:scale-95 transition-transform">Dekho</button>
               <button onClick={() => setNudgeDismissed(true)} className="text-white/70 p-1"><X className="w-4 h-4" /></button>
             </div>
           </div>
@@ -809,7 +810,7 @@ const DiscoverPage = ({ user }) => {
                 data-testid="smart-nudge-banner"
               >
                 <button
-                  onClick={() => navigate('/premium')}
+                  onClick={() => openUnlock()}
                   className="flex items-center gap-2 flex-1"
                 >
                   <Heart className="w-5 h-5 text-white" fill="white" />
@@ -817,7 +818,7 @@ const DiscoverPage = ({ user }) => {
                 </button>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => navigate('/premium')}
+                    onClick={() => openUnlock()}
                     className="bg-white text-amber-600 text-xs font-bold px-3 py-1.5 rounded-full active:scale-95 transition-transform"
                   >
                     Dekho

@@ -246,3 +246,8 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 - Only likes count toward 5/day (pass unlimited); Super Like premium-only
 - Discover: DB sort online>last_active, pool max(limit*10,150); rank boosted>online>last_active(hour)>score
 - Discover: own passes (not liked/matched) older than 3 days are recycled back
+
+## 2026-11 Ad Pass
+- UnlockSheet (components/UnlockSheet.jsx, global via openUnlock()): 3 rewarded ads = 30 min full access, or Premium plans
+- Backend: reward_type premium_pass in routes/ads.py (20s gap, 3 passes/day), is_user_premium honors premium_pass_until
+- All gate navigate('/premium') replaced with openUnlock() in Discover/Likes/Matches/AiChat/OutOfSwipes/SeeWhoLiked/PremiumBottomSheet

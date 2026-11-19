@@ -1,3 +1,4 @@
+import { openUnlock } from '@/components/UnlockSheet';
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
@@ -41,7 +42,7 @@ export const AiChatLimitModal = ({ user, onClose, onExtended }) => {
         {videosLeft !== 0 && <button onClick={watchVideo} disabled={watching} className="mt-5 w-full py-3 rounded-2xl bg-pink-500 text-white font-bold flex items-center justify-center gap-2 disabled:opacity-60" data-testid="ai-chat-watch-video-btn">
           <PlayCircle className="w-5 h-5" /> {watching ? 'Loading...' : 'Watch Video (+10 msgs)'}
         </button>}
-        <button onClick={() => navigate('/premium')} className="mt-3 w-full py-3 rounded-2xl bg-amber-50 text-amber-700 font-bold flex items-center justify-center gap-2" data-testid="ai-chat-premium-btn">
+        <button onClick={() => openUnlock()} className="mt-3 w-full py-3 rounded-2xl bg-amber-50 text-amber-700 font-bold flex items-center justify-center gap-2" data-testid="ai-chat-premium-btn">
           <Crown className="w-5 h-5" /> Premium — Unlimited
         </button>
       </div>

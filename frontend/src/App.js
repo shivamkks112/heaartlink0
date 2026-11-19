@@ -1,4 +1,5 @@
 import { scrollListToTop } from '@/utils/scrollToTop';
+import { UnlockSheet } from '@/components/UnlockSheet';
 import BannerAdManager from '@/components/ads/BannerAdManager';
 import { useState, useEffect, lazy, Suspense, useRef, useCallback } from 'react';
 import '@/App.css';
@@ -265,6 +266,10 @@ function App() {
     if (storedUser) {
       try {
         const userData = JSON.parse(storedUser);
+        if (userData.pass_active && new Date(userData.premium_pass_until) < new Date()) {
+          userData.is_premium = false; userData.pass_active = false;
+          localStorage.setItem('user', JSON.stringify(userData));
+        }
         setUser(userData);
         
         // Check welcome message for returning users
@@ -461,6 +466,7 @@ function App() {
             </Suspense>
           )}
         </BrowserRouter>
+        <UnlockSheet user={user} />
       </AdWrapper>
       
       {/* PWA Install Prompt - only for non-logged in users */}

@@ -3,6 +3,7 @@
  * Shows who liked you with blur effect until ad is watched
  */
 
+import { openUnlock } from '@/components/UnlockSheet';
 import React, { useState } from 'react';
 import { Play, Heart, Eye, Lock, Crown, User, Check } from 'lucide-react';
 import { Button } from '../ui/button';
@@ -147,7 +148,7 @@ const SeeWhoLikedYouCard = ({ likedUser, onReveal, isRevealed = false }) => {
             
             {/* Premium Button - HIDDEN FOR NOW */}
             {/* <Button
-              onClick={() => navigate('/premium')}
+              onClick={() => openUnlock()}
               variant="outline"
               className="w-full bg-white/10 hover:bg-white/20 border-white/30 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2"
               data-testid="premium-reveal-btn"

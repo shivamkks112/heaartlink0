@@ -3,6 +3,7 @@
  * Offers rewarded ad option to get more swipes
  */
 
+import { openUnlock } from '@/components/UnlockSheet';
 import React, { useState } from 'react';
 import { X, Play, Heart, Crown, Gift, Sparkles } from 'lucide-react';
 import { Button } from '../ui/button';
@@ -108,7 +109,7 @@ const OutOfSwipesModal = ({ isOpen, onClose, onSwipesAdded }) => {
           <button
             onClick={() => {
               onClose();
-              navigate('/premium');
+              openUnlock();
             }}
             className="w-full bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white p-4 rounded-2xl flex items-center justify-between transition-all shadow-lg hover:shadow-xl"
             data-testid="go-premium-btn"

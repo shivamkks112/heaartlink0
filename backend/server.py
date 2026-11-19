@@ -2164,7 +2164,7 @@ async def notification_scheduler():
                     "last_active": {"$lt": cutoff_3d, "$gt": cutoff_10d},
                     "is_blocked": {"$ne": True},
                     "last_girls_retention_at": {"$not": {"$gte": cutoff_3d}},
-                }, {"_id": 0, "id": 1, "name": 1, "is_premium": 1}).to_list(100)
+                }, {"_id": 0, "id": 1, "name": 1, "is_premium": 1, "premium_pass_until": 1}).to_list(100)
                 
                 import random as _rand
                 girls_msgs = [
@@ -4906,7 +4906,7 @@ async def _record_profile_view(user_id: str, viewer_id: str, anonymous: bool = F
         }
         await db.profile_views.insert_one(view_doc)
         
-        owner = await db.users.find_one({"id": user_id}, {"_id": 0, "is_premium": 1, "gender": 1})
+        owner = await db.users.find_one({"id": user_id}, {"_id": 0, "is_premium": 1, "premium_pass_until": 1, "gender": 1})
         owner_premium = is_user_premium(owner) if owner else False
         viewer_data = await db.users.find_one({"id": viewer_id}, {"_id": 0, "name": 1, "profile_picture": 1})
         real_premium = owner_premium
@@ -5079,7 +5079,7 @@ async def undo_action(user_id: str, request: Request):
         raise HTTPException(status_code=400, detail="target_user_id required")
     
     # Check premium
-    user = await db.users.find_one({"id": user_id}, {"_id": 0, "is_premium": 1, "gender": 1})
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "is_premium": 1, "premium_pass_until": 1, "gender": 1})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     if not is_user_premium(user):
@@ -5189,7 +5189,7 @@ async def _rewards_left(user_id: str, reward_type: str, cap: int) -> int:
 
 async def _ai_chat_status(user_id: str) -> dict:
     u = await db.users.find_one({"id": user_id}, {"_id": 0, "ai_msg_day": 1, "ai_msg_count": 1, "ai_msg_extra": 1,
-                                                  "is_premium": 1, "gender": 1}) or {}
+                                                  "is_premium": 1, "premium_pass_until": 1, "gender": 1}) or {}
     if is_user_premium(u):
         return {"unlimited": True}
     used = u.get("ai_msg_count", 0) if u.get("ai_msg_day") == _ist_day() else 0
@@ -5255,7 +5255,7 @@ class LikeRevealRequest(BaseModel):
 @api_router.post("/likes/{user_id}/reveal")
 async def reveal_like_with_ad(user_id: str, data: LikeRevealRequest):
     """Free user watched a rewarded ad -> reveal one person who liked them (max 3/day)."""
-    user = await db.users.find_one({"id": user_id}, {"_id": 0, "is_premium": 1, "gender": 1, "revealed_likes": 1})
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "is_premium": 1, "premium_pass_until": 1, "gender": 1, "revealed_likes": 1})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     if is_user_premium(user):
@@ -5283,7 +5283,7 @@ async def reveal_like_with_ad(user_id: str, data: LikeRevealRequest):
 async def user_action(user_id: str, action: LikeAction):
     # ── PREMIUM GATE: Only premium users can like/superlike ──
     if action.action in ("like", "superlike"):
-        user = await db.users.find_one({"id": user_id}, {"_id": 0, "is_premium": 1, "gender": 1, "bonus_superlike_until": 1})
+        user = await db.users.find_one({"id": user_id}, {"_id": 0, "is_premium": 1, "premium_pass_until": 1, "gender": 1, "bonus_superlike_until": 1})
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         
@@ -5303,7 +5303,7 @@ async def user_action(user_id: str, action: LikeAction):
                 )
 
     if action.action == "like":
-        swiper = await db.users.find_one({"id": user_id}, {"_id": 0, "is_premium": 1, "gender": 1})
+        swiper = await db.users.find_one({"id": user_id}, {"_id": 0, "is_premium": 1, "premium_pass_until": 1, "gender": 1})
         if swiper and not is_user_premium(swiper) and not await _consume_swipe(user_id):
             raise HTTPException(status_code=429, detail="out_of_swipes")
 
@@ -5474,7 +5474,7 @@ async def mark_crush(user_id: str, target_user_id: str):
         raise HTTPException(status_code=400, detail="Cannot crush yourself")
     
     # Premium check — crush is a premium feature
-    crusher = await db.users.find_one({"id": user_id}, {"_id": 0, "name": 1, "gender": 1, "is_premium": 1})
+    crusher = await db.users.find_one({"id": user_id}, {"_id": 0, "name": 1, "gender": 1, "is_premium": 1, "premium_pass_until": 1})
     if not crusher:
         raise HTTPException(status_code=404, detail="User not found")
     if not is_user_premium(crusher):
@@ -5534,7 +5534,7 @@ async def mark_crush(user_id: str, target_user_id: str):
 async def get_crushes(user_id: str, request: Request):
     """Get users who crushed on you — premium sees full data, free sees blurred."""
     # Server-side premium check
-    requesting_user = await db.users.find_one({"id": user_id}, {"_id": 0, "is_premium": 1, "gender": 1})
+    requesting_user = await db.users.find_one({"id": user_id}, {"_id": 0, "is_premium": 1, "premium_pass_until": 1, "gender": 1})
     user_has_premium = is_user_premium(requesting_user) if requesting_user else False
     
     total = await db.crushes.count_documents({"crushed_id": user_id})
@@ -5599,7 +5599,7 @@ async def get_profile_viewers_enhanced(user_id: str, request: Request):
     })
     
     # Server-side premium check — NO client-side override
-    user = await db.users.find_one({"id": user_id}, {"_id": 0, "is_premium": 1, "gender": 1})
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "is_premium": 1, "premium_pass_until": 1, "gender": 1})
     user_has_premium = is_user_premium(user) if user else False
     if not user_has_premium:
         # Free: counts only — who viewed is a Premium feature
@@ -5755,7 +5755,7 @@ async def mark_likes_seen(user_id: str):
 async def get_likes(user_id: str, request: Request):
     """Get users who liked the current user. Non-premium see blurred/limited data."""
     # Check premium status
-    requesting_user = await db.users.find_one({"id": user_id}, {"_id": 0, "is_premium": 1, "gender": 1, "revealed_likes": 1})
+    requesting_user = await db.users.find_one({"id": user_id}, {"_id": 0, "is_premium": 1, "premium_pass_until": 1, "gender": 1, "revealed_likes": 1})
     user_has_premium = is_user_premium(requesting_user) if requesting_user else False
     revealed_ids = set((requesting_user or {}).get("revealed_likes") or [])
 
@@ -6768,7 +6768,7 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
             receiver_for_safety = await db.users.find_one({"id": message_data["receiver_id"]}, {"_id": 0, "is_ai_profile": 1, "auto_chat_enabled": 1})
             is_ai_receiver = receiver_for_safety and (receiver_for_safety.get("is_ai_profile") or receiver_for_safety.get("auto_chat_enabled"))
             if receiver_for_safety and receiver_for_safety.get("is_ai_profile"):
-                ws_sender = await db.users.find_one({"id": user_id}, {"_id": 0, "id": 1, "is_premium": 1, "gender": 1})
+                ws_sender = await db.users.find_one({"id": user_id}, {"_id": 0, "id": 1, "is_premium": 1, "premium_pass_until": 1, "gender": 1})
                 if ws_sender and not await _consume_ai_msg(ws_sender):
                     await manager.send_message(user_id, {"type": "ai_chat_limit", "match_id": message_data["match_id"],
                                                          "content": message_data.get("content", "")})
@@ -7352,7 +7352,7 @@ async def get_all_users(
         "gender": 1, "location": 1, "looking_for": 1, "bio": 1,
         "interests": 1, "profile_picture": 1, "verified": 1,
         "verification_status": 1, "is_online": 1, "is_shadow_banned": 1,
-        "is_permanently_banned": 1, "is_premium": 1, "is_admin": 1,
+        "is_permanently_banned": 1, "is_premium": 1, "premium_pass_until": 1, "is_admin": 1,
         "trust_badge_level": 1, "risk_score": 1, "created_at": 1,
         "last_active": 1, "total_matches": 1, "total_likes_received": 1,
         "selfie_verification_url": 1, "selfie_verification_status": 1,
@@ -11072,7 +11072,7 @@ async def check_invite_girl_reward(request: Request):
     if not user_id:
         raise HTTPException(status_code=400, detail="user_id required")
     
-    user = await db.users.find_one({"id": user_id}, {"_id": 0, "gender": 1, "is_premium": 1, "referral_code": 1})
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "gender": 1, "is_premium": 1, "premium_pass_until": 1, "referral_code": 1})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
@@ -11596,7 +11596,7 @@ async def get_adfree_config():
 @api_router.get("/adfree/status/{user_id}")
 async def get_adfree_status(user_id: str):
     """Check if user currently has ad-free reward active."""
-    user = await db.users.find_one({"id": user_id}, {"_id": 0, "ad_free_until": 1, "is_premium": 1, "isPremium": 1})
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "ad_free_until": 1, "is_premium": 1, "premium_pass_until": 1, "isPremium": 1})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 

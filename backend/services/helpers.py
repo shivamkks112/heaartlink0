@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 """
 HeartLink Shared Helper Functions
 Utility functions used across multiple route modules.
@@ -133,6 +134,8 @@ def is_user_premium(user: dict) -> bool:
     if not user:
         return False
     if user.get("gender", "").lower() == "female":
+        return True
+    if user.get("premium_pass_until", "") > datetime.now(timezone.utc).isoformat():
         return True
     return user.get("is_premium", False)
 
