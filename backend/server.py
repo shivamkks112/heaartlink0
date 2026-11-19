@@ -4604,7 +4604,7 @@ async def discover_users(request: Request, user_id: str, limit: int = 10, relati
     
     discover_projection["profile_picture"] = _B64_MARK("$profile_picture")
     discover_projection["photos"] = {"$map": {"input": {"$ifNull": ["$photos", []]}, "as": "p", "in": _B64_MARK("$$p")}}
-    users = await db.users.aggregate([{"$match": query}, {"$limit": limit * 3}, {"$project": discover_projection}]).to_list(None)
+    users = await db.users.aggregate([{"$match": query}, {"$sort": {"is_online": -1, "last_active": -1}}, {"$limit": max(limit * 10, 150)}, {"$project": discover_projection}]).to_list(None)
     
     # Post-process: Check gender lock from other user's perspective and Indian location
     filtered_users = []
@@ -4626,8 +4626,6 @@ async def discover_users(request: Request, user_id: str, limit: int = 10, relati
                 continue
         
         filtered_users.append(u)
-        if len(filtered_users) >= limit * 2:
-            break
     
     # === SMART RANKING ===
     current_interests = set(current_user.get("interests", []))
@@ -4708,7 +4706,13 @@ async def discover_users(request: Request, user_id: str, limit: int = 10, relati
                 score += 10
         return score
     
-    filtered_users.sort(key=rank_score, reverse=True)
+    def _boosted(p):
+        try:
+            return bool(p.get("boost_active")) and datetime.now(timezone.utc) < datetime.fromisoformat(p.get("boost_end", "").replace("Z", "+00:00"))
+        except Exception:
+            return False
+    # Priority: boosted > online now > most recently active > match score
+    filtered_users.sort(key=lambda p: (_boosted(p), bool(p.get("is_online")), (p.get("last_active") or "")[:13], rank_score(p)), reverse=True)
     ranked_users = filtered_users[:limit]
     
     # Build response with shared interest count
@@ -5292,7 +5296,7 @@ async def user_action(user_id: str, action: LikeAction):
                     {"$set": {"bonus_superlike_until": ""}}
                 )
 
-    if action.action in ("like", "pass"):
+    if action.action == "like":
         swiper = await db.users.find_one({"id": user_id}, {"_id": 0, "is_premium": 1, "gender": 1})
         if swiper and not is_user_premium(swiper) and not await _consume_swipe(user_id):
             raise HTTPException(status_code=429, detail="out_of_swipes")

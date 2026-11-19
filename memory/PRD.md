@@ -241,3 +241,7 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 ## 2026-11 Swipe limits
 - Server: FREE_DAILY_SWIPES=5 (like+pass, IST day), free users can like (premium gate removed), ad reward fixed +3 swipes (max 5 ads/day) in routes/ads.py
 - Frontend: out-of-swipes modal 'Ad dekho, +3 swipes pao'
+
+## 2026-11 Likes/Discover
+- Only likes count toward 5/day (pass unlimited); Super Like premium-only
+- Discover: DB sort online>last_active, pool max(limit*10,150); rank boosted>online>last_active(hour)>score

@@ -284,7 +284,7 @@ const DiscoverPage = ({ user }) => {
       return;
     }
 
-    if (!isPremiumUser && (action === 'like' || action === 'pass')) {
+    if (!isPremiumUser && action === 'like') {
       const currentExtra = parseInt(localStorage.getItem('heartlink_extra_swipes') || '0');
       if (dailySwipeCount >= DAILY_SWIPE_LIMIT && currentExtra <= 0) {
         setShowOutOfSwipes(true);
@@ -311,7 +311,7 @@ const DiscoverPage = ({ user }) => {
     // ALL background work — non-blocking
     (async () => {
       // Update swipe counts in background
-      if (!isPremiumUser && (action === 'like' || action === 'pass')) {
+      if (!isPremiumUser && action === 'like') {
         const currentExtra = parseInt(localStorage.getItem('heartlink_extra_swipes') || '0');
         if (dailySwipeCount >= DAILY_SWIPE_LIMIT && currentExtra > 0) {
           const newExtra = currentExtra - 1;
@@ -322,7 +322,7 @@ const DiscoverPage = ({ user }) => {
           const newCount = dailySwipeCount + 1;
           localStorage.setItem('heartlink_swipe_count', String(newCount));
           setDailySwipeCount(newCount);
-          if (newCount === DAILY_SWIPE_LIMIT - 2) toast.warning('Sirf 2 swipes bache hain! Go Premium for unlimited', { action: { label: 'Premium', onClick: () => navigate('/premium') }, duration: 5000 });
+          if (newCount === DAILY_SWIPE_LIMIT - 2) toast.warning('Sirf 2 likes bache hain! Go Premium for unlimited', { action: { label: 'Premium', onClick: () => navigate('/premium') }, duration: 5000 });
         }
         // Ad tracking — fully async
         if (shouldShowAds) {
@@ -957,13 +957,13 @@ const DiscoverPage = ({ user }) => {
             <button onClick={() => setShowOutOfSwipes(false)} className="absolute top-3 right-3 p-2 hover:bg-white/10 rounded-full z-10"><X className="w-5 h-5 text-gray-400" /></button>
             <div className="bg-gradient-to-br from-pink-500 to-rose-600 px-6 py-8 text-center text-white">
               <Heart className="w-12 h-12 mx-auto mb-3" />
-              <h2 className="text-xl font-bold">Swipes Khatam!</h2>
-              <p className="text-white/80 text-sm mt-1.5">Roz 5 free swipes. Ek chhota ad dekho aur 3 extra swipes turant pao (din mein 5 baar)</p>
+              <h2 className="text-xl font-bold">Aaj ke Likes Khatam!</h2>
+              <p className="text-white/80 text-sm mt-1.5">Roz 5 free likes. Ek chhota ad dekho aur 3 extra likes turant pao (din mein 5 baar)</p>
             </div>
             <div className="p-5">
               {shouldShowAds && (
                 <button onClick={handleWatchAdForSwipes} disabled={showingAd} className="w-full bg-emerald-500 text-white p-3.5 rounded-2xl flex items-center justify-center gap-2 font-semibold active:scale-[0.98] transition-transform" data-testid="watch-ad-swipes-btn">
-                  <Play className="w-5 h-5" /> Ad dekho, +{EXTRA_SWIPES_REWARD} swipes pao
+                  <Play className="w-5 h-5" /> Ad dekho, +{EXTRA_SWIPES_REWARD} likes pao
                 </button>
               )}
             </div>
