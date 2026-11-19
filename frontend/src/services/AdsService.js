@@ -247,9 +247,11 @@ class AdsService {
       });
 
       this._addListener(BE.FailedToLoad, (err) => {
+        if (this.bannerState === AdState.FAILED) return; // SDK repeats the same failure
         this._log(`Banner FAILED to load: ${JSON.stringify(err)}`);
         this.bannerState = AdState.FAILED;
         this._setBannerSpace(0); // no fill -> no empty gap
+        this._retryBanner();
       });
 
       if (BE.AdImpression) this._addListener(BE.AdImpression, () => this._track('banner'));
@@ -519,8 +521,25 @@ class AdsService {
    * Show banner ad at bottom of screen
    * Call when entering a screen that should show banner (e.g., Discover)
    */
-  async showBanner(bottomMargin = 0) {
+  // No fill: retry 3 times (30s, 60s, 120s) only while the screen still wants a banner
+  _retryBanner() {
+    clearTimeout(this._bannerRetryT);
+    if (!this._bannerWanted || (this._bannerRetries || 0) >= 3) return;
+    const delay = 30000 * 2 ** (this._bannerRetries || 0);
+    this._bannerRetries = (this._bannerRetries || 0) + 1;
+    this._bannerRetryT = setTimeout(async () => {
+      if (!this._bannerWanted) return;
+      try { await this.admob.removeBanner(); } catch { /* not shown */ }
+      this.bannerState = AdState.IDLE;
+      this.showBanner(this._bannerMargin || 0, true);
+    }, delay);
+  }
+
+  async showBanner(bottomMargin = 0, isRetry = false) {
     if (!this.isNative() || !this.admob) return false;
+    this._bannerWanted = true;
+    this._bannerMargin = bottomMargin;
+    if (!isRetry) this._bannerRetries = 0;
     if (this.bannerState === AdState.SHOWING) {
       this._log('Banner already showing');
       return true;
@@ -539,6 +558,7 @@ class AdsService {
       };
 
       await this.admob.showBanner(options);
+      if (this.bannerState === AdState.FAILED) return false;
       this.bannerState = AdState.SHOWING;
       this._log('Banner SHOWING');
       return true;
@@ -555,7 +575,9 @@ class AdsService {
    */
   async hideBanner() {
     if (!this.isNative() || !this.admob) return false;
-    if (this.bannerState !== AdState.SHOWING) return false;
+    this._bannerWanted = false;
+    clearTimeout(this._bannerRetryT);
+    if (this.bannerState === AdState.IDLE) return false;
 
     try {
       await this.admob.removeBanner();
