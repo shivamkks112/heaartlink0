@@ -53,6 +53,35 @@
             <strong>⚠️ Important Notice:</strong> Account deletion is permanent and cannot be undone. All your data, including profile information, matches, and messages, will be permanently deleted.
         </div>
 
+        <div style="background:#fff1f2;border-radius:16px;padding:20px;margin:20px 0">
+        <h2 style="margin-top:0">Request Account Deletion</h2>
+        <p>Apne registered email se request bhejiye. 24-48 ghante mein process hogi aur confirmation email aayega.</p>
+        <form id="delForm">
+            <input id="delEmail" type="email" required placeholder="Registered email" data-testid="deletion-email-input" style="width:100%;box-sizing:border-box;padding:12px;border:1px solid #ddd;border-radius:12px;font-size:15px;margin-bottom:10px">
+            <textarea id="delReason" rows="3" maxlength="500" placeholder="Reason (optional)" data-testid="deletion-reason-input" style="width:100%;box-sizing:border-box;padding:12px;border:1px solid #ddd;border-radius:12px;font-size:15px"></textarea>
+            <button type="submit" id="delBtn" data-testid="deletion-submit-btn" style="margin-top:12px;width:100%;padding:14px;border:0;border-radius:999px;background:#e11d48;color:#fff;font-size:16px;font-weight:700;cursor:pointer">Delete Request Bhejein</button>
+        </form>
+        <p id="delMsg" data-testid="deletion-message" style="display:none;margin-top:12px;padding:12px;border-radius:12px"></p>
+        <script>
+        document.getElementById('delForm').addEventListener('submit', async function (e) {
+          e.preventDefault();
+          var b = document.getElementById('delBtn'), m = document.getElementById('delMsg');
+          b.disabled = true; b.textContent = 'Bhej rahe hain...';
+          try {
+            var r = await fetch('/api/delete-account-request', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: document.getElementById('delEmail').value.trim(), reason: document.getElementById('delReason').value.trim() || null }) });
+            var d = await r.json();
+            if (!r.ok) throw new Error('Valid email daaliye');
+            m.style.background = '#ecfdf5'; m.style.color = '#065f46'; m.textContent = d.message; this.style.display = 'none';
+          } catch (err) {
+            m.style.background = '#fef2f2'; m.style.color = '#991b1b'; m.textContent = 'Request nahi gayi: ' + err.message + '. Ya help@heartlink.co.in pe email karein.';
+            b.disabled = false; b.textContent = 'Delete Request Bhejein';
+          }
+          m.style.display = 'block';
+        });
+        </script>
+        </div>
+
         <h2>What Data Gets Deleted?</h2>
         <p>When you delete your account, we permanently remove:</p>
         <ul>
