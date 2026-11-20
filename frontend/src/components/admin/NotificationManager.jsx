@@ -306,8 +306,16 @@ const NotificationManager = () => {
   // Get unique categories
   const categories = ['all', ...new Set(templates.map(t => t.category).filter(Boolean))];
 
+  const sendTestPush = async () => {
+    try { const { data } = await adminApi.post('/admin/test-push'); toast.success(data.message); }
+    catch (e) { toast.error(e.response?.data?.detail || 'Test push fail'); }
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-lg p-6">
+      <Button onClick={sendTestPush} className="mb-4 bg-pink-500" data-testid="admin-test-push-btn">
+        <Bell className="w-4 h-4 mr-2" /> Test notification bhejo
+      </Button>
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className="p-3 bg-gradient-to-br from-pink-100 to-orange-100 rounded-full">

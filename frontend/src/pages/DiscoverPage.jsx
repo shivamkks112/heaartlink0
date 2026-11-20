@@ -751,6 +751,15 @@ const DiscoverPage = ({ user }) => {
                   </span>
                 )}
                 <OnlineStatus isOnline={currentProfile.is_online} lastActive={currentProfile.last_active} size="sm" showText={false} />
+                {(() => {
+                  const la = currentProfile.last_active ? Date.now() - new Date(currentProfile.last_active).getTime() : Infinity;
+                  const label = currentProfile.is_online ? 'Abhi online' : la < 24 * 3600 * 1000 ? 'Aaj active' : null;
+                  return label && (
+                    <span data-testid="discover-active-badge" className={`px-2 py-0.5 rounded-full text-[10px] font-bold text-white flex-shrink-0 ${currentProfile.is_online ? 'bg-emerald-500/90' : 'bg-sky-500/90'}`}>
+                      {label}
+                    </span>
+                  );
+                })()}
               </div>
               {/* Safety Score Badge */}
               <SafetyScoreBadge profile={currentProfile} />

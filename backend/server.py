@@ -7527,6 +7527,19 @@ async def get_dashboard_stats(response: Response, admin: dict = Depends(require_
         logger.error(f"Dashboard stats error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch dashboard stats: {str(e)}")
 
+# === ADMIN: TEST PUSH ===
+@api_router.post("/admin/test-push")
+async def admin_test_push(admin: dict = Depends(require_admin)):
+    u = await db.users.find_one({"id": admin.get("id")}, {"_id": 0, "fcm_token": 1})
+    if not u or not u.get("fcm_token"):
+        raise HTTPException(status_code=400, detail="Aapke account ka device token nahi mila. Phone app mein login karke notification allow karein.")
+    from fcm_service import send_fcm
+    r = await asyncio.to_thread(send_fcm, u["fcm_token"], "HeartLink test", "Push notification sahi kaam kar raha hai", {"type": "test"})
+    if not r.get("success"):
+        raise HTTPException(status_code=502, detail=f"Push fail: {r.get('error')}")
+    return {"message": "Test notification bhej diya, phone check karein"}
+
+
 # === ADMIN: ACCOUNT DELETION REQUESTS ===
 @api_router.get("/admin/deletion-requests")
 async def admin_deletion_requests(admin: dict = Depends(require_admin)):
