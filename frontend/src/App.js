@@ -465,8 +465,8 @@ function App() {
               <DailyRewardModal user={user} onClose={() => setShowDailyReward(false)} />
             </Suspense>
           )}
+          <UnlockSheet user={user} />
         </BrowserRouter>
-        <UnlockSheet user={user} />
       </AdWrapper>
       
       {/* PWA Install Prompt - only for non-logged in users */}
