@@ -29,8 +29,8 @@ export const MatchChatUnlock = ({ match, onUnlocked, onClose, onPremium }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end bg-black/50" onClick={onClose} data-testid="chat-unlock-sheet">
-      <div className="w-full rounded-t-3xl bg-white dark:bg-gray-900 p-6 pb-8" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/50 sm:p-6" onClick={onClose} data-testid="chat-unlock-sheet">
+      <div className="w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-white dark:bg-gray-900 p-6" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 28px)' }} onClick={e => e.stopPropagation()}>
         <button onClick={onClose} className="float-right p-1 text-gray-400" data-testid="chat-unlock-close"><X className="w-5 h-5" /></button>
         <div className="flex flex-col items-center text-center">
           {photo && <img src={photo} alt="" className="w-20 h-20 rounded-full object-cover mb-3" />}

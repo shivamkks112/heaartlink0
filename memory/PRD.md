@@ -255,4 +255,4 @@ React + FastAPI + MongoDB + Capacitor (Android API 36, minSdk 23) + WebSockets +
 ## 2026-11 Admin deletions + counters + OTA
 - Admin tab 'Delete Requests' (components/admin/DeletionRequests.jsx) -> GET /api/admin/deletion-requests, POST /api/admin/deletion-requests/{id}/complete (reuses admin_delete_user)
 - Discover likes-left counter under like btn; PassTimer (UnlockSheet.jsx) top pill
-- OTA: bundle zip built at frontend/public/ota/heartlink-3.3.1.zip (yarn build -> zip build/ excluding ota). After deploy publish: POST https://www.heartlink.co.in/api/ota/publish {version:"3.3.1", url:"https://www.heartlink.co.in/ota/heartlink-3.3.1.zip"} with prod admin token (login body field email_or_phone). Versions compared as strings - keep 3.x.y with single digits or bump minor.
+- OTA: bundle zip built at frontend/public/ota/heartlink-3.3.2.zip (yarn build -> zip build/ excluding ota). After deploy publish: POST https://www.heartlink.co.in/api/ota/publish {version:"3.3.2", url:"https://www.heartlink.co.in/ota/heartlink-3.3.2.zip"} with prod admin token (login body field email_or_phone). Versions compared as strings - keep 3.x.y with single digits or bump minor.

@@ -4575,7 +4575,8 @@ async def discover_users(request: Request, user_id: str, limit: int = 10, relati
         "privacy_settings.show_profile": {"$ne": False},
         "is_shadow_banned": {"$ne": True},
         "is_permanently_banned": {"$ne": True},
-        "$or": [{"is_ai_profile": {"$ne": True}}, {"is_active_ai": True, "photos.0": {"$exists": True}}],
+        "$or": [{"is_ai_profile": {"$ne": True}, "last_active": {"$gte": (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()}},
+                {"is_active_ai": True, "photos.0": {"$exists": True}}],
     }
     
     # Gender lock logic
@@ -4620,6 +4621,10 @@ async def discover_users(request: Request, user_id: str, limit: int = 10, relati
     discover_projection["profile_picture"] = _B64_MARK("$profile_picture")
     discover_projection["photos"] = {"$map": {"input": {"$ifNull": ["$photos", []]}, "as": "p", "in": _B64_MARK("$$p")}}
     users = await db.users.aggregate([{"$match": query}, {"$sort": {"is_online": -1, "last_active": -1}}, {"$limit": max(limit * 6, 60)}, {"$project": discover_projection}]).to_list(None)
+    if len(users) < limit:  # few active in last 30 days: fall back to less-active users after them
+        query["$or"][0] = {"is_ai_profile": {"$ne": True}}
+        query["id"] = {"$nin": exclude_ids + [u["id"] for u in users]}
+        users += await db.users.aggregate([{"$match": query}, {"$sort": {"is_online": -1, "last_active": -1}}, {"$limit": max(limit * 6, 60)}, {"$project": discover_projection}]).to_list(None)
     
     # Post-process: Check gender lock from other user's perspective and Indian location
     filtered_users = []
