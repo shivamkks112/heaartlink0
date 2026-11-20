@@ -915,6 +915,11 @@ const DiscoverPage = ({ user }) => {
                   }}
                 >
                   <Heart className="w-8 h-8 text-white drop-shadow-sm" fill="white" strokeWidth={0} />
+                  {!isPremiumUser && (
+                    <span data-testid="likes-left-counter" className="absolute top-full mt-1.5 left-1/2 -translate-x-1/2 whitespace-nowrap px-2 py-0.5 rounded-full bg-black/60 text-white text-[10px] font-semibold">
+                      aaj {Math.max(0, DAILY_SWIPE_LIMIT - dailySwipeCount) + extraSwipes}/{DAILY_SWIPE_LIMIT} likes bache
+                    </span>
+                  )}
                   <span className="absolute inset-0 rounded-full animate-ping opacity-20" style={{ background: 'rgba(16,185,129,0.5)', animationDuration: '2s' }} />
                 </button>
 

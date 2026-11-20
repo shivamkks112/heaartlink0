@@ -7513,6 +7513,26 @@ async def get_dashboard_stats(response: Response, admin: dict = Depends(require_
         logger.error(f"Dashboard stats error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch dashboard stats: {str(e)}")
 
+# === ADMIN: ACCOUNT DELETION REQUESTS ===
+@api_router.get("/admin/deletion-requests")
+async def admin_deletion_requests(admin: dict = Depends(require_admin)):
+    return await db.deletion_requests.find({}, {"_id": 0}).sort("requested_at", -1).limit(200).to_list(None)
+
+
+@api_router.post("/admin/deletion-requests/{request_id}/complete")
+async def admin_complete_deletion(request_id: str, admin: dict = Depends(require_admin)):
+    req = await db.deletion_requests.find_one({"id": request_id}, {"_id": 0})
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found")
+    if req.get("status") == "completed":
+        return {"message": "Already deleted"}
+    if req.get("user_id") and await db.users.find_one({"id": req["user_id"]}, {"_id": 1}):
+        await admin_delete_user(req["user_id"], admin)
+    await db.deletion_requests.update_one({"id": request_id}, {"$set": {
+        "status": "completed", "processed_at": datetime.now(timezone.utc).isoformat(), "processed_by": admin.get("email")}})
+    return {"message": "Account deleted"}
+
+
 # === ADMIN: DELETE USER ===
 @api_router.delete("/admin/user/{user_id}")
 async def admin_delete_user(user_id: str, admin: dict = Depends(require_admin)):

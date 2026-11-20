@@ -10,6 +10,37 @@ export const openUnlock = (feature = '') => window.dispatchEvent(new CustomEvent
 
 const ADS_NEEDED = 3;
 
+export const PassTimer = ({ user }) => {
+  const [left, setLeft] = useState(0);
+  useEffect(() => {
+    if (!user?.pass_active || !user?.premium_pass_until) return undefined;
+    const end = new Date(user.premium_pass_until).getTime();
+    const tick = () => {
+      const ms = end - Date.now();
+      if (ms <= 0) {
+        const u = { ...JSON.parse(localStorage.getItem('user') || '{}'), is_premium: false, pass_active: false };
+        localStorage.setItem('user', JSON.stringify(u));
+        toast.info('Free Pass khatam ho gaya');
+        setTimeout(() => window.location.reload(), 1200);
+        return false;
+      }
+      setLeft(ms);
+      return true;
+    };
+    if (!tick()) return undefined;
+    const t = setInterval(() => { if (!tick()) clearInterval(t); }, 1000);
+    return () => clearInterval(t);
+  }, [user?.pass_active, user?.premium_pass_until]);
+  if (!left) return null;
+  const m = Math.floor(left / 60000), s = Math.floor((left % 60000) / 1000);
+  return (
+    <div data-testid="pass-timer" className="fixed left-1/2 -translate-x-1/2 z-[150] px-3 py-1 rounded-full bg-emerald-500 text-white text-xs font-bold shadow-lg pointer-events-none"
+      style={{ top: 'calc(env(safe-area-inset-top, 0px) + 6px)' }}>
+      Free Pass: {m}:{String(s).padStart(2, '0')} baaki
+    </div>
+  );
+};
+
 export const UnlockSheet = ({ user }) => {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);

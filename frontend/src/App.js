@@ -1,5 +1,5 @@
 import { scrollListToTop } from '@/utils/scrollToTop';
-import { UnlockSheet } from '@/components/UnlockSheet';
+import { UnlockSheet, PassTimer } from '@/components/UnlockSheet';
 import BannerAdManager from '@/components/ads/BannerAdManager';
 import { useState, useEffect, lazy, Suspense, useRef, useCallback } from 'react';
 import '@/App.css';
@@ -466,6 +466,7 @@ function App() {
             </Suspense>
           )}
           <UnlockSheet user={user} />
+          <PassTimer user={user} />
         </BrowserRouter>
       </AdWrapper>
       

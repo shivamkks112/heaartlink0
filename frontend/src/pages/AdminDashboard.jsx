@@ -26,6 +26,7 @@ import AdAnalyticsPanel from '@/components/admin/AdAnalyticsPanel';
 import AppUpdateSettings from '@/components/admin/AppUpdateSettings';
 import SmartNotificationConfig from '@/components/admin/SmartNotificationConfig';
 import SafetyDashboard from '@/components/admin/SafetyDashboard';
+import DeletionRequests from '@/components/admin/DeletionRequests';
 import AiReplyTiming from '@/components/admin/AiReplyTiming';
 import AiPersonaSchedule from '@/components/admin/AiPersonaSchedule';
 import AiStyleEditor from '@/components/admin/AiStyleEditor';
@@ -1310,6 +1311,13 @@ const AdminDashboard = ({ user }) => {
             <Shield className="w-4 h-4 mr-2" /> Safety
           </Button>
           <Button
+            onClick={() => setActiveTab('deletions')}
+            className={activeTab === 'deletions' ? 'bg-red-600' : 'bg-gray-200 text-gray-700'}
+            data-testid="admin-deletions-tab"
+          >
+            Delete Requests
+          </Button>
+          <Button
             onClick={() => setActiveTab('revenue')}
             className={activeTab === 'revenue' ? 'bg-emerald-600' : 'bg-gray-200 text-gray-700'}
             data-testid="admin-revenue-tab"
@@ -2135,6 +2143,7 @@ const AdminDashboard = ({ user }) => {
       {activeTab === 'safety' && (
         <SafetyDashboard />
       )}
+      {activeTab === 'deletions' && <DeletionRequests />}
 
       {/* Premium Analytics Tab */}
       {activeTab === 'premium' && (
