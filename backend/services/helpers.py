@@ -135,7 +135,7 @@ def is_user_premium(user: dict) -> bool:
         return False
     if user.get("gender", "").lower() == "female":
         return True
-    if user.get("premium_pass_until", "") > datetime.now(timezone.utc).isoformat():
+    if str(user.get("premium_pass_until") or "") > datetime.now(timezone.utc).isoformat():
         return True
     return user.get("is_premium", False)
 

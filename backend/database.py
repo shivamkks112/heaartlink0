@@ -21,10 +21,11 @@ mongo_url = os.environ.get('MONGO_URL')
 client = AsyncIOMotorClient(
     mongo_url,
     maxPoolSize=100,
-    minPoolSize=20,
+    minPoolSize=5,
     maxIdleTimeMS=60000,
-    connectTimeoutMS=3000,
-    serverSelectionTimeoutMS=3000,
+    connectTimeoutMS=10000,
+    serverSelectionTimeoutMS=10000,
+    socketTimeoutMS=20000,
     retryWrites=True,
     retryReads=True,
     compressors="zstd,snappy,zlib"

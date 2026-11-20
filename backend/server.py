@@ -267,6 +267,15 @@ async def limit_request_size(request: StarletteRequest, call_next):
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+
+from pymongo.errors import PyMongoError as _PyMongoError
+
+
+@app.exception_handler(_PyMongoError)
+async def _mongo_error_handler(request: Request, exc: _PyMongoError):
+    logger.error(f"DB error on {request.url.path}: {type(exc).__name__}")
+    return JSONResponse(status_code=503, content={"detail": "Server busy, please retry"})
+
 api_router = APIRouter(prefix="/api")
 
 
@@ -3532,7 +3541,7 @@ async def get_profile(user_id: str, request: Request, slim: bool = False):
     # Use projection to fetch only needed fields (faster query)
     user = await db.users.find_one(
         {"id": user_id},
-        {"_id": 0, "password_hash": 0}  # Exclude these fields in query itself
+        {"_id": 0, "password_hash": 0, "password_reset_code": 0, "password_reset_expires": 0, "failed_login_attempts": 0, "last_login_ip": 0}
     )
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
