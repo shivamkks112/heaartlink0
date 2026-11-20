@@ -76,8 +76,8 @@ export const UnlockSheet = ({ user }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-end justify-center bg-black/60 backdrop-blur-sm" onClick={close} data-testid="unlock-sheet">
-      <div className="w-full max-w-md rounded-t-3xl bg-gray-900 border-t border-white/10 p-6 pb-8 text-white" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm sm:p-6" onClick={close} data-testid="unlock-sheet">
+      <div className="w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-gray-900 border-t sm:border border-white/10 p-5 sm:p-7 text-white" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 24px)' }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between">
           <div>
             <h3 className="text-lg font-bold">Ye feature unlock karein</h3>
