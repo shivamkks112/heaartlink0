@@ -23,16 +23,17 @@ _firebase_ok = False
 def _init_firebase():
     global _firebase_ok
     
-    # Try HEARTLINK_ prefixed base64 key first (not overridden by K8s)
+    # Prefer FIREBASE_SERVICE_ACCOUNT_JSON; fall back to legacy HEARTLINK_FIREBASE_B64
     import base64
     b64_key = os.environ.get('HEARTLINK_FIREBASE_B64')
-    if b64_key:
+    creds_json = os.environ.get('FIREBASE_SERVICE_ACCOUNT_JSON')
+    if creds_json:
+        pass
+    elif b64_key:
         try:
             creds_json = base64.b64decode(b64_key).decode('utf-8')
         except Exception:
             creds_json = None
-    else:
-        creds_json = os.environ.get('FIREBASE_SERVICE_ACCOUNT_JSON')
     
     if not creds_json:
         logger.warning("Firebase credentials not found — push disabled")

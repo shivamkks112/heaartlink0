@@ -14,7 +14,9 @@ logger = logging.getLogger(__name__)
 # Try HEARTLINK_ prefixed base64 key first (not overridden by K8s platform)
 import base64 as _b64
 _fb_b64 = os.environ.get('HEARTLINK_FIREBASE_B64')
-if _fb_b64:
+if os.environ.get('FIREBASE_SERVICE_ACCOUNT_JSON'):
+    firebase_creds = os.environ.get('FIREBASE_SERVICE_ACCOUNT_JSON')
+elif _fb_b64:
     try:
         firebase_creds = _b64.b64decode(_fb_b64).decode('utf-8')
     except Exception:
