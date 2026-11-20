@@ -4619,7 +4619,7 @@ async def discover_users(request: Request, user_id: str, limit: int = 10, relati
     
     discover_projection["profile_picture"] = _B64_MARK("$profile_picture")
     discover_projection["photos"] = {"$map": {"input": {"$ifNull": ["$photos", []]}, "as": "p", "in": _B64_MARK("$$p")}}
-    users = await db.users.aggregate([{"$match": query}, {"$sort": {"is_online": -1, "last_active": -1}}, {"$limit": max(limit * 10, 150)}, {"$project": discover_projection}]).to_list(None)
+    users = await db.users.aggregate([{"$match": query}, {"$sort": {"is_online": -1, "last_active": -1}}, {"$limit": max(limit * 6, 60)}, {"$project": discover_projection}]).to_list(None)
     
     # Post-process: Check gender lock from other user's perspective and Indian location
     filtered_users = []

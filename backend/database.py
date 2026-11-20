@@ -71,6 +71,7 @@ async def create_indexes():
     """Create MongoDB indexes for better query performance"""
     try:
         await _safe_index(db.users, "id", unique=True, background=True)
+        await _safe_index(db.users, [("is_online", -1), ("last_active", -1)], background=True, name="discover_activity")
         try:
             await db.users.drop_index("email_1")
         except Exception:
